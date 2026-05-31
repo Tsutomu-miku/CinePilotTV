@@ -584,6 +584,9 @@ class MainActivity : ComponentActivity() {
                 file.writeText(diagnostics)
                 showDiagnosticsExported(state, file.absolutePath, returnToPlayer)
             })
+            addView(action("分享诊断") {
+                shareDiagnostics(diagnostics)
+            })
             if (returnToPlayer) {
                 addView(iconAction("返回播放器", TvIcon.BACK) { showPlayer(state) })
             } else {
@@ -593,8 +596,12 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun showDiagnosticsExported(state: TvAppState, path: String, returnToPlayer: Boolean = false) {
+        val diagnostics = TvDiagnostics.describe(state)
         setContentView(screen("诊断信息") {
             addView(label("诊断已导出：$path"))
+            addView(action("分享诊断") {
+                shareDiagnostics(diagnostics)
+            })
             addView(iconAction("返回诊断信息", TvIcon.BACK) { showDiagnostics(state, returnToPlayer) })
             if (returnToPlayer) {
                 addView(iconAction("返回播放器", TvIcon.BACK) { showPlayer(state) })
@@ -602,6 +609,19 @@ class MainActivity : ComponentActivity() {
                 addView(iconAction("返回播放准备", TvIcon.BACK) { showPlayerReady(state) })
             }
         })
+    }
+
+    private fun shareDiagnostics(diagnostics: String) {
+        val shareIntent = Intent(Intent.ACTION_SEND).apply {
+            type = "text/plain"
+            putExtra(Intent.EXTRA_SUBJECT, "CinePilot TV 诊断信息")
+            putExtra(Intent.EXTRA_TEXT, diagnostics)
+        }
+        runCatching {
+            startActivity(Intent.createChooser(shareIntent, "分享诊断"))
+        }.onFailure {
+            Toast.makeText(this, "没有可用的分享应用", Toast.LENGTH_SHORT).show()
+        }
     }
 
     private fun showPlayer(state: TvAppState) {

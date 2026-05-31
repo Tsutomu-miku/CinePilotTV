@@ -612,6 +612,16 @@ if ! grep -q '导出诊断' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/MainAct
   exit 1
 fi
 
+if ! grep -q '分享诊断' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/MainActivity.kt"; then
+  echo "MainActivity must share diagnostics through the system chooser" >&2
+  exit 1
+fi
+
+if ! grep -q 'Intent.ACTION_SEND' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/MainActivity.kt"; then
+  echo "Diagnostics sharing must use a text share intent" >&2
+  exit 1
+fi
+
 if ! grep -q 'cinepilot-diagnostics.txt' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/MainActivity.kt"; then
   echo "MainActivity must use a stable diagnostics export file name" >&2
   exit 1

@@ -99,6 +99,7 @@ Android TV 设备或模拟器上需要验证：
 - 详情页能展示服务器返回的简介、类型、时长和季集信息。
 - 播放准备页的诊断信息不包含 token，且能显示 server、item、media source、play method。
 - 诊断页可以导出不含 token 的 `cinepilot-diagnostics.txt` 到 app 私有文件目录。
+- 诊断页可以通过系统分享发送不含 token 的文本诊断快照，方便从电视设备导出排障信息。
 - 详情页展示可读的恢复播放时间，不显示原始协议 ticks。
 - 详情页的音轨 / 字幕入口能列出 playback info 中的多个 media sources、audio streams 和 subtitle streams，并把选择的 media source id / stream index 用于播放准备。
 - 详情页必须能看见字幕能力，字幕选择必须能进入并选择具体 subtitle stream。
