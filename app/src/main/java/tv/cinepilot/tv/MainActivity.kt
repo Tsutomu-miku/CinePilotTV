@@ -9,56 +9,42 @@ import android.view.View
 import android.widget.EditText
 import android.widget.ImageView
 import android.widget.TextView
-import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.OnBackPressedCallback
 import androidx.lifecycle.ViewModelProvider
 import java.util.concurrent.Executors
 import tv.cinepilot.core.protocol.MediaBrowserException
 import tv.cinepilot.core.protocol.MediaItemSummary
-import tv.cinepilot.core.protocol.PlaybackInfo
-import tv.cinepilot.core.protocol.PlaybackSelectionPreferences
 import tv.cinepilot.core.protocol.QuickConnectSession
 import tv.cinepilot.core.protocol.ServerFlavor
-import tv.cinepilot.core.tv.HomeRow
 import tv.cinepilot.core.tv.TvAppState
-import tv.cinepilot.core.tv.TvDiagnostics
 import tv.cinepilot.core.tv.TvRoute
 import tv.cinepilot.core.tv.TvWorkflowController
 import tv.cinepilot.tv.auth.loginScreen
 import tv.cinepilot.tv.auth.quickConnectScreen
 import tv.cinepilot.tv.auth.serverEntryScreen
-import tv.cinepilot.tv.details.detailsRouteScreen
 import tv.cinepilot.tv.home.homeRouteScreen
 import tv.cinepilot.tv.home.searchScreen
 import tv.cinepilot.tv.player.Media3PlayerHost
-import tv.cinepilot.tv.playback.diagnosticsExportedScreen
-import tv.cinepilot.tv.playback.diagnosticsScreen
-import tv.cinepilot.tv.playback.playbackOptionsScreen
-import tv.cinepilot.tv.playback.playbackSpeedScreen
-import tv.cinepilot.tv.playback.playerReadyScreen
+import tv.cinepilot.tv.playback.PlaybackRouteController
 import tv.cinepilot.tv.runtime.PrimaryImageLoader
 import tv.cinepilot.tv.runtime.QuickConnectPoller
 import tv.cinepilot.tv.runtime.RecentAccountStore
 import tv.cinepilot.tv.ui.action
 import tv.cinepilot.tv.ui.label
-import tv.cinepilot.tv.ui.playerScreen
 import tv.cinepilot.tv.ui.screen
-import tv.cinepilot.tv.ui.section
-import tv.cinepilot.tv.ui.TvIcon
 import tv.cinepilot.tv.ui.tvErrorMessage
 
 class MainActivity : ComponentActivity() {
     private lateinit var viewModel: CinePilotViewModel
     private lateinit var playerHost: Media3PlayerHost
+    private lateinit var playbackRoutes: PlaybackRouteController
     private lateinit var primaryImageLoader: PrimaryImageLoader
     private lateinit var quickConnectPoller: QuickConnectPoller
     private val executor = Executors.newSingleThreadExecutor()
     private val mainHandler = Handler(Looper.getMainLooper())
     private val recentAccountStore by lazy { RecentAccountStore(this) }
     private var searchVisible = false
-    private var selectedPlaybackInfo: PlaybackInfo? = null
-    private var lastPlaybackBackPressAt = 0L
     private var quickConnectStatus: TextView? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -66,6 +52,15 @@ class MainActivity : ComponentActivity() {
         viewModel = ViewModelProvider(this, CinePilotViewModel.factory(applicationContext))[CinePilotViewModel::class.java]
         playerHost = Media3PlayerHost(this, viewModel.mediaBrowserClient)
         primaryImageLoader = PrimaryImageLoader(viewModel.mediaBrowserClient)
+        playbackRoutes = PlaybackRouteController(
+            activity = this,
+            workflowController = viewModel.workflowController,
+            playerHost = playerHost,
+            runTask = ::runTask,
+            showHome = ::showHome,
+            showError = ::showError,
+            loadPosterImage = ::loadPrimaryImage,
+        )
         quickConnectPoller = QuickConnectPoller(
             mainHandler,
             executor,
@@ -130,27 +125,9 @@ class MainActivity : ComponentActivity() {
                 showHome(viewModel.workflowController.state())
             }
             TvRoute.PLAYER -> {
-                handlePlaybackBackPressed()
+                playbackRoutes.handlePlaybackBackPressed()
             }
         }
-    }
-
-    private fun handlePlaybackBackPressed() {
-        val now = System.currentTimeMillis()
-        if (now - lastPlaybackBackPressAt > PLAYBACK_BACK_EXIT_WINDOW_MS) {
-            lastPlaybackBackPressAt = now
-            Toast.makeText(this, "再次按返回退出播放", Toast.LENGTH_SHORT).show()
-            return
-        }
-        exitPlaybackToDetails()
-    }
-
-    private fun exitPlaybackToDetails() {
-        lastPlaybackBackPressAt = 0L
-        playerHost.release()
-        viewModel.workflowController.back()
-        viewModel.workflowController.state().selectedItem()?.let(::showDetails)
-            ?: showHome(viewModel.workflowController.state())
     }
 
     private fun showServerEntry() {
@@ -323,7 +300,7 @@ class MainActivity : ComponentActivity() {
             onBackInBrowse = { showHome(viewModel.workflowController.back()) },
             onPreviousPage = ::previousBrowsePage,
             onNextPage = ::nextBrowsePage,
-            onOpen = ::openMediaItem,
+            onOpen = playbackRoutes::openMediaItem,
             loadImage = ::loadPrimaryImage,
             onFocusedCard = { focusedCard = it },
         ))
@@ -385,242 +362,8 @@ class MainActivity : ComponentActivity() {
         }
     }
 
-    private fun showDetails(item: MediaItemSummary) {
-        showDetails(item, null)
-    }
-
-    private fun showDetails(item: MediaItemSummary, playbackInfo: PlaybackInfo?) {
-        if (playbackInfo != null && playbackInfo.itemId() == item.id()) {
-            selectedPlaybackInfo = playbackInfo
-        }
-        val effectivePlaybackInfo = playbackInfo ?: selectedPlaybackInfo?.takeIf { it.itemId() == item.id() }
-        setContentView(detailsRouteScreen(
-            item = item,
-            playbackInfo = effectivePlaybackInfo,
-            loadPosterImage = ::loadPrimaryImage,
-            onPreparePlayback = ::preparePlaybackWith,
-            onPlaybackOptions = { loadPlaybackOptions(item) },
-            onPlaybackSpeed = { showPlaybackSpeedOptions(item) },
-            onSeriesNextUp = ::openSeriesNextUp,
-            onOpenFolder = {
-                runTask("正在打开目录...", {
-                    viewModel.workflowController.openFolder(item.id(), item.name())
-                }) {
-                    showHome(viewModel.workflowController.state())
-                }
-            },
-            onBackHome = {
-                viewModel.workflowController.back()
-                showHome(viewModel.workflowController.state())
-            },
-        ))
-    }
-
     private fun loadPrimaryImage(target: ImageView, item: MediaItemSummary, width: Int, height: Int) {
         primaryImageLoader.load(this, viewModel.workflowController.state().authenticated(), target, item, width, height)
-    }
-
-    private fun loadPlaybackOptions(item: MediaItemSummary) {
-        showLoading("正在读取音轨和字幕...")
-        executor.execute {
-            try {
-                val choices = viewModel.workflowController.loadPlaybackChoices(null)
-                runOnUiThread { showPlaybackOptions(item, choices) }
-            } catch (error: Throwable) {
-                runOnUiThread { showError(error) }
-            }
-        }
-    }
-
-    private fun showPlaybackOptions(item: MediaItemSummary, playbackInfo: PlaybackInfo) {
-        if (playbackInfo.itemId() == item.id()) {
-            selectedPlaybackInfo = playbackInfo
-        }
-        setContentView(playbackOptionsScreen(
-            item = item,
-            playbackInfo = playbackInfo,
-            onDefault = { preparePlaybackWith(null) },
-            onSource = { sourceId -> preparePlaybackWith(sourcePreferences(item, sourceId)) },
-            onAudio = { sourceId, audioStreamIndex ->
-                preparePlaybackWith(trackPreferences(item, sourceId, audioStreamIndex, null))
-            },
-            onDisableSubtitles = { sourceId ->
-                preparePlaybackWith(trackPreferences(item, sourceId, null, -1))
-            },
-            onSubtitle = { sourceId, subtitleStreamIndex ->
-                preparePlaybackWith(trackPreferences(item, sourceId, null, subtitleStreamIndex))
-            },
-            onBackDetails = { showDetails(item) },
-        ))
-    }
-
-    private fun showPlaybackSpeedOptions(item: MediaItemSummary) {
-        setContentView(playbackSpeedScreen(
-            onSpeed = { rate -> preparePlaybackWith(speedPreferences(item, rate)) },
-            onBackDetails = { showDetails(item) },
-        ))
-    }
-
-    private fun showPlayerReady(state: TvAppState) {
-        setContentView(playerReadyScreen(
-            state = state,
-            onOpenPlayer = { showPlayer(state) },
-            onDiagnostics = { showDiagnostics(state) },
-            onBackDetails = {
-                viewModel.workflowController.back()
-                viewModel.workflowController.state().selectedItem()?.let(::showDetails)
-            },
-        ))
-    }
-
-    private fun showDiagnostics(state: TvAppState, returnToPlayer: Boolean = false) {
-        val diagnostics = TvDiagnostics.describe(state)
-        setContentView(diagnosticsScreen(
-            diagnostics = diagnostics,
-            returnToPlayer = returnToPlayer,
-            onExport = {
-                val file = filesDir.resolve("cinepilot-diagnostics.txt")
-                file.writeText(diagnostics)
-                showDiagnosticsExported(state, file.absolutePath, returnToPlayer)
-            },
-            onShare = { shareDiagnostics(diagnostics) },
-            onBackDiagnosticsTarget = { showDiagnosticsTarget(state, returnToPlayer) },
-        ))
-    }
-
-    private fun showDiagnosticsExported(state: TvAppState, path: String, returnToPlayer: Boolean = false) {
-        val diagnostics = TvDiagnostics.describe(state)
-        setContentView(diagnosticsExportedScreen(
-            path = path,
-            returnToPlayer = returnToPlayer,
-            onShare = { shareDiagnostics(diagnostics) },
-            onBackDiagnostics = { showDiagnostics(state, returnToPlayer) },
-            onBackDiagnosticsTarget = { showDiagnosticsTarget(state, returnToPlayer) },
-        ))
-    }
-
-    private fun showDiagnosticsTarget(state: TvAppState, returnToPlayer: Boolean) {
-        if (returnToPlayer) {
-            showPlayer(state)
-        } else {
-            showPlayerReady(state)
-        }
-    }
-
-    private fun shareDiagnostics(diagnostics: String) {
-        val shareIntent = Intent(Intent.ACTION_SEND).apply {
-            type = "text/plain"
-            putExtra(Intent.EXTRA_SUBJECT, "CinePilot TV 诊断信息")
-            putExtra(Intent.EXTRA_TEXT, diagnostics)
-        }
-        runCatching {
-            startActivity(Intent.createChooser(shareIntent, "分享诊断"))
-        }.onFailure {
-            Toast.makeText(this, "没有可用的分享应用", Toast.LENGTH_SHORT).show()
-        }
-    }
-
-    private fun showPlayer(state: TvAppState) {
-        lastPlaybackBackPressAt = 0L
-        val playerView = playerHost.createPlayerView(
-            state = state,
-            onPlaybackError = { error ->
-                runOnUiThread {
-                    playerHost.release()
-                    showError(error)
-                }
-            },
-            onPlaybackEnded = {
-                runOnUiThread {
-                    if (viewModel.workflowController.state().route() != TvRoute.PLAYER) {
-                        return@runOnUiThread
-                    }
-                    playerHost.release()
-                    viewModel.workflowController.back()
-                    viewModel.workflowController.state().selectedItem()?.let(::showDetails)
-                        ?: showHome(viewModel.workflowController.state())
-                }
-            },
-        )
-        setContentView(playerScreen(
-            playerView = playerView,
-        ))
-        playerView.post { playerView.requestFocus() }
-    }
-
-    private fun itemButton(row: HomeRow, item: MediaItemSummary): View {
-        return action(item.name().ifBlank { item.id() }) {
-            openMediaItem(row, item)
-        }.also {
-            it.contentDescription = "${row.title()} ${item.name()}"
-        }
-    }
-
-    private fun openMediaItem(row: HomeRow, item: MediaItemSummary) {
-        viewModel.workflowController.focusItem(row.id(), item.id())
-        val loadingMessage = if (item.playable()) "正在打开详情..." else "正在打开目录..."
-        var playbackInfo: PlaybackInfo? = null
-        runTask(loadingMessage, {
-            if (item.playable()) {
-                viewModel.workflowController.openItem(item.id())
-                playbackInfo = runCatching {
-                    viewModel.workflowController.loadPlaybackChoices(null)
-                }.getOrNull()
-            } else {
-                viewModel.workflowController.openFolder(item.id(), item.name())
-            }
-        }) {
-            val state = viewModel.workflowController.state()
-            if (item.playable()) {
-                state.selectedItem()?.let { selectedItem -> showDetails(selectedItem, playbackInfo) }
-            } else {
-                showHome(state)
-            }
-        }
-    }
-
-    private fun openSeriesNextUp() {
-        var playbackInfo: PlaybackInfo? = null
-        runTask("正在打开本剧下一集...", {
-            val nextItem = viewModel.workflowController.nextUpForSelectedSeries()
-            viewModel.workflowController.openItem(nextItem.id())
-            playbackInfo = runCatching {
-                viewModel.workflowController.loadPlaybackChoices(null)
-            }.getOrNull()
-        }) {
-            viewModel.workflowController.state().selectedItem()?.let { selectedItem ->
-                showDetails(selectedItem, playbackInfo)
-            } ?: showHome(viewModel.workflowController.state())
-        }
-    }
-
-    private fun preparePlaybackWith(preferences: PlaybackSelectionPreferences?) {
-        runTask("正在准备播放...", {
-            viewModel.workflowController.preparePlayback(preferences)
-        }) {
-            showPlayer(viewModel.workflowController.state())
-        }
-    }
-
-    private fun trackPreferences(
-        item: MediaItemSummary,
-        mediaSourceId: String,
-        audioStreamIndex: Int?,
-        subtitleStreamIndex: Int?,
-    ): PlaybackSelectionPreferences {
-        val startTimeTicks = if (item.hasResumePosition()) item.userData().playbackPositionTicks() else 0L
-        return PlaybackSelectionPreferences(startTimeTicks, audioStreamIndex, subtitleStreamIndex, null, 0, 0, 0)
-            .withMediaSourceId(mediaSourceId)
-    }
-
-    private fun sourcePreferences(item: MediaItemSummary, mediaSourceId: String): PlaybackSelectionPreferences {
-        val startTimeTicks = if (item.hasResumePosition()) item.userData().playbackPositionTicks() else 0L
-        return PlaybackSelectionPreferences(startTimeTicks, null, null, null, 0, 0, 0).withMediaSourceId(mediaSourceId)
-    }
-
-    private fun speedPreferences(item: MediaItemSummary, rate: Float): PlaybackSelectionPreferences {
-        val startTimeTicks = if (item.hasResumePosition()) item.userData().playbackPositionTicks() else 0L
-        return PlaybackSelectionPreferences(startTimeTicks, null, null, null, 0, 0, 0).withPlaybackRate(rate)
     }
 
     private fun showLoading(message: String) {
@@ -646,7 +389,7 @@ class MainActivity : ComponentActivity() {
             }
             addView(label(message))
             if (state.selectedItem() != null && !authenticationExpired) {
-                addView(action("返回详情") { state.selectedItem()?.let(::showDetails) })
+                addView(action("返回详情") { state.selectedItem()?.let(playbackRoutes::showDetails) })
             }
             if (state.homeRows().isNotEmpty() && !authenticationExpired) {
                 addView(action("返回首页") { showHome(state) })
@@ -686,10 +429,6 @@ class MainActivity : ComponentActivity() {
     private fun forgetAuthenticatedAccount() {
         val authenticated = viewModel.workflowController.state().authenticated() ?: return
         recentAccountStore.forget(authenticated)
-    }
-
-    companion object {
-        private const val PLAYBACK_BACK_EXIT_WINDOW_MS = 2_000L
     }
 
 }

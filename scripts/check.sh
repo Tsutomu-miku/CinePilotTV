@@ -5,6 +5,7 @@ ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 BUILD_DIR="$ROOT_DIR/build/check"
 MAIN_CLASSES="$BUILD_DIR/main"
 TEST_CLASSES="$BUILD_DIR/test"
+PLAYBACK_ROUTE_CONTROLLER="$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/playback/PlaybackRouteController.kt"
 
 required_docs=(
   "$ROOT_DIR/README.md"
@@ -264,8 +265,8 @@ if ! grep -q 'openFirstChild' "$ROOT_DIR/core/src/main/java/tv/cinepilot/core/tv
   exit 1
 fi
 
-if ! grep -q 'openFolder' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/MainActivity.kt"; then
-  echo "MainActivity must open folders as browsable rows" >&2
+if ! grep -q 'openFolder' "$PLAYBACK_ROUTE_CONTROLLER"; then
+  echo "Playback route controller must open folders as browsable rows" >&2
   exit 1
 fi
 
@@ -532,8 +533,8 @@ if [[ ! -x "$ROOT_DIR/scripts/qa-login.sh" ]]; then
   exit 1
 fi
 
-if ! grep -q 'playerView.requestFocus' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/MainActivity.kt"; then
-  echo "MainActivity must focus the Media3 player view" >&2
+if ! grep -q 'playerView.requestFocus' "$PLAYBACK_ROUTE_CONTROLLER"; then
+  echo "Playback route controller must focus the Media3 player view" >&2
   exit 1
 fi
 
@@ -564,22 +565,27 @@ if grep -q 'screen("播放器")' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/Ma
   exit 1
 fi
 
-if ! grep -q 'handlePlaybackBackPressed' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/MainActivity.kt"; then
-  echo "MainActivity must guard Back before exiting playback" >&2
+if [[ ! -s "$PLAYBACK_ROUTE_CONTROLLER" ]]; then
+  echo "Missing dedicated playback route controller" >&2
   exit 1
 fi
 
-if ! grep -q '再次按返回退出播放' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/MainActivity.kt"; then
+if ! grep -q 'handlePlaybackBackPressed' "$PLAYBACK_ROUTE_CONTROLLER"; then
+  echo "Playback route controller must guard Back before exiting playback" >&2
+  exit 1
+fi
+
+if ! grep -q '再次按返回退出播放' "$PLAYBACK_ROUTE_CONTROLLER"; then
   echo "Playback exit guard must use a Chinese toast prompt" >&2
   exit 1
 fi
 
-if ! grep -q 'Toast.makeText' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/MainActivity.kt"; then
+if ! grep -q 'Toast.makeText' "$PLAYBACK_ROUTE_CONTROLLER"; then
   echo "Playback exit guard must use Toast instead of replacing the player screen" >&2
   exit 1
 fi
 
-if grep -q 'AlertDialog.Builder\|screen("退出播放' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/MainActivity.kt"; then
+if grep -q 'AlertDialog.Builder\|screen("退出播放' "$PLAYBACK_ROUTE_CONTROLLER"; then
   echo "Playback exit guard must not show a blocking dialog or replace the player screen" >&2
   exit 1
 fi
@@ -649,8 +655,8 @@ if ! grep -q '播放地址已准备' "$ROOT_DIR/app/src/main/java/tv/cinepilot/t
   exit 1
 fi
 
-if ! grep -q 'showPlayer(viewModel.workflowController.state())' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/MainActivity.kt"; then
-  echo "MainActivity must enter the Media3 player directly after preparing playback" >&2
+if ! grep -q 'showPlayer(workflowController.state())' "$PLAYBACK_ROUTE_CONTROLLER"; then
+  echo "Playback route controller must enter the Media3 player directly after preparing playback" >&2
   exit 1
 fi
 
@@ -669,18 +675,18 @@ if ! grep -q '分享诊断' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/playbac
   exit 1
 fi
 
-if ! grep -q 'Intent.ACTION_SEND' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/MainActivity.kt"; then
+if ! grep -q 'Intent.ACTION_SEND' "$PLAYBACK_ROUTE_CONTROLLER"; then
   echo "Diagnostics sharing must use a text share intent" >&2
   exit 1
 fi
 
-if ! grep -q 'cinepilot-diagnostics.txt' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/MainActivity.kt"; then
-  echo "MainActivity must use a stable diagnostics export file name" >&2
+if ! grep -q 'cinepilot-diagnostics.txt' "$PLAYBACK_ROUTE_CONTROLLER"; then
+  echo "Playback route controller must use a stable diagnostics export file name" >&2
   exit 1
 fi
 
-if ! grep -q '正在打开详情' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/MainActivity.kt"; then
-  echo "MainActivity must load media details through the background task path" >&2
+if ! grep -q '正在打开详情' "$PLAYBACK_ROUTE_CONTROLLER"; then
+  echo "Playback route controller must load media details through the background task path" >&2
   exit 1
 fi
 
@@ -749,8 +755,8 @@ if ! grep -q 'nextUpForSelectedSeries' "$ROOT_DIR/core/src/main/java/tv/cinepilo
   exit 1
 fi
 
-if ! grep -q 'sourcePreferences' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/MainActivity.kt"; then
-  echo "MainActivity must expose media source selection" >&2
+if ! grep -q 'sourcePreferences' "$PLAYBACK_ROUTE_CONTROLLER"; then
+  echo "Playback route controller must expose media source selection" >&2
   exit 1
 fi
 
