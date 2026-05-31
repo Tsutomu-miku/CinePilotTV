@@ -15,6 +15,7 @@ import androidx.media3.ui.PlayerView
 import java.util.concurrent.Executors
 import tv.cinepilot.core.protocol.AuthSession
 import tv.cinepilot.core.protocol.MediaBrowserClient
+import tv.cinepilot.core.protocol.MediaTicks
 import tv.cinepilot.core.protocol.PlayMethod
 import tv.cinepilot.core.protocol.PlayableMedia
 import tv.cinepilot.core.protocol.PlaybackUrlAuthorizer
@@ -57,7 +58,10 @@ class Media3PlayerHost(
         )
         val nextPlayer = ExoPlayer.Builder(context).build().apply {
             addListener(playbackBridge)
-            setMediaItem(mediaItem(playable, authorizedPlaybackUrl, authenticated.session()))
+            setMediaItem(
+                mediaItem(playable, authorizedPlaybackUrl, authenticated.session()),
+                initialPlayerPositionMillis(playable),
+            )
             playable.playbackRate()?.takeIf { it > 0f && it != 1f }?.let(::setPlaybackSpeed)
             prepare()
             playWhenReady = true
@@ -174,6 +178,13 @@ class Media3PlayerHost(
             ))
         }
         return builder.build()
+    }
+
+    private fun initialPlayerPositionMillis(playable: PlayableMedia): Long {
+        if (playable.playMethod() == PlayMethod.TRANSCODE) {
+            return 0L
+        }
+        return MediaTicks.toMilliseconds(playable.startTimeTicks())
     }
 
     private fun subtitleMimeType(codec: String, url: String): String {

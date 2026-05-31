@@ -56,6 +56,20 @@ public record PlaybackSelectionPreferences(
         return new PlaybackSelectionPreferences(startTimeTicks, null, null, 2, 1280, 720, 4_000_000, null, null);
     }
 
+    public PlaybackSelectionPreferences withStartTimeTicks(long value) {
+        return new PlaybackSelectionPreferences(
+                value,
+                audioStreamIndex,
+                subtitleStreamIndex,
+                maxAudioChannels,
+                maxWidth,
+                maxHeight,
+                maxBitRate,
+                mediaSourceId,
+                playbackRate
+        );
+    }
+
     public PlaybackSelectionPreferences withMediaSourceId(String value) {
         return new PlaybackSelectionPreferences(
                 startTimeTicks,

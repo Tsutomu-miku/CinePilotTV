@@ -36,6 +36,7 @@ public final class ProtocolCoreTest {
         schedulesPlaybackCheckIns();
         clientSendsPlaybackCheckIns();
         playbackSessionControllerSendsPlayerEvents();
+        playbackSessionControllerOffsetsTranscodeProgressByStartTicks();
         authorizesPlaybackUrls();
         System.out.println("ProtocolCoreTest passed");
     }
@@ -531,6 +532,7 @@ public final class ProtocolCoreTest {
         assertTrue(fallback.request().url(address).contains("SubtitleMethod=Hls"), "fallback subtitle method query");
         assertEquals(2, fallback.audioStreamIndex(), "explicit audio preference wins");
         assertEquals(5, fallback.subtitleStreamIndex(), "explicit subtitle preference wins");
+        assertEquals(MediaTicks.fromMilliseconds(60_000), fallback.startTimeTicks(), "fallback keeps start ticks");
         assertEquals(Float.valueOf(1.25f), fallback.playbackRate(), "explicit playback rate preference wins");
 
         MediaSourceInfo directPlayWithoutUrl = MediaSourceInfo.builder("source-static")
@@ -1072,6 +1074,41 @@ public final class ProtocolCoreTest {
         assertTrue(transport.requests.get(8).bodyJson().contains("\"PlaybackRate\":1.25"), "controller playback rate persists to stop");
         assertTrue(transport.requests.get(8).bodyJson().contains("\"SubtitleOffset\":250"), "controller subtitle offset persists to stop");
         assertEquals("/Sessions/Playing/Stopped", transport.requests.get(8).path(), "controller stop path");
+    }
+
+    private static void playbackSessionControllerOffsetsTranscodeProgressByStartTicks() {
+        FakeTransport transport = new FakeTransport();
+        transport.enqueue(204, "");
+        ClientIdentity client = new ClientIdentity("CinePilot TV", "Living Room TV", "device-1", "0.1.0");
+        AuthenticatedServer authenticated = new AuthenticatedServer(
+                new ServerIdentity(MediaServerAddress.parse("https://media.example.com/jellyfin"), "server-1", ServerFlavor.JELLYFIN, "Jellyfin"),
+                new AuthSession("server-1", "user-1", "token-1", client)
+        );
+        MediaBrowserClient mediaClient = new MediaBrowserClient(transport, new InMemorySessionRepository(), client);
+        PlayableMedia playable = new PlayableMedia(
+                "item-1",
+                "source-1",
+                "play-session-1",
+                PlayMethod.TRANSCODE,
+                "https://media.example.com/Videos/item-1/master.m3u8",
+                null,
+                null,
+                null,
+                "",
+                "",
+                "",
+                "",
+                MediaTicks.fromMilliseconds(60_000),
+                null
+        );
+        PlaybackSessionController controller = new PlaybackSessionController(mediaClient, authenticated, playable);
+
+        controller.start(0L, 5_000L);
+
+        assertTrue(
+                transport.requests.get(0).bodyJson().contains("\"PositionTicks\":650000000"),
+                "transcode playback report includes stream start offset"
+        );
     }
 
     private static void authorizesPlaybackUrls() {

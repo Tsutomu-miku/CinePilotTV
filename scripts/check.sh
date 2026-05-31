@@ -489,6 +489,16 @@ if ! grep -q 'PlaybackSessionController' "$ROOT_DIR/app/src/main/java/tv/cinepil
   exit 1
 fi
 
+if ! grep -q 'startTimeTicks' "$ROOT_DIR/core/src/main/java/tv/cinepilot/core/protocol/PlayableMedia.java"; then
+  echo "PlayableMedia must preserve playback start ticks" >&2
+  exit 1
+fi
+
+if ! grep -q 'initialPlayerPositionMillis' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/player/Media3PlayerHost.kt"; then
+  echo "Media3PlayerHost must seek direct playback to the resume start position" >&2
+  exit 1
+fi
+
 if ! grep -q 'SubtitleOffset' "$ROOT_DIR/core/src/main/java/tv/cinepilot/core/protocol/PlaybackReport.java"; then
   echo "PlaybackReport must include subtitle offset in playback check-ins" >&2
   exit 1

@@ -228,9 +228,9 @@ public final class TvWorkflowController {
             throw new IllegalStateException("authenticated selected item is required before playback");
         }
         PlaybackSelectionPreferences safePreferences = preferences == null
-                ? PlaybackSelectionPreferences.defaults()
+                ? PlaybackSelectionPreferences.defaults().withStartTimeTicks(state.selectedItem().userData().playbackPositionTicks())
                 : preferences;
-        PlaybackInfo playbackInfo = loadPlaybackChoices(preferences);
+        PlaybackInfo playbackInfo = loadPlaybackChoices(safePreferences);
         PlayableMedia playable = client.playableMedia(
                 state.authenticated(),
                 playbackInfo,

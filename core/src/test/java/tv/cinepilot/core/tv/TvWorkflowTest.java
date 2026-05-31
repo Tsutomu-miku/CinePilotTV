@@ -278,6 +278,7 @@ public final class TvWorkflowTest {
         state = controller.preparePlayback(null);
         assertEquals(TvRoute.PLAYER, state.route(), "controller prepares playback");
         assertEquals("source-1", state.playableMedia().mediaSourceId(), "controller playable source");
+        assertEquals(120000000L, state.playableMedia().startTimeTicks(), "controller playable keeps resume ticks");
         assertEquals("https://media.example.com/jellyfin/Videos/movie-1/stream.mkv?MediaSourceId=source-1", state.playableMedia().url(), "controller playable url");
 
         assertEquals("/System/Info/Public", transport.requests.get(0).path(), "controller discover request");
@@ -310,6 +311,7 @@ public final class TvWorkflowTest {
 
         String playbackInfoUrl = transport.requests.get(8).url(MediaServerAddress.parse("https://media.example.com/jellyfin"));
         assertTrue(playbackInfoUrl.contains("StartTimeTicks=0"), "explicit playback preferences start from beginning");
+        assertEquals(0L, controller.state().playableMedia().startTimeTicks(), "explicit defaults keep start from beginning");
     }
 
     private static void controllerForwardsPlaybackPreferencesToPlaybackInfo() {
@@ -343,6 +345,7 @@ public final class TvWorkflowTest {
         assertTrue(playbackInfoUrl.contains("MaxAudioChannels=2"), "controller forwards audio channel limit");
         assertTrue(playbackInfoUrl.contains("MediaSourceId=source-2"), "controller forwards media source preference");
         assertEquals("source-2", controller.state().playableMedia().mediaSourceId(), "controller keeps selected media source");
+        assertEquals(0L, controller.state().playableMedia().startTimeTicks(), "controller keeps selected start ticks");
         assertEquals(Float.valueOf(1.5f), controller.state().playableMedia().playbackRate(), "controller keeps selected playback speed");
     }
 

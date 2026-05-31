@@ -13,6 +13,7 @@ public record PlayableMedia(
         String subtitleCodec,
         String subtitleLanguage,
         String subtitleDisplayTitle,
+        long startTimeTicks,
         Float playbackRate
 ) {
     public PlayableMedia {
@@ -21,6 +22,9 @@ public record PlayableMedia(
         require(playSessionId, "playSessionId");
         if (playMethod == null) {
             throw new IllegalArgumentException("playMethod is required");
+        }
+        if (startTimeTicks < 0) {
+            throw new IllegalArgumentException("startTimeTicks must be zero or greater");
         }
         if ((url == null || url.isBlank()) && request == null) {
             throw new IllegalArgumentException("either url or request is required");
@@ -65,6 +69,7 @@ public record PlayableMedia(
                 "",
                 "",
                 "",
+                0L,
                 null
         );
     }
