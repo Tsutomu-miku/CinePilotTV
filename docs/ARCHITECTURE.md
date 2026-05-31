@@ -76,6 +76,8 @@ Android 首页按钮获得选择意图时，应先调用 `TvWorkflowController.f
 
 `Media3PlayerHost` 创建播放器后需要用主线程 ticker 定期调用 `Media3PlaybackBridge.tick(currentPosition)`；真正的 10 秒节流仍由 core scheduler 控制，Android ticker 只负责给 scheduler 提供播放进度采样。
 
+Media3 播放速度变化通过 `onPlaybackParametersChanged` 上报到 `PlaybackSessionController.playbackRateChanged`。音轨和字幕变化只有在能从 Media3 selected track 稳定映射回服务器 `MediaStream.Index` 时才应上报，避免把本地 track ordinal 错当协议 stream index。
+
 ## 状态与持久化
 
 会话状态按服务器和用户身份划分作用域。持久化记录必须包含足够身份信息，避免用户修改 URL 或切换多服务器后把 token 发给错误服务器。

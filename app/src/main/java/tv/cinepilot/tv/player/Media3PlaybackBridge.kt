@@ -1,5 +1,6 @@
 package tv.cinepilot.tv.player
 
+import androidx.media3.common.PlaybackParameters
 import androidx.media3.common.Player
 import tv.cinepilot.core.protocol.PlaybackSessionController
 
@@ -10,6 +11,7 @@ class Media3PlaybackBridge(
     private var started = false
     private var stopped = false
     private var lastPositionBeforeSeek = 0L
+    private var playbackRate = 1f
 
     override fun onPlaybackStateChanged(playbackState: Int) {
         if (playbackState == Player.STATE_READY && !started) {
@@ -43,6 +45,17 @@ class Media3PlaybackBridge(
         }
     }
 
+    override fun onPlaybackParametersChanged(playbackParameters: PlaybackParameters) {
+        val nextPlaybackRate = playbackParameters.speed
+        if (nextPlaybackRate == playbackRate) {
+            return
+        }
+        playbackRate = nextPlaybackRate
+        if (started && !stopped) {
+            controller.playbackRateChanged(clock(), lastPositionBeforeSeek, nextPlaybackRate)
+        }
+    }
+
     fun tick(positionMillis: Long) {
         lastPositionBeforeSeek = positionMillis
         if (started && !stopped) {
@@ -58,4 +71,3 @@ class Media3PlaybackBridge(
         }
     }
 }
-

@@ -136,6 +136,11 @@ if [[ ! -s "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/player/Media3PlaybackBri
   exit 1
 fi
 
+if ! grep -q 'onPlaybackParametersChanged' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/player/Media3PlaybackBridge.kt"; then
+  echo "Media3PlaybackBridge must report playback speed changes" >&2
+  exit 1
+fi
+
 if ! grep -q 'PlaybackSessionController' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/player/Media3PlayerHost.kt"; then
   echo "Media3PlayerHost must create PlaybackSessionController" >&2
   exit 1
