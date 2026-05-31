@@ -464,6 +464,38 @@ if [[ -x "$ROOT_DIR/gradlew" ]]; then
   "$ROOT_DIR/gradlew" -q :core:test
   if [[ -n "${ANDROID_HOME:-}" || -f "$ROOT_DIR/local.properties" ]]; then
     "$ROOT_DIR/gradlew" -q :app:assembleDebug
+    APK_FILE="$ROOT_DIR/app/build/outputs/apk/debug/app-debug.apk"
+    AAPT_BIN="${AAPT:-}"
+    if [[ -z "$AAPT_BIN" && -n "${ANDROID_HOME:-}" ]]; then
+      AAPT_BIN="$(find "$ANDROID_HOME/build-tools" -name aapt -type f 2>/dev/null | sort -V | tail -n 1)"
+    fi
+    if [[ -z "$AAPT_BIN" && -f "$ROOT_DIR/local.properties" ]]; then
+      SDK_DIR="$(sed -n 's/^sdk.dir=//p' "$ROOT_DIR/local.properties" | tail -n 1)"
+      if [[ -n "$SDK_DIR" ]]; then
+        AAPT_BIN="$(find "$SDK_DIR/build-tools" -name aapt -type f 2>/dev/null | sort -V | tail -n 1)"
+      fi
+    fi
+    if [[ -x "$AAPT_BIN" ]]; then
+      APK_BADGING="$("$AAPT_BIN" dump badging "$APK_FILE")"
+      if ! grep -q '^launchable-activity:' <<<"$APK_BADGING"; then
+        echo "Debug APK must expose a phone launcher activity" >&2
+        exit 1
+      fi
+      if ! grep -q '^leanback-launchable-activity:' <<<"$APK_BADGING"; then
+        echo "Debug APK must expose a TV launcher activity" >&2
+        exit 1
+      fi
+      if ! grep -q "uses-feature-not-required: name='android.software.leanback'" <<<"$APK_BADGING"; then
+        echo "Debug APK must keep leanback optional" >&2
+        exit 1
+      fi
+      if ! grep -q "uses-feature-not-required: name='android.hardware.touchscreen'" <<<"$APK_BADGING"; then
+        echo "Debug APK must keep touchscreen optional" >&2
+        exit 1
+      fi
+    else
+      echo "aapt not found; skipped APK badging validation" >&2
+    fi
   fi
 fi
 
