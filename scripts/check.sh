@@ -301,6 +301,16 @@ if ! grep -q '从头播放' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/MainAct
   exit 1
 fi
 
+if grep -q 'ticks 继续播放' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/MainActivity.kt"; then
+  echo "MainActivity must not show raw protocol ticks in the details UI" >&2
+  exit 1
+fi
+
+if ! grep -q 'formatPlaybackPosition' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/MainActivity.kt"; then
+  echo "MainActivity must format resume playback position for users" >&2
+  exit 1
+fi
+
 if ! grep -q '低码率播放' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/MainActivity.kt"; then
   echo "MainActivity must expose a low bitrate playback action" >&2
   exit 1

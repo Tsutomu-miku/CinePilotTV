@@ -12,6 +12,7 @@ import android.widget.LinearLayout
 import android.widget.ScrollView
 import android.widget.TextView
 import java.util.concurrent.Executors
+import tv.cinepilot.core.protocol.MediaTicks
 import tv.cinepilot.core.protocol.MediaBrowserException
 import tv.cinepilot.core.protocol.MediaItemSummary
 import tv.cinepilot.core.protocol.PlaybackSelectionPreferences
@@ -248,7 +249,7 @@ class MainActivity : Activity() {
         setContentView(screen(item.name()) {
             addView(label("${item.type()}${if (item.productionYear() != null) " · ${item.productionYear()}" else ""}"))
             if (item.hasResumePosition()) {
-                addView(label("可从 ${item.userData().playbackPositionTicks()} ticks 继续播放"))
+                addView(label("可从 ${formatPlaybackPosition(item.userData().playbackPositionTicks())} 继续播放"))
             }
             if (item.playable()) {
                 if (item.hasResumePosition()) {
@@ -353,6 +354,18 @@ class MainActivity : Activity() {
     private fun lowBitratePreferences(item: MediaItemSummary): PlaybackSelectionPreferences {
         val startTimeTicks = if (item.hasResumePosition()) item.userData().playbackPositionTicks() else 0L
         return PlaybackSelectionPreferences.lowBitrate(startTimeTicks)
+    }
+
+    private fun formatPlaybackPosition(ticks: Long): String {
+        val totalSeconds = MediaTicks.toMilliseconds(ticks) / 1000
+        val hours = totalSeconds / 3600
+        val minutes = (totalSeconds % 3600) / 60
+        val seconds = totalSeconds % 60
+        return if (hours > 0) {
+            "%d:%02d:%02d".format(hours, minutes, seconds)
+        } else {
+            "%d:%02d".format(minutes, seconds)
+        }
     }
 
     private fun showLoading(message: String) {
