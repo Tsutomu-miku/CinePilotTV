@@ -84,8 +84,18 @@ if [[ ! -s "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/runtime/CinePilotRuntime
   exit 1
 fi
 
-if ! grep -q 'CinePilotRuntime.create' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/MainActivity.kt"; then
-  echo "MainActivity must initialize CinePilotRuntime" >&2
+if [[ ! -s "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/CinePilotViewModel.kt" ]]; then
+  echo "Missing Android ViewModel entry" >&2
+  exit 1
+fi
+
+if ! grep -q 'CinePilotRuntime.create' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/CinePilotViewModel.kt"; then
+  echo "CinePilotViewModel must initialize CinePilotRuntime" >&2
+  exit 1
+fi
+
+if ! grep -q 'ViewModelProvider' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/MainActivity.kt"; then
+  echo "MainActivity must obtain CinePilotViewModel through ViewModelProvider" >&2
   exit 1
 fi
 

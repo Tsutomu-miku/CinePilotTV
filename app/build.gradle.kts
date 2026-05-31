@@ -32,6 +32,7 @@ dependencies {
     implementation(platform(libs.androidx.compose.bom))
     implementation(libs.androidx.compose.ui)
     implementation(libs.androidx.tv.material)
+    implementation(libs.androidx.lifecycle.viewmodel.ktx)
     implementation(libs.androidx.media3.exoplayer)
     implementation(libs.androidx.media3.ui)
     coreLibraryDesugaring(libs.desugar.jdk.libs)

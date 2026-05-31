@@ -80,6 +80,8 @@ Android 首页按钮获得选择意图时，应先调用 `TvWorkflowController.f
 
 `TvWorkflowController` 是 Android ViewModel 应调用的核心用例入口，负责服务器发现、登录、首页加载、详情打开和播放准备。它保持 `TvAppState`，并把协议 client 的结果转换为 workflow 状态。
 
+`CinePilotViewModel` 是 Android 层持有 `CinePilotRuntime` 的入口。`MainActivity` 只能从 ViewModel 取得 `TvWorkflowController` 和 `MediaBrowserClient`，避免 Activity 重建时重新创建业务状态和 session repository。
+
 `TvWorkflowController.restoreSession(userId)` 要求先完成服务器发现，再按已发现服务器、userId、客户端身份和设备身份恢复会话。Android UI 可以记住最近服务器地址和 userId 列表来提供多个“继续”入口，但不能自行保存或拼接 token。
 
 启动时 Android UI 应优先尝试恢复最近账号；恢复成功直接进入首页，恢复失败则回到服务器选择页，保证首屏不是不可操作的错误状态。

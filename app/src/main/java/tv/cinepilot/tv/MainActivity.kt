@@ -1,6 +1,5 @@
 package tv.cinepilot.tv
 
-import android.app.Activity
 import android.graphics.Color
 import android.os.Bundle
 import android.os.Handler
@@ -13,6 +12,8 @@ import android.widget.EditText
 import android.widget.LinearLayout
 import android.widget.ScrollView
 import android.widget.TextView
+import androidx.activity.ComponentActivity
+import androidx.lifecycle.ViewModelProvider
 import java.util.concurrent.Executors
 import tv.cinepilot.core.protocol.MediaTicks
 import tv.cinepilot.core.protocol.MediaBrowserException
@@ -30,10 +31,9 @@ import tv.cinepilot.core.tv.TvDiagnostics
 import tv.cinepilot.core.tv.TvRoute
 import tv.cinepilot.core.tv.TvWorkflowController
 import tv.cinepilot.tv.player.Media3PlayerHost
-import tv.cinepilot.tv.runtime.CinePilotRuntime
 
-class MainActivity : Activity() {
-    private lateinit var runtime: CinePilotRuntime
+class MainActivity : ComponentActivity() {
+    private lateinit var viewModel: CinePilotViewModel
     private lateinit var playerHost: Media3PlayerHost
     private val executor = Executors.newSingleThreadExecutor()
     private val mainHandler = Handler(Looper.getMainLooper())
@@ -42,8 +42,8 @@ class MainActivity : Activity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        runtime = CinePilotRuntime.create(this)
-        playerHost = Media3PlayerHost(this, runtime.mediaBrowserClient)
+        viewModel = ViewModelProvider(this, CinePilotViewModel.factory(applicationContext))[CinePilotViewModel::class.java]
+        playerHost = Media3PlayerHost(this, viewModel.mediaBrowserClient)
         restoreRecentAccountOnLaunch()
     }
 
@@ -56,10 +56,10 @@ class MainActivity : Activity() {
 
     @Deprecated("Deprecated in Android framework; retained for API 26 TV devices.")
     override fun onBackPressed() {
-        when (runtime.workflowController.state().route()) {
+        when (viewModel.workflowController.state().route()) {
             TvRoute.SERVER_ENTRY -> super.onBackPressed()
             TvRoute.HOME -> {
-                val state = runtime.workflowController.back()
+                val state = viewModel.workflowController.back()
                 if (state.route() == TvRoute.HOME) {
                     showHome(state)
                 } else {
@@ -67,7 +67,7 @@ class MainActivity : Activity() {
                 }
             }
             TvRoute.LOGIN, TvRoute.ERROR -> {
-                val state = runtime.workflowController.back()
+                val state = viewModel.workflowController.back()
                 if (state.route() == TvRoute.HOME) {
                     showHome(state)
                 } else {
@@ -75,14 +75,14 @@ class MainActivity : Activity() {
                 }
             }
             TvRoute.DETAILS -> {
-                runtime.workflowController.back()
-                showHome(runtime.workflowController.state())
+                viewModel.workflowController.back()
+                showHome(viewModel.workflowController.state())
             }
             TvRoute.PLAYER -> {
                 playerHost.release()
-                runtime.workflowController.back()
-                runtime.workflowController.state().selectedItem()?.let(::showDetails)
-                    ?: showHome(runtime.workflowController.state())
+                viewModel.workflowController.back()
+                viewModel.workflowController.state().selectedItem()?.let(::showDetails)
+                    ?: showHome(viewModel.workflowController.state())
             }
         }
     }
@@ -95,10 +95,10 @@ class MainActivity : Activity() {
             recentAccounts.forEach { account ->
                 addView(action("继续 ${account.displayName()}") {
                     runTask("正在恢复上次登录...", {
-                        runtime.workflowController.submitServer(account.serverAddress)
-                        runtime.workflowController.restoreSession(account.userId)
+                        viewModel.workflowController.submitServer(account.serverAddress)
+                        viewModel.workflowController.restoreSession(account.userId)
                     }) {
-                        showHome(runtime.workflowController.state())
+                        showHome(viewModel.workflowController.state())
                     }
                 })
             }
@@ -112,7 +112,7 @@ class MainActivity : Activity() {
             addView(serverInput)
             addView(action("连接服务器") {
                 runTask("正在连接服务器...", {
-                    runtime.workflowController.submitServer(serverInput.text.toString())
+                    viewModel.workflowController.submitServer(serverInput.text.toString())
                     loadPublicUsersIfAvailable()
                 }) {
                     showLogin()
@@ -130,9 +130,9 @@ class MainActivity : Activity() {
         showLoading("正在恢复上次登录...")
         executor.execute {
             try {
-                runtime.workflowController.submitServer(account.serverAddress)
-                runtime.workflowController.restoreSession(account.userId)
-                runOnUiThread { showHome(runtime.workflowController.state()) }
+                viewModel.workflowController.submitServer(account.serverAddress)
+                viewModel.workflowController.restoreSession(account.userId)
+                runOnUiThread { showHome(viewModel.workflowController.state()) }
             } catch (error: Throwable) {
                 runOnUiThread { showServerEntry() }
             }
@@ -143,10 +143,10 @@ class MainActivity : Activity() {
         stopQuickConnectPolling()
         val usernameInput = input("用户名", InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_NORMAL)
         val passwordInput = input("密码", InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_PASSWORD)
-        setContentView(screen("登录 ${runtime.workflowController.state().server()?.serverName() ?: ""}") {
-            if (runtime.workflowController.state().publicUsers().isNotEmpty()) {
+        setContentView(screen("登录 ${viewModel.workflowController.state().server()?.serverName() ?: ""}") {
+            if (viewModel.workflowController.state().publicUsers().isNotEmpty()) {
                 addView(section("选择用户"))
-                runtime.workflowController.state().publicUsers().forEach { user ->
+                viewModel.workflowController.state().publicUsers().forEach { user ->
                     addView(publicUserAction(user, usernameInput, passwordInput))
                 }
             }
@@ -157,7 +157,7 @@ class MainActivity : Activity() {
             addView(action("登录") {
                 loginWithCredentials(usernameInput.text.toString(), passwordInput.text.toString())
             })
-            if (runtime.workflowController.state().server()?.flavor() == ServerFlavor.JELLYFIN) {
+            if (viewModel.workflowController.state().server()?.flavor() == ServerFlavor.JELLYFIN) {
                 addView(action("Quick Connect") { startQuickConnectLogin() })
             }
             addView(action("返回服务器输入") { showServerEntry() })
@@ -180,10 +180,10 @@ class MainActivity : Activity() {
 
     private fun loginWithCredentials(username: String, password: String) {
         runTask("正在登录并加载首页...", {
-            runtime.workflowController.login(username, password)
+            viewModel.workflowController.login(username, password)
         }) {
             rememberAccount()
-            showHome(runtime.workflowController.state())
+            showHome(viewModel.workflowController.state())
         }
     }
 
@@ -191,7 +191,7 @@ class MainActivity : Activity() {
         showLoading("正在创建 Quick Connect...")
         executor.execute {
             try {
-                val quickConnect = runtime.workflowController.startQuickConnect()
+                val quickConnect = viewModel.workflowController.startQuickConnect()
                 runOnUiThread {
                     showQuickConnect(quickConnect)
                     scheduleQuickConnectPoll()
@@ -209,10 +209,10 @@ class MainActivity : Activity() {
             addView(label("请在 Jellyfin 中输入授权码，授权后会自动登录"))
             addView(action("完成登录") {
                 runTask("正在完成 Quick Connect 登录...", {
-                    runtime.workflowController.completeQuickConnect()
+                    viewModel.workflowController.completeQuickConnect()
                 }) {
                     rememberAccount()
-                    showHome(runtime.workflowController.state())
+                    showHome(viewModel.workflowController.state())
                 }
             })
             addView(action("返回登录") { showLogin() })
@@ -233,11 +233,11 @@ class MainActivity : Activity() {
     private fun pollQuickConnectApproval() {
         executor.execute {
             try {
-                runtime.workflowController.completeQuickConnect()
+                viewModel.workflowController.completeQuickConnect()
                 runOnUiThread {
                     stopQuickConnectPolling()
                     rememberAccount()
-                    showHome(runtime.workflowController.state())
+                    showHome(viewModel.workflowController.state())
                 }
             } catch (error: Throwable) {
                 if (error.message == TvWorkflowController.QUICK_CONNECT_NOT_APPROVED_MESSAGE) {
@@ -275,26 +275,26 @@ class MainActivity : Activity() {
                     addView(button)
                 }
             }
-            if (runtime.workflowController.canGoBackInBrowse()) {
+            if (viewModel.workflowController.canGoBackInBrowse()) {
                 addView(action("返回上级") {
-                    showHome(runtime.workflowController.back())
+                    showHome(viewModel.workflowController.back())
                 })
             }
-            if (runtime.workflowController.canPageBackwardInBrowse()) {
+            if (viewModel.workflowController.canPageBackwardInBrowse()) {
                 addView(action("上一页") {
                     runTask("正在加载上一页...", {
-                        runtime.workflowController.previousBrowsePage()
+                        viewModel.workflowController.previousBrowsePage()
                     }) {
-                        showHome(runtime.workflowController.state())
+                        showHome(viewModel.workflowController.state())
                     }
                 })
             }
-            if (runtime.workflowController.canPageForwardInBrowse()) {
+            if (viewModel.workflowController.canPageForwardInBrowse()) {
                 addView(action("下一页") {
                     runTask("正在加载下一页...", {
-                        runtime.workflowController.nextBrowsePage()
+                        viewModel.workflowController.nextBrowsePage()
                     }) {
-                        showHome(runtime.workflowController.state())
+                        showHome(viewModel.workflowController.state())
                     }
                 })
             }
@@ -306,23 +306,23 @@ class MainActivity : Activity() {
                     searchInput.requestFocus()
                 } else {
                     runTask("正在搜索...", {
-                        runtime.workflowController.search(term)
+                        viewModel.workflowController.search(term)
                     }) {
-                        showHome(runtime.workflowController.state())
+                        showHome(viewModel.workflowController.state())
                     }
                 }
             })
             addView(action("重新加载首页") {
                 runTask("正在重新加载首页...", {
-                    runtime.workflowController.loadHome()
+                    viewModel.workflowController.loadHome()
                 }) {
-                    showHome(runtime.workflowController.state())
+                    showHome(viewModel.workflowController.state())
                 }
             })
             addView(action("退出登录") {
                 runTask("正在退出登录...", {
                     forgetAuthenticatedAccount()
-                    runtime.workflowController.logout()
+                    viewModel.workflowController.logout()
                 }) {
                     showServerEntry()
                 }
@@ -362,8 +362,8 @@ class MainActivity : Activity() {
                 addView(openFolderAction(item))
             }
             addView(action("返回首页") {
-                runtime.workflowController.back()
-                showHome(runtime.workflowController.state())
+                viewModel.workflowController.back()
+                showHome(viewModel.workflowController.state())
             })
         })
     }
@@ -372,7 +372,7 @@ class MainActivity : Activity() {
         showLoading("正在读取音轨和字幕...")
         executor.execute {
             try {
-                val choices = runtime.workflowController.loadPlaybackChoices(null)
+                val choices = viewModel.workflowController.loadPlaybackChoices(null)
                 runOnUiThread { showPlaybackOptions(item, choices) }
             } catch (error: Throwable) {
                 runOnUiThread { showError(error) }
@@ -426,8 +426,8 @@ class MainActivity : Activity() {
             addView(action("打开播放器") { showPlayer(state) })
             addView(action("诊断信息") { showDiagnostics(state) })
             addView(action("返回详情") {
-                runtime.workflowController.back()
-                runtime.workflowController.state().selectedItem()?.let(::showDetails)
+                viewModel.workflowController.back()
+                viewModel.workflowController.state().selectedItem()?.let(::showDetails)
             })
         })
     }
@@ -449,8 +449,8 @@ class MainActivity : Activity() {
             ))
             addView(action("停止并返回详情") {
                 playerHost.release()
-                runtime.workflowController.back()
-                runtime.workflowController.state().selectedItem()?.let(::showDetails)
+                viewModel.workflowController.back()
+                viewModel.workflowController.state().selectedItem()?.let(::showDetails)
             })
         })
         playerView?.post { playerView?.requestFocus() }
@@ -458,16 +458,16 @@ class MainActivity : Activity() {
 
     private fun itemButton(row: HomeRow, item: MediaItemSummary): View {
         return action(item.name().ifBlank { item.id() }) {
-            runtime.workflowController.focusItem(row.id(), item.id())
+            viewModel.workflowController.focusItem(row.id(), item.id())
             val loadingMessage = if (item.playable()) "正在打开详情..." else "正在打开目录..."
             runTask(loadingMessage, {
                 if (item.playable()) {
-                    runtime.workflowController.openItem(item.id())
+                    viewModel.workflowController.openItem(item.id())
                 } else {
-                    runtime.workflowController.openFolder(item.id(), item.name())
+                    viewModel.workflowController.openFolder(item.id(), item.name())
                 }
             }) {
-                val state = runtime.workflowController.state()
+                val state = viewModel.workflowController.state()
                 if (item.playable()) {
                     state.selectedItem()?.let(::showDetails)
                 } else {
@@ -482,9 +482,9 @@ class MainActivity : Activity() {
     private fun openFolderAction(item: MediaItemSummary): View {
         return action("打开子项目") {
             runTask("正在打开目录...", {
-                runtime.workflowController.openFolder(item.id(), item.name())
+                viewModel.workflowController.openFolder(item.id(), item.name())
             }) {
-                showHome(runtime.workflowController.state())
+                showHome(viewModel.workflowController.state())
             }
         }
     }
@@ -497,9 +497,9 @@ class MainActivity : Activity() {
 
     private fun preparePlaybackWith(preferences: PlaybackSelectionPreferences?) {
         runTask("正在准备播放...", {
-            runtime.workflowController.preparePlayback(preferences)
+            viewModel.workflowController.preparePlayback(preferences)
         }) {
-            showPlayerReady(runtime.workflowController.state())
+            showPlayerReady(viewModel.workflowController.state())
         }
     }
 
@@ -580,11 +580,11 @@ class MainActivity : Activity() {
         val authenticationExpired = error is MediaBrowserException && error.statusCode() == 401
         if (authenticationExpired) {
             forgetAuthenticatedAccount()
-            runtime.workflowController.forgetAuthenticatedSession()
+            viewModel.workflowController.forgetAuthenticatedSession()
         } else {
-            runtime.workflowController.fail(error.message ?: error::class.java.simpleName)
+            viewModel.workflowController.fail(error.message ?: error::class.java.simpleName)
         }
-        val state = runtime.workflowController.state()
+        val state = viewModel.workflowController.state()
         setContentView(screen("出错了") {
             val message = if (authenticationExpired) {
                 "会话已过期，请重新登录"
@@ -628,7 +628,7 @@ class MainActivity : Activity() {
     }
 
     private fun loadPublicUsersIfAvailable() {
-        runCatching { runtime.workflowController.loadPublicUsers() }
+        runCatching { viewModel.workflowController.loadPublicUsers() }
     }
 
     private fun screen(title: String, content: LinearLayout.() -> Unit): ScrollView {
@@ -699,7 +699,7 @@ class MainActivity : Activity() {
     }
 
     private fun rememberAccount() {
-        val authenticated = runtime.workflowController.state().authenticated() ?: return
+        val authenticated = viewModel.workflowController.state().authenticated() ?: return
         val account = LastAccount(
             authenticated.server().address().value(),
             authenticated.server().serverName(),
@@ -746,7 +746,7 @@ class MainActivity : Activity() {
     }
 
     private fun forgetAuthenticatedAccount() {
-        val authenticated = runtime.workflowController.state().authenticated() ?: return
+        val authenticated = viewModel.workflowController.state().authenticated() ?: return
         val account = LastAccount(
             authenticated.server().address().value(),
             authenticated.server().serverName(),

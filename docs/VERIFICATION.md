@@ -13,7 +13,7 @@
 - 中文项目文档存在。
 - Gradle 多模块结构包含 `:app` 和 `:core`。
 - Android app 依赖 `:core`。
-- Android runtime、TV workflow controller、最小 TV UI、Media3 player host 和 Media3 playback bridge 入口存在。
+- Android ViewModel、runtime、TV workflow controller、最小 TV UI、Media3 player host 和 Media3 playback bridge 入口存在。
 - Android manifest 允许 HTTP 明文流量，Media3 player host 会授权播放 URL。
 - `core` 的协议、媒体库、播放、session 和 TV workflow JVM 测试通过。
 
