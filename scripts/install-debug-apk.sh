@@ -19,11 +19,6 @@ fi
 
 "$ROOT_DIR/gradlew" :app:assembleDebug
 
-ADB_TARGET=()
-if [[ -n "${ANDROID_SERIAL:-}" ]]; then
-  ADB_TARGET=(-s "$ANDROID_SERIAL")
-fi
-
 DEVICE_COUNT="$("$ADB" devices | awk 'NR > 1 && $2 == "device" { count++ } END { print count + 0 }')"
 if [[ "$DEVICE_COUNT" -eq 0 ]]; then
   echo "No online Android device or emulator found. Connect a phone, Android TV device, or start an emulator." >&2
@@ -41,5 +36,10 @@ if [[ -n "${ANDROID_SERIAL:-}" ]] && ! "$ADB" devices | awk -v serial="$ANDROID_
   exit 1
 fi
 
-"$ADB" "${ADB_TARGET[@]}" install -r "$ROOT_DIR/app/build/outputs/apk/debug/app-debug.apk"
-"$ADB" "${ADB_TARGET[@]}" shell am start -n tv.cinepilot.tv/.MainActivity
+if [[ -n "${ANDROID_SERIAL:-}" ]]; then
+  "$ADB" -s "$ANDROID_SERIAL" install -r "$ROOT_DIR/app/build/outputs/apk/debug/app-debug.apk"
+  "$ADB" -s "$ANDROID_SERIAL" shell am start -n tv.cinepilot.tv/.MainActivity
+else
+  "$ADB" install -r "$ROOT_DIR/app/build/outputs/apk/debug/app-debug.apk"
+  "$ADB" shell am start -n tv.cinepilot.tv/.MainActivity
+fi
