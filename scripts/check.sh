@@ -187,8 +187,18 @@ if ! grep -q 'recent_accounts' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/runt
   exit 1
 fi
 
+if ! grep -q 'recent_servers' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/runtime/RecentAccountStore.kt"; then
+  echo "RecentAccountStore must remember recently connected servers" >&2
+  exit 1
+fi
+
 if ! grep -q 'RecentAccountStore' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/MainActivity.kt"; then
   echo "MainActivity must delegate saved account handling to RecentAccountStore" >&2
+  exit 1
+fi
+
+if ! grep -F -q '服务器 ${server.displayName()}' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/MainActivity.kt"; then
+  echo "Server entry must expose recently connected servers" >&2
   exit 1
 fi
 

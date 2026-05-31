@@ -94,7 +94,7 @@ Android 首页按钮获得选择意图时，应先调用 `TvWorkflowController.f
 
 `TvWorkflowController.restoreSession(userId)` 要求先完成服务器发现，再按已发现服务器、userId、客户端身份和设备身份恢复会话。Android UI 可以记住最近服务器地址和 userId 列表来提供多个“继续”入口，但不能自行保存或拼接 token。
 
-启动时 Android UI 应优先尝试恢复最近账号；恢复成功直接进入首页，恢复失败则回到服务器选择页，保证首屏不是不可操作的错误状态。
+启动时 Android UI 应优先尝试恢复最近账号；恢复成功直接进入首页，恢复失败则回到服务器选择页，保证首屏不是不可操作的错误状态。服务器发现成功后也应保存最近服务器地址，即使用户还没有完成登录，也能在下次打开服务器输入页时一键回到该服务器登录流程。
 
 debug APK 可以通过 `qa_server` / `qa_username` / `qa_password` intent extras 触发 QA 登录，用于小米等禁止 adb input 注入的真机验证。该入口必须检查 `ApplicationInfo.FLAG_DEBUGGABLE`，非 debuggable 构建不能响应。
 
@@ -144,7 +144,7 @@ Media3 播放速度变化通过 `onPlaybackParametersChanged` 上报到 `Playbac
 
 当前 `InMemorySessionRepository` 用于领域验证和早期集成，`FileSessionRepository` 提供 JVM 可用的落盘实现。Android 可用版本可以复用文件实现或包一层平台存储路径，但必须保持相同 `SessionScope` 规则。
 
-Android Activity 只用 SharedPreferences 保存最近登录提示信息：服务器地址、服务器显示名和 userId。真正的访问 token 仍由 `FileSessionRepository` 存在 app 私有文件中，并在恢复时经过 `MediaBrowserClient.restore` 读取。
+Android Activity 只用 SharedPreferences 保存最近登录提示信息：服务器地址、服务器显示名、userId，以及最近连接成功的服务器列表。真正的访问 token 仍由 `FileSessionRepository` 存在 app 私有文件中，并在恢复时经过 `MediaBrowserClient.restore` 读取。
 
 ## 验证策略
 

@@ -19,12 +19,27 @@ class RecentAccountStore(context: Context) {
         return legacyAccount()?.let(::listOf).orEmpty()
     }
 
+    fun servers(): List<RecentServer> {
+        val recentServers = preferences.getString(RECENT_SERVERS_KEY, null)
+            ?.lineSequence()
+            ?.mapNotNull(RecentServer::deserialize)
+            ?.toList()
+            .orEmpty()
+        if (recentServers.isNotEmpty()) {
+            return recentServers
+        }
+        return legacyAccount()?.let {
+            listOf(RecentServer(it.serverAddress, it.serverName))
+        }.orEmpty()
+    }
+
     fun remember(authenticated: AuthenticatedServer) {
         val account = RecentAccount(
             authenticated.server().address().value(),
             authenticated.server().serverName(),
             authenticated.session().userId(),
         )
+        rememberServer(account.serverAddress, account.serverName)
         val accounts = (listOf(account) + accounts().filterNot {
             it.serverAddress == account.serverAddress && it.userId == account.userId
         }).take(MAX_RECENT_ACCOUNTS)
@@ -33,6 +48,19 @@ class RecentAccountStore(context: Context) {
             .putString(LEGACY_SERVER_ADDRESS_KEY, account.serverAddress)
             .putString(LEGACY_SERVER_NAME_KEY, account.serverName)
             .putString(LEGACY_USER_ID_KEY, account.userId)
+            .apply()
+    }
+
+    fun rememberServer(serverAddress: String, serverName: String) {
+        if (serverAddress.isBlank()) {
+            return
+        }
+        val server = RecentServer(serverAddress, serverName)
+        val servers = (listOf(server) + servers().filterNot {
+            it.serverAddress == server.serverAddress
+        }).take(MAX_RECENT_SERVERS)
+        preferences.edit()
+            .putString(RECENT_SERVERS_KEY, servers.joinToString("\n") { it.serialize() })
             .apply()
     }
 
@@ -73,10 +101,35 @@ class RecentAccountStore(context: Context) {
     private companion object {
         const val PREFERENCES_NAME = "cinepilot_last_account"
         const val RECENT_ACCOUNTS_KEY = "recent_accounts"
+        const val RECENT_SERVERS_KEY = "recent_servers"
         const val LEGACY_SERVER_ADDRESS_KEY = "server_address"
         const val LEGACY_SERVER_NAME_KEY = "server_name"
         const val LEGACY_USER_ID_KEY = "user_id"
         const val MAX_RECENT_ACCOUNTS = 5
+        const val MAX_RECENT_SERVERS = 5
+    }
+}
+
+data class RecentServer(
+    val serverAddress: String,
+    val serverName: String,
+) {
+    fun displayName(): String {
+        return serverName.ifBlank { serverAddress }
+    }
+
+    fun serialize(): String {
+        return listOf(serverAddress, serverName).joinToString("\t", transform = ::safeField)
+    }
+
+    companion object {
+        fun deserialize(value: String): RecentServer? {
+            val fields = value.split('\t')
+            if (fields.size != 2 || fields[0].isBlank()) {
+                return null
+            }
+            return RecentServer(fields[0], fields[1])
+        }
     }
 }
 
@@ -103,8 +156,9 @@ data class RecentAccount(
             return RecentAccount(fields[0], fields[1], fields[2])
         }
 
-        private fun safeField(value: String): String {
-            return value.replace('\t', ' ').replace('\n', ' ').trim()
-        }
     }
+}
+
+private fun safeField(value: String): String {
+    return value.replace('\t', ' ').replace('\n', ' ').trim()
 }

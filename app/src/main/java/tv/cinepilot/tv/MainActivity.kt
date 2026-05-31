@@ -151,6 +151,8 @@ class MainActivity : ComponentActivity() {
         stopQuickConnectPolling()
         val serverInput = input("http://192.168.1.10:8096", InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_URI)
         val recentAccounts = recentAccountStore.accounts()
+        val recentServers = recentAccountStore.servers()
+            .filterNot { server -> recentAccounts.any { account -> account.serverAddress == server.serverAddress } }
         setContentView(screen("CinePilot TV") {
             recentAccounts.forEach { account ->
                 addView(action("继续 ${account.displayName()}") {
@@ -162,6 +164,11 @@ class MainActivity : ComponentActivity() {
                     }
                 })
             }
+            recentServers.forEach { server ->
+                addView(action("服务器 ${server.displayName()}") {
+                    connectToServer(server.serverAddress)
+                })
+            }
             if (recentAccounts.isNotEmpty()) {
                 addView(action("清除已保存登录") {
                     clearSavedAccounts()
@@ -171,14 +178,21 @@ class MainActivity : ComponentActivity() {
             addView(label("服务器地址"))
             addView(serverInput)
             addView(action("连接服务器") {
-                runTask("正在连接服务器...", {
-                    viewModel.workflowController.submitServer(serverInput.text.toString())
-                    loadPublicUsersIfAvailable()
-                }) {
-                    showLogin()
-                }
+                connectToServer(serverInput.text.toString())
             })
         })
+    }
+
+    private fun connectToServer(serverAddress: String) {
+        runTask("正在连接服务器...", {
+            viewModel.workflowController.submitServer(serverAddress)
+            viewModel.workflowController.state().server()?.let { server ->
+                recentAccountStore.rememberServer(server.address().value(), server.serverName())
+            }
+            loadPublicUsersIfAvailable()
+        }) {
+            showLogin()
+        }
     }
 
     private fun restoreRecentAccountOnLaunch() {
