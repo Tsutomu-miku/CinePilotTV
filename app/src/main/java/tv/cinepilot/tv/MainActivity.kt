@@ -14,6 +14,7 @@ import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.Toast
 import androidx.activity.ComponentActivity
+import androidx.activity.OnBackPressedCallback
 import androidx.lifecycle.ViewModelProvider
 import java.util.concurrent.Executors
 import tv.cinepilot.core.protocol.MediaTicks
@@ -82,6 +83,11 @@ class MainActivity : ComponentActivity() {
             },
             onError = ::showError,
         )
+        onBackPressedDispatcher.addCallback(this, object : OnBackPressedCallback(true) {
+            override fun handleOnBackPressed() {
+                handleBackPressed()
+            }
+        })
         if (handleQaLoginIntent(intent)) {
             return
         }
@@ -101,15 +107,14 @@ class MainActivity : ComponentActivity() {
         super.onDestroy()
     }
 
-    @Deprecated("Deprecated in Android framework; retained for API 26 TV devices.")
-    override fun onBackPressed() {
+    private fun handleBackPressed() {
         if (searchVisible) {
             searchVisible = false
             showHome(viewModel.workflowController.state())
             return
         }
         when (viewModel.workflowController.state().route()) {
-            TvRoute.SERVER_ENTRY -> super.onBackPressed()
+            TvRoute.SERVER_ENTRY -> finish()
             TvRoute.HOME -> {
                 val state = viewModel.workflowController.back()
                 if (state.route() == TvRoute.HOME) {

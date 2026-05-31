@@ -120,8 +120,8 @@ if ! grep -q 'workflowController' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/M
   exit 1
 fi
 
-if ! grep -q 'onBackPressed' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/MainActivity.kt"; then
-  echo "MainActivity must handle Android TV Back navigation" >&2
+if ! grep -q 'OnBackPressedCallback' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/MainActivity.kt"; then
+  echo "MainActivity must handle Android TV Back navigation through OnBackPressedCallback" >&2
   exit 1
 fi
 
