@@ -125,13 +125,23 @@ class MainActivity : Activity() {
             if (item.hasResumePosition()) {
                 addView(label("可从 ${item.userData().playbackPositionTicks()} ticks 继续播放"))
             }
-            addView(action("播放") {
-                runTask("正在准备播放...", {
-                    runtime.workflowController.preparePlayback(PlaybackSelectionPreferences.defaults())
-                }) {
-                    showPlayerReady(runtime.workflowController.state())
-                }
-            })
+            if (item.playable()) {
+                addView(action("播放") {
+                    runTask("正在准备播放...", {
+                        runtime.workflowController.preparePlayback(PlaybackSelectionPreferences.defaults())
+                    }) {
+                        showPlayerReady(runtime.workflowController.state())
+                    }
+                })
+            } else {
+                addView(action("打开子项目") {
+                    runTask("正在打开目录...", {
+                        runtime.workflowController.openFirstChild(item.id())
+                    }) {
+                        runtime.workflowController.state().selectedItem()?.let(::showDetails)
+                    }
+                })
+            }
             addView(action("返回首页") {
                 runtime.workflowController.back()
                 showHome(runtime.workflowController.state())
@@ -178,8 +188,13 @@ class MainActivity : Activity() {
     private fun itemButton(row: HomeRow, item: MediaItemSummary): View {
         return action(item.name().ifBlank { item.id() }) {
             runtime.workflowController.focusItem(row.id(), item.id())
-            runTask("正在打开详情...", {
-                runtime.workflowController.openItem(item.id())
+            val loadingMessage = if (item.playable()) "正在打开详情..." else "正在打开目录..."
+            runTask(loadingMessage, {
+                if (item.playable()) {
+                    runtime.workflowController.openItem(item.id())
+                } else {
+                    runtime.workflowController.openFirstChild(item.id())
+                }
             }) {
                 runtime.workflowController.state().selectedItem()?.let(::showDetails)
             }

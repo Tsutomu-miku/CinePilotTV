@@ -52,6 +52,8 @@ Android 首页按钮获得选择意图时，应先调用 `TvWorkflowController.f
 
 首页内容由 `HomeRowsLoader` 组合：用户媒体库、继续观看和每个媒体库的最新内容都转换成 `HomeRow`。Android UI 不应直接调多个媒体库 API 来拼首页。
 
+首页中的可播放条目打开详情和播放准备入口；不可播放的媒体库或文件夹应调用 `TvWorkflowController.openFirstChild(parentId)` 浏览子项目，避免把 collection folder 当作影片播放。
+
 `TvWorkflowController` 是 Android ViewModel 应调用的核心用例入口，负责服务器发现、登录、首页加载、详情打开和播放准备。它保持 `TvAppState`，并把协议 client 的结果转换为 workflow 状态。
 
 `TvWorkflowController.restoreSession(userId)` 要求先完成服务器发现，再按已发现服务器、userId、客户端身份和设备身份恢复会话。Android UI 可以记住上次服务器地址和 userId 来提供“继续”入口，但不能自行保存或拼接 token。

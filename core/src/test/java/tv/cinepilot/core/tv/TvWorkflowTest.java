@@ -31,6 +31,7 @@ public final class TvWorkflowTest {
         loadsHomeRowsFromMediaBrowserClient();
         controllerRunsServerLoginBrowseAndPlaybackUseCase();
         controllerRestoresSavedSessionAndLoadsHome();
+        controllerOpensFirstChildForFolderBrowse();
         describesDiagnosticsWithoutToken();
         System.out.println("TvWorkflowTest passed");
     }
@@ -238,6 +239,32 @@ public final class TvWorkflowTest {
         assertEquals("token-1", state.authenticated().session().accessToken(), "restore uses saved token");
         assertEquals("/System/Info/Public", transport.requests.get(0).path(), "restore discovers server first");
         assertEquals("/Users/user-1/Views", transport.requests.get(1).path(), "restore loads home after token lookup");
+    }
+
+    private static void controllerOpensFirstChildForFolderBrowse() {
+        FakeTransport transport = new FakeTransport();
+        transport.enqueue(200, "{\"Id\":\"server-1\",\"ServerName\":\"Jellyfin\"}");
+        transport.enqueue(200, "{\"AccessToken\":\"token-1\",\"ServerId\":\"server-1\",\"User\":{\"Id\":\"user-1\"}}");
+        enqueueHomeResponses(transport);
+        transport.enqueue(200, """
+                {"Items":[
+                  {"Id":"movie-1","Name":"Arrival","Type":"Movie","IsPlayable":true}
+                ],"TotalRecordCount":1,"StartIndex":0}
+                """);
+
+        ClientIdentity client = new ClientIdentity("CinePilot TV", "Living Room TV", "device-1", "0.1.0");
+        MediaBrowserClient mediaClient = new MediaBrowserClient(transport, new InMemorySessionRepository(), client);
+        TvWorkflowController controller = new TvWorkflowController(mediaClient, new HomeRowsLoader(mediaClient, 12));
+
+        controller.submitServer("https://media.example.com/jellyfin");
+        controller.login("demo", "secret");
+        TvAppState state = controller.openFirstChild("movies");
+
+        assertEquals(TvRoute.DETAILS, state.route(), "folder browse opens child details");
+        assertEquals("movie-1", state.selectedItem().id(), "folder browse selects first child");
+        assertEquals("/Users/user-1/Items", transport.requests.get(6).path(), "folder browse uses items endpoint");
+        assertTrue(transport.requests.get(6).url(MediaServerAddress.parse("https://media.example.com/jellyfin")).contains("ParentId=movies"), "folder browse passes parent id");
+        assertTrue(transport.requests.get(6).url(MediaServerAddress.parse("https://media.example.com/jellyfin")).contains("Limit=1"), "folder browse limits to first child");
     }
 
     private static void describesDiagnosticsWithoutToken() {
