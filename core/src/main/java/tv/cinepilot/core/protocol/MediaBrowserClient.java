@@ -170,6 +170,26 @@ public final class MediaBrowserClient {
         return MediaBrowserResponseMapper.item(response.body());
     }
 
+    public String primaryImageUrl(AuthenticatedServer authenticated, MediaItemSummary item, int width, int height) {
+        if (item == null) {
+            throw new IllegalArgumentException("item is required");
+        }
+        String tag = item.imageTags().get("Primary");
+        if (tag == null || tag.isBlank()) {
+            return "";
+        }
+        String url = MediaBrowserRequests.itemImage(
+                authenticated.session(),
+                authenticated.server().flavor(),
+                item.id(),
+                "Primary",
+                tag,
+                width,
+                height
+        ).url(authenticated.server().address());
+        return PlaybackUrlAuthorizer.withAccessToken(url, authenticated.session());
+    }
+
     public void sendPlaybackCheckIn(AuthenticatedServer authenticated, PlaybackCheckIn checkIn) {
         if (checkIn == null) {
             throw new IllegalArgumentException("checkIn is required");

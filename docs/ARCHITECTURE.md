@@ -64,6 +64,8 @@ UI 界面应该调用应用控制器或 store。界面组件不能直接构造 J
 
 媒体库浏览响应映射到 `MediaItemPage` 和 `MediaItemSummary`。UI 必须使用这些领域模型里的 `id` 保持焦点和选择身份，而不是用标题或列表位置。
 
+媒体图片 URL 由 `MediaBrowserClient.primaryImageUrl` 基于 `MediaItemSummary.imageTags` 生成并追加 token；Android UI 只负责异步加载位图。图片加载失败不能阻塞详情页按钮、焦点或播放流程。
+
 TV 状态流由 `core.tv.TvWorkflow` 建模。Android UI 应渲染 `TvAppState`，并把遥控操作转换成 workflow 输入；焦点恢复必须使用 `FocusedItem(rowId, itemId)`。
 
 Android 首页按钮获得选择意图时，应先调用 `TvWorkflowController.focusItem(rowId, itemId)` 写回领域状态；从详情或播放器返回首页时，再用 `TvAppState.focus` 对应按钮调用平台 `requestFocus()`。

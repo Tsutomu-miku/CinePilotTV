@@ -1,6 +1,7 @@
 package tv.cinepilot.tv
 
 import android.graphics.Color
+import android.graphics.BitmapFactory
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
@@ -9,6 +10,7 @@ import android.view.Gravity
 import android.view.View
 import android.widget.Button
 import android.widget.EditText
+import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.ScrollView
 import android.widget.TextView
@@ -16,6 +18,7 @@ import androidx.activity.ComponentActivity
 import androidx.lifecycle.ViewModelProvider
 import java.net.ConnectException
 import java.net.SocketTimeoutException
+import java.net.URL
 import java.net.UnknownHostException
 import java.util.concurrent.Executors
 import javax.net.ssl.SSLException
@@ -337,6 +340,7 @@ class MainActivity : ComponentActivity() {
 
     private fun showDetails(item: MediaItemSummary) {
         setContentView(screen(item.name()) {
+            addPosterIfAvailable(this, item)
             addView(label("${item.type()}${if (item.productionYear() != null) " · ${item.productionYear()}" else ""}"))
             if (item.runTimeTicks() != null) {
                 addView(label("时长：${formatPlaybackPosition(item.runTimeTicks())}"))
@@ -370,6 +374,34 @@ class MainActivity : ComponentActivity() {
                 showHome(viewModel.workflowController.state())
             })
         })
+    }
+
+    private fun addPosterIfAvailable(container: LinearLayout, item: MediaItemSummary) {
+        val authenticated = viewModel.workflowController.state().authenticated() ?: return
+        if (item.imageTags()["Primary"].isNullOrBlank()) {
+            return
+        }
+        val poster = ImageView(this).apply {
+            contentDescription = "${item.name()} 海报"
+            scaleType = ImageView.ScaleType.CENTER_CROP
+            setBackgroundColor(Color.rgb(30, 41, 59))
+            adjustViewBounds = false
+        }
+        container.addView(poster, LinearLayout.LayoutParams(320, 480).apply {
+            bottomMargin = 20
+        })
+        executor.execute {
+            runCatching {
+                val imageUrl = viewModel.mediaBrowserClient.primaryImageUrl(authenticated, item, 320, 480)
+                URL(imageUrl).openStream().use(BitmapFactory::decodeStream)
+            }.getOrNull()?.let { bitmap ->
+                runOnUiThread {
+                    if (!isFinishing && !isDestroyed) {
+                        poster.setImageBitmap(bitmap)
+                    }
+                }
+            }
+        }
     }
 
     private fun loadPlaybackOptions(item: MediaItemSummary) {

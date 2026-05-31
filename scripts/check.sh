@@ -251,6 +251,21 @@ if ! grep -q '简介：' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/MainActivi
   exit 1
 fi
 
+if ! grep -q 'addPosterIfAvailable' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/MainActivity.kt"; then
+  echo "MainActivity must render media posters when available" >&2
+  exit 1
+fi
+
+if ! grep -q 'primaryImageUrl' "$ROOT_DIR/core/src/main/java/tv/cinepilot/core/protocol/MediaBrowserClient.java"; then
+  echo "MediaBrowserClient must expose primary image URLs" >&2
+  exit 1
+fi
+
+if ! grep -q 'runCatching' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/MainActivity.kt"; then
+  echo "MainActivity must keep image loading failures non-blocking" >&2
+  exit 1
+fi
+
 if ! grep -q '时长：' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/MainActivity.kt"; then
   echo "MainActivity must show runtime on details when available" >&2
   exit 1

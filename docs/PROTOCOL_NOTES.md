@@ -21,6 +21,7 @@
 - `GET /Shows/NextUp`：剧集下一集候选。
 - `GET /Users/{UserId}/Items/Latest`：最新媒体候选。
 - `GET /Users/{UserId}/Items/{ItemId}`：媒体详情。
+- `GET /Items/{Id}/Images/{ImageType}`：媒体图片，用于详情页海报。
 - `GET /Items/{Id}/PlaybackInfo`：获取播放候选、`PlaySessionId` 和 `MediaSources`。
 - `GET /Videos/{Id}/master.m3u8`：生成 HLS 播放 URL，用于 direct stream / transcode 场景。
 - `POST /Sessions/Playing`：开始播放上报。
@@ -42,7 +43,7 @@
 - 会话持久化：`SessionScope` -> `InMemorySessionRepository` / `FileSessionRepository`。
 - 播放信息：`playbackInfo` -> `PlaybackInfo`；播放前音轨 / 字幕选择复用该响应里的 `MediaStreams[].Index`。
 - 播放源选择：`PlaybackInfo` -> `PlayableMedia`。
-- 媒体库浏览：`userViews` / `items` / `resumeItems` / `nextUpItems` / `latestItems` / `item` -> 媒体条目模型。
+- 媒体库浏览：`userViews` / `items` / `resumeItems` / `nextUpItems` / `latestItems` / `item` / `primaryImageUrl` -> 媒体条目模型和图片 URL。
 - 服务器侧搜索：`ItemQuery.search` -> `/Users/{UserId}/Items?SearchTerm=...`。
 - TV 首页组合：`HomeRowsLoader` -> `HomeRow` 列表。
 - TV 用例编排：`TvWorkflowController` 将服务器发现、登录、首页、详情和播放准备串成 `TvAppState`。

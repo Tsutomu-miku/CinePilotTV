@@ -217,6 +217,22 @@ public final class ProtocolCoreTest {
         assertTrue(nextUp.url(address).contains("Limit=12"), "next up limit");
         assertTrue(nextUp.url(address).contains("EnableUserData=true"), "next up user data");
 
+        ProtocolRequest image = MediaBrowserRequests.itemImage(
+                session,
+                ServerFlavor.JELLYFIN,
+                "movie 1",
+                "Primary",
+                "tag-1",
+                320,
+                480
+        );
+        String imageUrl = image.url(address);
+        assertEquals("/Items/movie%201/Images/Primary", image.path(), "image path");
+        assertTrue(imageUrl.contains("tag=tag-1"), "image tag query");
+        assertTrue(imageUrl.contains("fillWidth=320"), "image width query");
+        assertTrue(imageUrl.contains("fillHeight=480"), "image height query");
+        assertTrue(imageUrl.contains("quality=90"), "image quality query");
+
         ProtocolRequest detail = MediaBrowserRequests.item(session, ServerFlavor.JELLYFIN, "item/with/slash");
         assertEquals("/Users/user%201/Items/item%2Fwith%2Fslash", detail.path(), "item detail path encodes item id");
     }
@@ -749,6 +765,11 @@ public final class ProtocolCoreTest {
         assertTrue(transport.requests.get(1).url(authenticated.server().address()).contains("ParentId=library-1"), "items parent query");
         assertTrue(transport.requests.get(1).url(authenticated.server().address()).contains("SortBy=SortName"), "items stable sort");
         assertEquals("/Users/user-1/Items/movie-1", transport.requests.get(2).path(), "detail request path");
+
+        String imageUrl = mediaClient.primaryImageUrl(authenticated, movie, 320, 480);
+        assertTrue(imageUrl.startsWith("https://media.example.com/jellyfin/Items/movie-1/Images/Primary?"), "client image url");
+        assertTrue(imageUrl.contains("tag=primary-tag"), "client image tag");
+        assertTrue(imageUrl.contains("api_key=token-1"), "client image url carries token");
     }
 
     private static void persistsSavedSessionsToFile() {
