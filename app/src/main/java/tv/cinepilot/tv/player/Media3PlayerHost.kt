@@ -73,7 +73,12 @@ class Media3PlayerHost(
             this.player = nextPlayer
             useController = true
             keepScreenOn = true
-            setOnKeyListener { _, keyCode, event -> handleRemoteKey(keyCode, event) }
+            setShowSubtitleButton(true)
+            setShowPreviousButton(false)
+            setShowNextButton(false)
+            setControllerAutoShow(true)
+            setControllerShowTimeoutMs(PLAYER_CONTROLLER_TIMEOUT_MS)
+            setOnKeyListener { _, keyCode, event -> handleRemoteKey(this, keyCode, event) }
         }
     }
 
@@ -111,11 +116,17 @@ class Media3PlayerHost(
         checkInExecutor.shutdownNow()
     }
 
-    private fun handleRemoteKey(keyCode: Int, event: KeyEvent): Boolean {
+    private fun handleRemoteKey(playerView: PlayerView, keyCode: Int, event: KeyEvent): Boolean {
         if (event.action != KeyEvent.ACTION_DOWN) {
             return false
         }
         return when (keyCode) {
+            KeyEvent.KEYCODE_MENU,
+            KeyEvent.KEYCODE_SETTINGS,
+            KeyEvent.KEYCODE_CAPTIONS -> {
+                playerView.showController()
+                true
+            }
             KeyEvent.KEYCODE_MEDIA_REWIND -> {
                 seekBack()
                 true
@@ -209,5 +220,9 @@ class Media3PlayerHost(
         }
         progressTicker = ticker
         handler.post(ticker)
+    }
+
+    private companion object {
+        private const val PLAYER_CONTROLLER_TIMEOUT_MS = 5_000
     }
 }

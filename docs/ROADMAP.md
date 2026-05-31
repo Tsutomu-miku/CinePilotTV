@@ -82,7 +82,7 @@
 
 状态：进行中。
 
-- P0-17 用 Android TV UI 渲染服务器输入、登录、首页、详情和播放器入口。进度：原生 View 流程已完成，启动自动恢复、服务器 URL 输入、public users 选择、密码遮蔽、显式焦点样式、服务器连接、登录、会话恢复、首页加载、搜索、文件夹 / 剧集层级浏览、详情加载、海报、中文元信息、简介 / 类型 / 时长 / 季集展示、可读恢复播放时间、继续播放、从头播放、低码率播放、播放速度、播放前媒体源 / 音轨 / 字幕选择、连接 / HTTP / 地址错误中文提示、上下文错误恢复、Back 导航、全屏播放器和遥控器播放控制均走已接线流程；仍需继续做 TV 视觉细节打磨。
+- P0-17 用 Android TV UI 渲染服务器输入、登录、首页、详情和播放器入口。进度：原生 View 流程已完成，启动自动恢复、服务器 URL 输入、public users 选择、密码遮蔽、显式焦点样式、服务器连接、登录、会话恢复、首页加载、搜索、文件夹 / 剧集层级浏览、详情加载、海报、中文元信息、简介 / 类型 / 时长 / 季集展示、可读恢复播放时间、继续播放、从头播放、低码率播放、播放速度、播放前媒体源 / 音轨 / 字幕选择、播放中 Media3 原生音轨 / 字幕控制层入口、连接 / HTTP / 地址错误中文提示、上下文错误恢复、Back 导航、全屏播放器和遥控器播放控制均走已接线流程；仍需继续做 TV 视觉细节打磨。
 - P0-18 将 `TvWorkflow` 接入 Activity / ViewModel，保证焦点按 item id 恢复。进度：`TvWorkflow`、`HomeRowsLoader`、核心 `TvWorkflowController`、Android runtime 暴露、`CinePilotViewModel` 接线和首页 item id 焦点恢复已完成。
 - P0-19 将 `PlayableMedia` 接入 Media3 player host。进度：`Media3PlayerHost` 已接入全屏播放器视图，为播放 URL 追加 `api_key`，并在播放失败时回到可恢复错误页；真机已验证 Jellyfin 媒体可播放、停止后返回详情。
 - P0-20 将 Media3 播放事件桥接到 `PlaybackSessionController`。进度：`Media3PlaybackBridge` 已接入 player host，ready / pause / unpause / seek / ended / release / playback speed / playback error 均有桥接路径；播放自然结束后会释放播放器并回详情；本地 HTTP 集成测试覆盖上报，真机已验证播放、硬件媒体键 smoke 和停止返回不崩溃。
@@ -106,7 +106,7 @@
 - 继续观看、下一集、最新媒体行、剧集 / 季 / 集浏览、分页和稳定默认排序已具备最小入口。
 - 详情页技术信息展示：已从 playback info / media stream metadata 整理分辨率、容器 / 编码、文件大小、码率、声道、HDR、Dolby Vision、Dolby Atmos、音轨数量、默认音轨、字幕数量、字幕语言、默认字幕、外挂字幕和强制字幕，作为播放按钮之后的次级信息展示；后续继续根据真机样式微调密度。
 - 详情页长标题排版：已把媒体标题从通用页面大标题移到详情内容区，最多三行截断，首行元信息和播放按钮在标题下方布局，避免遮挡；后续真机校准不同电视缩放比例。
-- 播放前媒体源、字幕和音轨选择已具备最小入口；字幕选择必须作为正式能力继续打磨，播放中切换仍等待稳定的 Media3 track 到 Jellyfin / Emby `MediaStream.Index` 映射。
+- 播放前媒体源、字幕和音轨选择已具备入口；选择音轨后会继续在同一媒体源下选择默认字幕、关闭字幕或具体字幕，确保 audio stream index 与 subtitle stream index 可以组合后一起进入播放准备。播放中可通过 Media3 原生控制层调整音轨 / 字幕；服务器上报里的精确 stream index 仍等待稳定的 Media3 track 到 Jellyfin / Emby `MediaStream.Index` 映射。
 - 恢复播放弹窗和下一集行为；详情页已提供继续播放、从头播放、低码率播放，以及基于 `SeriesId` / `/Shows/NextUp` 的“本剧下一集”入口。
 - 播放器防误触：Back 退出播放前需要二次确认，确认层也不能形成第二套播放控制。
 - 无法连接服务器、不支持媒体、token 过期和上下文错误恢复已具备最小入口。

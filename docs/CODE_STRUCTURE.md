@@ -13,6 +13,7 @@ app/
     home/HomeRouteScreens.kt     首页导航组装和搜索页布局
     playback/PlaybackRouteController.kt 详情、播放准备、播放器和诊断 route 编排
     playback/PlaybackScreens.kt  播放准备、音轨字幕、速度和诊断页面布局
+    playback/PlaybackPreferences.kt 详情页播放动作到协议播放偏好的转换
     player/Media3PlayerHost.kt   Media3 ExoPlayer / PlayerView 宿主和遥控器媒体键控制
     player/Media3PlaybackBridge.kt Media3 事件到播放上报控制器的桥接
     runtime/CinePilotRuntime.kt  Android app runtime composition root

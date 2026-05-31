@@ -603,6 +603,13 @@ for host_action in seekBack seekForward togglePlayPause handleRemoteKey KEYCODE_
   fi
 done
 
+for in_player_track_control in 'setShowSubtitleButton(true)' KEYCODE_CAPTIONS KEYCODE_SETTINGS; do
+  if ! grep -q "$in_player_track_control" "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/player/Media3PlayerHost.kt"; then
+    echo "Media3PlayerHost must expose Media3 in-player audio/subtitle controls: $in_player_track_control" >&2
+    exit 1
+  fi
+done
+
 if grep -q 'screen("播放器")' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/MainActivity.kt"; then
   echo "Player route must not be embedded inside the scrolling document screen" >&2
   exit 1
@@ -813,6 +820,11 @@ if [[ ! -s "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/playback/PlaybackScreens
   exit 1
 fi
 
+if [[ ! -s "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/playback/PlaybackPreferences.kt" ]]; then
+  echo "Missing dedicated playback preference formatter" >&2
+  exit 1
+fi
+
 if ! grep -q '播放速度' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/playback/PlaybackScreens.kt"; then
   echo "Playback screens must expose playback speed selection" >&2
   exit 1
@@ -825,6 +837,11 @@ fi
 
 if ! grep -q '音轨 / 字幕' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/playback/PlaybackScreens.kt"; then
   echo "Playback screens must expose audio and subtitle selection" >&2
+  exit 1
+fi
+
+if ! grep -q 'subtitleOptionsForAudioScreen' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/playback/PlaybackScreens.kt"; then
+  echo "Playback screens must allow pairing a selected audio track with subtitle choice" >&2
   exit 1
 fi
 

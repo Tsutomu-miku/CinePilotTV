@@ -60,6 +60,34 @@ fun ComponentActivity.playbackSpeedScreen(
     }
 }
 
+fun ComponentActivity.subtitleOptionsForAudioScreen(
+    source: MediaSourceInfo,
+    audioStreamIndex: Int,
+    onDefaultSubtitles: () -> Unit,
+    onDisableSubtitles: () -> Unit,
+    onSubtitle: (Int) -> Unit,
+    onBackTracks: () -> Unit,
+): ScrollView {
+    val selectedAudio = source.mediaStreams()
+        .firstOrNull { stream -> stream.type() == MediaStreamType.AUDIO && stream.index() == audioStreamIndex }
+    val subtitleStreams = source.streamsOf(MediaStreamType.SUBTITLE)
+    return screen("选择字幕") {
+        addView(label("已选择音轨：${selectedAudio?.let(::streamLabel) ?: "音轨 $audioStreamIndex"}"))
+        addView(action("使用服务器默认字幕") { onDefaultSubtitles() })
+        addView(action("关闭字幕播放") { onDisableSubtitles() })
+        if (subtitleStreams.isEmpty()) {
+            addView(label("服务器未返回可选字幕"))
+        } else {
+            subtitleStreams.forEach { stream ->
+                addView(action("字幕 ${stream.index()}：${streamLabel(stream)}") {
+                    onSubtitle(stream.index())
+                })
+            }
+        }
+        addView(iconAction("返回音轨 / 字幕", TvIcon.BACK, onBackTracks))
+    }
+}
+
 fun ComponentActivity.playerReadyScreen(
     state: TvAppState,
     onOpenPlayer: () -> Unit,
@@ -133,7 +161,7 @@ private fun LinearLayout.addMediaSourceOptions(
         addView(activity.label("服务器未返回可选音轨"))
     } else {
         audioStreams.forEach { stream ->
-            addView(activity.action("音轨 ${stream.index()}：${streamLabel(stream)}") {
+            addView(activity.action("音轨 ${stream.index()}：${streamLabel(stream)} / 继续选择字幕") {
                 onAudio(source.id(), stream.index())
             })
         }

@@ -115,7 +115,7 @@ class PlaybackRouteController(
             onDefault = { preparePlaybackWith(null) },
             onSource = { sourceId -> preparePlaybackWith(sourcePreferences(item, sourceId)) },
             onAudio = { sourceId, audioStreamIndex ->
-                preparePlaybackWith(trackPreferences(item, sourceId, audioStreamIndex, null))
+                showSubtitleOptionsForAudio(item, playbackInfo, sourceId, audioStreamIndex)
             },
             onDisableSubtitles = { sourceId ->
                 preparePlaybackWith(trackPreferences(item, sourceId, null, -1))
@@ -124,6 +124,33 @@ class PlaybackRouteController(
                 preparePlaybackWith(trackPreferences(item, sourceId, null, subtitleStreamIndex))
             },
             onBackDetails = { showDetails(item) },
+        ))
+    }
+
+    private fun showSubtitleOptionsForAudio(
+        item: MediaItemSummary,
+        playbackInfo: PlaybackInfo,
+        sourceId: String,
+        audioStreamIndex: Int,
+    ) {
+        val source = playbackInfo.mediaSources().firstOrNull { it.id() == sourceId }
+        if (source == null) {
+            preparePlaybackWith(trackPreferences(item, sourceId, audioStreamIndex, null))
+            return
+        }
+        activity.setContentView(activity.subtitleOptionsForAudioScreen(
+            source = source,
+            audioStreamIndex = audioStreamIndex,
+            onDefaultSubtitles = {
+                preparePlaybackWith(trackPreferences(item, sourceId, audioStreamIndex, null))
+            },
+            onDisableSubtitles = {
+                preparePlaybackWith(trackPreferences(item, sourceId, audioStreamIndex, -1))
+            },
+            onSubtitle = { subtitleStreamIndex ->
+                preparePlaybackWith(trackPreferences(item, sourceId, audioStreamIndex, subtitleStreamIndex))
+            },
+            onBackTracks = { showPlaybackOptions(item, playbackInfo) },
         ))
     }
 
@@ -254,31 +281,6 @@ class PlaybackRouteController(
             showPlayer(workflowController.state())
         }
     }
-
-    private fun trackPreferences(
-        item: MediaItemSummary,
-        mediaSourceId: String,
-        audioStreamIndex: Int?,
-        subtitleStreamIndex: Int?,
-    ): PlaybackSelectionPreferences {
-        return PlaybackSelectionPreferences(resumeStartTicks(item), audioStreamIndex, subtitleStreamIndex, null, 0, 0, 0)
-            .withMediaSourceId(mediaSourceId)
-    }
-
-    private fun sourcePreferences(item: MediaItemSummary, mediaSourceId: String): PlaybackSelectionPreferences {
-        return PlaybackSelectionPreferences(resumeStartTicks(item), null, null, null, 0, 0, 0).withMediaSourceId(mediaSourceId)
-    }
-
-    private fun lowBitratePreferences(item: MediaItemSummary): PlaybackSelectionPreferences {
-        return PlaybackSelectionPreferences.lowBitrate(resumeStartTicks(item))
-    }
-
-    private fun speedPreferences(item: MediaItemSummary, rate: Float): PlaybackSelectionPreferences {
-        return PlaybackSelectionPreferences(resumeStartTicks(item), null, null, null, 0, 0, 0).withPlaybackRate(rate)
-    }
-
-    private fun resumeStartTicks(item: MediaItemSummary): Long =
-        if (item.hasResumePosition()) item.userData().playbackPositionTicks() else 0L
 
     companion object {
         private const val PLAYBACK_BACK_EXIT_WINDOW_MS = 2_000L
