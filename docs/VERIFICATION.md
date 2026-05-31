@@ -73,6 +73,7 @@ Android TV 设备或模拟器上需要验证：
 - 详情页展示可读的恢复播放时间，不显示原始协议 ticks。
 - 详情页的音轨 / 字幕入口能列出 playback info 中的 audio / subtitle streams，并把选择的 stream index 用于播放准备。
 - 详情页的低码率播放会把最大码率、声道数、起播 ticks 等偏好传入 playback info，并在 HLS URL 构造时继续使用分辨率 / 码率偏好。
+- HLS 播放准备在用户选择字幕时会带上 `SubtitleMethod=Hls`。
 - 搜索无结果或服务器返回空媒体行时，界面会显示“没有可显示的媒体”。
 - 播放开始、暂停、seek、停止会触发 Jellyfin / Emby 播放上报。
 - token 失效时只影响对应服务器并回到登录。

@@ -106,6 +106,9 @@ public final class PlaybackSourceSelector {
         }
         if (preferences.subtitleStreamIndex() != null) {
             builder.subtitleStreamIndex(preferences.subtitleStreamIndex());
+            if (preferences.subtitleStreamIndex() >= 0) {
+                builder.subtitleMethod("Hls");
+            }
         }
         if (preferences.maxAudioChannels() != null) {
             builder.maxAudioChannels(preferences.maxAudioChannels());

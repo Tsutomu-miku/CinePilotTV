@@ -479,6 +479,7 @@ public final class ProtocolCoreTest {
         assertEquals("/Videos/item-2/master.m3u8", fallback.request().path(), "fallback hls path");
         assertTrue(fallback.request().url(address).contains("MediaSourceId=source-hls"), "fallback media source query");
         assertTrue(fallback.request().url(address).contains("StartTimeTicks=600000000"), "fallback start ticks query");
+        assertTrue(fallback.request().url(address).contains("SubtitleMethod=Hls"), "fallback subtitle method query");
         assertEquals(2, fallback.audioStreamIndex(), "explicit audio preference wins");
         assertEquals(5, fallback.subtitleStreamIndex(), "explicit subtitle preference wins");
 

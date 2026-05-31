@@ -446,6 +446,11 @@ if ! grep -q '音轨 / 字幕' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/Main
   exit 1
 fi
 
+if ! grep -q 'subtitleMethod("Hls")' "$ROOT_DIR/core/src/main/java/tv/cinepilot/core/protocol/PlaybackSourceSelector.java"; then
+  echo "PlaybackSourceSelector must request HLS subtitle delivery when a subtitle is selected" >&2
+  exit 1
+fi
+
 if ! grep -q 'loadPlaybackChoices' "$ROOT_DIR/core/src/main/java/tv/cinepilot/core/tv/TvWorkflowController.java"; then
   echo "TvWorkflowController must expose playback choices for track selection" >&2
   exit 1
