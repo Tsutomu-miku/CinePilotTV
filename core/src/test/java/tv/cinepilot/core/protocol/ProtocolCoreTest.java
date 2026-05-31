@@ -433,7 +433,7 @@ public final class ProtocolCoreTest {
                 .mediaStreams(List.of(
                         new MediaStreamInfo(0, MediaStreamType.VIDEO, "hevc", "", "4K HEVC", true, false, false, null),
                         new MediaStreamInfo(1, MediaStreamType.AUDIO, "eac3", "eng", "English", true, false, false, null),
-                        new MediaStreamInfo(2, MediaStreamType.SUBTITLE, "srt", "eng", "English SDH", true, false, true, null)
+                        new MediaStreamInfo(2, MediaStreamType.SUBTITLE, "srt", "eng", "English SDH", true, false, true, "/Videos/item-1/Subtitles/2/Stream.srt")
                 ))
                 .build();
         PlaybackInfo info = new PlaybackInfo(
@@ -454,6 +454,14 @@ public final class ProtocolCoreTest {
         assertEquals("https://cdn.example.com/movie.mkv", selected.url(), "absolute direct play url");
         assertEquals(1, selected.audioStreamIndex(), "selector keeps default audio stream");
         assertEquals(2, selected.subtitleStreamIndex(), "selector keeps default subtitle stream");
+        assertEquals(
+                "https://media.example.com/jellyfin/Videos/item-1/Subtitles/2/Stream.srt",
+                selected.subtitleDeliveryUrl(),
+                "selector resolves selected direct subtitle url"
+        );
+        assertEquals("srt", selected.subtitleCodec(), "selector keeps subtitle codec");
+        assertEquals("eng", selected.subtitleLanguage(), "selector keeps subtitle language");
+        assertEquals("English SDH", selected.subtitleDisplayTitle(), "selector keeps subtitle label");
 
         PlayableMedia chosenSource = PlaybackSourceSelector.select(
                 address,
@@ -464,6 +472,16 @@ public final class ProtocolCoreTest {
         ).orElseThrow();
         assertEquals("source-direct", chosenSource.mediaSourceId(), "explicit media source wins");
         assertEquals(PlayMethod.DIRECT_STREAM, chosenSource.playMethod(), "explicit media source keeps its best method");
+
+        PlayableMedia subtitlesDisabled = PlaybackSourceSelector.select(
+                address,
+                session,
+                ServerFlavor.JELLYFIN,
+                info,
+                new PlaybackSelectionPreferences(0L, null, -1, null, 0, 0, 0)
+        ).orElseThrow();
+        assertEquals(-1, subtitlesDisabled.subtitleStreamIndex(), "explicit disabled subtitle is preserved");
+        assertEquals("", subtitlesDisabled.subtitleDeliveryUrl(), "disabled subtitle has no delivery url");
 
         PlaybackInfo directStreamOnly = new PlaybackInfo("item-1", "play-session-1", List.of(transcodingOnly, directStream));
         PlayableMedia streamSelection = PlaybackSourceSelector.select(

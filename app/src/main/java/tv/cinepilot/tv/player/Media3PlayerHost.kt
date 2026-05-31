@@ -8,11 +8,15 @@ import android.view.KeyEvent
 import android.view.View
 import androidx.media3.common.C
 import androidx.media3.common.MediaItem
+import androidx.media3.common.MimeTypes
 import androidx.media3.common.PlaybackException
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.ui.PlayerView
 import java.util.concurrent.Executors
+import tv.cinepilot.core.protocol.AuthSession
 import tv.cinepilot.core.protocol.MediaBrowserClient
+import tv.cinepilot.core.protocol.PlayMethod
+import tv.cinepilot.core.protocol.PlayableMedia
 import tv.cinepilot.core.protocol.PlaybackUrlAuthorizer
 import tv.cinepilot.core.protocol.PlaybackSessionController
 import tv.cinepilot.core.tv.TvAppState
@@ -53,7 +57,7 @@ class Media3PlayerHost(
         )
         val nextPlayer = ExoPlayer.Builder(context).build().apply {
             addListener(playbackBridge)
-            setMediaItem(MediaItem.fromUri(Uri.parse(authorizedPlaybackUrl)))
+            setMediaItem(mediaItem(playable, authorizedPlaybackUrl, authenticated.session()))
             prepare()
             playWhenReady = true
         }
@@ -141,6 +145,44 @@ class Media3PlayerHost(
                 unclampedPosition.coerceAtLeast(0L)
             }
             currentPlayer.seekTo(targetPosition)
+        }
+    }
+
+    private fun mediaItem(
+        playable: PlayableMedia,
+        authorizedPlaybackUrl: String,
+        session: AuthSession,
+    ): MediaItem {
+        val builder = MediaItem.Builder().setUri(Uri.parse(authorizedPlaybackUrl))
+        val subtitleDeliveryUrl = playable.subtitleDeliveryUrl()
+        val subtitleStreamIndex = playable.subtitleStreamIndex()
+        if (
+            playable.playMethod() != PlayMethod.TRANSCODE &&
+            subtitleStreamIndex != null &&
+            subtitleStreamIndex >= 0 &&
+            !subtitleDeliveryUrl.isNullOrBlank()
+        ) {
+            val authorizedSubtitleUrl = PlaybackUrlAuthorizer.withAccessToken(subtitleDeliveryUrl, session)
+            builder.setSubtitleConfigurations(listOf(
+                MediaItem.SubtitleConfiguration.Builder(Uri.parse(authorizedSubtitleUrl))
+                    .setMimeType(subtitleMimeType(playable.subtitleCodec(), authorizedSubtitleUrl))
+                    .setLanguage(playable.subtitleLanguage().ifBlank { null })
+                    .setLabel(playable.subtitleDisplayTitle().ifBlank { null })
+                    .setSelectionFlags(C.SELECTION_FLAG_DEFAULT)
+                    .build()
+            ))
+        }
+        return builder.build()
+    }
+
+    private fun subtitleMimeType(codec: String, url: String): String {
+        val value = (codec.ifBlank { url.substringBefore('?').substringAfterLast('.', "") }).lowercase()
+        return when (value) {
+            "srt", "subrip" -> MimeTypes.APPLICATION_SUBRIP
+            "ass", "ssa" -> MimeTypes.TEXT_SSA
+            "vtt", "webvtt" -> MimeTypes.TEXT_VTT
+            "ttml", "dfxp" -> MimeTypes.APPLICATION_TTML
+            else -> MimeTypes.APPLICATION_SUBRIP
         }
     }
 

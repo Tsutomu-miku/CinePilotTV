@@ -8,7 +8,11 @@ public record PlayableMedia(
         String url,
         ProtocolRequest request,
         Integer audioStreamIndex,
-        Integer subtitleStreamIndex
+        Integer subtitleStreamIndex,
+        String subtitleDeliveryUrl,
+        String subtitleCodec,
+        String subtitleLanguage,
+        String subtitleDisplayTitle
 ) {
     public PlayableMedia {
         require(itemId, "itemId");
@@ -20,6 +24,44 @@ public record PlayableMedia(
         if ((url == null || url.isBlank()) && request == null) {
             throw new IllegalArgumentException("either url or request is required");
         }
+        if (subtitleDeliveryUrl == null) {
+            subtitleDeliveryUrl = "";
+        }
+        if (subtitleCodec == null) {
+            subtitleCodec = "";
+        }
+        if (subtitleLanguage == null) {
+            subtitleLanguage = "";
+        }
+        if (subtitleDisplayTitle == null) {
+            subtitleDisplayTitle = "";
+        }
+    }
+
+    public PlayableMedia(
+            String itemId,
+            String mediaSourceId,
+            String playSessionId,
+            PlayMethod playMethod,
+            String url,
+            ProtocolRequest request,
+            Integer audioStreamIndex,
+            Integer subtitleStreamIndex
+    ) {
+        this(
+                itemId,
+                mediaSourceId,
+                playSessionId,
+                playMethod,
+                url,
+                request,
+                audioStreamIndex,
+                subtitleStreamIndex,
+                "",
+                "",
+                "",
+                ""
+        );
     }
 
     public boolean hasReadyUrl() {
@@ -32,4 +74,3 @@ public record PlayableMedia(
         }
     }
 }
-

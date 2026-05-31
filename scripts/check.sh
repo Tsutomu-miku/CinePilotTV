@@ -667,6 +667,16 @@ if ! grep -q 'subtitleMethod("Hls")' "$ROOT_DIR/core/src/main/java/tv/cinepilot/
   exit 1
 fi
 
+if ! grep -q 'subtitleDeliveryUrl' "$ROOT_DIR/core/src/main/java/tv/cinepilot/core/protocol/PlayableMedia.java"; then
+  echo "PlayableMedia must preserve selected external subtitle delivery URLs" >&2
+  exit 1
+fi
+
+if ! grep -q 'SubtitleConfiguration' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/player/Media3PlayerHost.kt"; then
+  echo "Media3PlayerHost must attach selected external subtitles for direct playback" >&2
+  exit 1
+fi
+
 if ! grep -q 'loadPlaybackChoices' "$ROOT_DIR/core/src/main/java/tv/cinepilot/core/tv/TvWorkflowController.java"; then
   echo "TvWorkflowController must expose playback choices for track selection" >&2
   exit 1

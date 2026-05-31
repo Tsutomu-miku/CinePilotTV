@@ -102,6 +102,7 @@ Android TV 设备或模拟器上需要验证：
 - 详情页必须能看见字幕能力，字幕选择必须能进入并选择具体 subtitle stream。
 - 详情页的低码率播放会把最大码率、声道数、起播 ticks 等偏好传入 playback info，并在 HLS URL 构造时继续使用分辨率 / 码率偏好。
 - HLS 播放准备在用户选择字幕时会带上 `SubtitleMethod=Hls`。
+- direct play / direct stream 播放准备在用户选择外挂字幕且服务器返回 `DeliveryUrl` 时，会把字幕 URL 附加到 Media3 `MediaItem.SubtitleConfiguration`。
 - 搜索无结果或服务器返回空媒体行时，界面会显示“没有可显示的媒体”。
 - 播放开始、暂停、seek、停止会触发 Jellyfin / Emby 播放上报。
 - 硬件媒体键的播放 / 暂停、快退、快进应调用 Media3 控制，保证遥控器按键和播放器原生控制行为一致。

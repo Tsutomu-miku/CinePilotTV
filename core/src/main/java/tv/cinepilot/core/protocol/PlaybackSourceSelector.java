@@ -39,6 +39,7 @@ public final class PlaybackSourceSelector {
                 .filter(MediaSourceInfo::supportsDirectPlay)
                 .findFirst()
                 .map(source -> playableFromStaticStreamRequest(
+                        serverAddress,
                         session,
                         flavor,
                         playbackInfo,
@@ -115,11 +116,16 @@ public final class PlaybackSourceSelector {
                 resolveUrl(serverAddress, url),
                 null,
                 selectedAudioStreamIndex(source, preferences),
-                selectedSubtitleStreamIndex(source, preferences)
+                selectedSubtitleStreamIndex(source, preferences),
+                selectedSubtitleDeliveryUrl(serverAddress, source, preferences),
+                selectedSubtitleCodec(source, preferences),
+                selectedSubtitleLanguage(source, preferences),
+                selectedSubtitleDisplayTitle(source, preferences)
         );
     }
 
     private static PlayableMedia playableFromStaticStreamRequest(
+            MediaServerAddress serverAddress,
             AuthSession session,
             ServerFlavor flavor,
             PlaybackInfo playbackInfo,
@@ -140,7 +146,11 @@ public final class PlaybackSourceSelector {
                         playbackInfo.playSessionId()
                 ),
                 selectedAudioStreamIndex(source, preferences),
-                selectedSubtitleStreamIndex(source, preferences)
+                selectedSubtitleStreamIndex(source, preferences),
+                selectedSubtitleDeliveryUrl(serverAddress, source, preferences),
+                selectedSubtitleCodec(source, preferences),
+                selectedSubtitleLanguage(source, preferences),
+                selectedSubtitleDisplayTitle(source, preferences)
         );
     }
 
@@ -200,6 +210,50 @@ public final class PlaybackSourceSelector {
             return preferences.subtitleStreamIndex();
         }
         return defaultStreamIndex(source, MediaStreamType.SUBTITLE, false);
+    }
+
+    private static String selectedSubtitleDeliveryUrl(
+            MediaServerAddress serverAddress,
+            MediaSourceInfo source,
+            PlaybackSelectionPreferences preferences
+    ) {
+        return selectedSubtitleStream(source, preferences)
+                .map(MediaStreamInfo::deliveryUrl)
+                .filter(PlaybackSourceSelector::hasValue)
+                .map(url -> resolveUrl(serverAddress, url))
+                .orElse("");
+    }
+
+    private static String selectedSubtitleCodec(MediaSourceInfo source, PlaybackSelectionPreferences preferences) {
+        return selectedSubtitleStream(source, preferences)
+                .map(MediaStreamInfo::codec)
+                .orElse("");
+    }
+
+    private static String selectedSubtitleLanguage(MediaSourceInfo source, PlaybackSelectionPreferences preferences) {
+        return selectedSubtitleStream(source, preferences)
+                .map(MediaStreamInfo::language)
+                .orElse("");
+    }
+
+    private static String selectedSubtitleDisplayTitle(MediaSourceInfo source, PlaybackSelectionPreferences preferences) {
+        return selectedSubtitleStream(source, preferences)
+                .map(MediaStreamInfo::displayTitle)
+                .orElse("");
+    }
+
+    private static Optional<MediaStreamInfo> selectedSubtitleStream(
+            MediaSourceInfo source,
+            PlaybackSelectionPreferences preferences
+    ) {
+        Integer selectedIndex = selectedSubtitleStreamIndex(source, preferences);
+        if (selectedIndex == null || selectedIndex < 0) {
+            return Optional.empty();
+        }
+        return source.mediaStreams().stream()
+                .filter(stream -> stream.type() == MediaStreamType.SUBTITLE)
+                .filter(stream -> stream.index() == selectedIndex)
+                .findFirst();
     }
 
     private static Integer defaultStreamIndex(MediaSourceInfo source, MediaStreamType type, boolean fallbackToFirst) {
