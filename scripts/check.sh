@@ -216,6 +216,16 @@ if ! grep -q '从头播放' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/MainAct
   exit 1
 fi
 
+if ! grep -q '没有可用播放源' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/MainActivity.kt"; then
+  echo "MainActivity must explain unsupported playback in Chinese" >&2
+  exit 1
+fi
+
+if ! grep -q '目录中没有可打开的媒体' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/MainActivity.kt"; then
+  echo "MainActivity must explain empty folders in Chinese" >&2
+  exit 1
+fi
+
 rm -rf "$BUILD_DIR"
 mkdir -p "$MAIN_CLASSES" "$TEST_CLASSES"
 

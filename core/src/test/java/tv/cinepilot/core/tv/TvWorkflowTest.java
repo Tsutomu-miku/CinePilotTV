@@ -33,6 +33,8 @@ public final class TvWorkflowTest {
         controllerStartsPlaybackFromBeginningWhenRequested();
         controllerRestoresSavedSessionAndLoadsHome();
         controllerOpensFirstChildForFolderBrowse();
+        controllerReportsEmptyFolderBrowse();
+        controllerReportsUnsupportedPlayback();
         describesDiagnosticsWithoutToken();
         System.out.println("TvWorkflowTest passed");
     }
@@ -291,6 +293,54 @@ public final class TvWorkflowTest {
         assertEquals("/Users/user-1/Items", transport.requests.get(6).path(), "folder browse uses items endpoint");
         assertTrue(transport.requests.get(6).url(MediaServerAddress.parse("https://media.example.com/jellyfin")).contains("ParentId=movies"), "folder browse passes parent id");
         assertTrue(transport.requests.get(6).url(MediaServerAddress.parse("https://media.example.com/jellyfin")).contains("Limit=1"), "folder browse limits to first child");
+    }
+
+    private static void controllerReportsEmptyFolderBrowse() {
+        FakeTransport transport = new FakeTransport();
+        transport.enqueue(200, "{\"Id\":\"server-1\",\"ServerName\":\"Jellyfin\"}");
+        transport.enqueue(200, "{\"AccessToken\":\"token-1\",\"ServerId\":\"server-1\",\"User\":{\"Id\":\"user-1\"}}");
+        enqueueHomeResponses(transport);
+        transport.enqueue(200, "{\"Items\":[],\"TotalRecordCount\":0,\"StartIndex\":0}");
+
+        ClientIdentity client = new ClientIdentity("CinePilot TV", "Living Room TV", "device-1", "0.1.0");
+        MediaBrowserClient mediaClient = new MediaBrowserClient(transport, new InMemorySessionRepository(), client);
+        TvWorkflowController controller = new TvWorkflowController(mediaClient, new HomeRowsLoader(mediaClient, 12));
+
+        controller.submitServer("https://media.example.com/jellyfin");
+        controller.login("demo", "secret");
+        try {
+            controller.openFirstChild("empty-folder");
+            throw new AssertionError("Expected empty folder browse to fail");
+        } catch (IllegalStateException expected) {
+            assertEquals(TvWorkflowController.NO_CHILD_ITEM_MESSAGE, expected.getMessage(), "empty folder message");
+        }
+    }
+
+    private static void controllerReportsUnsupportedPlayback() {
+        FakeTransport transport = new FakeTransport();
+        transport.enqueue(200, "{\"Id\":\"server-1\",\"ServerName\":\"Jellyfin\"}");
+        transport.enqueue(200, "{\"AccessToken\":\"token-1\",\"ServerId\":\"server-1\",\"User\":{\"Id\":\"user-1\"}}");
+        enqueueHomeResponses(transport);
+        transport.enqueue(200, "{\"Id\":\"movie-1\",\"Name\":\"Arrival\",\"Type\":\"Movie\",\"IsPlayable\":true}");
+        transport.enqueue(200, """
+                {"PlaySessionId":"play-session-1","MediaSources":[
+                  {"Id":"source-1","SupportsDirectPlay":false,"SupportsDirectStream":false,"SupportsTranscoding":false}
+                ]}
+                """);
+
+        ClientIdentity client = new ClientIdentity("CinePilot TV", "Living Room TV", "device-1", "0.1.0");
+        MediaBrowserClient mediaClient = new MediaBrowserClient(transport, new InMemorySessionRepository(), client);
+        TvWorkflowController controller = new TvWorkflowController(mediaClient, new HomeRowsLoader(mediaClient, 12));
+
+        controller.submitServer("https://media.example.com/jellyfin");
+        controller.login("demo", "secret");
+        controller.openItem("movie-1");
+        try {
+            controller.preparePlayback(null);
+            throw new AssertionError("Expected unsupported playback to fail");
+        } catch (IllegalStateException expected) {
+            assertEquals(TvWorkflowController.NO_PLAYABLE_SOURCE_MESSAGE, expected.getMessage(), "unsupported playback message");
+        }
     }
 
     private static void describesDiagnosticsWithoutToken() {

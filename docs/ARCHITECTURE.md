@@ -66,6 +66,8 @@ Android 首页按钮获得选择意图时，应先调用 `TvWorkflowController.f
 
 非 401 错误应调用 `TvWorkflowController.fail(message)` 保留当前上下文。错误页需要根据 `TvAppState` 提供恢复入口：有 selected item 时可回详情，有 home rows 时可回首页，有 server 时可重新登录，始终可回服务器输入。
 
+`TvWorkflowController` 对可预期的内容边界使用稳定错误消息：空目录使用 `NO_CHILD_ITEM_MESSAGE`，无法从 playback info 选择播放源时使用 `NO_PLAYABLE_SOURCE_MESSAGE`。Android UI 负责把这些消息翻译成中文用户提示。
+
 ## 播放层
 
 播放层将负责 Media3 player 设置、media source 创建、轨道选择、字幕处理和播放 check-in 调度。它把领域播放事件报告给协议层，不关心界面如何渲染。

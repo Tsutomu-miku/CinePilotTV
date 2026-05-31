@@ -13,6 +13,9 @@ import tv.cinepilot.core.protocol.PlaybackSelectionPreferences;
 import tv.cinepilot.core.protocol.ServerIdentity;
 
 public final class TvWorkflowController {
+    public static final String NO_CHILD_ITEM_MESSAGE = "No child media item is available";
+    public static final String NO_PLAYABLE_SOURCE_MESSAGE = "No playable media source is available";
+
     private final MediaBrowserClient client;
     private final HomeRowsLoader homeRowsLoader;
     private TvAppState state = TvAppState.initial();
@@ -91,7 +94,7 @@ public final class TvWorkflowController {
         MediaItemSummary item = client.items(
                 state.authenticated(),
                 ItemQuery.browse().parentId(parentId).limit(1).build()
-        ).items().stream().findFirst().orElseThrow();
+        ).items().stream().findFirst().orElseThrow(() -> new IllegalStateException(NO_CHILD_ITEM_MESSAGE));
         state = TvWorkflow.openDetails(state, item);
         return state;
     }
@@ -114,7 +117,7 @@ public final class TvWorkflowController {
                 state.authenticated(),
                 playbackInfo,
                 safePreferences
-        ).orElseThrow();
+        ).orElseThrow(() -> new IllegalStateException(NO_PLAYABLE_SOURCE_MESSAGE));
         state = TvWorkflow.playbackReady(state, playable);
         return state;
     }

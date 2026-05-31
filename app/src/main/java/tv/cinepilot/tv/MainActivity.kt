@@ -19,6 +19,7 @@ import tv.cinepilot.core.tv.HomeRow
 import tv.cinepilot.core.tv.TvAppState
 import tv.cinepilot.core.tv.TvDiagnostics
 import tv.cinepilot.core.tv.TvRoute
+import tv.cinepilot.core.tv.TvWorkflowController
 import tv.cinepilot.tv.player.Media3PlayerHost
 import tv.cinepilot.tv.runtime.CinePilotRuntime
 
@@ -254,7 +255,7 @@ class MainActivity : Activity() {
             val message = if (authenticationExpired) {
                 "会话已过期，请重新登录"
             } else {
-                error.message ?: error::class.java.simpleName
+                displayErrorMessage(error)
             }
             addView(label(message))
             if (state.selectedItem() != null && !authenticationExpired) {
@@ -268,6 +269,14 @@ class MainActivity : Activity() {
             }
             addView(action("返回服务器输入") { showServerEntry() })
         })
+    }
+
+    private fun displayErrorMessage(error: Throwable): String {
+        return when (error.message) {
+            TvWorkflowController.NO_CHILD_ITEM_MESSAGE -> "目录中没有可打开的媒体"
+            TvWorkflowController.NO_PLAYABLE_SOURCE_MESSAGE -> "没有可用播放源"
+            else -> error.message ?: error::class.java.simpleName
+        }
     }
 
     private fun runTask(message: String, task: () -> Unit, onSuccess: () -> Unit) {

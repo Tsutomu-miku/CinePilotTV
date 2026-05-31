@@ -61,7 +61,7 @@
 - P0-9 通过直接 URL 实现服务器发现。进度：请求规格、系统信息响应 mapper、HTTP transport 和 client 编排已完成。
 - P0-10 实现 Jellyfin 与 Emby 的用户名 / 密码认证。进度：请求规格、登录响应 mapper、HTTP transport 和 client 编排已完成。
 - P0-11 按服务器和用户作用域持久化会话。进度：内存 repository、文件 repository、client 保存 / 恢复 / logout / 本地忘记撤销流程和 Android 上次登录恢复入口已完成；401 过期会话会清除当前 scope 并回到重新登录。
-- P0-12 通过协议适配器获取首页分区和媒体详情。进度：views、items、resume、latest、detail 请求规格、响应模型、client 编排、TV 首页 row 组合、不可播放文件夹打开首个子项目和本地 HTTP 集成测试已完成。
+- P0-12 通过协议适配器获取首页分区和媒体详情。进度：views、items、resume、latest、detail 请求规格、响应模型、client 编排、TV 首页 row 组合、不可播放文件夹打开首个子项目、空文件夹错误提示和本地 HTTP 集成测试已完成。
 
 退出标准：
 
@@ -74,7 +74,7 @@
 状态：进行中。
 
 - P0-13 获取播放信息，并保存 media source id 与 play session id。进度：playback info 请求规格、领域模型、响应 mapper、client 编排、resume start ticks 和从头播放 start ticks 已完成。
-- P0-14 生成 Media3 可播放 media item，包括 direct stream / transcode URL。进度：播放源选择器、默认音轨 / 字幕 index 保留、Media3 URL 接线和播放 URL token 授权已完成。
+- P0-14 生成 Media3 可播放 media item，包括 direct stream / transcode URL。进度：播放源选择器、默认音轨 / 字幕 index 保留、无可播放源错误提示、Media3 URL 接线和播放 URL token 授权已完成。
 - P0-15 调度 started / progress / stopped 播放 check-in。进度：check-in 请求规格、10 秒进度调度器、client 网络发送接线、本地 HTTP 集成测试和 Media3 宿主周期 tick 接线已完成。
 - P0-16 把播放暂停、seek、音轨、字幕和播放速度变化同步到协议层。进度：立即上报事件调度、client 发送、默认音轨 / 字幕 index、`PlaybackSessionController`、Media3 ready / pause / unpause / seek / ended / release / playback speed 桥接已完成；播放中音轨和字幕变化仍需在能可靠映射 Jellyfin / Emby `MediaStream.Index` 后接入。
 
