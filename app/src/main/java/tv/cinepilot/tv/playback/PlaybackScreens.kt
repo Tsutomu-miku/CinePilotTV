@@ -1,14 +1,8 @@
 package tv.cinepilot.tv.playback
 
 import android.view.View
-import android.widget.LinearLayout
 import android.widget.ScrollView
 import androidx.activity.ComponentActivity
-import tv.cinepilot.core.protocol.MediaItemSummary
-import tv.cinepilot.core.protocol.MediaSourceInfo
-import tv.cinepilot.core.protocol.MediaStreamInfo
-import tv.cinepilot.core.protocol.MediaStreamType
-import tv.cinepilot.core.protocol.PlaybackInfo
 import tv.cinepilot.core.tv.TvAppState
 import tv.cinepilot.tv.ui.TvIcon
 import tv.cinepilot.tv.ui.action
@@ -17,35 +11,6 @@ import tv.cinepilot.tv.ui.label
 import tv.cinepilot.tv.ui.playbackSpeedOptions
 import tv.cinepilot.tv.ui.requestInitialFocus
 import tv.cinepilot.tv.ui.screen
-import tv.cinepilot.tv.ui.section
-import tv.cinepilot.tv.ui.sourceLabel
-import tv.cinepilot.tv.ui.streamLabel
-
-fun ComponentActivity.playbackOptionsScreen(
-    item: MediaItemSummary,
-    playbackInfo: PlaybackInfo,
-    onDefault: () -> Unit,
-    onSource: (String) -> Unit,
-    onAudio: (String, Int) -> Unit,
-    onDisableSubtitles: (String) -> Unit,
-    onSubtitle: (String, Int) -> Unit,
-): ScrollView {
-    return screen("音轨 / 字幕") {
-        addView(action("按服务器默认播放", onDefault).requestInitialFocus())
-        playbackInfo.mediaSources().forEachIndexed { index, source ->
-            addMediaSourceOptions(
-                activity = this@playbackOptionsScreen,
-                index = index,
-                playbackInfo = playbackInfo,
-                source = source,
-                onSource = onSource,
-                onAudio = onAudio,
-                onDisableSubtitles = onDisableSubtitles,
-                onSubtitle = onSubtitle,
-            )
-        }
-    }
-}
 
 fun ComponentActivity.playbackSpeedScreen(
     onSpeed: (Float) -> Unit,
@@ -54,32 +19,6 @@ fun ComponentActivity.playbackSpeedScreen(
         playbackSpeedOptions().forEachIndexed { index, option ->
             val optionAction = action(option.label) { onSpeed(option.rate) }
             addView(if (index == 0) optionAction.requestInitialFocus() else optionAction)
-        }
-    }
-}
-
-fun ComponentActivity.subtitleOptionsForAudioScreen(
-    source: MediaSourceInfo,
-    audioStreamIndex: Int,
-    onDefaultSubtitles: () -> Unit,
-    onDisableSubtitles: () -> Unit,
-    onSubtitle: (Int) -> Unit,
-): ScrollView {
-    val selectedAudio = source.mediaStreams()
-        .firstOrNull { stream -> stream.type() == MediaStreamType.AUDIO && stream.index() == audioStreamIndex }
-    val subtitleStreams = source.streamsOf(MediaStreamType.SUBTITLE)
-    return screen("选择字幕") {
-        addView(label("已选择音轨：${selectedAudio?.let(::streamLabel) ?: "音轨 $audioStreamIndex"}"))
-        addView(action("使用服务器默认字幕") { onDefaultSubtitles() }.requestInitialFocus())
-        addView(action("关闭字幕播放") { onDisableSubtitles() })
-        if (subtitleStreams.isEmpty()) {
-            addView(label("服务器未返回可选字幕"))
-        } else {
-            subtitleStreams.forEach { stream ->
-                addView(action("字幕 ${stream.index()}：${streamLabel(stream)}") {
-                    onSubtitle(stream.index())
-                })
-            }
         }
     }
 }
@@ -129,52 +68,6 @@ fun ComponentActivity.diagnosticsExportedScreen(
         addView(iconAction("返回诊断信息", TvIcon.BACK, onBackDiagnostics))
         addView(diagnosticsBackAction(returnToPlayer, backLabel, onBackDiagnosticsTarget))
     }
-}
-
-private fun LinearLayout.addMediaSourceOptions(
-    activity: ComponentActivity,
-    index: Int,
-    playbackInfo: PlaybackInfo,
-    source: MediaSourceInfo,
-    onSource: (String) -> Unit,
-    onAudio: (String, Int) -> Unit,
-    onDisableSubtitles: (String) -> Unit,
-    onSubtitle: (String, Int) -> Unit,
-) {
-    val audioStreams = source.streamsOf(MediaStreamType.AUDIO)
-    val subtitleStreams = source.streamsOf(MediaStreamType.SUBTITLE)
-    val sourceTitle = if (playbackInfo.mediaSources().size > 1) {
-        "媒体源 ${index + 1}"
-    } else {
-        "媒体源"
-    }
-    addView(activity.section(sourceTitle))
-    addView(activity.action(sourceLabel(source)) { onSource(source.id()) })
-    addView(activity.section("音轨"))
-    if (audioStreams.isEmpty()) {
-        addView(activity.label("服务器未返回可选音轨"))
-    } else {
-        audioStreams.forEach { stream ->
-            addView(activity.action("音轨 ${stream.index()}：${streamLabel(stream)} / 继续选择字幕") {
-                onAudio(source.id(), stream.index())
-            })
-        }
-    }
-    addView(activity.section("字幕"))
-    addView(activity.action("关闭字幕播放") { onDisableSubtitles(source.id()) })
-    if (subtitleStreams.isEmpty()) {
-        addView(activity.label("服务器未返回可选字幕"))
-    } else {
-        subtitleStreams.forEach { stream ->
-            addView(activity.action("字幕 ${stream.index()}：${streamLabel(stream)}") {
-                onSubtitle(source.id(), stream.index())
-            })
-        }
-    }
-}
-
-private fun MediaSourceInfo.streamsOf(type: MediaStreamType): List<MediaStreamInfo> {
-    return mediaStreams().filter { stream -> stream.type() == type }
 }
 
 private fun ComponentActivity.diagnosticsBackAction(

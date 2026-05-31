@@ -23,8 +23,9 @@ fun ComponentActivity.detailsRouteScreen(
     item: MediaItemSummary,
     playbackInfo: PlaybackInfo?,
     loadPosterImage: (ImageView, MediaItemSummary, Int, Int) -> Unit,
+    trackSelection: DetailTrackSelection,
     onPreparePlayback: (PlaybackSelectionPreferences?) -> Unit,
-    onPlaybackOptions: () -> Unit,
+    onTrackSelection: (DetailTrackSelection) -> Unit,
     onSubtitleStyle: () -> Unit,
     onPlaybackSpeed: () -> Unit,
     onSeriesNextUp: () -> Unit,
@@ -35,10 +36,11 @@ fun ComponentActivity.detailsRouteScreen(
         episodeLabel = episodeLabel(item),
         formatTicks = ::formatPlaybackPosition,
         playbackActions = if (item.playable()) {
-            playbackActions(item, onPreparePlayback, onPlaybackOptions, onSubtitleStyle, onPlaybackSpeed, onSeriesNextUp)
+            playbackActions(item, onPreparePlayback, onSubtitleStyle, onPlaybackSpeed, onSeriesNextUp)
         } else {
             emptyList()
         },
+        trackControls = detailTrackControls(playbackInfo, trackSelection, onTrackSelection),
         technicalInfo = mediaTechnicalPills(playbackInfo),
         folderAction = action("打开子项目", onOpenFolder),
         loadPoster = { container, mediaItem ->
@@ -50,7 +52,6 @@ fun ComponentActivity.detailsRouteScreen(
 private fun ComponentActivity.playbackActions(
     item: MediaItemSummary,
     onPreparePlayback: (PlaybackSelectionPreferences?) -> Unit,
-    onPlaybackOptions: () -> Unit,
     onSubtitleStyle: () -> Unit,
     onPlaybackSpeed: () -> Unit,
     onSeriesNextUp: () -> Unit,
@@ -63,7 +64,6 @@ private fun ComponentActivity.playbackActions(
         actions.add(playbackAction("播放", TvIcon.PLAY, null, onPreparePlayback))
     }
     actions.add(playbackAction("低码率播放", TvIcon.SPEED, lowBitratePreferences(item), onPreparePlayback))
-    actions.add(iconAction("音轨 / 字幕", TvIcon.SUBTITLES, onPlaybackOptions))
     actions.add(iconAction("字幕样式", TvIcon.SUBTITLES, onSubtitleStyle))
     actions.add(iconAction("播放速度", TvIcon.SPEED, onPlaybackSpeed))
     if (item.seriesId().isNotBlank()) {

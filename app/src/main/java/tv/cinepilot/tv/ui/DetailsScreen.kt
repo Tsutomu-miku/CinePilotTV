@@ -16,6 +16,7 @@ fun ComponentActivity.detailsScreen(
     episodeLabel: String,
     formatTicks: (Long) -> String,
     playbackActions: List<View>,
+    trackControls: View?,
     technicalInfo: List<String>,
     folderAction: View,
     loadPoster: (LinearLayout, MediaItemSummary) -> Unit,
@@ -38,6 +39,7 @@ fun ComponentActivity.detailsScreen(
                         playbackActions.forEach { actionView -> actionView.keepFocusOnVerticalDpad() }
                         addView(actionStrip(playbackActions))
                         playbackActions.firstOrNull()?.requestInitialFocus()
+                        trackControls?.let(::addView)
                     } else {
                         addView(folderAction.keepFocusOnVerticalDpad())
                         folderAction.requestInitialFocus()

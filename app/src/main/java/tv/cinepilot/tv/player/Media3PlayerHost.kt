@@ -89,11 +89,11 @@ class Media3PlayerHost(
     }
 
     fun seekBack() {
-        seekBy(-10_000L)
+        seekBy(-REMOTE_SEEK_STEP_MS)
     }
 
     fun seekForward() {
-        seekBy(30_000L)
+        seekBy(REMOTE_SEEK_STEP_MS)
     }
 
     fun togglePlayPause() {
@@ -138,6 +138,14 @@ class Media3PlayerHost(
                 true
             }
             KeyEvent.KEYCODE_MEDIA_FAST_FORWARD -> {
+                seekForward()
+                true
+            }
+            KeyEvent.KEYCODE_DPAD_LEFT -> {
+                seekBack()
+                true
+            }
+            KeyEvent.KEYCODE_DPAD_RIGHT -> {
                 seekForward()
                 true
             }
@@ -253,5 +261,6 @@ class Media3PlayerHost(
 
     private companion object {
         private const val PLAYER_CONTROLLER_TIMEOUT_MS = 5_000
+        private const val REMOTE_SEEK_STEP_MS = 30_000L
     }
 }

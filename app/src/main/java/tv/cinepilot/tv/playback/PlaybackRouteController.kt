@@ -12,6 +12,7 @@ import tv.cinepilot.core.tv.TvAppState
 import tv.cinepilot.core.tv.TvDiagnostics
 import tv.cinepilot.core.tv.TvRoute
 import tv.cinepilot.core.tv.TvWorkflowController
+import tv.cinepilot.tv.details.DetailTrackSelection
 import tv.cinepilot.tv.details.detailsRouteScreen
 import tv.cinepilot.tv.player.Media3PlayerHost
 import tv.cinepilot.tv.ui.playerScreen
@@ -27,6 +28,8 @@ class PlaybackRouteController(
     private val loadPosterImage: (ImageView, MediaItemSummary, Int, Int) -> Unit,
 ) {
     private var selectedPlaybackInfo: PlaybackInfo? = null
+    private var selectedTrackItemId: String? = null
+    private var selectedTrackSelection = DetailTrackSelection()
     private var lastPlaybackBackPressAt = 0L
     private var auxiliaryBackAction: (() -> Unit)? = null
 
@@ -40,8 +43,15 @@ class PlaybackRouteController(
             item = item,
             playbackInfo = effectivePlaybackInfo,
             loadPosterImage = loadPosterImage,
-            onPreparePlayback = ::preparePlaybackWith,
-            onPlaybackOptions = { loadPlaybackOptions(item) },
+            trackSelection = trackSelectionFor(item),
+            onPreparePlayback = { preferences ->
+                preparePlaybackWith(applyTrackSelection(item, preferences))
+            },
+            onTrackSelection = { selection ->
+                selectedTrackItemId = item.id()
+                selectedTrackSelection = selection
+                showDetails(item, effectivePlaybackInfo)
+            },
             onSubtitleStyle = { showSubtitleStyleOptions(item) },
             onPlaybackSpeed = { showPlaybackSpeedOptions(item) },
             onSeriesNextUp = ::openSeriesNextUp,
@@ -102,64 +112,6 @@ class PlaybackRouteController(
             ?: showHome(workflowController.state())
     }
 
-    private fun loadPlaybackOptions(item: MediaItemSummary) {
-        var choices: PlaybackInfo? = null
-        runTask("正在读取音轨和字幕...", {
-            choices = workflowController.loadPlaybackChoices(null)
-        }) {
-            choices?.let { showPlaybackOptions(item, it) }
-        }
-    }
-
-    private fun showPlaybackOptions(item: MediaItemSummary, playbackInfo: PlaybackInfo) {
-        auxiliaryBackAction = { showDetails(item) }
-        if (playbackInfo.itemId() == item.id()) {
-            selectedPlaybackInfo = playbackInfo
-        }
-        activity.setContentView(activity.playbackOptionsScreen(
-            item = item,
-            playbackInfo = playbackInfo,
-            onDefault = { preparePlaybackWith(null) },
-            onSource = { sourceId -> preparePlaybackWith(sourcePreferences(item, sourceId)) },
-            onAudio = { sourceId, audioStreamIndex ->
-                showSubtitleOptionsForAudio(item, playbackInfo, sourceId, audioStreamIndex)
-            },
-            onDisableSubtitles = { sourceId ->
-                preparePlaybackWith(trackPreferences(item, sourceId, null, -1))
-            },
-            onSubtitle = { sourceId, subtitleStreamIndex ->
-                preparePlaybackWith(trackPreferences(item, sourceId, null, subtitleStreamIndex))
-            },
-        ))
-    }
-
-    private fun showSubtitleOptionsForAudio(
-        item: MediaItemSummary,
-        playbackInfo: PlaybackInfo,
-        sourceId: String,
-        audioStreamIndex: Int,
-    ) {
-        val source = playbackInfo.mediaSources().firstOrNull { it.id() == sourceId }
-        if (source == null) {
-            preparePlaybackWith(trackPreferences(item, sourceId, audioStreamIndex, null))
-            return
-        }
-        auxiliaryBackAction = { showPlaybackOptions(item, playbackInfo) }
-        activity.setContentView(activity.subtitleOptionsForAudioScreen(
-            source = source,
-            audioStreamIndex = audioStreamIndex,
-            onDefaultSubtitles = {
-                preparePlaybackWith(trackPreferences(item, sourceId, audioStreamIndex, null))
-            },
-            onDisableSubtitles = {
-                preparePlaybackWith(trackPreferences(item, sourceId, audioStreamIndex, -1))
-            },
-            onSubtitle = { subtitleStreamIndex ->
-                preparePlaybackWith(trackPreferences(item, sourceId, audioStreamIndex, subtitleStreamIndex))
-            },
-        ))
-    }
-
     private fun showPlaybackSpeedOptions(item: MediaItemSummary) {
         auxiliaryBackAction = { showDetails(item) }
         activity.setContentView(activity.playbackSpeedScreen(
@@ -187,7 +139,14 @@ class PlaybackRouteController(
     }
 
     fun showPlaybackOptionsFromError(state: TvAppState) {
-        state.selectedItem()?.let(::loadPlaybackOptions)
+        state.selectedItem()?.let { item ->
+            var choices: PlaybackInfo? = null
+            runTask("正在读取音轨和字幕...", {
+                choices = workflowController.loadPlaybackChoices(null)
+            }) {
+                showDetails(item, choices)
+            }
+        }
     }
 
     private fun showDiagnostics(
@@ -292,6 +251,39 @@ class PlaybackRouteController(
         }) {
             showPlayer(workflowController.state())
         }
+    }
+
+    private fun trackSelectionFor(item: MediaItemSummary): DetailTrackSelection {
+        if (selectedTrackItemId != item.id()) {
+            selectedTrackItemId = item.id()
+            selectedTrackSelection = DetailTrackSelection()
+        }
+        return selectedTrackSelection
+    }
+
+    private fun applyTrackSelection(
+        item: MediaItemSummary,
+        base: PlaybackSelectionPreferences?,
+    ): PlaybackSelectionPreferences? {
+        val selection = trackSelectionFor(item)
+        if (!selection.hasExplicitChoice()) {
+            return base
+        }
+        return PlaybackSelectionPreferences(
+            base?.startTimeTicks() ?: resumeStartTicks(item),
+            if (selection.audioSelected) selection.audioStreamIndex else base?.audioStreamIndex(),
+            if (selection.subtitleSelected) selection.subtitleStreamIndex else base?.subtitleStreamIndex(),
+            base?.maxAudioChannels(),
+            base?.maxWidth() ?: 0,
+            base?.maxHeight() ?: 0,
+            base?.maxBitRate() ?: 0,
+            selection.mediaSourceId ?: base?.mediaSourceId(),
+            base?.playbackRate(),
+        )
+    }
+
+    private fun resumeStartTicks(item: MediaItemSummary): Long {
+        return if (item.hasResumePosition()) item.userData().playbackPositionTicks() else 0L
     }
 
     companion object {

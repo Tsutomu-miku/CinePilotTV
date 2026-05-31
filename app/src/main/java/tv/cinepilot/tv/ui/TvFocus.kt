@@ -1,11 +1,16 @@
 package tv.cinepilot.tv.ui
 
+import android.animation.ArgbEvaluator
+import android.animation.ValueAnimator
+import android.content.res.ColorStateList
 import android.view.KeyEvent
 import android.view.View
 import android.widget.Button
 import android.widget.LinearLayout
+import android.widget.RadioButton
 import android.widget.TextView
 import androidx.activity.ComponentActivity
+import java.util.WeakHashMap
 
 fun ComponentActivity.choiceAction(text: String, selected: Boolean, onClick: () -> Unit): Button {
     return action(if (selected) "已选 $text" else text, onClick).apply {
@@ -17,11 +22,11 @@ fun ComponentActivity.choiceAction(text: String, selected: Boolean, onClick: () 
             if (focusedView is TextView) {
                 focusedView.setTextColor(if (hasFocus || selected) TvColors.FocusText else TvColors.TextPrimary)
             }
-            focusedView.background = rounded(
-                if (hasFocus) TvColors.Focus else normalColor,
-                dp(TvRadius.Control),
-                if (hasFocus) dp(3) else dp(1),
-                TvColors.FocusRing,
+            animateFocusBackground(
+                view = focusedView,
+                hasFocus = hasFocus,
+                focusedColor = TvColors.Focus,
+                normalColor = normalColor,
             )
         }
         layoutParams = LinearLayout.LayoutParams(
@@ -30,6 +35,41 @@ fun ComponentActivity.choiceAction(text: String, selected: Boolean, onClick: () 
         ).apply {
             rightMargin = dp(TvSpacing.ControlGap)
             bottomMargin = dp(TvSpacing.ControlGap)
+        }
+    }
+}
+
+fun ComponentActivity.radioChoice(text: String, selected: Boolean, onClick: () -> Unit): RadioButton {
+    return RadioButton(this).apply {
+        this.text = text
+        isChecked = selected
+        textSize = TvType.Metadata
+        minHeight = dp(40)
+        minimumHeight = dp(40)
+        setTextColor(if (selected) TvColors.FocusText else TvColors.TextSecondary)
+        buttonTintList = ColorStateList(
+            arrayOf(intArrayOf(android.R.attr.state_checked), intArrayOf()),
+            intArrayOf(TvColors.FocusText, TvColors.TextMuted),
+        )
+        background = rounded(if (selected) TvColors.AccentStrong else TvColors.SurfaceControl, dp(TvRadius.Control), dp(1), TvColors.FocusRing)
+        setPadding(dp(10), 0, dp(12), 0)
+        setOnClickListener { onClick() }
+        setOnFocusChangeListener { focusedView, hasFocus ->
+            applyFocusState(focusedView, hasFocus)
+            setTextColor(if (hasFocus || selected) TvColors.FocusText else TvColors.TextSecondary)
+            animateFocusBackground(
+                view = focusedView,
+                hasFocus = hasFocus,
+                focusedColor = TvColors.Focus,
+                normalColor = if (selected) TvColors.AccentStrong else TvColors.SurfaceControl,
+            )
+        }
+        layoutParams = LinearLayout.LayoutParams(
+            LinearLayout.LayoutParams.WRAP_CONTENT,
+            dp(40),
+        ).apply {
+            rightMargin = dp(8)
+            bottomMargin = dp(8)
         }
     }
 }
@@ -60,11 +100,11 @@ fun ComponentActivity.setFocusableColors(
         if (focusedView is TextView && focusedTextColor != null && normalTextColor != null) {
             focusedView.setTextColor(if (hasFocus) focusedTextColor else normalTextColor)
         }
-        focusedView.background = rounded(
-            if (hasFocus) focusedColor else normalColor,
-            dp(TvRadius.Control),
-            if (hasFocus) dp(3) else dp(1),
-            TvColors.FocusRing,
+        animateFocusBackground(
+            view = focusedView,
+            hasFocus = hasFocus,
+            focusedColor = focusedColor,
+            normalColor = normalColor,
         )
     }
 }
@@ -77,4 +117,28 @@ private fun ComponentActivity.applyFocusState(view: View, hasFocus: Boolean) {
         .start()
 }
 
-private const val FOCUS_ANIMATION_MS = 120L
+private fun ComponentActivity.animateFocusBackground(
+    view: View,
+    hasFocus: Boolean,
+    focusedColor: Int,
+    normalColor: Int,
+) {
+    focusAnimators[view]?.cancel()
+    val startColor = if (hasFocus) normalColor else focusedColor
+    val endColor = if (hasFocus) focusedColor else normalColor
+    focusAnimators[view] = ValueAnimator.ofObject(ArgbEvaluator(), startColor, endColor).apply {
+        duration = FOCUS_ANIMATION_MS
+        addUpdateListener { animator ->
+            view.background = rounded(
+                animator.animatedValue as Int,
+                dp(TvRadius.Control),
+                if (hasFocus) dp(3) else dp(1),
+                TvColors.FocusRing,
+            )
+        }
+        start()
+    }
+}
+
+private val focusAnimators = WeakHashMap<View, ValueAnimator>()
+private const val FOCUS_ANIMATION_MS = 160L

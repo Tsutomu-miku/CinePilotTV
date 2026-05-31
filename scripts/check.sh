@@ -870,13 +870,18 @@ if ! grep -q 'setPlaybackSpeed' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/pla
   exit 1
 fi
 
-if ! grep -q '音轨 / 字幕' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/playback/PlaybackScreens.kt"; then
-  echo "Playback screens must expose audio and subtitle selection" >&2
+if ! grep -q 'KEYCODE_DPAD_LEFT' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/player/Media3PlayerHost.kt"; then
+  echo "Media3PlayerHost must support D-pad left/right seek shortcuts" >&2
   exit 1
 fi
 
-if ! grep -q 'subtitleOptionsForAudioScreen' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/playback/PlaybackScreens.kt"; then
-  echo "Playback screens must allow pairing a selected audio track with subtitle choice" >&2
+if ! grep -q 'detailTrackControls' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/details/DetailsRouteScreen.kt"; then
+  echo "Details screen must expose inline audio and subtitle selection" >&2
+  exit 1
+fi
+
+if ! grep -q 'radioChoice' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/details/DetailTrackControls.kt"; then
+  echo "Details track controls must use single-choice radio controls" >&2
   exit 1
 fi
 
@@ -895,13 +900,13 @@ if ! grep -q 'nextUpForSelectedSeries' "$ROOT_DIR/core/src/main/java/tv/cinepilo
   exit 1
 fi
 
-if ! grep -q 'sourcePreferences' "$PLAYBACK_ROUTE_CONTROLLER"; then
-  echo "Playback route controller must expose media source selection" >&2
+if ! grep -q 'applyTrackSelection' "$PLAYBACK_ROUTE_CONTROLLER"; then
+  echo "Playback route controller must merge detail track selection into playback preferences" >&2
   exit 1
 fi
 
-if ! grep -q 'onSubtitle(source.id(), stream.index())' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/playback/PlaybackScreens.kt"; then
-  echo "Playback screens must bind audio and subtitle choices to their media source" >&2
+if ! grep -q 'subtitleStreamIndex = -1' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/details/DetailTrackControls.kt"; then
+  echo "Details track controls must support disabling subtitles" >&2
   exit 1
 fi
 
