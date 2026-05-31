@@ -11,8 +11,10 @@ import tv.cinepilot.core.protocol.MediaBrowserClient;
 import tv.cinepilot.core.protocol.MediaItemSummary;
 import tv.cinepilot.core.protocol.MediaItemType;
 import tv.cinepilot.core.protocol.MediaServerAddress;
+import tv.cinepilot.core.protocol.MediaStreamType;
 import tv.cinepilot.core.protocol.PlayMethod;
 import tv.cinepilot.core.protocol.PlayableMedia;
+import tv.cinepilot.core.protocol.PlaybackInfo;
 import tv.cinepilot.core.protocol.PlaybackSelectionPreferences;
 import tv.cinepilot.core.protocol.ProtocolRequest;
 import tv.cinepilot.core.protocol.ProtocolResponse;
@@ -35,6 +37,7 @@ public final class TvWorkflowTest {
         controllerRunsServerLoginBrowseAndPlaybackUseCase();
         controllerStartsPlaybackFromBeginningWhenRequested();
         controllerForwardsPlaybackPreferencesToPlaybackInfo();
+        controllerLoadsPlaybackChoicesForTrackSelection();
         controllerLogoutRevokesSavedSession();
         controllerRestoresSavedSessionAndLoadsHome();
         controllerBrowsesFolderRowsAndReturnsToParent();
@@ -326,6 +329,42 @@ public final class TvWorkflowTest {
         assertTrue(playbackInfoUrl.contains("AudioStreamIndex=2"), "controller forwards audio stream");
         assertTrue(playbackInfoUrl.contains("SubtitleStreamIndex=5"), "controller forwards subtitle stream");
         assertTrue(playbackInfoUrl.contains("MaxAudioChannels=2"), "controller forwards audio channel limit");
+    }
+
+    private static void controllerLoadsPlaybackChoicesForTrackSelection() {
+        FakeTransport transport = new FakeTransport();
+        transport.enqueue(200, "{\"Id\":\"server-1\",\"ServerName\":\"Jellyfin\"}");
+        transport.enqueue(200, "{\"AccessToken\":\"token-1\",\"ServerId\":\"server-1\",\"User\":{\"Id\":\"user-1\"}}");
+        enqueueHomeResponses(transport);
+        transport.enqueue(200, "{\"Id\":\"movie-1\",\"Name\":\"Arrival\",\"Type\":\"Movie\",\"IsPlayable\":true,\"UserData\":{\"PlaybackPositionTicks\":120000000}}");
+        transport.enqueue(200, """
+                {"PlaySessionId":"play-session-1","MediaSources":[
+                  {"Id":"source-1","DirectStreamUrl":"/Videos/movie-1/stream.mkv?MediaSourceId=source-1","SupportsDirectStream":true,
+                    "MediaStreams":[
+                      {"Index":0,"Type":"Video","Codec":"h264","DisplayTitle":"1080p H.264"},
+                      {"Index":1,"Type":"Audio","Codec":"aac","Language":"eng","DisplayTitle":"English","IsDefault":true},
+                      {"Index":2,"Type":"Audio","Codec":"aac","Language":"jpn","DisplayTitle":"Japanese"},
+                      {"Index":3,"Type":"Subtitle","Codec":"srt","Language":"eng","DisplayTitle":"English","IsExternal":true}
+                    ]
+                  }
+                ]}
+                """);
+
+        ClientIdentity client = new ClientIdentity("CinePilot TV", "Living Room TV", "device-1", "0.1.0");
+        MediaBrowserClient mediaClient = new MediaBrowserClient(transport, new InMemorySessionRepository(), client);
+        TvWorkflowController controller = new TvWorkflowController(mediaClient, new HomeRowsLoader(mediaClient, 12));
+
+        controller.submitServer("https://media.example.com/jellyfin");
+        controller.login("demo", "secret");
+        controller.openItem("movie-1");
+        PlaybackInfo choices = controller.loadPlaybackChoices(null);
+
+        assertEquals("play-session-1", choices.playSessionId(), "playback choices keep session");
+        assertEquals(4, choices.mediaSources().get(0).mediaStreams().size(), "playback choices keep streams");
+        assertEquals(MediaStreamType.AUDIO, choices.mediaSources().get(0).mediaStreams().get(1).type(), "audio stream type maps");
+        assertEquals(MediaStreamType.SUBTITLE, choices.mediaSources().get(0).mediaStreams().get(3).type(), "subtitle stream type maps");
+        String playbackInfoUrl = transport.requests.get(7).url(MediaServerAddress.parse("https://media.example.com/jellyfin"));
+        assertTrue(playbackInfoUrl.contains("StartTimeTicks=120000000"), "choices use resume ticks by default");
     }
 
     private static void controllerLogoutRevokesSavedSession() {

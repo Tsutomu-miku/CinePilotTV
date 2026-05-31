@@ -39,7 +39,7 @@
 - 用户名 / 密码登录：`authenticateByName` -> `AuthSession` -> `SavedSession`。
 - Quick Connect 登录：`initiateQuickConnect` -> `quickConnectState` -> `authenticateWithQuickConnect` -> `SavedSession`。
 - 会话持久化：`SessionScope` -> `InMemorySessionRepository` / `FileSessionRepository`。
-- 播放信息：`playbackInfo` -> `PlaybackInfo`。
+- 播放信息：`playbackInfo` -> `PlaybackInfo`；播放前音轨 / 字幕选择复用该响应里的 `MediaStreams[].Index`。
 - 播放源选择：`PlaybackInfo` -> `PlayableMedia`。
 - 媒体库浏览：`userViews` / `items` / `resumeItems` / `latestItems` / `item` -> 媒体条目模型。
 - 服务器侧搜索：`ItemQuery.search` -> `/Users/{UserId}/Items?SearchTerm=...`。
@@ -76,4 +76,4 @@
 - Android 入口已通过 `CinePilotRuntime` 接入 `FileSessionRepository`，文件位于 app 私有目录下的 `sessions.properties`。
 - Media3 设备能力到 `DeviceProfile` / codec 参数的映射需要在 Android 层可运行后补齐。
 - `MainActivity` 已渲染服务器输入、登录、首页、详情、播放准备和播放器路由；后续真实 TV 设备上继续校准焦点和 Media3 播放行为。
-- Quick Connect 只先写入需求和路线图，尚未进入 P0 请求规格。
+- Quick Connect 已进入 P0 请求规格和 TV 登录流程；播放前音轨 / 字幕选择已使用 playback info 中的协议 stream index。

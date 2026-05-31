@@ -17,6 +17,9 @@ import java.util.concurrent.Executors
 import tv.cinepilot.core.protocol.MediaTicks
 import tv.cinepilot.core.protocol.MediaBrowserException
 import tv.cinepilot.core.protocol.MediaItemSummary
+import tv.cinepilot.core.protocol.MediaStreamInfo
+import tv.cinepilot.core.protocol.MediaStreamType
+import tv.cinepilot.core.protocol.PlaybackInfo
 import tv.cinepilot.core.protocol.PlaybackSelectionPreferences
 import tv.cinepilot.core.protocol.PublicUserSummary
 import tv.cinepilot.core.protocol.QuickConnectSession
@@ -354,6 +357,7 @@ class MainActivity : Activity() {
                     addView(playbackAction("播放", null))
                 }
                 addView(playbackAction("低码率播放", lowBitratePreferences(item)))
+                addView(action("音轨 / 字幕") { loadPlaybackOptions(item) })
             } else {
                 addView(openFolderAction(item))
             }
@@ -361,6 +365,55 @@ class MainActivity : Activity() {
                 runtime.workflowController.back()
                 showHome(runtime.workflowController.state())
             })
+        })
+    }
+
+    private fun loadPlaybackOptions(item: MediaItemSummary) {
+        showLoading("正在读取音轨和字幕...")
+        executor.execute {
+            try {
+                val choices = runtime.workflowController.loadPlaybackChoices(null)
+                runOnUiThread { showPlaybackOptions(item, choices) }
+            } catch (error: Throwable) {
+                runOnUiThread { showError(error) }
+            }
+        }
+    }
+
+    private fun showPlaybackOptions(item: MediaItemSummary, playbackInfo: PlaybackInfo) {
+        val streams = playbackInfo.mediaSources()
+            .flatMap { source -> source.mediaStreams() }
+            .distinctBy { stream -> "${stream.type()}:${stream.index()}" }
+        val audioStreams = streams.filter { stream -> stream.type() == MediaStreamType.AUDIO }
+        val subtitleStreams = streams.filter { stream -> stream.type() == MediaStreamType.SUBTITLE }
+        setContentView(screen("音轨 / 字幕") {
+            addView(action("按服务器默认播放") {
+                preparePlaybackWith(null)
+            })
+            addView(section("音轨"))
+            if (audioStreams.isEmpty()) {
+                addView(label("服务器未返回可选音轨"))
+            } else {
+                audioStreams.forEach { stream ->
+                    addView(action("音轨 ${stream.index()}：${streamLabel(stream)}") {
+                        preparePlaybackWith(trackPreferences(item, stream.index(), null))
+                    })
+                }
+            }
+            addView(section("字幕"))
+            addView(action("关闭字幕播放") {
+                preparePlaybackWith(trackPreferences(item, null, -1))
+            })
+            if (subtitleStreams.isEmpty()) {
+                addView(label("服务器未返回可选字幕"))
+            } else {
+                subtitleStreams.forEach { stream ->
+                    addView(action("字幕 ${stream.index()}：${streamLabel(stream)}") {
+                        preparePlaybackWith(trackPreferences(item, null, stream.index()))
+                    })
+                }
+            }
+            addView(action("返回详情") { showDetails(item) })
         })
     }
 
@@ -438,12 +491,49 @@ class MainActivity : Activity() {
 
     private fun playbackAction(text: String, preferences: PlaybackSelectionPreferences?): View {
         return action(text) {
-            runTask("正在准备播放...", {
-                runtime.workflowController.preparePlayback(preferences)
-            }) {
-                showPlayerReady(runtime.workflowController.state())
+            preparePlaybackWith(preferences)
+        }
+    }
+
+    private fun preparePlaybackWith(preferences: PlaybackSelectionPreferences?) {
+        runTask("正在准备播放...", {
+            runtime.workflowController.preparePlayback(preferences)
+        }) {
+            showPlayerReady(runtime.workflowController.state())
+        }
+    }
+
+    private fun trackPreferences(
+        item: MediaItemSummary,
+        audioStreamIndex: Int?,
+        subtitleStreamIndex: Int?,
+    ): PlaybackSelectionPreferences {
+        val startTimeTicks = if (item.hasResumePosition()) item.userData().playbackPositionTicks() else 0L
+        return PlaybackSelectionPreferences(startTimeTicks, audioStreamIndex, subtitleStreamIndex, null, 0, 0, 0)
+    }
+
+    private fun streamLabel(stream: MediaStreamInfo): String {
+        val parts = mutableListOf<String>()
+        if (stream.displayTitle().isNotBlank()) {
+            parts.add(stream.displayTitle())
+        } else {
+            if (stream.language().isNotBlank()) {
+                parts.add(stream.language())
+            }
+            if (stream.codec().isNotBlank()) {
+                parts.add(stream.codec())
             }
         }
+        if (stream.defaultStream()) {
+            parts.add("默认")
+        }
+        if (stream.forced()) {
+            parts.add("强制")
+        }
+        if (stream.external()) {
+            parts.add("外挂")
+        }
+        return parts.ifEmpty { listOf("未命名") }.joinToString(" · ")
     }
 
     private fun episodeLabel(item: MediaItemSummary): String {

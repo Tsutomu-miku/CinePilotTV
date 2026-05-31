@@ -230,11 +230,7 @@ public final class TvWorkflowController {
         PlaybackSelectionPreferences safePreferences = preferences == null
                 ? PlaybackSelectionPreferences.defaults()
                 : preferences;
-        PlaybackInfo playbackInfo = client.playbackInfo(
-                state.authenticated(),
-                state.selectedItem().id(),
-                playbackInfoOptions(safePreferences, preferences == null)
-        );
+        PlaybackInfo playbackInfo = loadPlaybackChoices(preferences);
         PlayableMedia playable = client.playableMedia(
                 state.authenticated(),
                 playbackInfo,
@@ -242,6 +238,20 @@ public final class TvWorkflowController {
         ).orElseThrow(() -> new IllegalStateException(NO_PLAYABLE_SOURCE_MESSAGE));
         state = TvWorkflow.playbackReady(state, playable);
         return state;
+    }
+
+    public PlaybackInfo loadPlaybackChoices(PlaybackSelectionPreferences preferences) {
+        if (state.authenticated() == null || state.selectedItem() == null) {
+            throw new IllegalStateException("authenticated selected item is required before playback choices");
+        }
+        PlaybackSelectionPreferences safePreferences = preferences == null
+                ? PlaybackSelectionPreferences.defaults()
+                : preferences;
+        return client.playbackInfo(
+                state.authenticated(),
+                state.selectedItem().id(),
+                playbackInfoOptions(safePreferences, preferences == null)
+        );
     }
 
     private PlaybackInfoOptions playbackInfoOptions(
