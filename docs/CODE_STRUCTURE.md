@@ -15,7 +15,8 @@ app/
     ui/MediaShelf.kt             首页横向媒体架和海报卡片
     ui/HomeScreen.kt             首页屏幕布局和浏览操作区
     ui/DetailsScreen.kt          媒体详情屏幕布局
-    ui/PlayerScreen.kt           黑底全屏播放器布局和遥控器浮层操作
+    ui/MediaTechnicalInfo.kt     playback info 到详情页技术信息标签的格式化
+    ui/PlayerScreen.kt           黑底全屏播放器容器，不叠加第二套播放控件
   src/main/res/drawable/ic_*.xml 开源 Material Icons 风格矢量图标资源
 core/
   build.gradle.kts              JVM/Java Gradle module

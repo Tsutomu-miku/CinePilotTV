@@ -567,6 +567,7 @@ public final class ProtocolCoreTest {
                       "Id": "source-1",
                       "Name": "4K HDR Version",
                       "Path": "/media/movies/arrival-4k.mkv",
+                      "Size": 75161927680,
                       "Bitrate": 65000000,
                       "Container": "mkv",
                       "DirectStreamUrl": "/Videos/item-1/stream.mkv?MediaSourceId=source-1",
@@ -575,8 +576,8 @@ public final class ProtocolCoreTest {
                       "SupportsDirectStream": true,
                       "SupportsTranscoding": true,
                       "MediaStreams": [
-                        {"Index": 0, "Type": "Video", "Codec": "hevc", "DisplayTitle": "4K HEVC", "IsDefault": true},
-                        {"Index": 1, "Type": "Audio", "Codec": "eac3", "Language": "eng", "DisplayTitle": "English", "IsDefault": true},
+                        {"Index": 0, "Type": "Video", "Codec": "hevc", "DisplayTitle": "4K HEVC", "Width": 3840, "Height": 2160, "BitDepth": 10, "VideoRangeType": "HDR10", "IsDefault": true},
+                        {"Index": 1, "Type": "Audio", "Codec": "eac3", "Language": "eng", "DisplayTitle": "English Atmos", "Channels": 6, "Profile": "Dolby Atmos", "IsDefault": true},
                         {"Index": 2, "Type": "Subtitle", "Codec": "srt", "Language": "eng", "DisplayTitle": "English CC", "IsExternal": true, "DeliveryUrl": "/Videos/item-1/Subtitles/2/Stream.srt"}
                       ]
                     }
@@ -590,9 +591,15 @@ public final class ProtocolCoreTest {
         assertEquals("source-1", source.id(), "media source id maps");
         assertEquals("4K HDR Version", source.name(), "media source name maps");
         assertEquals("/media/movies/arrival-4k.mkv", source.path(), "media source path maps");
+        assertEquals(75_161_927_680L, source.sizeBytes(), "media source size maps");
         assertEquals(65_000_000L, source.bitRate(), "media source bitrate maps");
         assertTrue(source.supportsDirectStream(), "direct stream flag maps");
         assertEquals(3, source.mediaStreams().size(), "media streams map");
+        assertEquals(Integer.valueOf(3840), source.mediaStreams().get(0).width(), "video width maps");
+        assertEquals(Integer.valueOf(2160), source.mediaStreams().get(0).height(), "video height maps");
+        assertEquals("HDR10", source.mediaStreams().get(0).videoRangeType(), "video range maps");
+        assertEquals(Integer.valueOf(6), source.mediaStreams().get(1).channels(), "audio channels map");
+        assertEquals("Dolby Atmos", source.mediaStreams().get(1).profile(), "audio profile maps");
         assertEquals(MediaStreamType.SUBTITLE, source.mediaStreams().get(2).type(), "subtitle type maps");
         assertEquals("/Videos/item-1/Subtitles/2/Stream.srt", source.mediaStreams().get(2).deliveryUrl(), "subtitle url maps");
 

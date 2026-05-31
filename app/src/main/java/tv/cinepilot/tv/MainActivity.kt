@@ -1,6 +1,5 @@
 package tv.cinepilot.tv
 
-import android.app.AlertDialog
 import android.content.Intent
 import android.content.pm.ApplicationInfo
 import android.graphics.Color
@@ -13,6 +12,7 @@ import android.view.View
 import android.widget.EditText
 import android.widget.ImageView
 import android.widget.LinearLayout
+import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.lifecycle.ViewModelProvider
 import androidx.media3.common.PlaybackException
@@ -50,6 +50,7 @@ import tv.cinepilot.tv.ui.homeScreen
 import tv.cinepilot.tv.ui.iconAction
 import tv.cinepilot.tv.ui.input
 import tv.cinepilot.tv.ui.label
+import tv.cinepilot.tv.ui.mediaTechnicalPills
 import tv.cinepilot.tv.ui.playerScreen
 import tv.cinepilot.tv.ui.rounded
 import tv.cinepilot.tv.ui.screen
@@ -67,6 +68,8 @@ class MainActivity : ComponentActivity() {
     private val lastAccountStore by lazy { getSharedPreferences("cinepilot_last_account", MODE_PRIVATE) }
     @Volatile private var quickConnectPolling = false
     private var searchVisible = false
+    private var selectedPlaybackInfo: PlaybackInfo? = null
+    private var lastPlaybackBackPressAt = 0L
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -121,25 +124,27 @@ class MainActivity : ComponentActivity() {
                 showHome(viewModel.workflowController.state())
             }
             TvRoute.PLAYER -> {
-                showExitPlaybackConfirmation()
+                handlePlaybackBackPressed()
             }
         }
     }
 
-    private fun showExitPlaybackConfirmation() {
-        AlertDialog.Builder(this)
-            .setTitle("退出播放？")
-            .setMessage("当前播放会停止，并回到详情页。")
-            .setNegativeButton("继续播放") { dialog, _ ->
-                dialog.dismiss()
-            }
-            .setPositiveButton("退出播放") { _, _ ->
-                playerHost.release()
-                viewModel.workflowController.back()
-                viewModel.workflowController.state().selectedItem()?.let(::showDetails)
-                    ?: showHome(viewModel.workflowController.state())
-            }
-            .show()
+    private fun handlePlaybackBackPressed() {
+        val now = System.currentTimeMillis()
+        if (now - lastPlaybackBackPressAt > PLAYBACK_BACK_EXIT_WINDOW_MS) {
+            lastPlaybackBackPressAt = now
+            Toast.makeText(this, "再次按返回退出播放", Toast.LENGTH_SHORT).show()
+            return
+        }
+        exitPlaybackToDetails()
+    }
+
+    private fun exitPlaybackToDetails() {
+        lastPlaybackBackPressAt = 0L
+        playerHost.release()
+        viewModel.workflowController.back()
+        viewModel.workflowController.state().selectedItem()?.let(::showDetails)
+            ?: showHome(viewModel.workflowController.state())
     }
 
     private fun showServerEntry() {
@@ -421,6 +426,14 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun showDetails(item: MediaItemSummary) {
+        showDetails(item, null)
+    }
+
+    private fun showDetails(item: MediaItemSummary, playbackInfo: PlaybackInfo?) {
+        if (playbackInfo != null && playbackInfo.itemId() == item.id()) {
+            selectedPlaybackInfo = playbackInfo
+        }
+        val effectivePlaybackInfo = playbackInfo ?: selectedPlaybackInfo?.takeIf { it.itemId() == item.id() }
         val playbackActions = if (item.playable()) {
             buildPlaybackActions(item)
         } else {
@@ -431,6 +444,7 @@ class MainActivity : ComponentActivity() {
             episodeLabel = episodeLabel(item),
             formatTicks = ::formatPlaybackPosition,
             playbackActions = playbackActions,
+            technicalInfo = mediaTechnicalPills(effectivePlaybackInfo),
             folderAction = openFolderAction(item),
             loadPoster = ::addPosterIfAvailable,
             onBackHome = {
@@ -506,6 +520,9 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun showPlaybackOptions(item: MediaItemSummary, playbackInfo: PlaybackInfo) {
+        if (playbackInfo.itemId() == item.id()) {
+            selectedPlaybackInfo = playbackInfo
+        }
         val streams = playbackInfo.mediaSources()
             .flatMap { source -> source.mediaStreams() }
             .distinctBy { stream -> "${stream.type()}:${stream.index()}" }
@@ -595,6 +612,7 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun showPlayer(state: TvAppState) {
+        lastPlaybackBackPressAt = 0L
         val playerView = playerHost.createPlayerView(state) { error ->
             runOnUiThread {
                 playerHost.release()
@@ -618,16 +636,20 @@ class MainActivity : ComponentActivity() {
     private fun openMediaItem(row: HomeRow, item: MediaItemSummary) {
         viewModel.workflowController.focusItem(row.id(), item.id())
         val loadingMessage = if (item.playable()) "正在打开详情..." else "正在打开目录..."
+        var playbackInfo: PlaybackInfo? = null
         runTask(loadingMessage, {
             if (item.playable()) {
                 viewModel.workflowController.openItem(item.id())
+                playbackInfo = runCatching {
+                    viewModel.workflowController.loadPlaybackChoices(null)
+                }.getOrNull()
             } else {
                 viewModel.workflowController.openFolder(item.id(), item.name())
             }
         }) {
             val state = viewModel.workflowController.state()
             if (item.playable()) {
-                state.selectedItem()?.let(::showDetails)
+                state.selectedItem()?.let { selectedItem -> showDetails(selectedItem, playbackInfo) }
             } else {
                 showHome(state)
             }
@@ -934,5 +956,9 @@ class MainActivity : ComponentActivity() {
                 return value.replace('\t', ' ').replace('\n', ' ').trim()
             }
         }
+    }
+
+    companion object {
+        private const val PLAYBACK_BACK_EXIT_WINDOW_MS = 2_000L
     }
 }

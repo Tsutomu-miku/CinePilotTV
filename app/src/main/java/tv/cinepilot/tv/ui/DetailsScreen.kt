@@ -13,6 +13,7 @@ fun ComponentActivity.detailsScreen(
     episodeLabel: String,
     formatTicks: (Long) -> String,
     playbackActions: List<View>,
+    technicalInfo: List<String>,
     folderAction: View,
     loadPoster: (LinearLayout, MediaItemSummary) -> Unit,
     onBackHome: () -> Unit,
@@ -34,6 +35,10 @@ fun ComponentActivity.detailsScreen(
                         addView(actionStrip(playbackActions))
                     } else {
                         addView(folderAction)
+                    }
+                    if (technicalInfo.isNotEmpty()) {
+                        addView(section("媒体信息"))
+                        addView(metadataPills(technicalInfo))
                     }
                     if (item.overview().isNotBlank()) {
                         addView(section("剧情简介"))

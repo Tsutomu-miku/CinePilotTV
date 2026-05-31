@@ -12,6 +12,7 @@ public record MediaSourceInfo(
         boolean supportsTranscoding,
         String name,
         String path,
+        long sizeBytes,
         long bitRate,
         List<MediaStreamInfo> mediaStreams
 ) {
@@ -25,6 +26,9 @@ public record MediaSourceInfo(
         }
         if (path == null) {
             path = "";
+        }
+        if (sizeBytes < 0) {
+            sizeBytes = 0;
         }
         if (bitRate < 0) {
             bitRate = 0;
@@ -52,6 +56,7 @@ public record MediaSourceInfo(
         private boolean supportsTranscoding;
         private String name = "";
         private String path = "";
+        private long sizeBytes;
         private long bitRate;
         private List<MediaStreamInfo> mediaStreams = List.of();
 
@@ -104,6 +109,11 @@ public record MediaSourceInfo(
             return this;
         }
 
+        public Builder sizeBytes(long value) {
+            sizeBytes = value;
+            return this;
+        }
+
         public Builder mediaStreams(List<MediaStreamInfo> value) {
             mediaStreams = value;
             return this;
@@ -120,6 +130,7 @@ public record MediaSourceInfo(
                     supportsTranscoding,
                     name,
                     path,
+                    sizeBytes,
                     bitRate,
                     mediaStreams
             );

@@ -294,6 +294,25 @@ if [[ ! -s "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/ui/DetailsScreen.kt" ]];
   exit 1
 fi
 
+if [[ ! -s "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/ui/MediaTechnicalInfo.kt" ]]; then
+  echo "Missing reusable media technical info formatter" >&2
+  exit 1
+fi
+
+for technical_field in width height channels videoRangeType sizeBytes; do
+  if ! grep -R -q "$technical_field" "$ROOT_DIR/core/src/main/java/tv/cinepilot/core/protocol"; then
+    echo "Core protocol models must expose media technical field: $technical_field" >&2
+    exit 1
+  fi
+done
+
+for technical_label in HDR Dolby 字幕 声道; do
+  if ! grep -q "$technical_label" "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/ui/MediaTechnicalInfo.kt"; then
+    echo "Media technical info formatter must expose label: $technical_label" >&2
+    exit 1
+  fi
+done
+
 for icon in search refresh logout play back subtitles speed; do
   if [[ ! -s "$ROOT_DIR/app/src/main/res/drawable/ic_${icon}.xml" ]]; then
     echo "Missing TV action icon: ic_${icon}.xml" >&2
@@ -458,23 +477,23 @@ if grep -q 'screen("播放器")' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/Ma
   exit 1
 fi
 
-if ! grep -q 'showExitPlaybackConfirmation' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/MainActivity.kt"; then
-  echo "MainActivity must confirm before exiting playback from Back" >&2
+if ! grep -q 'handlePlaybackBackPressed' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/MainActivity.kt"; then
+  echo "MainActivity must guard Back before exiting playback" >&2
   exit 1
 fi
 
-if ! grep -q '退出播放？' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/MainActivity.kt"; then
-  echo "Playback exit confirmation must use a Chinese prompt" >&2
+if ! grep -q '再次按返回退出播放' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/MainActivity.kt"; then
+  echo "Playback exit guard must use a Chinese toast prompt" >&2
   exit 1
 fi
 
-if ! grep -q 'AlertDialog.Builder' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/MainActivity.kt"; then
-  echo "Playback exit confirmation must keep the player visible in a dialog" >&2
+if ! grep -q 'Toast.makeText' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/MainActivity.kt"; then
+  echo "Playback exit guard must use Toast instead of replacing the player screen" >&2
   exit 1
 fi
 
-if grep -q 'screen("退出播放？")' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/MainActivity.kt"; then
-  echo "Playback exit confirmation must not replace the player screen" >&2
+if grep -q 'AlertDialog.Builder\|screen("退出播放' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/MainActivity.kt"; then
+  echo "Playback exit guard must not show a blocking dialog or replace the player screen" >&2
   exit 1
 fi
 

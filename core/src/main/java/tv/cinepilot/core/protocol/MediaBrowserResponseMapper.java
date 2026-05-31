@@ -111,6 +111,7 @@ public final class MediaBrowserResponseMapper {
                 .supportsTranscoding(JsonValue.bool(source, "SupportsTranscoding"))
                 .name(valueOrEmpty(JsonValue.string(source, "Name")))
                 .path(valueOrEmpty(JsonValue.string(source, "Path")))
+                .sizeBytes(number(source, "Size").longValue())
                 .bitRate(number(source, "Bitrate").longValue())
                 .mediaStreams(streams)
                 .build();
@@ -123,6 +124,14 @@ public final class MediaBrowserResponseMapper {
                 JsonValue.string(stream, "Codec"),
                 JsonValue.string(stream, "Language"),
                 JsonValue.string(stream, "DisplayTitle"),
+                optionalInt(stream, "Width"),
+                optionalInt(stream, "Height"),
+                optionalInt(stream, "Channels"),
+                optionalInt(stream, "BitDepth"),
+                number(stream, "BitRate").longValue(),
+                JsonValue.string(stream, "Profile"),
+                JsonValue.string(stream, "VideoRange"),
+                JsonValue.string(stream, "VideoRangeType"),
                 JsonValue.bool(stream, "IsDefault"),
                 JsonValue.bool(stream, "IsForced"),
                 JsonValue.bool(stream, "IsExternal"),

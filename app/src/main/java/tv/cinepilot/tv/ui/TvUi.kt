@@ -2,6 +2,7 @@ package tv.cinepilot.tv.ui
 
 import android.graphics.Color
 import android.graphics.Typeface
+import android.text.TextUtils
 import android.graphics.drawable.GradientDrawable
 import android.text.InputType
 import android.view.Gravity
@@ -36,6 +37,8 @@ fun ComponentActivity.screen(title: String, content: LinearLayout.() -> Unit): S
         typeface = Typeface.DEFAULT_BOLD
         setTextColor(TvColors.TextPrimary)
         gravity = Gravity.START
+        maxLines = 2
+        ellipsize = TextUtils.TruncateAt.END
         setPadding(0, 0, 0, dp(TvSpacing.SectionTop))
     })
     container.content()
