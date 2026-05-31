@@ -31,6 +31,7 @@ public final class TvWorkflowTest {
         rejectsFocusForMissingItems();
         loadsHomeRowsFromMediaBrowserClient();
         controllerLoadsPublicUsersForTvLogin();
+        controllerCompletesQuickConnectLogin();
         controllerRunsServerLoginBrowseAndPlaybackUseCase();
         controllerStartsPlaybackFromBeginningWhenRequested();
         controllerForwardsPlaybackPreferencesToPlaybackInfo();
@@ -202,6 +203,32 @@ public final class TvWorkflowTest {
         assertEquals("Demo", users.get(0).name(), "controller public user name");
         assertTrue(users.get(0).passwordRequired(), "controller public user password flag");
         assertEquals("/Users/Public", transport.requests.get(1).path(), "controller public users request");
+    }
+
+    private static void controllerCompletesQuickConnectLogin() {
+        FakeTransport transport = new FakeTransport();
+        transport.enqueue(200, "{\"Id\":\"server-1\",\"ServerName\":\"Jellyfin\"}");
+        transport.enqueue(200, "true");
+        transport.enqueue(200, "{\"Code\":\"ABCD12\",\"Secret\":\"secret-1\",\"Authenticated\":false}");
+        transport.enqueue(200, "{\"Code\":\"ABCD12\",\"Secret\":\"secret-1\",\"Authenticated\":true}");
+        transport.enqueue(200, "{\"AccessToken\":\"token-1\",\"ServerId\":\"server-1\",\"User\":{\"Id\":\"user-1\"}}");
+        enqueueHomeResponses(transport);
+
+        ClientIdentity client = new ClientIdentity("CinePilot TV", "Living Room TV", "device-1", "0.1.0");
+        MediaBrowserClient mediaClient = new MediaBrowserClient(transport, new InMemorySessionRepository(), client);
+        TvWorkflowController controller = new TvWorkflowController(mediaClient, new HomeRowsLoader(mediaClient, 12));
+
+        controller.submitServer("https://media.example.com/jellyfin");
+        assertEquals("ABCD12", controller.startQuickConnect().code(), "controller quick connect code");
+        TvAppState state = controller.completeQuickConnect();
+
+        assertEquals(TvRoute.HOME, state.route(), "quick connect routes home");
+        assertEquals("user-1", state.authenticated().session().userId(), "quick connect authenticated user");
+        assertEquals("/QuickConnect/Enabled", transport.requests.get(1).path(), "controller quick connect enabled");
+        assertEquals("/QuickConnect/Initiate", transport.requests.get(2).path(), "controller quick connect initiate");
+        assertEquals("/QuickConnect/Connect", transport.requests.get(3).path(), "controller quick connect state");
+        assertEquals("/Users/AuthenticateWithQuickConnect", transport.requests.get(4).path(), "controller quick connect auth");
+        assertEquals("/Users/user-1/Views", transport.requests.get(5).path(), "controller quick connect loads home");
     }
 
     private static void controllerRunsServerLoginBrowseAndPlaybackUseCase() {

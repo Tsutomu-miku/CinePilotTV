@@ -17,6 +17,8 @@ import tv.cinepilot.core.protocol.MediaBrowserException
 import tv.cinepilot.core.protocol.MediaItemSummary
 import tv.cinepilot.core.protocol.PlaybackSelectionPreferences
 import tv.cinepilot.core.protocol.PublicUserSummary
+import tv.cinepilot.core.protocol.QuickConnectSession
+import tv.cinepilot.core.protocol.ServerFlavor
 import tv.cinepilot.core.tv.HomeRow
 import tv.cinepilot.core.tv.TvAppState
 import tv.cinepilot.core.tv.TvDiagnostics
@@ -145,6 +147,9 @@ class MainActivity : Activity() {
             addView(action("登录") {
                 loginWithCredentials(usernameInput.text.toString(), passwordInput.text.toString())
             })
+            if (runtime.workflowController.state().server()?.flavor() == ServerFlavor.JELLYFIN) {
+                addView(action("Quick Connect") { startQuickConnectLogin() })
+            }
             addView(action("返回服务器输入") { showServerEntry() })
         })
     }
@@ -170,6 +175,33 @@ class MainActivity : Activity() {
             rememberAccount()
             showHome(runtime.workflowController.state())
         }
+    }
+
+    private fun startQuickConnectLogin() {
+        showLoading("正在创建 Quick Connect...")
+        executor.execute {
+            try {
+                val quickConnect = runtime.workflowController.startQuickConnect()
+                runOnUiThread { showQuickConnect(quickConnect) }
+            } catch (error: Throwable) {
+                runOnUiThread { showError(error) }
+            }
+        }
+    }
+
+    private fun showQuickConnect(quickConnect: QuickConnectSession) {
+        setContentView(screen("Quick Connect") {
+            addView(label("授权码：${quickConnect.code()}"))
+            addView(action("完成登录") {
+                runTask("正在完成 Quick Connect 登录...", {
+                    runtime.workflowController.completeQuickConnect()
+                }) {
+                    rememberAccount()
+                    showHome(runtime.workflowController.state())
+                }
+            })
+            addView(action("返回登录") { showLogin() })
+        })
     }
 
     private fun showHome(state: TvAppState) {
@@ -436,6 +468,8 @@ class MainActivity : Activity() {
         return when (error.message) {
             TvWorkflowController.NO_CHILD_ITEM_MESSAGE -> "目录中没有可打开的媒体"
             TvWorkflowController.NO_PLAYABLE_SOURCE_MESSAGE -> "没有可用播放源"
+            TvWorkflowController.QUICK_CONNECT_DISABLED_MESSAGE -> "服务器未启用 Quick Connect"
+            TvWorkflowController.QUICK_CONNECT_NOT_APPROVED_MESSAGE -> "Quick Connect 还没有完成授权"
             else -> error.message ?: error::class.java.simpleName
         }
     }

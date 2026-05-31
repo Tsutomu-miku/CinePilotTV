@@ -43,6 +43,34 @@ public final class MediaBrowserClient {
         return new AuthenticatedServer(server, session);
     }
 
+    public boolean quickConnectEnabled(ServerIdentity server) {
+        ProtocolResponse response = send(server.address(), MediaBrowserRequests.quickConnectEnabled());
+        return Boolean.parseBoolean(response.body());
+    }
+
+    public QuickConnectSession initiateQuickConnect(ServerIdentity server) {
+        ProtocolResponse response = send(server.address(), MediaBrowserRequests.initiateQuickConnect());
+        return MediaBrowserResponseMapper.quickConnectSession(response.body());
+    }
+
+    public QuickConnectSession quickConnectState(ServerIdentity server, String secret) {
+        ProtocolResponse response = send(server.address(), MediaBrowserRequests.quickConnectState(secret));
+        return MediaBrowserResponseMapper.quickConnectSession(response.body());
+    }
+
+    public AuthenticatedServer authenticateWithQuickConnect(ServerIdentity server, String secret) {
+        ProtocolRequest request = MediaBrowserRequests.authenticateWithQuickConnect(
+                client,
+                server.flavor(),
+                secret
+        );
+        ProtocolResponse response = send(server.address(), request);
+        AuthSession session = MediaBrowserResponseMapper.authSession(client, response.body());
+        SavedSession saved = new SavedSession(SessionScope.from(server, session), session.accessToken());
+        sessions.save(saved);
+        return new AuthenticatedServer(server, session);
+    }
+
     public List<PublicUserSummary> publicUsers(ServerIdentity server) {
         ProtocolResponse response = send(
                 server.address(),

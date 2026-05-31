@@ -40,6 +40,40 @@ public final class MediaBrowserRequests {
                 .build();
     }
 
+    public static ProtocolRequest authenticateWithQuickConnect(
+            ClientIdentity client,
+            ServerFlavor flavor,
+            String secret
+    ) {
+        require(secret, "secret");
+        Map<String, Object> body = new LinkedHashMap<>();
+        body.put("Secret", secret);
+        return ProtocolRequest.post("/Users/AuthenticateWithQuickConnect")
+                .header("X-Emby-Authorization", clientAuthorization(client, flavor))
+                .jsonBody(JsonPayload.object(body))
+                .build();
+    }
+
+    public static ProtocolRequest quickConnectEnabled() {
+        return ProtocolRequest.get("/QuickConnect/Enabled")
+                .header("Accept", "application/json")
+                .build();
+    }
+
+    public static ProtocolRequest initiateQuickConnect() {
+        return ProtocolRequest.post("/QuickConnect/Initiate")
+                .header("Accept", "application/json")
+                .build();
+    }
+
+    public static ProtocolRequest quickConnectState(String secret) {
+        require(secret, "secret");
+        return ProtocolRequest.get("/QuickConnect/Connect")
+                .header("Accept", "application/json")
+                .query("secret", secret)
+                .build();
+    }
+
     public static ProtocolRequest logout(AuthSession session, ServerFlavor flavor) {
         return authenticated(ProtocolRequest.post("/Sessions/Logout"), session, flavor).build();
     }

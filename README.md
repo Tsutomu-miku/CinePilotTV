@@ -39,6 +39,7 @@ CinePilot TV 是一个面向 Android TV 的原生播放器，用来连接兼容 
 - `./scripts/bootstrap-gradle-wrapper.sh` 在没有全局 Gradle 时下载临时 Gradle 并生成 wrapper。
 - `./scripts/install-debug-apk.sh` 构建、安装并启动 debug APK，需要已连接 Android TV 设备或模拟器。
 - `./gradlew :core:test` 已可运行，并会执行协议、TV workflow 和 HTTP transport 集成测试；Android SDK 可用时，`./gradlew :app:assembleDebug` 可生成 debug APK。
+- Jellyfin 登录页已具备最小 Quick Connect 入口，可在服务器启用 Quick Connect 时减少 TV 遥控器输入。
 
 ## 仓库结构
 

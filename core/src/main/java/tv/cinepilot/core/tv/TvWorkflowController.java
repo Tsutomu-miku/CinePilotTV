@@ -14,17 +14,21 @@ import tv.cinepilot.core.protocol.PlaybackInfo;
 import tv.cinepilot.core.protocol.PlaybackInfoOptions;
 import tv.cinepilot.core.protocol.PlaybackSelectionPreferences;
 import tv.cinepilot.core.protocol.PublicUserSummary;
+import tv.cinepilot.core.protocol.QuickConnectSession;
 import tv.cinepilot.core.protocol.ServerIdentity;
 
 public final class TvWorkflowController {
     public static final String NO_CHILD_ITEM_MESSAGE = "No child media item is available";
     public static final String NO_PLAYABLE_SOURCE_MESSAGE = "No playable media source is available";
+    public static final String QUICK_CONNECT_DISABLED_MESSAGE = "Quick Connect is not enabled on this server";
+    public static final String QUICK_CONNECT_NOT_APPROVED_MESSAGE = "Quick Connect has not been approved yet";
     private static final int FOLDER_PAGE_SIZE = 50;
 
     private final MediaBrowserClient client;
     private final HomeRowsLoader homeRowsLoader;
     private final Deque<TvAppState> browseBackStack = new ArrayDeque<>();
     private FolderBrowseContext folderBrowseContext;
+    private QuickConnectSession pendingQuickConnect;
     private TvAppState state = TvAppState.initial();
 
     public TvWorkflowController(MediaBrowserClient client, HomeRowsLoader homeRowsLoader) {
@@ -59,6 +63,39 @@ public final class TvWorkflowController {
         state = TvWorkflow.loginStarted(state);
         AuthenticatedServer authenticated = client.authenticate(state.server(), username, password);
         state = TvWorkflow.loginSucceeded(state, authenticated);
+        return loadHome();
+    }
+
+    public boolean quickConnectEnabled() {
+        if (state.server() == null) {
+            throw new IllegalStateException("server must be discovered before Quick Connect");
+        }
+        return client.quickConnectEnabled(state.server());
+    }
+
+    public QuickConnectSession startQuickConnect() {
+        if (state.server() == null) {
+            throw new IllegalStateException("server must be discovered before Quick Connect");
+        }
+        if (!client.quickConnectEnabled(state.server())) {
+            throw new IllegalStateException(QUICK_CONNECT_DISABLED_MESSAGE);
+        }
+        pendingQuickConnect = client.initiateQuickConnect(state.server());
+        return pendingQuickConnect;
+    }
+
+    public TvAppState completeQuickConnect() {
+        if (state.server() == null || pendingQuickConnect == null) {
+            throw new IllegalStateException("Quick Connect must be started before completion");
+        }
+        QuickConnectSession latest = client.quickConnectState(state.server(), pendingQuickConnect.secret());
+        pendingQuickConnect = latest;
+        if (!latest.authenticated()) {
+            throw new IllegalStateException(QUICK_CONNECT_NOT_APPROVED_MESSAGE);
+        }
+        AuthenticatedServer authenticated = client.authenticateWithQuickConnect(state.server(), latest.secret());
+        state = TvWorkflow.loginSucceeded(state, authenticated);
+        pendingQuickConnect = null;
         return loadHome();
     }
 

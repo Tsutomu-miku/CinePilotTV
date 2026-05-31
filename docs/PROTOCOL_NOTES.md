@@ -10,6 +10,10 @@
 - `GET /System/Info`：已登录服务器信息，用于绑定 server id。
 - `GET /Users/Public`：public users，用于 TV 登录界面减少输入。
 - `POST /Users/AuthenticateByName`：用户名 / 密码登录，body 使用 `Username` 和 `Pw`。
+- `GET /QuickConnect/Enabled`：查询 Jellyfin Quick Connect 是否启用。
+- `POST /QuickConnect/Initiate`：创建 Quick Connect 请求，返回用户可见授权码和 secret。
+- `GET /QuickConnect/Connect?secret=...`：查询 Quick Connect 请求是否已授权。
+- `POST /Users/AuthenticateWithQuickConnect`：使用 Quick Connect secret 换取登录 token。
 - `POST /Sessions/Logout`：显式登出并撤销 token。
 - `GET /Users/{UserId}/Views`：用户可见媒体库。
 - `GET /Users/{UserId}/Items`：媒体库浏览。
@@ -33,6 +37,7 @@
 
 - 服务器发现：`publicSystemInfo` -> `ServerIdentity`。
 - 用户名 / 密码登录：`authenticateByName` -> `AuthSession` -> `SavedSession`。
+- Quick Connect 登录：`initiateQuickConnect` -> `quickConnectState` -> `authenticateWithQuickConnect` -> `SavedSession`。
 - 会话持久化：`SessionScope` -> `InMemorySessionRepository` / `FileSessionRepository`。
 - 播放信息：`playbackInfo` -> `PlaybackInfo`。
 - 播放源选择：`PlaybackInfo` -> `PlayableMedia`。
@@ -54,6 +59,7 @@
 ## 来源
 
 - Jellyfin Kotlin SDK 认证文档说明用户名密码登录、access token、Quick Connect 和 passwordless 用户语义：<https://kotlin-sdk.jellyfin.org/guide/authentication.html>
+- Jellyfin TypeScript SDK 暴露 Quick Connect enabled / initiate / state，以及 `AuthenticateWithQuickConnect` 请求：<https://typescript-sdk.jellyfin.org/classes/generated-client.QuickConnectApi.html>
 - Emby 用户认证文档说明 public users、`/Users/AuthenticateByName`、`X-Emby-Token`、401 token 失效、登出和 server id 绑定：<https://dev.emby.media/doc/restapi/User-Authentication.html>
 - Emby `POST /Users/AuthenticateByName` 参考页说明 endpoint、body 字段 `Username` / `Pw` 和返回的 `AccessToken` / `ServerId`：<https://dev.emby.media/reference/RestAPI/UserService/postUsersAuthenticatebyname.html>
 - Emby `GET /Users/{UserId}/Items` 参考页说明媒体浏览查询参数和 `BaseItemDto` 形状：<https://dev.emby.media/reference/RestAPI/ItemsService/getUsersByUseridItems.html>

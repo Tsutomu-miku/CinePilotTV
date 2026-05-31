@@ -29,6 +29,7 @@ public final class ProtocolCoreTest {
         selectsPlayableMediaSources();
         mapsServerAndPlaybackResponses();
         mapsAndLoadsPublicUsers();
+        clientRunsQuickConnectLoginFlow();
         clientRunsDiscoveryLoginAndPlaybackFlow();
         mapsAndFetchesMediaItems();
         persistsSavedSessionsToFile();
@@ -150,6 +151,28 @@ public final class ProtocolCoreTest {
                 login.headers().get("X-Emby-Authorization").startsWith("MediaBrowser "),
                 "login uses jellyfin authorization scheme"
         );
+
+        ProtocolRequest quickConnectEnabled = MediaBrowserRequests.quickConnectEnabled();
+        assertEquals(HttpMethod.GET, quickConnectEnabled.method(), "quick connect enabled method");
+        assertEquals("/QuickConnect/Enabled", quickConnectEnabled.path(), "quick connect enabled path");
+
+        ProtocolRequest quickConnectInitiate = MediaBrowserRequests.initiateQuickConnect();
+        assertEquals(HttpMethod.POST, quickConnectInitiate.method(), "quick connect initiate method");
+        assertEquals("/QuickConnect/Initiate", quickConnectInitiate.path(), "quick connect initiate path");
+
+        ProtocolRequest quickConnectState = MediaBrowserRequests.quickConnectState("secret-1");
+        assertEquals(HttpMethod.GET, quickConnectState.method(), "quick connect state method");
+        assertEquals("/QuickConnect/Connect", quickConnectState.path(), "quick connect state path");
+        assertTrue(quickConnectState.url(address).contains("secret=secret-1"), "quick connect state secret query");
+
+        ProtocolRequest quickConnectAuth = MediaBrowserRequests.authenticateWithQuickConnect(
+                client,
+                ServerFlavor.JELLYFIN,
+                "secret-1"
+        );
+        assertEquals(HttpMethod.POST, quickConnectAuth.method(), "quick connect auth method");
+        assertEquals("/Users/AuthenticateWithQuickConnect", quickConnectAuth.path(), "quick connect auth path");
+        assertEquals("{\"Secret\":\"secret-1\"}", quickConnectAuth.bodyJson(), "quick connect auth body");
     }
 
     private static void buildsBrowseRequests() {
@@ -511,6 +534,13 @@ public final class ProtocolCoreTest {
         assertTrue(mapped.get(0).passwordRequired(), "public user password flag maps");
         assertTrue(!mapped.get(1).passwordRequired(), "public user passwordless flag maps");
 
+        QuickConnectSession quickConnect = MediaBrowserResponseMapper.quickConnectSession("""
+                {"Code":"ABCD12","Secret":"secret-1","Authenticated":true}
+                """);
+        assertEquals("ABCD12", quickConnect.code(), "quick connect code maps");
+        assertEquals("secret-1", quickConnect.secret(), "quick connect secret maps");
+        assertTrue(quickConnect.authenticated(), "quick connect auth flag maps");
+
         FakeTransport transport = new FakeTransport();
         transport.enqueue(200, "[{\"Id\":\"user-1\",\"Name\":\"Demo\",\"HasPassword\":true}]");
         ClientIdentity client = new ClientIdentity("CinePilot TV", "Living Room TV", "device-1", "0.1.0");
@@ -530,6 +560,39 @@ public final class ProtocolCoreTest {
                 transport.requests.get(0).headers().get("X-Emby-Authorization").startsWith("MediaBrowser "),
                 "client public users auth header"
         );
+    }
+
+    private static void clientRunsQuickConnectLoginFlow() {
+        FakeTransport transport = new FakeTransport();
+        transport.enqueue(200, "true");
+        transport.enqueue(200, "{\"Code\":\"ABCD12\",\"Secret\":\"secret-1\",\"Authenticated\":false}");
+        transport.enqueue(200, "{\"Code\":\"ABCD12\",\"Secret\":\"secret-1\",\"Authenticated\":true}");
+        transport.enqueue(200, "{\"AccessToken\":\"token-1\",\"ServerId\":\"server-1\",\"User\":{\"Id\":\"user-1\"}}");
+
+        ClientIdentity client = new ClientIdentity("CinePilot TV", "Living Room TV", "device-1", "0.1.0");
+        InMemorySessionRepository repository = new InMemorySessionRepository();
+        MediaBrowserClient mediaClient = new MediaBrowserClient(transport, repository, client);
+        ServerIdentity server = new ServerIdentity(
+                MediaServerAddress.parse("https://media.example.com/jellyfin"),
+                "server-1",
+                ServerFlavor.JELLYFIN,
+                "Jellyfin"
+        );
+
+        assertTrue(mediaClient.quickConnectEnabled(server), "quick connect enabled");
+        QuickConnectSession pending = mediaClient.initiateQuickConnect(server);
+        assertEquals("ABCD12", pending.code(), "client quick connect code");
+        assertTrue(!pending.authenticated(), "client quick connect initially pending");
+        QuickConnectSession approved = mediaClient.quickConnectState(server, pending.secret());
+        assertTrue(approved.authenticated(), "client quick connect approved");
+        AuthenticatedServer authenticated = mediaClient.authenticateWithQuickConnect(server, approved.secret());
+
+        assertEquals("user-1", authenticated.session().userId(), "quick connect authenticates user");
+        assertTrue(mediaClient.restore(server, "user-1").isPresent(), "quick connect saves session");
+        assertEquals("/QuickConnect/Enabled", transport.requests.get(0).path(), "quick connect enabled path");
+        assertEquals("/QuickConnect/Initiate", transport.requests.get(1).path(), "quick connect initiate path");
+        assertEquals("/QuickConnect/Connect", transport.requests.get(2).path(), "quick connect state path");
+        assertEquals("/Users/AuthenticateWithQuickConnect", transport.requests.get(3).path(), "quick connect auth path");
     }
 
     private static void clientRunsDiscoveryLoginAndPlaybackFlow() {

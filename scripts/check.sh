@@ -371,6 +371,16 @@ if ! grep -q '免密码登录' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/Main
   exit 1
 fi
 
+if ! grep -q 'Quick Connect' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/MainActivity.kt"; then
+  echo "MainActivity must expose Jellyfin Quick Connect login" >&2
+  exit 1
+fi
+
+if ! grep -q 'AuthenticateWithQuickConnect' "$ROOT_DIR/core/src/main/java/tv/cinepilot/core/protocol/MediaBrowserRequests.java"; then
+  echo "MediaBrowserRequests must model Quick Connect authentication" >&2
+  exit 1
+fi
+
 if ! grep -q '没有可用播放源' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/MainActivity.kt"; then
   echo "MainActivity must explain unsupported playback in Chinese" >&2
   exit 1

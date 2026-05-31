@@ -46,6 +46,15 @@ public final class MediaBrowserResponseMapper {
         return List.copyOf(users);
     }
 
+    public static QuickConnectSession quickConnectSession(String json) {
+        Map<String, Object> root = JsonValue.object(json);
+        return new QuickConnectSession(
+                valueOrEmpty(JsonValue.string(root, "Code")),
+                requiredString(root, "Secret"),
+                JsonValue.bool(root, "Authenticated")
+        );
+    }
+
     public static PlaybackInfo playbackInfo(String itemId, String json) {
         Map<String, Object> root = JsonValue.object(json);
         String playSessionId = firstString(root, "PlaySessionId");
