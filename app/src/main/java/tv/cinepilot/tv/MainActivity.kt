@@ -15,19 +15,23 @@ import tv.cinepilot.core.protocol.MediaItemSummary
 import tv.cinepilot.core.protocol.PlaybackSelectionPreferences
 import tv.cinepilot.core.tv.HomeRow
 import tv.cinepilot.core.tv.TvAppState
+import tv.cinepilot.tv.player.Media3PlayerHost
 import tv.cinepilot.tv.runtime.CinePilotRuntime
 
 class MainActivity : Activity() {
     private lateinit var runtime: CinePilotRuntime
+    private lateinit var playerHost: Media3PlayerHost
     private val executor = Executors.newSingleThreadExecutor()
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         runtime = CinePilotRuntime.create(this)
+        playerHost = Media3PlayerHost(this)
         showServerEntry()
     }
 
     override fun onDestroy() {
+        playerHost.release()
         executor.shutdownNow()
         super.onDestroy()
     }
@@ -116,7 +120,22 @@ class MainActivity : Activity() {
             addView(label("播放方式：${playable?.playMethod() ?: ""}"))
             addView(label("媒体源：${playable?.mediaSourceId() ?: ""}"))
             addView(label(playable?.url() ?: playable?.request()?.path() ?: ""))
+            addView(action("打开播放器") { showPlayer(state) })
             addView(action("返回详情") {
+                runtime.workflowController.back()
+                runtime.workflowController.state().selectedItem()?.let(::showDetails)
+            })
+        })
+    }
+
+    private fun showPlayer(state: TvAppState) {
+        setContentView(screen("播放器") {
+            addView(playerHost.createPlayerView(state), LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                720,
+            ))
+            addView(action("停止并返回详情") {
+                playerHost.release()
                 runtime.workflowController.back()
                 runtime.workflowController.state().selectedItem()?.let(::showDetails)
             })

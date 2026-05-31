@@ -12,6 +12,8 @@ Android app 的运行时入口是 `CinePilotRuntime`。它负责创建客户端�
 
 `MainActivity` 当前使用 Android 原生 View 渲染最小 TV 流程：服务器输入、登录、首页、详情和播放准备。界面事件必须通过 `TvWorkflowController` 推进状态。
 
+`Media3PlayerHost` 负责把 `TvAppState.playableMedia` 转换为 Media3 `MediaItem`，创建 `ExoPlayer` 和 `PlayerView`，并在 Activity 销毁或用户停止播放时释放播放器。
+
 后续的 `platform` 适配器会负责 HTTP transport、token 持久化、图片加载和 Android 专用存储。
 
 UI 界面应该调用应用控制器或 store。界面组件不能直接构造 Jellyfin / Emby URL、认证请求头或播放上报载荷。
