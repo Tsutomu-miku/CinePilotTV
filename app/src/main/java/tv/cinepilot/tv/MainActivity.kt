@@ -384,6 +384,7 @@ class MainActivity : Activity() {
             setSingleLine(true)
             setTextColor(Color.WHITE)
             setHintTextColor(Color.LTGRAY)
+            setFocusableColors(this, Color.rgb(30, 41, 59), Color.rgb(15, 23, 42))
             setPadding(20, 12, 20, 12)
         }
     }
@@ -393,8 +394,17 @@ class MainActivity : Activity() {
             this.text = text
             textSize = 20f
             isAllCaps = false
+            setTextColor(Color.WHITE)
+            setFocusableColors(this, Color.rgb(20, 184, 166), Color.rgb(30, 41, 59))
             setOnClickListener { onClick() }
             setPadding(20, 14, 20, 14)
+        }
+    }
+
+    private fun setFocusableColors(view: TextView, focusedColor: Int, normalColor: Int) {
+        view.setBackgroundColor(normalColor)
+        view.setOnFocusChangeListener { focusedView, hasFocus ->
+            focusedView.setBackgroundColor(if (hasFocus) focusedColor else normalColor)
         }
     }
 

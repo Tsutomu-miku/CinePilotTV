@@ -141,6 +141,11 @@ if ! grep -q 'requestFocus' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/MainAct
   exit 1
 fi
 
+if ! grep -q 'setOnFocusChangeListener' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/MainActivity.kt"; then
+  echo "MainActivity must make D-pad focus visibly change controls" >&2
+  exit 1
+fi
+
 if ! grep -q 'openFirstChild' "$ROOT_DIR/core/src/main/java/tv/cinepilot/core/tv/TvWorkflowController.java"; then
   echo "TvWorkflowController must support opening the first child of a folder" >&2
   exit 1

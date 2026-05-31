@@ -18,6 +18,8 @@ Android 遥控器 Back 键必须和页面按钮使用同一套 workflow 语义�
 
 服务器地址输入应使用 URI text variation，密码输入必须使用 password variation。登录界面可以保留原生 `EditText`，但不能明文显示密码。
 
+按钮和输入框必须有显式 focus color，不能只依赖平台默认样式；这样在深色 TV 背景上 D-pad 当前焦点始终可见。
+
 `TvDiagnostics` 生成不含 token 的联调快照，供 TV UI 展示 server、user、item、media source、play method 和焦点信息。
 
 播放准备页只展示播放方式、媒体源和“播放地址已准备”这类安全摘要，不直接展示 raw playback URL。需要排障时走 `TvDiagnostics`，且诊断输出不能包含 token。

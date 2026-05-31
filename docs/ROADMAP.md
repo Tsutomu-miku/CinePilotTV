@@ -45,7 +45,7 @@
 状态：进行中。
 
 - P0-6 本机具备 Android SDK 后启用 Gradle Android 构建。进度：`:core` 与 `:app` 已接入 Gradle 多模块工程，当前环境通过本地临时 SDK 验证 `:app:assembleDebug`。
-- P0-7 添加可启动的 TV Activity，并建立 D-pad 安全的导航脚手架。进度：TV workflow 状态 / 导航 reducer、Android runtime composition root、原生 UI 和遥控器 Back 导航接线已完成；真实设备焦点 QA 未完成。
+- P0-7 添加可启动的 TV Activity，并建立 D-pad 安全的导航脚手架。进度：TV workflow 状态 / 导航 reducer、Android runtime composition root、原生 UI、显式焦点样式和遥控器 Back 导航接线已完成；真实设备焦点 QA 未完成。
 - P0-8 添加 Media3 播放器宿主生命周期和占位播放状态接线。进度：`Media3PlayerHost` 生命周期、release、播放 URL 授权和 progress ticker 已完成；真实设备播放 QA 未完成。
 
 退出标准：
@@ -82,7 +82,7 @@
 
 状态：进行中。
 
-- P0-17 用 Android TV UI 渲染服务器输入、登录、首页、详情和播放器入口。进度：原生 View 最小流程已完成，服务器 URL 输入、public users 选择、密码遮蔽、服务器连接、登录、会话恢复、首页加载、文件夹 / 剧集层级浏览、详情加载、继续播放、从头播放、上下文错误恢复、Back 导航和播放准备均走已接线流程，尚未做最终 TV 视觉打磨。
+- P0-17 用 Android TV UI 渲染服务器输入、登录、首页、详情和播放器入口。进度：原生 View 最小流程已完成，服务器 URL 输入、public users 选择、密码遮蔽、显式焦点样式、服务器连接、登录、会话恢复、首页加载、文件夹 / 剧集层级浏览、详情加载、继续播放、从头播放、上下文错误恢复、Back 导航和播放准备均走已接线流程，尚未做最终 TV 视觉打磨。
 - P0-18 将 `TvWorkflow` 接入 Activity / ViewModel，保证焦点按 item id 恢复。进度：`TvWorkflow`、`HomeRowsLoader`、核心 `TvWorkflowController`、Android runtime 暴露和首页 item id 焦点恢复已完成，正式 ViewModel 接线未开始。
 - P0-19 将 `PlayableMedia` 接入 Media3 player host。进度：`Media3PlayerHost` 已接入最小播放器视图，并为播放 URL 追加 `api_key`；真实设备播放验证未完成。
 - P0-20 将 Media3 播放事件桥接到 `PlaybackSessionController`。进度：`Media3PlaybackBridge` 已接入 player host，真实设备验证未完成。
