@@ -6,6 +6,7 @@ BUILD_DIR="$ROOT_DIR/build/check"
 MAIN_CLASSES="$BUILD_DIR/main"
 TEST_CLASSES="$BUILD_DIR/test"
 PLAYBACK_ROUTE_CONTROLLER="$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/playback/PlaybackRouteController.kt"
+AUTH_ROUTE_CONTROLLER="$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/auth/AuthRouteController.kt"
 
 required_docs=(
   "$ROOT_DIR/README.md"
@@ -205,8 +206,13 @@ if ! grep -q 'recent_servers' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/runti
   exit 1
 fi
 
-if ! grep -q 'RecentAccountStore' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/MainActivity.kt"; then
-  echo "MainActivity must delegate saved account handling to RecentAccountStore" >&2
+if [[ ! -s "$AUTH_ROUTE_CONTROLLER" ]]; then
+  echo "Missing dedicated auth route controller" >&2
+  exit 1
+fi
+
+if ! grep -q 'RecentAccountStore' "$AUTH_ROUTE_CONTROLLER"; then
+  echo "Auth route controller must delegate saved account handling to RecentAccountStore" >&2
   exit 1
 fi
 
@@ -215,8 +221,8 @@ if ! grep -F -q '服务器 ${server.displayName()}' "$ROOT_DIR/app/src/main/java
   exit 1
 fi
 
-if ! grep -q 'restoreRecentAccountOnLaunch' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/MainActivity.kt"; then
-  echo "MainActivity must auto-restore the most recent saved account on launch" >&2
+if ! grep -q 'restoreRecentAccountOnLaunch' "$AUTH_ROUTE_CONTROLLER"; then
+  echo "Auth route controller must auto-restore the most recent saved account on launch" >&2
   exit 1
 fi
 
@@ -245,8 +251,8 @@ if ! grep -q 'loadPublicUsers' "$ROOT_DIR/core/src/main/java/tv/cinepilot/core/t
   exit 1
 fi
 
-if ! grep -q 'restoreSession' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/MainActivity.kt"; then
-  echo "MainActivity must wire saved session restore" >&2
+if ! grep -q 'restoreSession' "$AUTH_ROUTE_CONTROLLER"; then
+  echo "Auth route controller must wire saved session restore" >&2
   exit 1
 fi
 
@@ -518,12 +524,12 @@ if ! grep -q 'Media3PlayerHost' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/Mai
   exit 1
 fi
 
-if ! grep -q 'qa_server' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/MainActivity.kt"; then
-  echo "MainActivity must keep a debug-only QA login intent for restricted ADB input devices" >&2
+if ! grep -q 'qa_server' "$AUTH_ROUTE_CONTROLLER"; then
+  echo "Auth route controller must keep a debug-only QA login intent for restricted ADB input devices" >&2
   exit 1
 fi
 
-if ! grep -q 'FLAG_DEBUGGABLE' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/MainActivity.kt"; then
+if ! grep -q 'FLAG_DEBUGGABLE' "$AUTH_ROUTE_CONTROLLER"; then
   echo "QA login intent must be limited to debuggable builds" >&2
   exit 1
 fi
@@ -820,8 +826,8 @@ if [[ ! -s "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/runtime/QuickConnectPoll
   exit 1
 fi
 
-if ! grep -q 'quickConnectPoller.start' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/MainActivity.kt"; then
-  echo "MainActivity must start Quick Connect authorization polling" >&2
+if ! grep -q 'quickConnectPoller.start' "$AUTH_ROUTE_CONTROLLER"; then
+  echo "Auth route controller must start Quick Connect authorization polling" >&2
   exit 1
 fi
 
@@ -830,8 +836,8 @@ if ! grep -q 'QUICK_CONNECT_NOT_APPROVED_MESSAGE' "$ROOT_DIR/app/src/main/java/t
   exit 1
 fi
 
-if ! grep -q 'updateQuickConnectWaiting' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/MainActivity.kt"; then
-  echo "MainActivity must show visible Quick Connect polling status" >&2
+if ! grep -q 'updateQuickConnectWaiting' "$AUTH_ROUTE_CONTROLLER"; then
+  echo "Auth route controller must show visible Quick Connect polling status" >&2
   exit 1
 fi
 
