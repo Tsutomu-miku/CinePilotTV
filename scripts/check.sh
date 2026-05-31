@@ -272,6 +272,11 @@ if ! grep -R -q '搜索媒体' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv"; th
   exit 1
 fi
 
+if ! grep -q 'IME_ACTION_SEARCH' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/MainActivity.kt"; then
+  echo "Search input must submit from the TV keyboard search action" >&2
+  exit 1
+fi
+
 if ! grep -R -q 'homeRows().all' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv"; then
   echo "Android TV UI must show an empty state for empty search results" >&2
   exit 1

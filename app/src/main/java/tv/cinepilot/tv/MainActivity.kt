@@ -8,6 +8,7 @@ import android.os.Handler
 import android.os.Looper
 import android.text.InputType
 import android.view.View
+import android.view.inputmethod.EditorInfo
 import android.widget.EditText
 import android.widget.ImageView
 import android.widget.LinearLayout
@@ -413,6 +414,27 @@ class MainActivity : ComponentActivity() {
     private fun showSearch() {
         searchVisible = true
         val searchInput = input("搜索媒体", InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_NORMAL)
+        fun submitSearch() {
+            val term = searchInput.text.toString().trim()
+            if (term.isBlank()) {
+                searchInput.requestFocus()
+            } else {
+                runTask("正在搜索...", {
+                    viewModel.workflowController.search(term)
+                }) {
+                    showHome(viewModel.workflowController.state())
+                }
+            }
+        }
+        searchInput.imeOptions = EditorInfo.IME_ACTION_SEARCH
+        searchInput.setOnEditorActionListener { _, actionId, _ ->
+            if (actionId == EditorInfo.IME_ACTION_SEARCH || actionId == EditorInfo.IME_ACTION_DONE) {
+                submitSearch()
+                true
+            } else {
+                false
+            }
+        }
         setContentView(screen("搜索媒体") {
             addView(searchInput, LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT,
@@ -421,18 +443,7 @@ class MainActivity : ComponentActivity() {
                 bottomMargin = dp(16)
             })
             addView(actionStrip(listOf(
-                compactIconAction("搜索", TvIcon.SEARCH) {
-                    val term = searchInput.text.toString().trim()
-                    if (term.isBlank()) {
-                        searchInput.requestFocus()
-                    } else {
-                        runTask("正在搜索...", {
-                            viewModel.workflowController.search(term)
-                        }) {
-                            showHome(viewModel.workflowController.state())
-                        }
-                    }
-                },
+                compactIconAction("搜索", TvIcon.SEARCH, ::submitSearch),
                 iconAction("返回", TvIcon.BACK) { showHome(viewModel.workflowController.state()) },
             )))
         })
