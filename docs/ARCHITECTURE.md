@@ -26,6 +26,8 @@ UI 界面应该调用应用控制器或 store。界面组件不能直接构造 J
 
 请求规格只表达 method、path、headers、query 和 body。真实网络发送、重试、超时、TLS 证书策略和响应解析属于后续 platform adapter。
 
+基础 JSON 值解析和核心响应 mapper 暂时放在 `core`，用于把系统信息、登录结果和 playback info 转换成领域模型。后续引入 Kotlin/Android JSON 库时，必须保持这些领域模型和测试语义不变。
+
 ## 播放层
 
 播放层将负责 Media3 player 设置、media source 创建、轨道选择、字幕处理和播放 check-in 调度。它把领域播放事件报告给协议层，不关心界面如何渲染。

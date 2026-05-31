@@ -13,6 +13,7 @@ core/
       HlsStreamOptions.java      HLS 播放 URL 参数
       PlaybackSourceSelector.java 播放源选择规则
       PlaybackInfo.java          playback info 领域模型
+      MediaBrowserResponseMapper.java 核心 API 响应到领域模型的映射
   src/test/java/tv/cinepilot/core/
     protocol/                    JVM 协议测试
 docs/                            项目指导文档
@@ -24,7 +25,7 @@ scripts/                         健康检查和本地自动化
 
 - 纯服务器语义和播放语义放在 `core`。
 - Android 生命周期、焦点和 Media3 集成放在 `app`。
-- HTTP client、JSON 响应解析和持久化放在后续 platform adapter 包下。
+- HTTP client 和持久化放在后续 platform adapter 包下。
 - UI 代码不能依赖协议包里的实现细节。
 - 测试放在保护对应行为的模块旁边。
 - P0 / P1 批次开始或完成时，更新 `docs/ROADMAP.md`。

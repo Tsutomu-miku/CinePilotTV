@@ -22,6 +22,12 @@
 - `POST /Sessions/Playing/Progress`：播放进度与暂停、seek、轨道变化等事件上报。
 - `POST /Sessions/Playing/Stopped`：停止播放上报。
 
+`MediaBrowserResponseMapper` 已建模以下响应映射：
+
+- 系统信息响应到 `ServerIdentity`。
+- 登录响应到 `AuthSession`。
+- playback info 响应到 `PlaybackInfo`、`MediaSourceInfo` 和 `MediaStreamInfo`。
+
 ## 认证头策略
 
 - Jellyfin 默认使用 `MediaBrowser` scheme。
@@ -44,6 +50,6 @@
 ## 后续确认项
 
 - Jellyfin 与 Emby 对 `/Users/{UserId}/Items/{ItemId}` 详情 endpoint 的差异需要在真实服务器或官方 OpenAPI 生成客户端上验证。
-- direct play / direct stream / transcode 的基础选择规则已在 `PlaybackSourceSelector` 建模；真实服务器响应解析后需要继续用兼容矩阵校准。
+- direct play / direct stream / transcode 的基础选择规则已在 `PlaybackSourceSelector` 建模；真实服务器联调后需要继续用兼容矩阵校准。
 - Media3 设备能力到 `DeviceProfile` / codec 参数的映射需要在 Android 层可运行后补齐。
 - Quick Connect 只先写入需求和路线图，尚未进入 P0 请求规格。

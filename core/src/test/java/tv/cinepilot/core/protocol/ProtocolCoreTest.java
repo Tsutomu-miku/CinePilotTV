@@ -20,6 +20,7 @@ public final class ProtocolCoreTest {
         buildsPlaybackInfoAndStreamRequests();
         buildsPlaybackCheckInRequests();
         selectsPlayableMediaSources();
+        mapsServerAndPlaybackResponses();
         System.out.println("ProtocolCoreTest passed");
     }
 
@@ -389,6 +390,58 @@ public final class ProtocolCoreTest {
                 PlaybackSelectionPreferences.defaults()
         );
         assertTrue(noPlayable.isEmpty(), "selector returns empty for unsupported sources");
+    }
+
+    private static void mapsServerAndPlaybackResponses() {
+        MediaServerAddress address = MediaServerAddress.parse("https://media.example.com/jellyfin");
+        ServerIdentity server = MediaBrowserResponseMapper.serverIdentity(
+                address,
+                "{\"Id\":\"server-1\",\"ServerName\":\"Jellyfin Living Room\",\"Version\":\"10.10.7\"}"
+        );
+        assertEquals("server-1", server.serverId(), "server id maps");
+        assertEquals(ServerFlavor.JELLYFIN, server.flavor(), "server flavor maps");
+
+        ClientIdentity client = new ClientIdentity("CinePilot TV", "Living Room TV", "device-1", "0.1.0");
+        AuthSession session = MediaBrowserResponseMapper.authSession(
+                client,
+                "{\"AccessToken\":\"token-1\",\"ServerId\":\"server-1\",\"User\":{\"Id\":\"user-1\",\"Name\":\"Demo\"}}"
+        );
+        assertEquals("server-1", session.serverId(), "auth server id maps");
+        assertEquals("user-1", session.userId(), "auth user id maps");
+        assertEquals("token-1", session.accessToken(), "auth token maps");
+
+        PlaybackInfo playbackInfo = MediaBrowserResponseMapper.playbackInfo(
+                "item-1",
+                """
+                {
+                  "PlaySessionId": "play-session-1",
+                  "MediaSources": [
+                    {
+                      "Id": "source-1",
+                      "Container": "mkv",
+                      "DirectStreamUrl": "/Videos/item-1/stream.mkv?MediaSourceId=source-1",
+                      "TranscodingUrl": "/Videos/item-1/master.m3u8?MediaSourceId=source-1",
+                      "SupportsDirectPlay": false,
+                      "SupportsDirectStream": true,
+                      "SupportsTranscoding": true,
+                      "MediaStreams": [
+                        {"Index": 0, "Type": "Video", "Codec": "hevc", "DisplayTitle": "4K HEVC", "IsDefault": true},
+                        {"Index": 1, "Type": "Audio", "Codec": "eac3", "Language": "eng", "DisplayTitle": "English", "IsDefault": true},
+                        {"Index": 2, "Type": "Subtitle", "Codec": "srt", "Language": "eng", "DisplayTitle": "English CC", "IsExternal": true, "DeliveryUrl": "/Videos/item-1/Subtitles/2/Stream.srt"}
+                      ]
+                    }
+                  ]
+                }
+                """
+        );
+        assertEquals("play-session-1", playbackInfo.playSessionId(), "play session maps");
+        assertEquals(1, playbackInfo.mediaSources().size(), "media source count maps");
+        MediaSourceInfo source = playbackInfo.mediaSources().get(0);
+        assertEquals("source-1", source.id(), "media source id maps");
+        assertTrue(source.supportsDirectStream(), "direct stream flag maps");
+        assertEquals(3, source.mediaStreams().size(), "media streams map");
+        assertEquals(MediaStreamType.SUBTITLE, source.mediaStreams().get(2).type(), "subtitle type maps");
+        assertEquals("/Videos/item-1/Subtitles/2/Stream.srt", source.mediaStreams().get(2).deliveryUrl(), "subtitle url maps");
     }
 
     private static void assertEquals(Object expected, Object actual, String message) {
