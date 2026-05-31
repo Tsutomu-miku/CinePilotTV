@@ -294,7 +294,7 @@ public final class TvWorkflowTest {
         transport.enqueue(200, "{\"Id\":\"movie-1\",\"Name\":\"Arrival\",\"Type\":\"Movie\",\"IsPlayable\":true,\"UserData\":{\"PlaybackPositionTicks\":120000000}}");
         transport.enqueue(200, """
                 {"PlaySessionId":"play-session-1","MediaSources":[
-                  {"Id":"source-1","DirectStreamUrl":"/Videos/movie-1/stream.mkv?MediaSourceId=source-1","SupportsDirectStream":true}
+                  {"Id":"source-2","DirectStreamUrl":"/Videos/movie-1/stream.mkv?MediaSourceId=source-2","SupportsDirectStream":true}
                 ]}
                 """);
 
@@ -319,7 +319,7 @@ public final class TvWorkflowTest {
         transport.enqueue(200, "{\"Id\":\"movie-1\",\"Name\":\"Arrival\",\"Type\":\"Movie\",\"IsPlayable\":true,\"UserData\":{\"PlaybackPositionTicks\":120000000}}");
         transport.enqueue(200, """
                 {"PlaySessionId":"play-session-1","MediaSources":[
-                  {"Id":"source-1","DirectStreamUrl":"/Videos/movie-1/stream.mkv?MediaSourceId=source-1","SupportsDirectStream":true}
+                  {"Id":"source-2","DirectStreamUrl":"/Videos/movie-1/stream.mkv?MediaSourceId=source-2","SupportsDirectStream":true}
                 ]}
                 """);
 
@@ -330,7 +330,8 @@ public final class TvWorkflowTest {
         controller.submitServer("https://media.example.com/jellyfin");
         controller.login("demo", "secret");
         controller.openItem("movie-1");
-        controller.preparePlayback(new PlaybackSelectionPreferences(0L, 2, 5, 2, 1280, 720, 4_000_000));
+        controller.preparePlayback(new PlaybackSelectionPreferences(0L, 2, 5, 2, 1280, 720, 4_000_000)
+                .withMediaSourceId("source-2"));
 
         String playbackInfoUrl = transport.requests.get(8).url(MediaServerAddress.parse("https://media.example.com/jellyfin"));
         assertTrue(playbackInfoUrl.contains("StartTimeTicks=0"), "controller forwards preferred start ticks");
@@ -338,6 +339,8 @@ public final class TvWorkflowTest {
         assertTrue(playbackInfoUrl.contains("AudioStreamIndex=2"), "controller forwards audio stream");
         assertTrue(playbackInfoUrl.contains("SubtitleStreamIndex=5"), "controller forwards subtitle stream");
         assertTrue(playbackInfoUrl.contains("MaxAudioChannels=2"), "controller forwards audio channel limit");
+        assertTrue(playbackInfoUrl.contains("MediaSourceId=source-2"), "controller forwards media source preference");
+        assertEquals("source-2", controller.state().playableMedia().mediaSourceId(), "controller keeps selected media source");
     }
 
     private static void controllerLoadsPlaybackChoicesForTrackSelection() {

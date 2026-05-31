@@ -274,6 +274,9 @@ public final class TvWorkflowController {
         if (preferences.maxAudioChannels() != null) {
             builder.maxAudioChannels(preferences.maxAudioChannels());
         }
+        if (preferences.mediaSourceId() != null) {
+            builder.mediaSourceId(preferences.mediaSourceId());
+        }
         return builder.build();
     }
 

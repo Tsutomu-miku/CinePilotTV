@@ -436,6 +436,16 @@ public final class ProtocolCoreTest {
         assertEquals(1, selected.audioStreamIndex(), "selector keeps default audio stream");
         assertEquals(2, selected.subtitleStreamIndex(), "selector keeps default subtitle stream");
 
+        PlayableMedia chosenSource = PlaybackSourceSelector.select(
+                address,
+                session,
+                ServerFlavor.JELLYFIN,
+                info,
+                PlaybackSelectionPreferences.defaults().withMediaSourceId("source-direct")
+        ).orElseThrow();
+        assertEquals("source-direct", chosenSource.mediaSourceId(), "explicit media source wins");
+        assertEquals(PlayMethod.DIRECT_STREAM, chosenSource.playMethod(), "explicit media source keeps its best method");
+
         PlaybackInfo directStreamOnly = new PlaybackInfo("item-1", "play-session-1", List.of(transcodingOnly, directStream));
         PlayableMedia streamSelection = PlaybackSourceSelector.select(
                 address,
@@ -519,6 +529,9 @@ public final class ProtocolCoreTest {
                   "MediaSources": [
                     {
                       "Id": "source-1",
+                      "Name": "4K HDR Version",
+                      "Path": "/media/movies/arrival-4k.mkv",
+                      "Bitrate": 65000000,
                       "Container": "mkv",
                       "DirectStreamUrl": "/Videos/item-1/stream.mkv?MediaSourceId=source-1",
                       "TranscodingUrl": "/Videos/item-1/master.m3u8?MediaSourceId=source-1",
@@ -539,6 +552,9 @@ public final class ProtocolCoreTest {
         assertEquals(1, playbackInfo.mediaSources().size(), "media source count maps");
         MediaSourceInfo source = playbackInfo.mediaSources().get(0);
         assertEquals("source-1", source.id(), "media source id maps");
+        assertEquals("4K HDR Version", source.name(), "media source name maps");
+        assertEquals("/media/movies/arrival-4k.mkv", source.path(), "media source path maps");
+        assertEquals(65_000_000L, source.bitRate(), "media source bitrate maps");
         assertTrue(source.supportsDirectStream(), "direct stream flag maps");
         assertEquals(3, source.mediaStreams().size(), "media streams map");
         assertEquals(MediaStreamType.SUBTITLE, source.mediaStreams().get(2).type(), "subtitle type maps");

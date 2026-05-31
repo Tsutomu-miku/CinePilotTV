@@ -27,6 +27,7 @@ import javax.net.ssl.SSLException
 import tv.cinepilot.core.protocol.MediaTicks
 import tv.cinepilot.core.protocol.MediaBrowserException
 import tv.cinepilot.core.protocol.MediaItemSummary
+import tv.cinepilot.core.protocol.MediaSourceInfo
 import tv.cinepilot.core.protocol.MediaStreamInfo
 import tv.cinepilot.core.protocol.MediaStreamType
 import tv.cinepilot.core.protocol.PlaybackInfo
@@ -437,6 +438,14 @@ class MainActivity : ComponentActivity() {
             addView(action("按服务器默认播放") {
                 preparePlaybackWith(null)
             })
+            if (playbackInfo.mediaSources().size > 1) {
+                addView(section("媒体源"))
+                playbackInfo.mediaSources().forEach { source ->
+                    addView(action(sourceLabel(source)) {
+                        preparePlaybackWith(sourcePreferences(item, source.id()))
+                    })
+                }
+            }
             addView(section("音轨"))
             if (audioStreams.isEmpty()) {
                 addView(label("服务器未返回可选音轨"))
@@ -576,6 +585,31 @@ class MainActivity : ComponentActivity() {
     ): PlaybackSelectionPreferences {
         val startTimeTicks = if (item.hasResumePosition()) item.userData().playbackPositionTicks() else 0L
         return PlaybackSelectionPreferences(startTimeTicks, audioStreamIndex, subtitleStreamIndex, null, 0, 0, 0)
+    }
+
+    private fun sourcePreferences(item: MediaItemSummary, mediaSourceId: String): PlaybackSelectionPreferences {
+        val startTimeTicks = if (item.hasResumePosition()) item.userData().playbackPositionTicks() else 0L
+        return PlaybackSelectionPreferences(startTimeTicks, null, null, null, 0, 0, 0).withMediaSourceId(mediaSourceId)
+    }
+
+    private fun sourceLabel(source: MediaSourceInfo): String {
+        val parts = mutableListOf<String>()
+        if (source.name().isNotBlank()) {
+            parts.add(source.name())
+        } else if (source.path().isNotBlank()) {
+            parts.add(source.path().substringAfterLast('/').substringAfterLast('\\'))
+        } else if (source.container().isNotBlank()) {
+            parts.add(source.container().uppercase())
+        } else {
+            parts.add(source.id())
+        }
+        if (source.container().isNotBlank()) {
+            parts.add(source.container().uppercase())
+        }
+        if (source.bitRate() > 0) {
+            parts.add("${source.bitRate() / 1_000_000} Mbps")
+        }
+        return "媒体源：${parts.distinct().joinToString(" · ")}"
     }
 
     private fun streamLabel(stream: MediaStreamInfo): String {

@@ -100,6 +100,9 @@ public final class MediaBrowserResponseMapper {
                 .supportsDirectPlay(JsonValue.bool(source, "SupportsDirectPlay"))
                 .supportsDirectStream(JsonValue.bool(source, "SupportsDirectStream"))
                 .supportsTranscoding(JsonValue.bool(source, "SupportsTranscoding"))
+                .name(valueOrEmpty(JsonValue.string(source, "Name")))
+                .path(valueOrEmpty(JsonValue.string(source, "Path")))
+                .bitRate(number(source, "Bitrate").longValue())
                 .mediaStreams(streams)
                 .build();
     }

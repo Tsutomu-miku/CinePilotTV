@@ -17,7 +17,9 @@ public final class PlaybackSourceSelector {
                 ? PlaybackSelectionPreferences.defaults()
                 : preferences;
 
-        Optional<PlayableMedia> directPlay = playbackInfo.mediaSources().stream()
+        var sources = candidateSources(playbackInfo, safePreferences);
+
+        Optional<PlayableMedia> directPlay = sources.stream()
                 .filter(MediaSourceInfo::supportsDirectPlay)
                 .filter(source -> hasValue(source.directStreamUrl()))
                 .findFirst()
@@ -33,7 +35,7 @@ public final class PlaybackSourceSelector {
             return directPlay;
         }
 
-        Optional<PlayableMedia> directStream = playbackInfo.mediaSources().stream()
+        Optional<PlayableMedia> directStream = sources.stream()
                 .filter(MediaSourceInfo::supportsDirectStream)
                 .filter(source -> hasValue(source.directStreamUrl()))
                 .findFirst()
@@ -49,7 +51,7 @@ public final class PlaybackSourceSelector {
             return directStream;
         }
 
-        Optional<PlayableMedia> transcodeUrl = playbackInfo.mediaSources().stream()
+        Optional<PlayableMedia> transcodeUrl = sources.stream()
                 .filter(MediaSourceInfo::supportsTranscoding)
                 .filter(source -> hasValue(source.transcodingUrl()))
                 .findFirst()
@@ -65,10 +67,22 @@ public final class PlaybackSourceSelector {
             return transcodeUrl;
         }
 
-        return playbackInfo.mediaSources().stream()
+        return sources.stream()
                 .filter(MediaSourceInfo::supportsTranscoding)
                 .findFirst()
                 .map(source -> playableFromHlsRequest(session, flavor, playbackInfo, source, safePreferences));
+    }
+
+    private static java.util.List<MediaSourceInfo> candidateSources(
+            PlaybackInfo playbackInfo,
+            PlaybackSelectionPreferences preferences
+    ) {
+        if (!hasValue(preferences.mediaSourceId())) {
+            return playbackInfo.mediaSources();
+        }
+        return playbackInfo.mediaSources().stream()
+                .filter(source -> preferences.mediaSourceId().equals(source.id()))
+                .toList();
     }
 
     private static PlayableMedia playableFromUrl(

@@ -10,12 +10,24 @@ public record MediaSourceInfo(
         boolean supportsDirectPlay,
         boolean supportsDirectStream,
         boolean supportsTranscoding,
+        String name,
+        String path,
+        long bitRate,
         List<MediaStreamInfo> mediaStreams
 ) {
     public MediaSourceInfo {
         require(id, "id");
         if (container == null) {
             container = "";
+        }
+        if (name == null) {
+            name = "";
+        }
+        if (path == null) {
+            path = "";
+        }
+        if (bitRate < 0) {
+            bitRate = 0;
         }
         mediaStreams = List.copyOf(mediaStreams == null ? List.of() : mediaStreams);
     }
@@ -38,6 +50,9 @@ public record MediaSourceInfo(
         private boolean supportsDirectPlay;
         private boolean supportsDirectStream;
         private boolean supportsTranscoding;
+        private String name = "";
+        private String path = "";
+        private long bitRate;
         private List<MediaStreamInfo> mediaStreams = List.of();
 
         private Builder(String id) {
@@ -74,6 +89,21 @@ public record MediaSourceInfo(
             return this;
         }
 
+        public Builder name(String value) {
+            name = value;
+            return this;
+        }
+
+        public Builder path(String value) {
+            path = value;
+            return this;
+        }
+
+        public Builder bitRate(long value) {
+            bitRate = value;
+            return this;
+        }
+
         public Builder mediaStreams(List<MediaStreamInfo> value) {
             mediaStreams = value;
             return this;
@@ -88,9 +118,11 @@ public record MediaSourceInfo(
                     supportsDirectPlay,
                     supportsDirectStream,
                     supportsTranscoding,
+                    name,
+                    path,
+                    bitRate,
                     mediaStreams
             );
         }
     }
 }
-

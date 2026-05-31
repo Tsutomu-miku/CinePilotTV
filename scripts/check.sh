@@ -396,6 +396,11 @@ if ! grep -q 'defaultStreamIndex' "$ROOT_DIR/core/src/main/java/tv/cinepilot/cor
   exit 1
 fi
 
+if ! grep -q 'candidateSources' "$ROOT_DIR/core/src/main/java/tv/cinepilot/core/protocol/PlaybackSourceSelector.java"; then
+  echo "PlaybackSourceSelector must honor explicit media source preferences" >&2
+  exit 1
+fi
+
 if ! grep -q '打开播放器' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/MainActivity.kt"; then
   echo "MainActivity must expose a player launch action" >&2
   exit 1
@@ -456,6 +461,11 @@ if ! grep -q '音轨 / 字幕' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/Main
   exit 1
 fi
 
+if ! grep -q 'sourcePreferences' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/MainActivity.kt"; then
+  echo "MainActivity must expose media source selection" >&2
+  exit 1
+fi
+
 if ! grep -q 'subtitleMethod("Hls")' "$ROOT_DIR/core/src/main/java/tv/cinepilot/core/protocol/PlaybackSourceSelector.java"; then
   echo "PlaybackSourceSelector must request HLS subtitle delivery when a subtitle is selected" >&2
   exit 1
@@ -468,6 +478,11 @@ fi
 
 if ! grep -q 'maxStreamingBitrate' "$ROOT_DIR/core/src/main/java/tv/cinepilot/core/tv/TvWorkflowController.java"; then
   echo "TvWorkflowController must forward playback bitrate preferences" >&2
+  exit 1
+fi
+
+if ! grep -q 'builder.mediaSourceId' "$ROOT_DIR/core/src/main/java/tv/cinepilot/core/tv/TvWorkflowController.java"; then
+  echo "TvWorkflowController must forward playback media source preferences" >&2
   exit 1
 fi
 
