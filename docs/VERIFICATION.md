@@ -66,7 +66,7 @@ Android TV 设备或模拟器上需要验证：
 - HTTP 本地服务器地址如 `http://host:8096` 可以连接。
 - 地址格式错误、DNS 失败、连接拒绝、超时、HTTPS/证书失败和常见 HTTP 错误会显示中文操作建议。
 - 播放 URL 携带 token 后，Media3 能访问受保护流。
-- 详情页有 Primary 图片时会加载海报；图片加载失败不能影响按钮焦点或播放入口。
+- 详情页有 Primary 图片时会加载海报；图片加载使用独立线程池和短超时，失败不能影响按钮焦点或播放入口。
 - 详情页能展示服务器返回的简介、类型、时长和季集信息。
 - 播放准备页的诊断信息不包含 token，且能显示 server、item、media source、play method。
 - 诊断页可以导出不含 token 的 `cinepilot-diagnostics.txt` 到 app 私有文件目录。

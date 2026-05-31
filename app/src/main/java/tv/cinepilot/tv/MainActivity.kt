@@ -17,6 +17,7 @@ import android.widget.TextView
 import androidx.activity.ComponentActivity
 import androidx.lifecycle.ViewModelProvider
 import java.net.ConnectException
+import java.net.HttpURLConnection
 import java.net.SocketTimeoutException
 import java.net.URL
 import java.net.UnknownHostException
@@ -43,6 +44,7 @@ class MainActivity : ComponentActivity() {
     private lateinit var viewModel: CinePilotViewModel
     private lateinit var playerHost: Media3PlayerHost
     private val executor = Executors.newSingleThreadExecutor()
+    private val imageExecutor = Executors.newFixedThreadPool(2)
     private val mainHandler = Handler(Looper.getMainLooper())
     private val lastAccountStore by lazy { getSharedPreferences("cinepilot_last_account", MODE_PRIVATE) }
     @Volatile private var quickConnectPolling = false
@@ -57,6 +59,7 @@ class MainActivity : ComponentActivity() {
     override fun onDestroy() {
         stopQuickConnectPolling()
         playerHost.release()
+        imageExecutor.shutdownNow()
         executor.shutdownNow()
         super.onDestroy()
     }
@@ -390,10 +393,17 @@ class MainActivity : ComponentActivity() {
         container.addView(poster, LinearLayout.LayoutParams(320, 480).apply {
             bottomMargin = 20
         })
-        executor.execute {
+        imageExecutor.execute {
             runCatching {
                 val imageUrl = viewModel.mediaBrowserClient.primaryImageUrl(authenticated, item, 320, 480)
-                URL(imageUrl).openStream().use(BitmapFactory::decodeStream)
+                val connection = URL(imageUrl).openConnection() as HttpURLConnection
+                connection.connectTimeout = 3_000
+                connection.readTimeout = 5_000
+                try {
+                    connection.inputStream.use(BitmapFactory::decodeStream)
+                } finally {
+                    connection.disconnect()
+                }
             }.getOrNull()?.let { bitmap ->
                 runOnUiThread {
                     if (!isFinishing && !isDestroyed) {

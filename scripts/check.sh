@@ -266,6 +266,16 @@ if ! grep -q 'runCatching' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/MainActi
   exit 1
 fi
 
+if ! grep -q 'imageExecutor' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/MainActivity.kt"; then
+  echo "MainActivity must load images outside the workflow executor" >&2
+  exit 1
+fi
+
+if ! grep -q 'connectTimeout' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/MainActivity.kt"; then
+  echo "MainActivity must bound poster connection time" >&2
+  exit 1
+fi
+
 if ! grep -q '时长：' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/MainActivity.kt"; then
   echo "MainActivity must show runtime on details when available" >&2
   exit 1
