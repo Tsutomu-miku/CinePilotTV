@@ -79,10 +79,14 @@ fun <T : View> T.requestInitialFocus(): T {
     return this
 }
 
-fun <T : View> T.keepFocusOnVerticalDpad(consumeDown: Boolean = true): T {
+fun <T : View> T.keepFocusOnVerticalDpad(
+    consumeUp: Boolean = true,
+    consumeDown: Boolean = true,
+): T {
     setOnKeyListener { _, keyCode, event ->
         event.action == KeyEvent.ACTION_DOWN &&
-            (keyCode == KeyEvent.KEYCODE_DPAD_UP || (consumeDown && keyCode == KeyEvent.KEYCODE_DPAD_DOWN))
+            ((consumeUp && keyCode == KeyEvent.KEYCODE_DPAD_UP) ||
+                (consumeDown && keyCode == KeyEvent.KEYCODE_DPAD_DOWN))
     }
     return this
 }

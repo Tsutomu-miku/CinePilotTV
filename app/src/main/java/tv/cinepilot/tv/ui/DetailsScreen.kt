@@ -37,7 +37,10 @@ fun ComponentActivity.detailsScreen(
                     addView(verticalSpace(8))
                     if (item.playable()) {
                         playbackActions.forEach { actionView ->
-                            actionView.keepFocusOnVerticalDpad(consumeDown = trackControls == null)
+                            actionView.keepFocusOnVerticalDpad(
+                                consumeUp = trackControls == null,
+                                consumeDown = trackControls == null,
+                            )
                         }
                         addView(actionStrip(playbackActions))
                         playbackActions.firstOrNull()?.requestInitialFocus()
