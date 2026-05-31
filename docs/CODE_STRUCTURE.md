@@ -14,6 +14,9 @@ core/
       PlaybackSourceSelector.java 播放源选择规则
       PlaybackInfo.java          playback info 领域模型
       MediaBrowserResponseMapper.java 核心 API 响应到领域模型的映射
+      MediaBrowserClient.java    发现、登录、播放信息和登出的协议编排入口
+      HttpTransport.java         HTTP 发送边界
+      JavaNetHttpTransport.java  JVM 默认 HTTP transport
   src/test/java/tv/cinepilot/core/
     protocol/                    JVM 协议测试
 docs/                            项目指导文档

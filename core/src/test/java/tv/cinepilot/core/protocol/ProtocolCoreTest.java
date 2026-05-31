@@ -3,6 +3,9 @@ package tv.cinepilot.core.protocol;
 import java.util.Map;
 import java.util.List;
 import java.util.Optional;
+import java.io.IOException;
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
 
 public final class ProtocolCoreTest {
     public static void main(String[] args) {
@@ -21,6 +24,7 @@ public final class ProtocolCoreTest {
         buildsPlaybackCheckInRequests();
         selectsPlayableMediaSources();
         mapsServerAndPlaybackResponses();
+        clientRunsDiscoveryLoginAndPlaybackFlow();
         System.out.println("ProtocolCoreTest passed");
     }
 
@@ -442,6 +446,99 @@ public final class ProtocolCoreTest {
         assertEquals(3, source.mediaStreams().size(), "media streams map");
         assertEquals(MediaStreamType.SUBTITLE, source.mediaStreams().get(2).type(), "subtitle type maps");
         assertEquals("/Videos/item-1/Subtitles/2/Stream.srt", source.mediaStreams().get(2).deliveryUrl(), "subtitle url maps");
+    }
+
+    private static void clientRunsDiscoveryLoginAndPlaybackFlow() {
+        FakeTransport transport = new FakeTransport();
+        transport.enqueue(200, "{\"Id\":\"server-1\",\"ServerName\":\"Jellyfin\",\"Version\":\"10.10.7\"}");
+        transport.enqueue(
+                200,
+                "{\"AccessToken\":\"token-1\",\"ServerId\":\"server-1\",\"User\":{\"Id\":\"user-1\",\"Name\":\"Demo\"}}"
+        );
+        transport.enqueue(
+                200,
+                """
+                {
+                  "PlaySessionId": "play-session-1",
+                  "MediaSources": [
+                    {
+                      "Id": "source-1",
+                      "DirectStreamUrl": "/Videos/item-1/stream.mkv?MediaSourceId=source-1",
+                      "SupportsDirectStream": true,
+                      "SupportsTranscoding": true,
+                      "MediaStreams": [
+                        {"Index": 0, "Type": "Video", "Codec": "h264"},
+                        {"Index": 1, "Type": "Audio", "Codec": "aac", "Language": "eng"}
+                      ]
+                    }
+                  ]
+                }
+                """
+        );
+        transport.enqueue(204, "");
+
+        ClientIdentity client = new ClientIdentity("CinePilot TV", "Living Room TV", "device-1", "0.1.0");
+        InMemorySessionRepository repository = new InMemorySessionRepository();
+        MediaBrowserClient mediaClient = new MediaBrowserClient(transport, repository, client);
+        MediaServerAddress address = MediaServerAddress.parse("https://media.example.com/jellyfin");
+
+        ServerIdentity server = mediaClient.discover(address);
+        assertEquals("server-1", server.serverId(), "client discovers server id");
+        assertEquals(ServerFlavor.JELLYFIN, server.flavor(), "client discovers flavor");
+
+        AuthenticatedServer authenticated = mediaClient.authenticate(server, "demo", "secret");
+        assertEquals("user-1", authenticated.session().userId(), "client authenticates user");
+        assertTrue(
+                mediaClient.restore(server, "user-1").isPresent(),
+                "client saves session after authentication"
+        );
+
+        PlaybackInfo playbackInfo = mediaClient.playbackInfo(
+                authenticated,
+                "item-1",
+                new PlaybackInfoOptions.Builder().maxStreamingBitrate(40_000_000L).build()
+        );
+        PlayableMedia playable = mediaClient.playableMedia(
+                authenticated,
+                playbackInfo,
+                PlaybackSelectionPreferences.defaults()
+        ).orElseThrow();
+        assertEquals(PlayMethod.DIRECT_STREAM, playable.playMethod(), "client selects direct stream");
+        assertEquals(
+                "https://media.example.com/jellyfin/Videos/item-1/stream.mkv?MediaSourceId=source-1",
+                playable.url(),
+                "client resolves playable url"
+        );
+
+        mediaClient.logout(authenticated);
+        assertTrue(mediaClient.restore(server, "user-1").isEmpty(), "logout revokes saved session");
+
+        assertEquals("/System/Info/Public", transport.requests.get(0).path(), "first request discovers server");
+        assertEquals("/Users/AuthenticateByName", transport.requests.get(1).path(), "second request authenticates");
+        assertEquals("/Items/item-1/PlaybackInfo", transport.requests.get(2).path(), "third request gets playback info");
+        assertTrue(
+                transport.requests.get(2).url(address).contains("MaxStreamingBitrate=40000000"),
+                "client forwards playback options"
+        );
+        assertEquals("/Sessions/Logout", transport.requests.get(3).path(), "fourth request logs out");
+    }
+
+    private static final class FakeTransport implements HttpTransport {
+        private final List<ProtocolRequest> requests = new ArrayList<>();
+        private final List<ProtocolResponse> responses = new ArrayList<>();
+
+        void enqueue(int statusCode, String body) {
+            responses.add(new ProtocolResponse(statusCode, Map.of(), body));
+        }
+
+        @Override
+        public ProtocolResponse send(MediaServerAddress address, ProtocolRequest request) throws IOException {
+            requests.add(request);
+            if (responses.isEmpty()) {
+                throw new IOException("No fake response queued for " + request.path());
+            }
+            return responses.remove(0);
+        }
     }
 
     private static void assertEquals(Object expected, Object actual, String message) {
