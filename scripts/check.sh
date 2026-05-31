@@ -415,8 +415,13 @@ if ! grep -q 'forgetAuthenticatedSession' "$ROOT_DIR/app/src/main/java/tv/cinepi
   exit 1
 fi
 
-if ! grep -q '会话已过期，请重新登录' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/MainActivity.kt"; then
-  echo "MainActivity must explain expired sessions in Chinese" >&2
+if [[ ! -s "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/ui/TvErrorMessages.kt" ]]; then
+  echo "Missing dedicated TV error message formatter" >&2
+  exit 1
+fi
+
+if ! grep -q '会话已过期，请重新登录' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/ui/TvErrorMessages.kt"; then
+  echo "TV error messages must explain expired sessions in Chinese" >&2
   exit 1
 fi
 
@@ -772,40 +777,40 @@ if ! grep -q 'AuthenticateWithQuickConnect' "$ROOT_DIR/core/src/main/java/tv/cin
   exit 1
 fi
 
-if ! grep -q '没有可用播放源' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/MainActivity.kt"; then
-  echo "MainActivity must explain unsupported playback in Chinese" >&2
+if ! grep -q '没有可用播放源' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/ui/TvErrorMessages.kt"; then
+  echo "TV error messages must explain unsupported playback in Chinese" >&2
   exit 1
 fi
 
-if ! grep -q '播放器无法打开媒体' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/MainActivity.kt"; then
-  echo "MainActivity must explain Media3 playback failures in Chinese" >&2
+if ! grep -q '播放器无法打开媒体' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/ui/TvErrorMessages.kt"; then
+  echo "TV error messages must explain Media3 playback failures in Chinese" >&2
   exit 1
 fi
 
 for playback_error_hint in 网络 超时 编码 DRM; do
-  if ! grep -q "$playback_error_hint" "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/MainActivity.kt"; then
-    echo "MainActivity must classify Media3 playback failure hint: $playback_error_hint" >&2
+  if ! grep -q "$playback_error_hint" "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/ui/TvErrorMessages.kt"; then
+    echo "TV error messages must classify Media3 playback failure hint: $playback_error_hint" >&2
     exit 1
   fi
 done
 
-if ! grep -q '目录中没有可打开的媒体' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/MainActivity.kt"; then
-  echo "MainActivity must explain empty folders in Chinese" >&2
+if ! grep -q '目录中没有可打开的媒体' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/ui/TvErrorMessages.kt"; then
+  echo "TV error messages must explain empty folders in Chinese" >&2
   exit 1
 fi
 
-if ! grep -q '无法连接到服务器' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/MainActivity.kt"; then
-  echo "MainActivity must explain connection failures in Chinese" >&2
+if ! grep -q '无法连接到服务器' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/ui/TvErrorMessages.kt"; then
+  echo "TV error messages must explain connection failures in Chinese" >&2
   exit 1
 fi
 
-if ! grep -q 'HTTPS 连接失败' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/MainActivity.kt"; then
-  echo "MainActivity must explain HTTPS failures in Chinese" >&2
+if ! grep -q 'HTTPS 连接失败' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/ui/TvErrorMessages.kt"; then
+  echo "TV error messages must explain HTTPS failures in Chinese" >&2
   exit 1
 fi
 
-if ! grep -q '服务器请求失败，HTTP' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/MainActivity.kt"; then
-  echo "MainActivity must explain HTTP failures in Chinese" >&2
+if ! grep -q '服务器请求失败，HTTP' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/ui/TvErrorMessages.kt"; then
+  echo "TV error messages must explain HTTP failures in Chinese" >&2
   exit 1
 fi
 

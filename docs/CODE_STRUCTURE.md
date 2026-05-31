@@ -20,6 +20,7 @@ app/
     ui/DetailsScreen.kt          媒体详情屏幕布局
     ui/MediaTechnicalInfo.kt     playback info 到详情页技术信息标签的格式化
     ui/PlayerScreen.kt           黑底全屏播放器容器，不叠加第二套播放控件
+    ui/TvErrorMessages.kt        网络、认证和播放器错误到中文提示的格式化
   src/main/res/drawable/ic_*.xml 开源 Material Icons 风格矢量图标资源
 core/
   build.gradle.kts              JVM/Java Gradle module
