@@ -14,7 +14,7 @@
 - Gradle 多模块结构包含 `:app` 和 `:core`。
 - Android app 依赖 `:core`。
 - Android ViewModel、runtime、TV workflow controller、最小 TV UI、Media3 player host 和 Media3 playback bridge 入口存在。
-- Android manifest 允许 HTTP 明文流量，Media3 player host 会授权播放 URL。
+- Android manifest 允许 HTTP 明文流量，同时提供普通桌面 `LAUNCHER` 和 TV `LEANBACK_LAUNCHER` 入口，并把 leanback / touchscreen 声明为非必需 feature；Media3 player host 会授权播放 URL。
 - `core` 的协议、媒体库、播放、session 和 TV workflow JVM 测试通过。
 
 ## Android 构建检查
@@ -59,6 +59,7 @@ GitHub Actions：
 Android TV 设备或模拟器上需要验证：
 
 - 连接设备后运行 `./scripts/install-debug-apk.sh` 可以安装并启动 debug APK。
+- sideload 到普通 Android 手机时，应用会出现在桌面 / 应用抽屉，而不只在应用管理里可见。
 - 可用 D-pad 完成服务器输入、登录、首页浏览和详情打开。
 - Jellyfin 服务器启用 Quick Connect 时，可在登录页用授权码完成登录；授权后 TV 端会自动进入首页。
 - 点击播放后 Media3 player 能打开可播放 URL。

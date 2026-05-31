@@ -321,6 +321,31 @@ if ! grep -q 'usesCleartextTraffic="true"' "$ROOT_DIR/app/src/main/AndroidManife
   exit 1
 fi
 
+if ! grep -q 'android.software.leanback' "$ROOT_DIR/app/src/main/AndroidManifest.xml"; then
+  echo "AndroidManifest must declare leanback support" >&2
+  exit 1
+fi
+
+if ! grep -q 'android:required="false"' "$ROOT_DIR/app/src/main/AndroidManifest.xml"; then
+  echo "AndroidManifest must keep leanback optional for phone sideloads" >&2
+  exit 1
+fi
+
+if ! grep -q 'android.hardware.touchscreen' "$ROOT_DIR/app/src/main/AndroidManifest.xml"; then
+  echo "AndroidManifest must declare touchscreen as optional for TV devices" >&2
+  exit 1
+fi
+
+if ! grep -q 'android.intent.category.LAUNCHER' "$ROOT_DIR/app/src/main/AndroidManifest.xml"; then
+  echo "AndroidManifest must expose a phone launcher entry" >&2
+  exit 1
+fi
+
+if ! grep -q 'android.intent.category.LEANBACK_LAUNCHER' "$ROOT_DIR/app/src/main/AndroidManifest.xml"; then
+  echo "AndroidManifest must expose a TV launcher entry" >&2
+  exit 1
+fi
+
 if ! grep -q 'PlaybackUrlAuthorizer' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/player/Media3PlayerHost.kt"; then
   echo "Media3PlayerHost must authorize playback URLs" >&2
   exit 1

@@ -36,6 +36,8 @@ Jellyfin 登录页可以发起 Quick Connect：Activity 展示服务器返回的
 
 Android manifest 允许 cleartext traffic，因为家庭 Jellyfin / Emby 服务器常见地址是 `http://host:8096`。Media3 播放 URL 由 `PlaybackUrlAuthorizer` 追加 `api_key`，避免播放器脱离 `HttpTransport` 后丢失认证。
 
+Manifest 必须同时暴露普通 `LAUNCHER` 和 TV `LEANBACK_LAUNCHER` 入口。这样 sideload 到手机时能在桌面 / 应用抽屉出现，安装到 Android TV 时也能出现在 TV launcher；`android.software.leanback` 和 `android.hardware.touchscreen` 都只能作为非必需 feature，避免普通 Android 设备或无触摸 TV 设备被错误排除。
+
 后续的 `platform` 适配器会负责 HTTP transport、token 持久化、图片加载和 Android 专用存储。
 
 UI 界面应该调用应用控制器或 store。界面组件不能直接构造 Jellyfin / Emby URL、认证请求头或播放上报载荷。
