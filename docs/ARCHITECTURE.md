@@ -130,7 +130,7 @@ HLS 播放请求在用户明确选择字幕时必须同时带上 `SubtitleStream
 
 播放 check-in 调度由 `PlaybackCheckInScheduler` 建模：开始播放立即发 started，常规进度约每 10 秒发 progress，暂停、seek、轨道变化等事件立即发 progress，停止播放发 stopped。调度器只产生领域事件；`MediaBrowserClient.sendPlaybackCheckIn` 负责把事件转换成协议请求并通过 transport 发送。
 
-`PlaybackSessionController` 组合 `PlayableMedia`、`PlaybackCheckInScheduler` 和 `MediaBrowserClient`，为 Media3 事件桥接提供单一入口。Media3 层应调用它的 start、progressIfDue、pause、seek、audioTrackChanged、subtitleTrackChanged、playbackRateChanged 和 stop 方法。
+`PlaybackSessionController` 组合 `PlayableMedia`、`PlaybackCheckInScheduler` 和 `MediaBrowserClient`，为 Media3 事件桥接提供单一入口。Media3 层应调用它的 start、progressIfDue、pause、seek、audioTrackChanged、subtitleTrackChanged、subtitleOffsetChanged、playbackRateChanged 和 stop 方法。即使当前播放器没有主动调整字幕偏移，播放上报也必须包含 `SubtitleOffset=0`，这样服务端会话状态字段完整且后续可无缝接入真实字幕偏移控制。
 
 `Media3PlayerHost` 创建播放器后需要用主线程 ticker 定期调用 `Media3PlaybackBridge.tick(currentPosition)`；真正的 10 秒节流仍由 core scheduler 控制，Android ticker 只负责给 scheduler 提供播放进度采样。
 

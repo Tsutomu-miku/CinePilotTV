@@ -49,6 +49,7 @@
 - TV 首页组合：`HomeRowsLoader` -> `HomeRow` 列表。
 - TV 用例编排：`TvWorkflowController` 将服务器发现、登录、首页、详情和播放准备串成 `TvAppState`。
 - 播放上报调度与发送：`PlaybackSessionController` -> `PlaybackCheckInScheduler` -> `PlaybackCheckIn` -> `MediaBrowserClient.sendPlaybackCheckIn`。
+- 播放上报载荷包含音轨、字幕、字幕偏移、播放速度、暂停状态、播放方式、media source id 和 play session id；当前字幕偏移默认为 `0`，后续真实偏移控制通过 `PlaybackSessionController.subtitleOffsetChanged` 接入。
 - 播放 URL 授权：`PlaybackUrlAuthorizer` 为 Media3 播放 URL 追加 `api_key`，已有 `api_key` 时不重复添加。
 - 登出：`logout` -> 撤销本地 saved session。
 
@@ -71,6 +72,7 @@
 - Emby HLS 文档说明 `/Videos/{Id}/master.m3u8` 是 HLS 入口，必需参数包括 path 里的 `Id`、`MediaSourceId` 和 `DeviceId`：<https://dev.emby.media/doc/restapi/Http-Live-Streaming.html>
 - Emby `GET /Videos/{Id}/master.m3u8` 参考页说明 start time 使用 ticks，并列出音轨、字幕、分辨率、码率、codec 等参数：<https://dev.emby.media/reference/RestAPI/DynamicHlsService/getVideosByIdMasterM3u8.html>
 - Emby `GET /Videos/{Id}/stream` 参考页说明静态视频流 endpoint 可用于直接播放原始媒体，并支持 `MediaSourceId`、`Static` 等查询参数：<https://dev.emby.media/reference/RestAPI/VideosService/getVideosByIdStream.html>
+- Emby playback check-in 文档和 `/Sessions/Playing/Progress` 参考页列出 `SubtitleOffset`、`AudioStreamIndex`、`SubtitleStreamIndex`、`PlaybackRate`、`PlaySessionId` 等进度上报字段：<https://dev.emby.media/doc/restapi/Playback-Check-ins.html>、<https://dev.emby.media/reference/RestAPI/PlaystateService/postSessionsPlayingProgress.html>
 - Emby TV shows reference 暴露 `GET /Shows/NextUp`，用于获取下一集候选：<https://dev.emby.media/reference/RestAPI/TvShowsService.html>
 - Jellyfin SDK `TvShowsApi.getNextUp` 暴露 `userId`、`limit`、`parentId`、`enableUserData` 等参数：<https://javadoc.io/static/org.jellyfin.sdk/jellyfin-api/1.6.2/jellyfin-api/org.jellyfin.sdk.api.operations/-tv-shows-api/index.html>
 - Jellyfin TypeScript SDK 暴露 `getPlaybackInfo`、`getPostedPlaybackInfo` 和 `openLiveStream`，其中 POST 版支持 max bitrate、start ticks、音轨、字幕、direct play / direct stream / transcoding 等参数：<https://typescript-sdk.jellyfin.org/functions/generated-client.MediaInfoApiFp.html>

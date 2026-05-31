@@ -13,6 +13,7 @@ public record PlaybackReport(
         long positionTicks,
         Integer audioStreamIndex,
         Integer subtitleStreamIndex,
+        long subtitleOffset,
         Float playbackRate
 ) {
     public PlaybackReport {
@@ -25,6 +26,33 @@ public record PlaybackReport(
         if (positionTicks < 0) {
             throw new IllegalArgumentException("positionTicks must be zero or greater");
         }
+    }
+
+    public PlaybackReport(
+            String itemId,
+            String mediaSourceId,
+            String playSessionId,
+            PlayMethod playMethod,
+            boolean canSeek,
+            boolean paused,
+            long positionTicks,
+            Integer audioStreamIndex,
+            Integer subtitleStreamIndex,
+            Float playbackRate
+    ) {
+        this(
+                itemId,
+                mediaSourceId,
+                playSessionId,
+                playMethod,
+                canSeek,
+                paused,
+                positionTicks,
+                audioStreamIndex,
+                subtitleStreamIndex,
+                0,
+                playbackRate
+        );
     }
 
     public Map<String, Object> toPayload() {
@@ -44,6 +72,7 @@ public record PlaybackReport(
         if (subtitleStreamIndex != null) {
             payload.put("SubtitleStreamIndex", subtitleStreamIndex);
         }
+        payload.put("SubtitleOffset", subtitleOffset);
         if (playbackRate != null) {
             payload.put("PlaybackRate", playbackRate);
         }
@@ -65,4 +94,3 @@ public record PlaybackReport(
         }
     }
 }
-

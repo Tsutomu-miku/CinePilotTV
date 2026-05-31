@@ -460,6 +460,16 @@ if ! grep -q 'PlaybackSessionController' "$ROOT_DIR/app/src/main/java/tv/cinepil
   exit 1
 fi
 
+if ! grep -q 'SubtitleOffset' "$ROOT_DIR/core/src/main/java/tv/cinepilot/core/protocol/PlaybackReport.java"; then
+  echo "PlaybackReport must include subtitle offset in playback check-ins" >&2
+  exit 1
+fi
+
+if ! grep -q 'subtitleOffsetChanged' "$ROOT_DIR/core/src/main/java/tv/cinepilot/core/protocol/PlaybackSessionController.java"; then
+  echo "PlaybackSessionController must expose subtitle offset changes" >&2
+  exit 1
+fi
+
 if ! grep -q 'runCatching { bridge?.stop' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/player/Media3PlayerHost.kt"; then
   echo "Media3PlayerHost must tolerate stopped check-in failures during release" >&2
   exit 1

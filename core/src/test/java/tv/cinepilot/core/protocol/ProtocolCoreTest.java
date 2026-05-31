@@ -108,6 +108,7 @@ public final class ProtocolCoreTest {
                 MediaTicks.fromMilliseconds(42_000),
                 1,
                 3,
+                250,
                 1.0f
         );
         Map<String, Object> payload = report.toProgressPayload(PlaybackEvent.TIME_UPDATE);
@@ -116,6 +117,7 @@ public final class ProtocolCoreTest {
         assertEquals("play-session-1", payload.get("PlaySessionId"), "play session id");
         assertEquals("DirectPlay", payload.get("PlayMethod"), "play method");
         assertEquals(420_000_000L, payload.get("PositionTicks"), "position ticks");
+        assertEquals(250L, payload.get("SubtitleOffset"), "subtitle offset");
         assertEquals("TimeUpdate", payload.get("EventName"), "event name");
     }
 
@@ -1016,7 +1018,7 @@ public final class ProtocolCoreTest {
 
     private static void playbackSessionControllerSendsPlayerEvents() {
         FakeTransport transport = new FakeTransport();
-        for (int index = 0; index < 8; index++) {
+        for (int index = 0; index < 9; index++) {
             transport.enqueue(204, "");
         }
 
@@ -1051,10 +1053,11 @@ public final class ProtocolCoreTest {
         controller.seek(12_000L, 60_000L);
         controller.audioTrackChanged(13_000L, 61_000L, 2);
         controller.subtitleTrackChanged(14_000L, 62_000L, 5);
-        controller.playbackRateChanged(15_000L, 63_000L, 1.25f);
+        controller.subtitleOffsetChanged(15_000L, 62_500L, 250);
+        controller.playbackRateChanged(16_000L, 63_000L, 1.25f);
         controller.stop(64_000L);
 
-        assertEquals(8, transport.requests.size(), "controller request count");
+        assertEquals(9, transport.requests.size(), "controller request count");
         assertEquals("/Sessions/Playing", transport.requests.get(0).path(), "controller start path");
         assertEquals("/Sessions/Playing/Progress", transport.requests.get(1).path(), "controller timed progress path");
         assertTrue(transport.requests.get(1).bodyJson().contains("\"EventName\":\"TimeUpdate\""), "controller timed event");
@@ -1063,9 +1066,12 @@ public final class ProtocolCoreTest {
         assertTrue(transport.requests.get(3).bodyJson().contains("\"PositionTicks\":600000000"), "controller seek position");
         assertTrue(transport.requests.get(4).bodyJson().contains("\"AudioStreamIndex\":2"), "controller audio track");
         assertTrue(transport.requests.get(5).bodyJson().contains("\"SubtitleStreamIndex\":5"), "controller subtitle track");
-        assertTrue(transport.requests.get(6).bodyJson().contains("\"PlaybackRate\":1.25"), "controller playback rate event");
-        assertTrue(transport.requests.get(7).bodyJson().contains("\"PlaybackRate\":1.25"), "controller playback rate persists to stop");
-        assertEquals("/Sessions/Playing/Stopped", transport.requests.get(7).path(), "controller stop path");
+        assertTrue(transport.requests.get(6).bodyJson().contains("\"EventName\":\"SubtitleOffsetChange\""), "controller subtitle offset event");
+        assertTrue(transport.requests.get(6).bodyJson().contains("\"SubtitleOffset\":250"), "controller subtitle offset");
+        assertTrue(transport.requests.get(7).bodyJson().contains("\"PlaybackRate\":1.25"), "controller playback rate event");
+        assertTrue(transport.requests.get(8).bodyJson().contains("\"PlaybackRate\":1.25"), "controller playback rate persists to stop");
+        assertTrue(transport.requests.get(8).bodyJson().contains("\"SubtitleOffset\":250"), "controller subtitle offset persists to stop");
+        assertEquals("/Sessions/Playing/Stopped", transport.requests.get(8).path(), "controller stop path");
     }
 
     private static void authorizesPlaybackUrls() {

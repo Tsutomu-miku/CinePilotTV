@@ -12,6 +12,7 @@ public final class PlaybackSessionController {
     private boolean paused;
     private Integer audioStreamIndex;
     private Integer subtitleStreamIndex;
+    private long subtitleOffset;
     private Float playbackRate;
 
     public PlaybackSessionController(
@@ -82,6 +83,11 @@ public final class PlaybackSessionController {
         immediate(nowMillis, PlaybackEvent.SUBTITLE_TRACK_CHANGE, positionMillis);
     }
 
+    public void subtitleOffsetChanged(long nowMillis, long positionMillis, long offset) {
+        subtitleOffset = offset;
+        immediate(nowMillis, PlaybackEvent.SUBTITLE_OFFSET_CHANGE, positionMillis);
+    }
+
     public void playbackRateChanged(long nowMillis, long positionMillis, Float rate) {
         playbackRate = rate;
         immediate(nowMillis, PlaybackEvent.PLAYBACK_RATE_CHANGE, positionMillis);
@@ -106,6 +112,7 @@ public final class PlaybackSessionController {
                 MediaTicks.fromMilliseconds(positionMillis),
                 audioStreamIndex,
                 subtitleStreamIndex,
+                subtitleOffset,
                 playbackRate
         );
     }
