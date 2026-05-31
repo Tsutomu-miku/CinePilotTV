@@ -12,7 +12,7 @@ Android app 的运行时入口是 `CinePilotRuntime`。它负责创建客户端�
 
 客户端身份的 device id 应优先使用 `Settings.Secure.ANDROID_ID`，因为 session scope 依赖 device id 来避免 token 跨设备复用。只有无法读取 Android ID 时才 fallback 到设备型号和系统 build id。
 
-`MainActivity` 当前使用 Android 原生 View 承载 TV 流程：服务器输入、登录、首页、详情和播放准备。界面事件必须通过 `TvWorkflowController` 推进状态。通用暗色 TV 主题、焦点态、按钮、输入框、首页媒体架和详情屏幕组件放在 `app/.../tv/ui`，避免 Activity 继续承担所有视觉细节。
+`MainActivity` 当前使用 Android 原生 View 承载 TV 流程：服务器输入、登录、首页、详情、播放准备和播放器。界面事件必须通过 `TvWorkflowController` 推进状态。通用暗色 TV 主题、焦点态、按钮、输入框、首页媒体架、详情屏幕和全屏播放器组件放在 `app/.../tv/ui`，避免 Activity 继续承担所有视觉细节。
 
 Android 遥控器 Back 键必须和页面按钮使用同一套 workflow 语义：登录、首页和错误页回到服务器输入；详情回首页；播放器页先释放 Media3 player 再回详情；只有服务器输入页交给系统退出。
 
@@ -32,7 +32,7 @@ Jellyfin 登录页可以发起 Quick Connect：Activity 展示服务器返回的
 
 `Media3PlayerHost` 负责把 `TvAppState.playableMedia` 转换为 Media3 `MediaItem`，创建 `ExoPlayer` 和 `PlayerView`，并在 Activity 销毁或用户停止播放时释放播放器。Android app 必须同时依赖 `media3-exoplayer` 和 `media3-exoplayer-hls`，因为 Jellyfin / Emby 的转码候选通常是 HLS master playlist。
 
-进入播放器页后，Activity 应主动把焦点交给 `PlayerView`，让遥控器播放控制优先落在 Media3，而不是页面里的停止按钮。
+进入播放器页后，Activity 应主动把焦点交给 `PlayerView`，让遥控器播放控制优先落在 Media3。播放器页面必须使用黑底全屏播放器 surface，停止和诊断动作放在底部半透明控制层，不能把播放器嵌入普通滚动文档页。
 
 `Media3PlaybackBridge` 监听 Media3 player 状态并调用 `PlaybackSessionController`，把 ready、pause、unpause、seek、ended 和 release 转换为服务器播放上报。Media3 `onPlayerError` 必须回到 Android 错误页，用中文提示播放失败和可尝试的低码率 / 轨道切换 / 转码设置方向；错误页和诊断都不能展示 raw playback URL 或 token。
 
@@ -114,7 +114,7 @@ TV 首页必须提供退出登录入口，调用 `TvWorkflowController.logout()`
 
 播放信息请求、HLS URL 构造和播放 check-in 请求规格属于 `core`；Media3 只消费已经选出的播放 URL 和轨道选择结果。
 
-播放准备的 start ticks 由 `TvWorkflowController.preparePlayback` 决定：调用方传入 `null` 表示按媒体项 resume ticks 继续播放；传入 `PlaybackSelectionPreferences` 表示显式偏好，`startTimeTicks=0` 即从头播放。最大码率、音轨、字幕和最大声道数偏好会转发给 playback info 请求，分辨率和码率偏好也会继续用于 HLS URL 构造。Android 详情页应在有 resume 进度时同时暴露“继续播放”和“从头播放”，用可读时间展示恢复位置、媒体时长和剧集上下文，不能把协议 ticks 直接显示给用户，并提供低码率播放入口。播放操作完成 playback info 准备后应直接进入 Media3 播放器，减少详情到播放的点击层级。
+播放准备的 start ticks 由 `TvWorkflowController.preparePlayback` 决定：调用方传入 `null` 表示按媒体项 resume ticks 继续播放；传入 `PlaybackSelectionPreferences` 表示显式偏好，`startTimeTicks=0` 即从头播放。最大码率、音轨、字幕和最大声道数偏好会转发给 playback info 请求，分辨率和码率偏好也会继续用于 HLS URL 构造。Android 详情页应在有 resume 进度时同时暴露“继续播放”和“从头播放”，用可读时间展示恢复位置、媒体时长和剧集上下文，不能把协议 ticks 或 `EPISODE` 这类 wire enum 直接显示给用户，并提供低码率播放入口。播放操作完成 playback info 准备后应直接进入 Media3 播放器，减少详情到播放的点击层级。
 
 播放前的媒体源、音轨和字幕选择由 `TvWorkflowController.loadPlaybackChoices` 获取服务器 playback info。Android 对多个 `MediaSources` 必须展示可选媒体源，优先使用服务器返回的 source name、path 文件名、container 和 bitrate 形成可读标签；音轨 / 字幕只展示 `MediaStream.Index`、语言、标题和默认 / 强制 / 外挂标记。用户选择后通过 `PlaybackSelectionPreferences` 重新准备播放，确保 playback info 请求、播放源选择、HLS URL 和播放上报使用同一个协议 media source id / stream index。
 

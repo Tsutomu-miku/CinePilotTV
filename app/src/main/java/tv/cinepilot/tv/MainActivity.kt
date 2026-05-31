@@ -49,11 +49,13 @@ import tv.cinepilot.tv.ui.homeScreen
 import tv.cinepilot.tv.ui.iconAction
 import tv.cinepilot.tv.ui.input
 import tv.cinepilot.tv.ui.label
+import tv.cinepilot.tv.ui.playerScreen
 import tv.cinepilot.tv.ui.rounded
 import tv.cinepilot.tv.ui.screen
 import tv.cinepilot.tv.ui.section
 import tv.cinepilot.tv.ui.HomeNavigation
 import tv.cinepilot.tv.ui.TvIcon
+import tv.cinepilot.tv.ui.TvSize
 
 class MainActivity : ComponentActivity() {
     private lateinit var viewModel: CinePilotViewModel
@@ -444,7 +446,7 @@ class MainActivity : ComponentActivity() {
             setBackground(rounded(Color.rgb(30, 41, 59), dp(8)))
             adjustViewBounds = false
         }
-        container.addView(poster, LinearLayout.LayoutParams(dp(220), dp(330)).apply {
+        container.addView(poster, LinearLayout.LayoutParams(dp(TvSize.DetailPosterWidth), dp(TvSize.DetailPosterHeight)).apply {
             rightMargin = dp(28)
             bottomMargin = dp(20)
         })
@@ -549,47 +551,56 @@ class MainActivity : ComponentActivity() {
         })
     }
 
-    private fun showDiagnostics(state: TvAppState) {
+    private fun showDiagnostics(state: TvAppState, returnToPlayer: Boolean = false) {
         val diagnostics = TvDiagnostics.describe(state)
         setContentView(screen("诊断信息") {
             addView(label(diagnostics))
             addView(action("导出诊断") {
                 val file = filesDir.resolve("cinepilot-diagnostics.txt")
                 file.writeText(diagnostics)
-                showDiagnosticsExported(state, file.absolutePath)
+                showDiagnosticsExported(state, file.absolutePath, returnToPlayer)
             })
-            addView(iconAction("返回播放准备", TvIcon.BACK) { showPlayerReady(state) })
+            if (returnToPlayer) {
+                addView(iconAction("返回播放器", TvIcon.BACK) { showPlayer(state) })
+            } else {
+                addView(iconAction("返回播放准备", TvIcon.BACK) { showPlayerReady(state) })
+            }
         })
     }
 
-    private fun showDiagnosticsExported(state: TvAppState, path: String) {
+    private fun showDiagnosticsExported(state: TvAppState, path: String, returnToPlayer: Boolean = false) {
         setContentView(screen("诊断信息") {
             addView(label("诊断已导出：$path"))
-            addView(iconAction("返回诊断信息", TvIcon.BACK) { showDiagnostics(state) })
-            addView(iconAction("返回播放准备", TvIcon.BACK) { showPlayerReady(state) })
+            addView(iconAction("返回诊断信息", TvIcon.BACK) { showDiagnostics(state, returnToPlayer) })
+            if (returnToPlayer) {
+                addView(iconAction("返回播放器", TvIcon.BACK) { showPlayer(state) })
+            } else {
+                addView(iconAction("返回播放准备", TvIcon.BACK) { showPlayerReady(state) })
+            }
         })
     }
 
     private fun showPlayer(state: TvAppState) {
-        var playerView: View? = null
-        setContentView(screen("播放器") {
-            playerView = playerHost.createPlayerView(state) { error ->
-                runOnUiThread {
-                    playerHost.release()
-                    showError(error)
-                }
+        val playerView = playerHost.createPlayerView(state) { error ->
+            runOnUiThread {
+                playerHost.release()
+                showError(error)
             }
-            addView(playerView, LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT,
-                720,
-            ))
-            addView(iconAction("停止并返回详情", TvIcon.BACK) {
+        }
+        setContentView(playerScreen(
+            playerView = playerView,
+            title = state.selectedItem()?.name().orEmpty(),
+            onStop = {
                 playerHost.release()
                 viewModel.workflowController.back()
                 viewModel.workflowController.state().selectedItem()?.let(::showDetails)
-            })
-        })
-        playerView?.post { playerView?.requestFocus() }
+            },
+            onDiagnostics = {
+                playerHost.release()
+                showDiagnostics(state, returnToPlayer = true)
+            },
+        ))
+        playerView.post { playerView.requestFocus() }
     }
 
     private fun itemButton(row: HomeRow, item: MediaItemSummary): View {

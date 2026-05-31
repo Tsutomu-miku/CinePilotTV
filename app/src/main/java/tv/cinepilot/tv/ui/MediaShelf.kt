@@ -45,22 +45,22 @@ private fun ComponentActivity.mediaCard(
         isFocusable = true
         isClickable = true
         contentDescription = "${row.title()} ${item.name()}"
-        background = rounded(Color.rgb(18, 26, 38), dp(10))
+        background = rounded(TvColors.SurfaceRaised, dp(TvRadius.Card))
         setOnClickListener { onOpen(row, item) }
         setOnFocusChangeListener { focusedView, hasFocus ->
             focusedView.scaleX = if (hasFocus) 1.06f else 1f
             focusedView.scaleY = if (hasFocus) 1.06f else 1f
             (focusedView as FrameLayout).foreground = rounded(
                 Color.TRANSPARENT,
-                dp(10),
+                dp(TvRadius.Card),
                 if (hasFocus) dp(3) else 0,
-                Color.rgb(94, 234, 212),
+                TvColors.AccentStrong,
             )
         }
     }
     val poster = ImageView(this).apply {
         scaleType = ImageView.ScaleType.CENTER_CROP
-        setBackgroundColor(Color.rgb(24, 34, 49))
+        setBackgroundColor(TvColors.PosterFallback)
     }
     card.addView(
         poster,
@@ -72,9 +72,9 @@ private fun ComponentActivity.mediaCard(
     card.addView(
         TextView(this).apply {
             text = item.name().ifBlank { item.id() }
-            textSize = 16f
+            textSize = TvType.CardTitle
             typeface = Typeface.DEFAULT_BOLD
-            setTextColor(Color.WHITE)
+            setTextColor(TvColors.TextPrimary)
             maxLines = 2
             ellipsize = TextUtils.TruncateAt.END
             setBackgroundColor(Color.argb(210, 8, 13, 24))
@@ -87,9 +87,9 @@ private fun ComponentActivity.mediaCard(
         ),
     )
     loadImage(poster, item, 320, 480)
-    card.layoutParams = LinearLayout.LayoutParams(dp(190), dp(285)).apply {
-        rightMargin = dp(18)
-        bottomMargin = dp(18)
+    card.layoutParams = LinearLayout.LayoutParams(dp(TvSize.PosterWidth), dp(TvSize.PosterHeight)).apply {
+        rightMargin = dp(TvSpacing.CardGap)
+        bottomMargin = dp(TvSpacing.CardGap)
     }
     return card
 }

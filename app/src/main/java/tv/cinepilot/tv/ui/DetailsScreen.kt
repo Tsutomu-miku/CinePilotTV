@@ -4,7 +4,9 @@ import android.view.Gravity
 import android.view.View
 import android.widget.LinearLayout
 import androidx.activity.ComponentActivity
+import tv.cinepilot.core.protocol.MediaItemType
 import tv.cinepilot.core.protocol.MediaItemSummary
+import tv.cinepilot.core.protocol.MediaTicks
 
 fun ComponentActivity.detailsScreen(
     item: MediaItemSummary,
@@ -23,19 +25,11 @@ fun ComponentActivity.detailsScreen(
             addView(
                 LinearLayout(this@detailsScreen).apply {
                     orientation = LinearLayout.VERTICAL
-                    addView(metaLine(item))
-                    if (item.runTimeTicks() != null) {
-                        addView(supportingLabel("时长 ${formatTicks(item.runTimeTicks())}"))
-                    }
-                    if (episodeLabel.isNotBlank()) {
-                        addView(supportingLabel(episodeLabel))
-                    }
-                    if (item.genres().isNotEmpty()) {
-                        addView(supportingLabel(item.genres().joinToString(" / ")))
-                    }
+                    addView(metadataPills(detailMetadata(item, episodeLabel)))
                     if (item.hasResumePosition()) {
                         addView(resumeBadge("可从 ${formatTicks(item.userData().playbackPositionTicks())} 继续播放"))
                     }
+                    addView(verticalSpace(14))
                     if (item.playable()) {
                         addView(actionStrip(playbackActions))
                     } else {
@@ -50,5 +44,50 @@ fun ComponentActivity.detailsScreen(
                 LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f),
             )
         })
+    }
+}
+
+private fun detailMetadata(item: MediaItemSummary, episodeLabel: String): List<String> {
+    val values = mutableListOf<String>()
+    val typeLabel = mediaTypeLabel(item.type())
+    if (typeLabel.isNotBlank()) {
+        values.add(typeLabel)
+    }
+    if (episodeLabel.isNotBlank()) {
+        values.add(episodeLabel.replace(" · ", " / "))
+    }
+    if (item.type() != MediaItemType.EPISODE && item.productionYear() != null) {
+        values.add(item.productionYear().toString())
+    }
+    if (item.runTimeTicks() != null) {
+        values.add("约 ${durationLabel(item.runTimeTicks())}")
+    }
+    values.addAll(item.genres().take(3))
+    return values
+}
+
+private fun mediaTypeLabel(type: MediaItemType): String {
+    return when (type) {
+        MediaItemType.MOVIE -> "电影"
+        MediaItemType.SERIES -> "剧集"
+        MediaItemType.SEASON -> "季"
+        MediaItemType.EPISODE -> "单集"
+        MediaItemType.VIDEO -> "视频"
+        MediaItemType.COLLECTION_FOLDER,
+        MediaItemType.FOLDER -> "目录"
+        MediaItemType.UNKNOWN -> ""
+    }
+}
+
+private fun durationLabel(ticks: Long): String {
+    val totalMinutes = (MediaTicks.toMilliseconds(ticks) / 60_000).coerceAtLeast(1)
+    val hours = totalMinutes / 60
+    val minutes = totalMinutes % 60
+    return if (hours > 0 && minutes > 0) {
+        "${hours} 小时 ${minutes} 分钟"
+    } else if (hours > 0) {
+        "${hours} 小时"
+    } else {
+        "${minutes} 分钟"
     }
 }

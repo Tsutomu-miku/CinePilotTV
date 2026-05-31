@@ -13,6 +13,7 @@ required_docs=(
   "$ROOT_DIR/docs/PROJECT_SPEC.md"
   "$ROOT_DIR/docs/ARCHITECTURE.md"
   "$ROOT_DIR/docs/CODE_STRUCTURE.md"
+  "$ROOT_DIR/docs/DESIGN_NOTES.md"
   "$ROOT_DIR/docs/PROTOCOL_NOTES.md"
   "$ROOT_DIR/docs/VERIFICATION.md"
 )
@@ -266,6 +267,18 @@ if [[ ! -s "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/ui/TvUi.kt" ]]; then
   exit 1
 fi
 
+if [[ ! -s "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/ui/TvDesign.kt" ]]; then
+  echo "Missing reusable TV design token module" >&2
+  exit 1
+fi
+
+for token in TvColors TvSpacing TvType TvSize TvRadius; do
+  if ! grep -q "object $token" "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/ui/TvDesign.kt"; then
+    echo "TV design tokens must define $token" >&2
+    exit 1
+  fi
+done
+
 if [[ ! -s "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/ui/MediaShelf.kt" ]]; then
   echo "Missing reusable media shelf UI module" >&2
   exit 1
@@ -318,8 +331,8 @@ if ! grep -q 'connectTimeout' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/MainA
   exit 1
 fi
 
-if ! grep -R -q '时长 ' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv"; then
-  echo "Android TV UI must show runtime on details when available" >&2
+if ! grep -R -q 'durationLabel' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/ui/DetailsScreen.kt"; then
+  echo "Android TV UI must show localized runtime on details when available" >&2
   exit 1
 fi
 
@@ -413,8 +426,28 @@ if [[ ! -x "$ROOT_DIR/scripts/qa-login.sh" ]]; then
   exit 1
 fi
 
-if ! grep -q 'playerView?.requestFocus' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/MainActivity.kt"; then
+if ! grep -q 'playerView.requestFocus' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/MainActivity.kt"; then
   echo "MainActivity must focus the Media3 player view" >&2
+  exit 1
+fi
+
+if [[ ! -s "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/ui/PlayerScreen.kt" ]]; then
+  echo "Missing reusable fullscreen player screen UI module" >&2
+  exit 1
+fi
+
+if ! grep -q 'FrameLayout.LayoutParams.MATCH_PARENT' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/ui/PlayerScreen.kt"; then
+  echo "PlayerScreen must render the Media3 player as a fullscreen surface" >&2
+  exit 1
+fi
+
+if grep -q 'screen("播放器")' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/MainActivity.kt"; then
+  echo "Player route must not be embedded inside the scrolling document screen" >&2
+  exit 1
+fi
+
+if grep -R -q 'metaLine(item)' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv"; then
+  echo "Details screen must not expose raw protocol type/year metadata" >&2
   exit 1
 fi
 
