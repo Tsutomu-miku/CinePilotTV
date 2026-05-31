@@ -8,7 +8,7 @@
 
 Gradle 工程必须保持 `:app` 依赖 `:core`。Android UI 和播放器层只能通过 `:core` 的公开类型使用协议能力，不能复制请求构造或响应解析逻辑。
 
-Android app 的运行时入口是 `CinePilotRuntime`。它负责创建客户端身份、HTTP transport、文件 session repository、`MediaBrowserClient` 和初始 `TvAppState`。
+Android app 的运行时入口是 `CinePilotRuntime`。它负责创建客户端身份、HTTP transport、文件 session repository、`MediaBrowserClient`、`TvWorkflowController` 和初始 `TvAppState`。
 
 后续的 `platform` 适配器会负责 HTTP transport、token 持久化、图片加载和 Android 专用存储。
 
