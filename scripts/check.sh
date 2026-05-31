@@ -121,6 +121,9 @@ java -cp "$MAIN_CLASSES:$TEST_CLASSES" tv.cinepilot.core.tv.TvWorkflowTest
 
 if [[ -x "$ROOT_DIR/gradlew" ]]; then
   "$ROOT_DIR/gradlew" -q :core:test
+  if [[ -n "${ANDROID_HOME:-}" || -f "$ROOT_DIR/local.properties" ]]; then
+    "$ROOT_DIR/gradlew" -q :app:assembleDebug
+  fi
 fi
 
 echo "check passed"

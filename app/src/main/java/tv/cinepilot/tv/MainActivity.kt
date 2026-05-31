@@ -206,7 +206,7 @@ class MainActivity : Activity() {
         return EditText(this).apply {
             hint = hintText
             textSize = 20f
-            singleLine = true
+            setSingleLine(true)
             setTextColor(Color.WHITE)
             setHintTextColor(Color.LTGRAY)
             setPadding(20, 12, 20, 12)

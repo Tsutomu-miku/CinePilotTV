@@ -89,7 +89,7 @@
 
 退出标准：
 
-- Android 构建在具备 Android SDK 的机器上通过。当前环境缺少 `ANDROID_HOME`，`:core:test` 已通过，`:app:assembleDebug` 因 SDK 路径缺失尚未验证。
+- Android 构建在具备 Android SDK 的机器上通过。当前环境已用临时 SDK 验证 `:core:test` 和 `:app:assembleDebug` 通过。
 - TV UI 可以用 D-pad 完成服务器输入、登录、浏览、详情、播放入口。
 - 播放开始、暂停、seek、停止能触发协议上报。
 

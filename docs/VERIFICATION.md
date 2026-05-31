@@ -25,7 +25,7 @@
 
 - `./scripts/bootstrap-gradle-wrapper.sh` 可以生成 Gradle wrapper。
 - `./gradlew :core:test` 可以通过，并会执行 `ProtocolCoreTest` 与 `TvWorkflowTest`。
-- `./gradlew :app:assembleDebug` 当前失败原因是 SDK 路径缺失，需要设置 `ANDROID_HOME` 或 `local.properties` 的 `sdk.dir`。
+- 使用本地临时 SDK（`local.properties` 指向 `build/android-sdk`）时，`./gradlew :app:assembleDebug` 可以通过并生成 debug APK。
 
 具备 Android SDK 后，应运行：
 
