@@ -22,7 +22,7 @@ core/
       MediaItemPage.java         媒体列表分页响应
       PlaybackCheckInScheduler.java 播放 started/progress/stopped 调度规则
       HttpTransport.java         HTTP 发送边界
-      JavaNetHttpTransport.java  JVM 默认 HTTP transport
+      UrlConnectionHttpTransport.java Android/JVM 可用的默认 HTTP transport
       FileSessionRepository.java 文件持久化 session repository
   src/test/java/tv/cinepilot/core/
     protocol/                    JVM 协议测试

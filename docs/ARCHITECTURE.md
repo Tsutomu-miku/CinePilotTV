@@ -30,7 +30,7 @@ UI 界面应该调用应用控制器或 store。界面组件不能直接构造 J
 
 基础 JSON 值解析和核心响应 mapper 暂时放在 `core`，用于把系统信息、登录结果和 playback info 转换成领域模型。后续引入 Kotlin/Android JSON 库时，必须保持这些领域模型和测试语义不变。
 
-`MediaBrowserClient` 是协议核心的编排入口，负责发现服务器、登录、恢复会话、获取 playback info、选择播放源和登出。真实网络由 `HttpTransport` 提供；JVM 默认实现是 `JavaNetHttpTransport`，Android 层可以替换为带平台配置的 transport。
+`MediaBrowserClient` 是协议核心的编排入口，负责发现服务器、登录、恢复会话、获取 playback info、选择播放源和登出。真实网络由 `HttpTransport` 提供；默认实现是基于 `HttpURLConnection` 的 `UrlConnectionHttpTransport`，可在 JVM 和 Android 上使用。
 
 媒体库浏览响应映射到 `MediaItemPage` 和 `MediaItemSummary`。UI 必须使用这些领域模型里的 `id` 保持焦点和选择身份，而不是用标题或列表位置。
 
