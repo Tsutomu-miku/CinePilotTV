@@ -5,11 +5,9 @@ import android.content.pm.ApplicationInfo
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
-import android.text.InputType
 import android.view.View
-import android.view.inputmethod.EditorInfo
+import android.widget.EditText
 import android.widget.ImageView
-import android.widget.LinearLayout
 import android.widget.TextView
 import android.widget.Toast
 import androidx.activity.ComponentActivity
@@ -31,6 +29,8 @@ import tv.cinepilot.tv.auth.loginScreen
 import tv.cinepilot.tv.auth.quickConnectScreen
 import tv.cinepilot.tv.auth.serverEntryScreen
 import tv.cinepilot.tv.details.detailsRouteScreen
+import tv.cinepilot.tv.home.homeRouteScreen
+import tv.cinepilot.tv.home.searchScreen
 import tv.cinepilot.tv.player.Media3PlayerHost
 import tv.cinepilot.tv.playback.diagnosticsExportedScreen
 import tv.cinepilot.tv.playback.diagnosticsScreen
@@ -41,18 +41,10 @@ import tv.cinepilot.tv.runtime.PrimaryImageLoader
 import tv.cinepilot.tv.runtime.QuickConnectPoller
 import tv.cinepilot.tv.runtime.RecentAccountStore
 import tv.cinepilot.tv.ui.action
-import tv.cinepilot.tv.ui.actionStrip
-import tv.cinepilot.tv.ui.compactAction
-import tv.cinepilot.tv.ui.compactIconAction
-import tv.cinepilot.tv.ui.dp
-import tv.cinepilot.tv.ui.homeScreen
-import tv.cinepilot.tv.ui.iconAction
-import tv.cinepilot.tv.ui.input
 import tv.cinepilot.tv.ui.label
 import tv.cinepilot.tv.ui.playerScreen
 import tv.cinepilot.tv.ui.screen
 import tv.cinepilot.tv.ui.section
-import tv.cinepilot.tv.ui.HomeNavigation
 import tv.cinepilot.tv.ui.TvIcon
 import tv.cinepilot.tv.ui.tvErrorMessage
 
@@ -320,46 +312,17 @@ class MainActivity : ComponentActivity() {
         quickConnectPoller.stop()
         searchVisible = false
         var focusedCard: View? = null
-        setContentView(homeScreen(
+        setContentView(homeRouteScreen(
             state = state,
-            navigation = HomeNavigation(
-                canGoBack = viewModel.workflowController.canGoBackInBrowse(),
-                canPageBackward = viewModel.workflowController.canPageBackwardInBrowse(),
-                canPageForward = viewModel.workflowController.canPageForwardInBrowse(),
-                onSearch = ::showSearch,
-                onRefresh = {
-                    runTask("正在重新加载首页...", {
-                        viewModel.workflowController.loadHome()
-                    }) {
-                        showHome(viewModel.workflowController.state())
-                    }
-                },
-                onLogout = {
-                    runTask("正在退出登录...", {
-                        forgetAuthenticatedAccount()
-                        viewModel.workflowController.logout()
-                    }) {
-                        showServerEntry()
-                    }
-                },
-                onBackInBrowse = {
-                    showHome(viewModel.workflowController.back())
-                },
-                onPreviousPage = {
-                    runTask("正在加载上一页...", {
-                        viewModel.workflowController.previousBrowsePage()
-                    }) {
-                        showHome(viewModel.workflowController.state())
-                    }
-                },
-                onNextPage = {
-                    runTask("正在加载下一页...", {
-                        viewModel.workflowController.nextBrowsePage()
-                    }) {
-                        showHome(viewModel.workflowController.state())
-                    }
-                },
-            ),
+            canGoBack = viewModel.workflowController.canGoBackInBrowse(),
+            canPageBackward = viewModel.workflowController.canPageBackwardInBrowse(),
+            canPageForward = viewModel.workflowController.canPageForwardInBrowse(),
+            onSearch = ::showSearch,
+            onRefresh = ::refreshHome,
+            onLogout = ::logoutFromHome,
+            onBackInBrowse = { showHome(viewModel.workflowController.back()) },
+            onPreviousPage = ::previousBrowsePage,
+            onNextPage = ::nextBrowsePage,
             onOpen = ::openMediaItem,
             loadImage = ::loadPrimaryImage,
             onFocusedCard = { focusedCard = it },
@@ -369,41 +332,57 @@ class MainActivity : ComponentActivity() {
 
     private fun showSearch() {
         searchVisible = true
-        val searchInput = input("搜索媒体", InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_NORMAL)
-        fun submitSearch() {
-            val term = searchInput.text.toString().trim()
-            if (term.isBlank()) {
-                searchInput.requestFocus()
-            } else {
-                runTask("正在搜索...", {
-                    viewModel.workflowController.search(term)
-                }) {
-                    showHome(viewModel.workflowController.state())
-                }
-            }
+        val searchViews = searchScreen(
+            onSubmit = ::submitSearch,
+            onBackHome = { showHome(viewModel.workflowController.state()) },
+        )
+        setContentView(searchViews.root)
+        searchViews.input.post { searchViews.input.requestFocus() }
+    }
+
+    private fun refreshHome() {
+        runTask("正在重新加载首页...", {
+            viewModel.workflowController.loadHome()
+        }) {
+            showHome(viewModel.workflowController.state())
         }
-        searchInput.imeOptions = EditorInfo.IME_ACTION_SEARCH
-        searchInput.setOnEditorActionListener { _, actionId, _ ->
-            if (actionId == EditorInfo.IME_ACTION_SEARCH || actionId == EditorInfo.IME_ACTION_DONE) {
-                submitSearch()
-                true
-            } else {
-                false
-            }
+    }
+
+    private fun logoutFromHome() {
+        runTask("正在退出登录...", {
+            forgetAuthenticatedAccount()
+            viewModel.workflowController.logout()
+        }) {
+            showServerEntry()
         }
-        setContentView(screen("搜索媒体") {
-            addView(searchInput, LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT,
-                dp(56),
-            ).apply {
-                bottomMargin = dp(16)
-            })
-            addView(actionStrip(listOf(
-                compactIconAction("搜索", TvIcon.SEARCH, ::submitSearch),
-                iconAction("返回", TvIcon.BACK) { showHome(viewModel.workflowController.state()) },
-            )))
-        })
-        searchInput.post { searchInput.requestFocus() }
+    }
+
+    private fun previousBrowsePage() {
+        runTask("正在加载上一页...", {
+            viewModel.workflowController.previousBrowsePage()
+        }) {
+            showHome(viewModel.workflowController.state())
+        }
+    }
+
+    private fun nextBrowsePage() {
+        runTask("正在加载下一页...", {
+            viewModel.workflowController.nextBrowsePage()
+        }) {
+            showHome(viewModel.workflowController.state())
+        }
+    }
+
+    private fun submitSearch(term: String, searchInput: EditText) {
+        if (term.isBlank()) {
+            searchInput.requestFocus()
+            return
+        }
+        runTask("正在搜索...", {
+            viewModel.workflowController.search(term)
+        }) {
+            showHome(viewModel.workflowController.state())
+        }
     }
 
     private fun showDetails(item: MediaItemSummary) {

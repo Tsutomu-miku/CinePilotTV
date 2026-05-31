@@ -284,7 +284,12 @@ if ! grep -R -q '搜索媒体' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv"; th
   exit 1
 fi
 
-if ! grep -q 'IME_ACTION_SEARCH' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/MainActivity.kt"; then
+if [[ ! -s "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/home/HomeRouteScreens.kt" ]]; then
+  echo "Missing dedicated home route screen module" >&2
+  exit 1
+fi
+
+if ! grep -q 'IME_ACTION_SEARCH' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/home/HomeRouteScreens.kt"; then
   echo "Search input must submit from the TV keyboard search action" >&2
   exit 1
 fi
