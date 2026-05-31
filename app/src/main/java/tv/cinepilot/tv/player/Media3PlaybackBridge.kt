@@ -10,6 +10,7 @@ class Media3PlaybackBridge(
     private val controller: PlaybackSessionController,
     private val checkInExecutor: Executor,
     private val onPlaybackError: (PlaybackException) -> Unit = {},
+    private val onPlaybackEnded: () -> Unit = {},
     private val clock: () -> Long = { System.currentTimeMillis() },
 ) : Player.Listener {
     private var started = false
@@ -24,6 +25,7 @@ class Media3PlaybackBridge(
         }
         if (playbackState == Player.STATE_ENDED) {
             stop(lastPositionBeforeSeek)
+            onPlaybackEnded()
         }
     }
 

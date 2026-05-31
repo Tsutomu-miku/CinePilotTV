@@ -435,6 +435,11 @@ if ! grep -q 'postDelayed' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/player/M
   exit 1
 fi
 
+if ! grep -q 'onPlaybackEnded' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/player/Media3PlaybackBridge.kt"; then
+  echo "Media3PlaybackBridge must notify the Activity when playback naturally ends" >&2
+  exit 1
+fi
+
 if ! grep -q 'Media3PlayerHost' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/MainActivity.kt"; then
   echo "MainActivity must initialize Media3PlayerHost" >&2
   exit 1

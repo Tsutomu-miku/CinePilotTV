@@ -617,12 +617,26 @@ class MainActivity : ComponentActivity() {
 
     private fun showPlayer(state: TvAppState) {
         lastPlaybackBackPressAt = 0L
-        val playerView = playerHost.createPlayerView(state) { error ->
-            runOnUiThread {
-                playerHost.release()
-                showError(error)
-            }
-        }
+        val playerView = playerHost.createPlayerView(
+            state = state,
+            onPlaybackError = { error ->
+                runOnUiThread {
+                    playerHost.release()
+                    showError(error)
+                }
+            },
+            onPlaybackEnded = {
+                runOnUiThread {
+                    if (viewModel.workflowController.state().route() != TvRoute.PLAYER) {
+                        return@runOnUiThread
+                    }
+                    playerHost.release()
+                    viewModel.workflowController.back()
+                    viewModel.workflowController.state().selectedItem()?.let(::showDetails)
+                        ?: showHome(viewModel.workflowController.state())
+                }
+            },
+        )
         setContentView(playerScreen(
             playerView = playerView,
         ))

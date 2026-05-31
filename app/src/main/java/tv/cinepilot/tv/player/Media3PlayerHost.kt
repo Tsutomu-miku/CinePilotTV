@@ -27,7 +27,11 @@ class Media3PlayerHost(
     private var progressTicker: Runnable? = null
     private val checkInExecutor = Executors.newSingleThreadExecutor()
 
-    fun createPlayerView(state: TvAppState, onPlaybackError: (PlaybackException) -> Unit = {}): View {
+    fun createPlayerView(
+        state: TvAppState,
+        onPlaybackError: (PlaybackException) -> Unit = {},
+        onPlaybackEnded: () -> Unit = {},
+    ): View {
         val playable = state.playableMedia()
             ?: throw IllegalStateException("playable media is required")
         val authenticated = state.authenticated()
@@ -45,6 +49,7 @@ class Media3PlayerHost(
             PlaybackSessionController(mediaBrowserClient, authenticated, playable),
             checkInExecutor,
             onPlaybackError,
+            onPlaybackEnded,
         )
         val nextPlayer = ExoPlayer.Builder(context).build().apply {
             addListener(playbackBridge)
