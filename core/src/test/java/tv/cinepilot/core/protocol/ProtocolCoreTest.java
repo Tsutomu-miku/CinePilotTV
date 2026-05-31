@@ -559,6 +559,16 @@ public final class ProtocolCoreTest {
         assertEquals(3, source.mediaStreams().size(), "media streams map");
         assertEquals(MediaStreamType.SUBTITLE, source.mediaStreams().get(2).type(), "subtitle type maps");
         assertEquals("/Videos/item-1/Subtitles/2/Stream.srt", source.mediaStreams().get(2).deliveryUrl(), "subtitle url maps");
+
+        MediaItemPage latestItems = MediaBrowserResponseMapper.itemPage("""
+                [
+                  {"Id":"latest-1","Name":"Latest Movie","Type":"Movie","IsPlayable":true},
+                  {"Id":"latest-2","Name":"Latest Episode","Type":"Episode","IsPlayable":true}
+                ]
+                """);
+        assertEquals(2, latestItems.items().size(), "latest array item count maps");
+        assertEquals(2, latestItems.totalRecordCount(), "latest array total count maps");
+        assertEquals("latest-1", latestItems.items().get(0).id(), "latest array item maps");
     }
 
     private static void mapsAndLoadsPublicUsers() {

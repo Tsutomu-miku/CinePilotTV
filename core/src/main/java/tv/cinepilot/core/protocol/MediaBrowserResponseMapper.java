@@ -68,18 +68,27 @@ public final class MediaBrowserResponseMapper {
     }
 
     public static MediaItemPage itemPage(String json) {
-        Map<String, Object> root = JsonValue.object(json);
-        List<MediaItemSummary> items = new ArrayList<>();
-        for (Object value : JsonValue.array(root, "Items")) {
-            if (value instanceof Map<?, ?> map) {
-                items.add(mediaItem(JsonValueMap.cast(map)));
-            }
+        if (json != null && json.stripLeading().startsWith("[")) {
+            List<MediaItemSummary> items = mediaItems(JsonValue.array(json));
+            return new MediaItemPage(items, items.size(), 0);
         }
+        Map<String, Object> root = JsonValue.object(json);
+        List<MediaItemSummary> items = mediaItems(JsonValue.array(root, "Items"));
         return new MediaItemPage(
                 items,
                 number(root, "TotalRecordCount").intValue(),
                 number(root, "StartIndex").intValue()
         );
+    }
+
+    private static List<MediaItemSummary> mediaItems(List<Object> values) {
+        List<MediaItemSummary> items = new ArrayList<>();
+        for (Object value : values) {
+            if (value instanceof Map<?, ?> map) {
+                items.add(mediaItem(JsonValueMap.cast(map)));
+            }
+        }
+        return List.copyOf(items);
     }
 
     public static MediaItemSummary item(String json) {

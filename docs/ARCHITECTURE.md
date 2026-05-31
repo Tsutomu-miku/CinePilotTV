@@ -62,7 +62,7 @@ UI 界面应该调用应用控制器或 store。界面组件不能直接构造 J
 
 `MediaBrowserClient` 是协议核心的编排入口，负责发现服务器、登录、恢复会话、获取 playback info、选择播放源和登出。真实网络由 `HttpTransport` 提供；默认实现是基于 `HttpURLConnection` 的 `UrlConnectionHttpTransport`，可在 JVM 和 Android 上使用。
 
-媒体库浏览响应映射到 `MediaItemPage` 和 `MediaItemSummary`。UI 必须使用这些领域模型里的 `id` 保持焦点和选择身份，而不是用标题或列表位置。
+媒体库浏览响应映射到 `MediaItemPage` 和 `MediaItemSummary`。普通分页接口返回 `{Items, TotalRecordCount, StartIndex}`，Jellyfin / Emby 的 latest items 接口可能直接返回数组；mapper 必须兼容这两种形状并把数组包装成从 0 开始的 `MediaItemPage`。UI 必须使用这些领域模型里的 `id` 保持焦点和选择身份，而不是用标题或列表位置。
 
 媒体图片 URL 由 `MediaBrowserClient.primaryImageUrl` 基于 `MediaItemSummary.imageTags` 生成并追加 token；Android UI 只负责异步加载位图。图片加载必须使用独立线程池和短超时，失败时不能阻塞详情页按钮、焦点或播放流程。
 
