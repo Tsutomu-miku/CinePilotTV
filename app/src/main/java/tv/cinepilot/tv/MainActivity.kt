@@ -3,6 +3,8 @@ package tv.cinepilot.tv
 import android.app.Activity
 import android.graphics.Color
 import android.os.Bundle
+import android.os.Handler
+import android.os.Looper
 import android.text.InputType
 import android.view.Gravity
 import android.view.View
@@ -31,7 +33,9 @@ class MainActivity : Activity() {
     private lateinit var runtime: CinePilotRuntime
     private lateinit var playerHost: Media3PlayerHost
     private val executor = Executors.newSingleThreadExecutor()
+    private val mainHandler = Handler(Looper.getMainLooper())
     private val lastAccountStore by lazy { getSharedPreferences("cinepilot_last_account", MODE_PRIVATE) }
+    @Volatile private var quickConnectPolling = false
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -41,6 +45,7 @@ class MainActivity : Activity() {
     }
 
     override fun onDestroy() {
+        stopQuickConnectPolling()
         playerHost.release()
         executor.shutdownNow()
         super.onDestroy()
@@ -80,6 +85,7 @@ class MainActivity : Activity() {
     }
 
     private fun showServerEntry() {
+        stopQuickConnectPolling()
         val serverInput = input("https://your-server.example.com", InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_URI)
         val recentAccounts = savedAccounts()
         setContentView(screen("CinePilot TV") {
@@ -131,6 +137,7 @@ class MainActivity : Activity() {
     }
 
     private fun showLogin() {
+        stopQuickConnectPolling()
         val usernameInput = input("用户名", InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_NORMAL)
         val passwordInput = input("密码", InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_PASSWORD)
         setContentView(screen("登录 ${runtime.workflowController.state().server()?.serverName() ?: ""}") {
@@ -182,7 +189,10 @@ class MainActivity : Activity() {
         executor.execute {
             try {
                 val quickConnect = runtime.workflowController.startQuickConnect()
-                runOnUiThread { showQuickConnect(quickConnect) }
+                runOnUiThread {
+                    showQuickConnect(quickConnect)
+                    scheduleQuickConnectPoll()
+                }
             } catch (error: Throwable) {
                 runOnUiThread { showError(error) }
             }
@@ -190,8 +200,10 @@ class MainActivity : Activity() {
     }
 
     private fun showQuickConnect(quickConnect: QuickConnectSession) {
+        quickConnectPolling = true
         setContentView(screen("Quick Connect") {
             addView(label("授权码：${quickConnect.code()}"))
+            addView(label("请在 Jellyfin 中输入授权码，授权后会自动登录"))
             addView(action("完成登录") {
                 runTask("正在完成 Quick Connect 登录...", {
                     runtime.workflowController.completeQuickConnect()
@@ -204,7 +216,46 @@ class MainActivity : Activity() {
         })
     }
 
+    private fun scheduleQuickConnectPoll() {
+        if (!quickConnectPolling) {
+            return
+        }
+        mainHandler.postDelayed({
+            if (quickConnectPolling) {
+                pollQuickConnectApproval()
+            }
+        }, 2_000L)
+    }
+
+    private fun pollQuickConnectApproval() {
+        executor.execute {
+            try {
+                runtime.workflowController.completeQuickConnect()
+                runOnUiThread {
+                    stopQuickConnectPolling()
+                    rememberAccount()
+                    showHome(runtime.workflowController.state())
+                }
+            } catch (error: Throwable) {
+                if (error.message == TvWorkflowController.QUICK_CONNECT_NOT_APPROVED_MESSAGE) {
+                    runOnUiThread { scheduleQuickConnectPoll() }
+                } else {
+                    runOnUiThread {
+                        stopQuickConnectPolling()
+                        showError(error)
+                    }
+                }
+            }
+        }
+    }
+
+    private fun stopQuickConnectPolling() {
+        quickConnectPolling = false
+        mainHandler.removeCallbacksAndMessages(null)
+    }
+
     private fun showHome(state: TvAppState) {
+        stopQuickConnectPolling()
         var focusedButton: View? = null
         val searchInput = input("搜索媒体", InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_NORMAL)
         setContentView(screen("首页") {

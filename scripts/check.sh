@@ -376,6 +376,11 @@ if ! grep -q 'Quick Connect' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/MainAc
   exit 1
 fi
 
+if ! grep -q 'scheduleQuickConnectPoll' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/MainActivity.kt"; then
+  echo "MainActivity must poll Quick Connect authorization status" >&2
+  exit 1
+fi
+
 if ! grep -q 'AuthenticateWithQuickConnect' "$ROOT_DIR/core/src/main/java/tv/cinepilot/core/protocol/MediaBrowserRequests.java"; then
   echo "MediaBrowserRequests must model Quick Connect authentication" >&2
   exit 1

@@ -59,7 +59,7 @@ Android TV 设备或模拟器上需要验证：
 
 - 连接设备后运行 `./scripts/install-debug-apk.sh` 可以安装并启动 debug APK。
 - 可用 D-pad 完成服务器输入、登录、首页浏览和详情打开。
-- Jellyfin 服务器启用 Quick Connect 时，可在登录页用授权码完成登录。
+- Jellyfin 服务器启用 Quick Connect 时，可在登录页用授权码完成登录；授权后 TV 端会自动进入首页。
 - 点击播放后 Media3 player 能打开可播放 URL。
 - HTTP 本地服务器地址如 `http://host:8096` 可以连接。
 - 播放 URL 携带 token 后，Media3 能访问受保护流。
