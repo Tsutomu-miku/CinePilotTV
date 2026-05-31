@@ -28,7 +28,7 @@ Jellyfin 登录页可以发起 Quick Connect：Activity 展示服务器返回的
 
 播放准备页只展示播放方式、媒体源和“播放地址已准备”这类安全摘要，不直接展示 raw playback URL。需要排障时走 `TvDiagnostics`，且诊断输出不能包含 token。Android 诊断导出只能写入 app 私有文件，避免无意把 token 或播放 URL 暴露给其它应用。
 
-`Media3PlayerHost` 负责把 `TvAppState.playableMedia` 转换为 Media3 `MediaItem`，创建 `ExoPlayer` 和 `PlayerView`，并在 Activity 销毁或用户停止播放时释放播放器。
+`Media3PlayerHost` 负责把 `TvAppState.playableMedia` 转换为 Media3 `MediaItem`，创建 `ExoPlayer` 和 `PlayerView`，并在 Activity 销毁或用户停止播放时释放播放器。Android app 必须同时依赖 `media3-exoplayer` 和 `media3-exoplayer-hls`，因为 Jellyfin / Emby 的转码候选通常是 HLS master playlist。
 
 进入播放器页后，Activity 应主动把焦点交给 `PlayerView`，让遥控器播放控制优先落在 Media3，而不是页面里的停止按钮。
 

@@ -34,6 +34,16 @@ if ! grep -q 'implementation(project(":core"))' "$ROOT_DIR/app/build.gradle.kts"
   exit 1
 fi
 
+if ! grep -q 'androidx.media3:media3-exoplayer-hls' "$ROOT_DIR/gradle/libs.versions.toml"; then
+  echo "Version catalog must include Media3 HLS playback support" >&2
+  exit 1
+fi
+
+if ! grep -q 'media3.exoplayer.hls' "$ROOT_DIR/app/build.gradle.kts"; then
+  echo "Android app must depend on Media3 HLS module for Jellyfin transcode streams" >&2
+  exit 1
+fi
+
 if [[ ! -s "$ROOT_DIR/core/build.gradle.kts" ]]; then
   echo "Missing core Gradle module build file" >&2
   exit 1

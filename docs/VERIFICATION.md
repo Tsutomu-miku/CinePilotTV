@@ -69,6 +69,7 @@ Android TV 设备或模拟器上需要验证：
 - Jellyfin 服务器启用 Quick Connect 时，可在登录页用授权码完成登录；授权后 TV 端会自动进入首页。
 - 点击播放后 Media3 player 能打开可播放 URL。
 - 当 Media3 因编码、转码、网络或 URL 问题播放失败时，界面会释放播放器并显示中文恢复建议，而不是停留在不可诊断的播放器页。
+- Jellyfin / Emby 返回 HLS 转码播放候选时，APK 包含 `media3-exoplayer-hls`，打开播放器不会因缺少 `HlsMediaSource.Factory` 崩溃。
 - HTTP 本地服务器地址如 `http://host:8096` 可以连接。
 - Jellyfin latest items 返回数组时，首页仍能加载最新媒体行，不会因只支持分页对象而失败。
 - Jellyfin 列表条目缺少 `IsPlayable` 时，非 folder 的 Movie / Episode / Video 仍会作为可播放项进入详情，而不是被误当作目录。
