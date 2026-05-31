@@ -301,6 +301,11 @@ if ! grep -q '选择用户' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/MainAct
   exit 1
 fi
 
+if ! grep -q '免密码登录' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/MainActivity.kt"; then
+  echo "MainActivity must expose passwordless public-user login" >&2
+  exit 1
+fi
+
 if ! grep -q '没有可用播放源' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/MainActivity.kt"; then
   echo "MainActivity must explain unsupported playback in Chinese" >&2
   exit 1

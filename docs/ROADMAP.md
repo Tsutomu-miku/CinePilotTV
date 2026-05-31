@@ -59,7 +59,7 @@
 状态：进行中。
 
 - P0-9 通过直接 URL 实现服务器发现。进度：请求规格、系统信息响应 mapper、HTTP transport 和 client 编排已完成。
-- P0-10 实现 Jellyfin 与 Emby 的用户名 / 密码认证。进度：请求规格、public users 请求 / mapper、登录响应 mapper、HTTP transport、client 编排和 TV 登录页 public users 选择入口已完成。
+- P0-10 实现 Jellyfin 与 Emby 的用户名 / 密码认证。进度：请求规格、public users 请求 / mapper、登录响应 mapper、HTTP transport、client 编排、TV 登录页 public users 选择入口和免密码 public user 一键登录已完成。
 - P0-11 按服务器和用户作用域持久化会话。进度：内存 repository、文件 repository、client 保存 / 恢复 / logout / 本地忘记撤销流程、Android 稳定 device id、Android 最近登录列表、启动自动恢复最近账号和 TV 退出登录入口已完成；401 过期会话会清除当前 scope 并回到重新登录。
 - P0-12 通过协议适配器获取首页分区和媒体详情。进度：views、items、resume、latest、detail 请求规格、响应模型、client 编排、TV 首页 row 组合、稳定默认排序、不可播放文件夹分页浏览、上一页 / 下一页、上级返回、打开首个子项目、空文件夹错误提示和本地 HTTP 集成测试已完成。
 
@@ -102,7 +102,7 @@
 ## P1 候选
 
 - Jellyfin Quick Connect。
-- public-user 登录界面已具备最小入口，后续可补头像和 passwordless 一键确认。
+- public-user 登录界面已具备最小入口和 passwordless 一键确认，后续可补头像。
 - 继续观看、最新媒体行、剧集 / 季 / 集浏览、分页和稳定默认排序已具备最小入口。
 - 字幕和音轨选择。
 - 恢复播放弹窗和下一集行为；详情页已提供继续播放、从头播放和低码率播放的最小入口。

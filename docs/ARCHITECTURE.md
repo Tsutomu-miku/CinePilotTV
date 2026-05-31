@@ -16,6 +16,8 @@ Android app 的运行时入口是 `CinePilotRuntime`。它负责创建客户端�
 
 Android 遥控器 Back 键必须和页面按钮使用同一套 workflow 语义：登录、首页和错误页回到服务器输入；详情回首页；播放器页先释放 Media3 player 再回详情；只有服务器输入页交给系统退出。
 
+登录页展示服务器公开用户时，带密码用户只预填用户名并把焦点交给密码框；免密码用户可以直接走空密码登录流程，避免在 TV 遥控器上多一步无意义输入。
+
 服务器地址输入应使用 URI text variation，密码输入必须使用 password variation。登录界面可以保留原生 `EditText`，但不能明文显示密码。
 
 按钮和输入框必须有显式 focus color，不能只依赖平台默认样式；这样在深色 TV 背景上 D-pad 当前焦点始终可见。

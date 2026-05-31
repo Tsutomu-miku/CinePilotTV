@@ -15,6 +15,7 @@ import java.util.concurrent.Executors
 import tv.cinepilot.core.protocol.MediaBrowserException
 import tv.cinepilot.core.protocol.MediaItemSummary
 import tv.cinepilot.core.protocol.PlaybackSelectionPreferences
+import tv.cinepilot.core.protocol.PublicUserSummary
 import tv.cinepilot.core.tv.HomeRow
 import tv.cinepilot.core.tv.TvAppState
 import tv.cinepilot.core.tv.TvDiagnostics
@@ -133,10 +134,7 @@ class MainActivity : Activity() {
             if (runtime.workflowController.state().publicUsers().isNotEmpty()) {
                 addView(section("选择用户"))
                 runtime.workflowController.state().publicUsers().forEach { user ->
-                    addView(action(user.name().ifBlank { user.id() }) {
-                        usernameInput.setText(user.name().ifBlank { user.id() })
-                        passwordInput.requestFocus()
-                    })
+                    addView(publicUserAction(user, usernameInput, passwordInput))
                 }
             }
             addView(label("用户名"))
@@ -144,18 +142,33 @@ class MainActivity : Activity() {
             addView(label("密码"))
             addView(passwordInput)
             addView(action("登录") {
-                runTask("正在登录并加载首页...", {
-                    runtime.workflowController.login(
-                        usernameInput.text.toString(),
-                        passwordInput.text.toString(),
-                    )
-                }) {
-                    rememberAccount()
-                    showHome(runtime.workflowController.state())
-                }
+                loginWithCredentials(usernameInput.text.toString(), passwordInput.text.toString())
             })
             addView(action("返回服务器输入") { showServerEntry() })
         })
+    }
+
+    private fun publicUserAction(user: PublicUserSummary, usernameInput: EditText, passwordInput: EditText): View {
+        val userName = user.name().ifBlank { user.id() }
+        if (!user.passwordRequired()) {
+            return action("免密码登录 $userName") {
+                usernameInput.setText(userName)
+                loginWithCredentials(userName, "")
+            }
+        }
+        return action(userName) {
+            usernameInput.setText(userName)
+            passwordInput.requestFocus()
+        }
+    }
+
+    private fun loginWithCredentials(username: String, password: String) {
+        runTask("正在登录并加载首页...", {
+            runtime.workflowController.login(username, password)
+        }) {
+            rememberAccount()
+            showHome(runtime.workflowController.state())
+        }
     }
 
     private fun showHome(state: TvAppState) {
