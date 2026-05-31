@@ -31,6 +31,7 @@ public final class ProtocolCoreTest {
         mapsAndFetchesMediaItems();
         persistsSavedSessionsToFile();
         schedulesPlaybackCheckIns();
+        clientSendsPlaybackCheckIns();
         System.out.println("ProtocolCoreTest passed");
     }
 
@@ -696,6 +697,47 @@ public final class ProtocolCoreTest {
         PlaybackCheckIn stopped = scheduler.stop(playbackReportAt(61_000, false, null));
         assertEquals(PlaybackEndpoint.STOPPED, stopped.endpoint(), "stop endpoint");
         assertTrue(scheduler.stopped(), "scheduler stopped");
+    }
+
+    private static void clientSendsPlaybackCheckIns() {
+        FakeTransport transport = new FakeTransport();
+        transport.enqueue(204, "");
+        transport.enqueue(204, "");
+        transport.enqueue(204, "");
+
+        ClientIdentity client = new ClientIdentity("CinePilot TV", "Living Room TV", "device-1", "0.1.0");
+        AuthenticatedServer authenticated = new AuthenticatedServer(
+                new ServerIdentity(MediaServerAddress.parse("https://media.example.com/jellyfin"), "server-1", ServerFlavor.JELLYFIN, "Jellyfin"),
+                new AuthSession("server-1", "user-1", "token-1", client)
+        );
+        MediaBrowserClient mediaClient = new MediaBrowserClient(transport, new InMemorySessionRepository(), client);
+
+        PlaybackCheckInScheduler scheduler = new PlaybackCheckInScheduler(Duration.ofSeconds(10));
+        mediaClient.sendPlaybackCheckIn(authenticated, scheduler.start(0L, playbackReportAt(0, false, null)));
+        mediaClient.sendPlaybackCheckIn(authenticated, scheduler.immediate(3_000L, PlaybackEvent.PAUSE, playbackReportAt(3_000, true, null)));
+        mediaClient.sendPlaybackCheckIn(authenticated, scheduler.stop(playbackReportAt(3_500, true, null)));
+
+        assertEquals("/Sessions/Playing", transport.requests.get(0).path(), "client sends started path");
+        assertTrue(
+                transport.requests.get(0).bodyJson().contains("\"PlayMethod\":\"DirectPlay\""),
+                "client sends started body"
+        );
+
+        assertEquals("/Sessions/Playing/Progress", transport.requests.get(1).path(), "client sends progress path");
+        assertTrue(
+                transport.requests.get(1).bodyJson().contains("\"EventName\":\"Pause\""),
+                "client sends pause event"
+        );
+        assertTrue(
+                transport.requests.get(1).bodyJson().contains("\"IsPaused\":true"),
+                "client sends paused state"
+        );
+
+        assertEquals("/Sessions/Playing/Stopped", transport.requests.get(2).path(), "client sends stopped path");
+        assertTrue(
+                transport.requests.get(2).headers().get("X-Emby-Token").equals("token-1"),
+                "client sends token header"
+        );
     }
 
     private static PlaybackReport playbackReportAt(long positionMillis, boolean paused, Float rate) {

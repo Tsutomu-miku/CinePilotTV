@@ -125,6 +125,31 @@ public final class MediaBrowserClient {
         return MediaBrowserResponseMapper.item(response.body());
     }
 
+    public void sendPlaybackCheckIn(AuthenticatedServer authenticated, PlaybackCheckIn checkIn) {
+        if (checkIn == null) {
+            throw new IllegalArgumentException("checkIn is required");
+        }
+        ProtocolRequest request = switch (checkIn.endpoint()) {
+            case STARTED -> MediaBrowserRequests.playbackStarted(
+                    authenticated.session(),
+                    authenticated.server().flavor(),
+                    checkIn.report()
+            );
+            case PROGRESS -> MediaBrowserRequests.playbackProgress(
+                    authenticated.session(),
+                    authenticated.server().flavor(),
+                    checkIn.report(),
+                    checkIn.event() == null ? PlaybackEvent.TIME_UPDATE : checkIn.event()
+            );
+            case STOPPED -> MediaBrowserRequests.playbackStopped(
+                    authenticated.session(),
+                    authenticated.server().flavor(),
+                    checkIn.report()
+            );
+        };
+        send(authenticated.server().address(), request);
+    }
+
     public void logout(AuthenticatedServer authenticated) {
         try {
             send(
