@@ -2,7 +2,6 @@ package tv.cinepilot.tv
 
 import android.content.Intent
 import android.content.pm.ApplicationInfo
-import android.graphics.Color
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
@@ -31,6 +30,7 @@ import tv.cinepilot.core.tv.TvWorkflowController
 import tv.cinepilot.tv.auth.loginScreen
 import tv.cinepilot.tv.auth.quickConnectScreen
 import tv.cinepilot.tv.auth.serverEntryScreen
+import tv.cinepilot.tv.details.detailsRouteScreen
 import tv.cinepilot.tv.player.Media3PlayerHost
 import tv.cinepilot.tv.playback.diagnosticsExportedScreen
 import tv.cinepilot.tv.playback.diagnosticsScreen
@@ -44,22 +44,16 @@ import tv.cinepilot.tv.ui.action
 import tv.cinepilot.tv.ui.actionStrip
 import tv.cinepilot.tv.ui.compactAction
 import tv.cinepilot.tv.ui.compactIconAction
-import tv.cinepilot.tv.ui.detailsScreen
 import tv.cinepilot.tv.ui.dp
 import tv.cinepilot.tv.ui.homeScreen
 import tv.cinepilot.tv.ui.iconAction
 import tv.cinepilot.tv.ui.input
 import tv.cinepilot.tv.ui.label
-import tv.cinepilot.tv.ui.mediaTechnicalPills
 import tv.cinepilot.tv.ui.playerScreen
-import tv.cinepilot.tv.ui.rounded
 import tv.cinepilot.tv.ui.screen
 import tv.cinepilot.tv.ui.section
 import tv.cinepilot.tv.ui.HomeNavigation
 import tv.cinepilot.tv.ui.TvIcon
-import tv.cinepilot.tv.ui.TvSize
-import tv.cinepilot.tv.ui.episodeLabel
-import tv.cinepilot.tv.ui.formatPlaybackPosition
 import tv.cinepilot.tv.ui.tvErrorMessage
 
 class MainActivity : ComponentActivity() {
@@ -421,55 +415,26 @@ class MainActivity : ComponentActivity() {
             selectedPlaybackInfo = playbackInfo
         }
         val effectivePlaybackInfo = playbackInfo ?: selectedPlaybackInfo?.takeIf { it.itemId() == item.id() }
-        val playbackActions = if (item.playable()) {
-            buildPlaybackActions(item)
-        } else {
-            emptyList()
-        }
-        setContentView(detailsScreen(
+        setContentView(detailsRouteScreen(
             item = item,
-            episodeLabel = episodeLabel(item),
-            formatTicks = ::formatPlaybackPosition,
-            playbackActions = playbackActions,
-            technicalInfo = mediaTechnicalPills(effectivePlaybackInfo),
-            folderAction = openFolderAction(item),
-            loadPoster = ::addPosterIfAvailable,
+            playbackInfo = effectivePlaybackInfo,
+            loadPosterImage = ::loadPrimaryImage,
+            onPreparePlayback = ::preparePlaybackWith,
+            onPlaybackOptions = { loadPlaybackOptions(item) },
+            onPlaybackSpeed = { showPlaybackSpeedOptions(item) },
+            onSeriesNextUp = ::openSeriesNextUp,
+            onOpenFolder = {
+                runTask("正在打开目录...", {
+                    viewModel.workflowController.openFolder(item.id(), item.name())
+                }) {
+                    showHome(viewModel.workflowController.state())
+                }
+            },
             onBackHome = {
                 viewModel.workflowController.back()
                 showHome(viewModel.workflowController.state())
             },
         ))
-    }
-
-    private fun buildPlaybackActions(item: MediaItemSummary): List<View> {
-        val actions = mutableListOf<View>()
-        if (item.hasResumePosition()) {
-            actions.add(playbackAction("继续播放", TvIcon.PLAY, null))
-            actions.add(playbackAction("从头播放", TvIcon.PLAY, PlaybackSelectionPreferences.defaults()))
-        } else {
-            actions.add(playbackAction("播放", TvIcon.PLAY, null))
-        }
-        actions.add(playbackAction("低码率播放", TvIcon.SPEED, lowBitratePreferences(item)))
-        actions.add(iconAction("音轨 / 字幕", TvIcon.SUBTITLES) { loadPlaybackOptions(item) })
-        actions.add(iconAction("播放速度", TvIcon.SPEED) { showPlaybackSpeedOptions(item) })
-        if (item.seriesId().isNotBlank()) {
-            actions.add(iconAction("本剧下一集", TvIcon.PLAY) { openSeriesNextUp() })
-        }
-        return actions
-    }
-
-    private fun addPosterIfAvailable(container: LinearLayout, item: MediaItemSummary) {
-        val poster = ImageView(this).apply {
-            contentDescription = "${item.name()} 海报"
-            scaleType = ImageView.ScaleType.CENTER_CROP
-            setBackground(rounded(Color.rgb(30, 41, 59), dp(8)))
-            adjustViewBounds = false
-        }
-        container.addView(poster, LinearLayout.LayoutParams(dp(TvSize.DetailPosterWidth), dp(TvSize.DetailPosterHeight)).apply {
-            rightMargin = dp(28)
-            bottomMargin = dp(20)
-        })
-        loadPrimaryImage(poster, item, 320, 480)
     }
 
     private fun loadPrimaryImage(target: ImageView, item: MediaItemSummary, width: Int, height: Int) {
@@ -650,22 +615,6 @@ class MainActivity : ComponentActivity() {
         }
     }
 
-    private fun openFolderAction(item: MediaItemSummary): View {
-        return action("打开子项目") {
-            runTask("正在打开目录...", {
-                viewModel.workflowController.openFolder(item.id(), item.name())
-            }) {
-                showHome(viewModel.workflowController.state())
-            }
-        }
-    }
-
-    private fun playbackAction(text: String, icon: TvIcon, preferences: PlaybackSelectionPreferences?): View {
-        return iconAction(text, icon) {
-            preparePlaybackWith(preferences)
-        }
-    }
-
     private fun preparePlaybackWith(preferences: PlaybackSelectionPreferences?) {
         runTask("正在准备播放...", {
             viewModel.workflowController.preparePlayback(preferences)
@@ -688,11 +637,6 @@ class MainActivity : ComponentActivity() {
     private fun sourcePreferences(item: MediaItemSummary, mediaSourceId: String): PlaybackSelectionPreferences {
         val startTimeTicks = if (item.hasResumePosition()) item.userData().playbackPositionTicks() else 0L
         return PlaybackSelectionPreferences(startTimeTicks, null, null, null, 0, 0, 0).withMediaSourceId(mediaSourceId)
-    }
-
-    private fun lowBitratePreferences(item: MediaItemSummary): PlaybackSelectionPreferences {
-        val startTimeTicks = if (item.hasResumePosition()) item.userData().playbackPositionTicks() else 0L
-        return PlaybackSelectionPreferences.lowBitrate(startTimeTicks)
     }
 
     private fun speedPreferences(item: MediaItemSummary, rate: Float): PlaybackSelectionPreferences {

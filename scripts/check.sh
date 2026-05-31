@@ -309,8 +309,8 @@ if ! grep -q 'sortBy("SortName")' "$ROOT_DIR/core/src/main/java/tv/cinepilot/cor
   exit 1
 fi
 
-if ! grep -q '打开子项目' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/MainActivity.kt"; then
-  echo "MainActivity must expose a child browse action in Chinese" >&2
+if ! grep -q '打开子项目' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/details/DetailsRouteScreen.kt"; then
+  echo "Details screen must expose a child browse action in Chinese" >&2
   exit 1
 fi
 
@@ -382,8 +382,13 @@ if ! grep -q 'enum class TvIcon' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/ui
   exit 1
 fi
 
-if ! grep -q 'addPosterIfAvailable' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/MainActivity.kt"; then
-  echo "MainActivity must render media posters when available" >&2
+if [[ ! -s "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/details/DetailsRouteScreen.kt" ]]; then
+  echo "Missing dedicated details route screen module" >&2
+  exit 1
+fi
+
+if ! grep -q 'addPosterIfAvailable' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/details/DetailsRouteScreen.kt"; then
+  echo "Details screen must render media posters when available" >&2
   exit 1
 fi
 
@@ -674,13 +679,13 @@ if ! grep -q '正在打开详情' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/M
   exit 1
 fi
 
-if ! grep -q '继续播放' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/MainActivity.kt"; then
-  echo "MainActivity must expose resume playback for resumable items" >&2
+if ! grep -q '继续播放' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/details/DetailsRouteScreen.kt"; then
+  echo "Details screen must expose resume playback for resumable items" >&2
   exit 1
 fi
 
-if ! grep -q '从头播放' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/MainActivity.kt"; then
-  echo "MainActivity must expose start-over playback for resumable items" >&2
+if ! grep -q '从头播放' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/details/DetailsRouteScreen.kt"; then
+  echo "Details screen must expose start-over playback for resumable items" >&2
   exit 1
 fi
 
@@ -694,13 +699,13 @@ if ! grep -q 'formatPlaybackPosition' "$ROOT_DIR/app/src/main/java/tv/cinepilot/
   exit 1
 fi
 
-if ! grep -q '低码率播放' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/MainActivity.kt"; then
-  echo "MainActivity must expose a low bitrate playback action" >&2
+if ! grep -q '低码率播放' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/details/DetailsRouteScreen.kt"; then
+  echo "Details screen must expose a low bitrate playback action" >&2
   exit 1
 fi
 
-if ! grep -q '播放速度' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/MainActivity.kt"; then
-  echo "MainActivity must route playback speed selection" >&2
+if ! grep -q 'onPlaybackSpeed' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/details/DetailsRouteScreen.kt"; then
+  echo "Details screen must route playback speed selection" >&2
   exit 1
 fi
 
@@ -724,8 +729,8 @@ if ! grep -q '音轨 / 字幕' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/play
   exit 1
 fi
 
-if ! grep -q '本剧下一集' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/MainActivity.kt"; then
-  echo "MainActivity must expose a series next-up action when SeriesId is available" >&2
+if ! grep -q '本剧下一集' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/details/DetailsRouteScreen.kt"; then
+  echo "Details screen must expose a series next-up action when SeriesId is available" >&2
   exit 1
 fi
 
