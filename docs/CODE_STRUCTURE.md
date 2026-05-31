@@ -48,6 +48,7 @@ core/
       UrlConnectionHttpTransport.java Android/JVM 可用的默认 HTTP transport
       FileSessionRepository.java 文件持久化 session repository
     tv/                          Android TV 状态、导航和焦点领域规则
+      BrowseSession.java         首页临时浏览栈、搜索返回和文件夹分页上下文
       HomeRowsLoader.java        组合媒体库首页 rows
       TvDiagnostics.java         不含 token 的 TV 联调诊断信息
       TvWorkflowController.java  TV 用例编排入口
@@ -64,7 +65,7 @@ scripts/                         健康检查和本地自动化
 ## 放置规则
 
 - 纯服务器语义和播放语义放在 `core`，并通过 Gradle `:core` module 暴露给 Android app。
-- TV workflow、焦点身份和导航规则放在 `core/tv`，Android UI 只负责渲染和事件转发。
+- TV workflow、焦点身份和导航规则放在 `core/tv`，Android UI 只负责渲染和事件转发；临时浏览栈、搜索返回和文件夹分页上下文归 `BrowseSession`，不要回流到 Activity。
 - Android 生命周期、焦点、私有文件目录接线、Quick Connect 轮询和 Media3 集成放在 `app`。
 - Android 视觉样式和可复用 View helper 放在 `app/.../tv/ui`；服务器连接、登录、会话恢复和 Quick Connect route 编排放在 `app/.../tv/auth`；详情页组装放在 `app/.../tv/details`；首页导航和搜索页面放在 `app/.../tv/home`；详情到播放器的 route 编排、播放准备、音轨字幕、速度和诊断页面放在 `app/.../tv/playback`；Activity 只保留生命周期、顶层路由和跨模块事件转发，尽量让单文件保持在 300 行左右。
 - HTTP 发送边界和 session repository 接口放在 `core/protocol`；当前默认实现是 `UrlConnectionHttpTransport` 和 `FileSessionRepository`，后续如引入更完整 platform adapter，也必须保留核心接口语义。

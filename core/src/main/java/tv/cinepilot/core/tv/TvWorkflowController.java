@@ -1,7 +1,5 @@
 package tv.cinepilot.core.tv;
 
-import java.util.ArrayDeque;
-import java.util.Deque;
 import java.util.List;
 import tv.cinepilot.core.protocol.AuthenticatedServer;
 import tv.cinepilot.core.protocol.ItemQuery;
@@ -22,12 +20,10 @@ public final class TvWorkflowController {
     public static final String NO_PLAYABLE_SOURCE_MESSAGE = "No playable media source is available";
     public static final String QUICK_CONNECT_DISABLED_MESSAGE = "Quick Connect is not enabled on this server";
     public static final String QUICK_CONNECT_NOT_APPROVED_MESSAGE = "Quick Connect has not been approved yet";
-    private static final int FOLDER_PAGE_SIZE = 50;
 
     private final MediaBrowserClient client;
     private final HomeRowsLoader homeRowsLoader;
-    private final Deque<TvAppState> browseBackStack = new ArrayDeque<>();
-    private FolderBrowseContext folderBrowseContext;
+    private final BrowseSession browseSession = new BrowseSession();
     private QuickConnectSession pendingQuickConnect;
     private TvAppState state = TvAppState.initial();
 
@@ -47,8 +43,7 @@ public final class TvWorkflowController {
     }
 
     public TvAppState submitServer(String rawAddress) {
-        browseBackStack.clear();
-        folderBrowseContext = null;
+        browseSession.clear();
         MediaServerAddress address = MediaServerAddress.parse(rawAddress);
         state = TvWorkflow.submitServer(state, address);
         ServerIdentity server = client.discover(address);
@@ -123,8 +118,7 @@ public final class TvWorkflowController {
         if (state.authenticated() == null) {
             throw new IllegalStateException("authenticated session is required before loading home");
         }
-        browseBackStack.clear();
-        folderBrowseContext = null;
+        browseSession.clear();
         List<HomeRow> rows = homeRowsLoader.load(state.authenticated());
         state = TvWorkflow.homeLoaded(state, rows);
         return state;
@@ -161,10 +155,7 @@ public final class TvWorkflowController {
             throw new IllegalStateException("authenticated session is required before opening a folder");
         }
         MediaItemPage page = folderPage(parentId, 0);
-        browseBackStack.push(state);
-        String rowTitle = title == null || title.isBlank() ? "子项目" : title;
-        folderBrowseContext = new FolderBrowseContext(parentId, rowTitle, page.totalRecordCount(), page.startIndex());
-        state = folderState(folderBrowseContext, page);
+        state = browseSession.openFolder(state, parentId, title, page);
         return state;
     }
 
@@ -177,38 +168,30 @@ public final class TvWorkflowController {
         }
         MediaItemPage page = client.items(
                 state.authenticated(),
-                ItemQuery.search(term.trim()).limit(FOLDER_PAGE_SIZE).build()
+                ItemQuery.search(term.trim()).limit(BrowseSession.FOLDER_PAGE_SIZE).build()
         );
-        browseBackStack.push(state);
-        folderBrowseContext = null;
-        state = TvWorkflow.homeLoaded(
-                state,
-                List.of(new HomeRow("search:" + term.trim(), "搜索：" + term.trim(), page.items()))
-        );
+        state = browseSession.openSearch(state, term, page);
         return state;
     }
 
     public boolean canGoBackInBrowse() {
-        return !browseBackStack.isEmpty();
+        return browseSession.canGoBack();
     }
 
     public boolean canPageBackwardInBrowse() {
-        return folderBrowseContext != null && folderBrowseContext.startIndex() > 0;
+        return browseSession.canPageBackward();
     }
 
     public boolean canPageForwardInBrowse() {
-        return folderBrowseContext != null
-                && folderBrowseContext.startIndex() + FOLDER_PAGE_SIZE < folderBrowseContext.totalRecordCount();
+        return browseSession.canPageForward();
     }
 
     public TvAppState previousBrowsePage() {
         if (!canPageBackwardInBrowse()) {
             return state;
         }
-        int startIndex = Math.max(0, folderBrowseContext.startIndex() - FOLDER_PAGE_SIZE);
-        MediaItemPage page = folderPage(folderBrowseContext.parentId(), startIndex);
-        folderBrowseContext = folderBrowseContext.withPage(page.totalRecordCount(), page.startIndex());
-        state = folderState(folderBrowseContext, page);
+        MediaItemPage page = folderPage(browseSession.currentFolderParentId(), browseSession.previousPageStartIndex());
+        state = browseSession.updateFolderPage(state, page);
         return state;
     }
 
@@ -216,10 +199,8 @@ public final class TvWorkflowController {
         if (!canPageForwardInBrowse()) {
             return state;
         }
-        int startIndex = folderBrowseContext.startIndex() + FOLDER_PAGE_SIZE;
-        MediaItemPage page = folderPage(folderBrowseContext.parentId(), startIndex);
-        folderBrowseContext = folderBrowseContext.withPage(page.totalRecordCount(), page.startIndex());
-        state = folderState(folderBrowseContext, page);
+        MediaItemPage page = folderPage(browseSession.currentFolderParentId(), browseSession.nextPageStartIndex());
+        state = browseSession.updateFolderPage(state, page);
         return state;
     }
 
@@ -296,9 +277,9 @@ public final class TvWorkflowController {
     }
 
     public TvAppState back() {
-        if (state.route() == TvRoute.HOME && !browseBackStack.isEmpty()) {
-            state = browseBackStack.pop();
-            folderBrowseContext = null;
+        TvAppState browseBackState = browseSession.backOrNull(state);
+        if (browseBackState != null) {
+            state = browseBackState;
         } else {
             state = TvWorkflow.back(state);
         }
@@ -306,8 +287,7 @@ public final class TvWorkflowController {
     }
 
     public TvAppState forgetAuthenticatedSession() {
-        browseBackStack.clear();
-        folderBrowseContext = null;
+        browseSession.clear();
         if (state.authenticated() != null) {
             client.forget(state.authenticated());
         }
@@ -320,8 +300,7 @@ public final class TvWorkflowController {
     }
 
     public TvAppState logout() {
-        browseBackStack.clear();
-        folderBrowseContext = null;
+        browseSession.clear();
         if (state.authenticated() != null) {
             client.logout(state.authenticated());
         }
@@ -340,36 +319,12 @@ public final class TvWorkflowController {
                 ItemQuery.browse()
                         .parentId(parentId)
                         .startIndex(startIndex)
-                        .limit(FOLDER_PAGE_SIZE)
+                        .limit(BrowseSession.FOLDER_PAGE_SIZE)
                         .build()
         );
         if (page.items().isEmpty()) {
             throw new IllegalStateException(NO_CHILD_ITEM_MESSAGE);
         }
         return page;
-    }
-
-    private TvAppState folderState(FolderBrowseContext context, MediaItemPage page) {
-        String title = context.title();
-        if (context.totalRecordCount() > FOLDER_PAGE_SIZE) {
-            int first = context.startIndex() + 1;
-            int last = Math.min(context.startIndex() + page.items().size(), context.totalRecordCount());
-            title = title + " " + first + "-" + last + "/" + context.totalRecordCount();
-        }
-        return TvWorkflow.homeLoaded(
-                state,
-                List.of(new HomeRow("folder:" + context.parentId(), title, page.items()))
-        );
-    }
-
-    private record FolderBrowseContext(
-            String parentId,
-            String title,
-            int totalRecordCount,
-            int startIndex
-    ) {
-        FolderBrowseContext withPage(int nextTotalRecordCount, int nextStartIndex) {
-            return new FolderBrowseContext(parentId, title, nextTotalRecordCount, nextStartIndex);
-        }
     }
 }

@@ -74,6 +74,8 @@ Jellyfin 某些列表接口不会为 Movie / Episode / Video 返回 `IsPlayable`
 
 TV 状态流由 `core.tv.TvWorkflow` 建模。Android UI 应渲染 `TvAppState`，并把遥控操作转换成 workflow 输入；焦点恢复必须使用 `FocusedItem(rowId, itemId)`。
 
+`BrowseSession` 持有首页临时浏览栈、搜索返回和文件夹分页上下文。`TvWorkflowController` 可以调用它生成下一段 `TvAppState`，但不能重新内联 browse back stack 或 folder page context；Android Activity 也不能持有这些领域状态。
+
 Android 首页按钮获得选择意图时，应先调用 `TvWorkflowController.focusItem(rowId, itemId)` 写回领域状态；从详情或播放器返回首页时，再用 `TvAppState.focus` 对应按钮调用平台 `requestFocus()`。
 
 首页内容由 `HomeRowsLoader` 组合：用户媒体库、继续观看、下一集和每个媒体库的最新内容都转换成 `HomeRow`。Android UI 不应直接调多个媒体库 API 来拼首页。`下一集` 使用 `/Shows/NextUp`，只在服务器返回非空结果时展示，避免没有剧集库的用户看到空行。

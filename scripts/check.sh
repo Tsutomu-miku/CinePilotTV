@@ -271,6 +271,16 @@ if ! grep -q 'openFirstChild' "$ROOT_DIR/core/src/main/java/tv/cinepilot/core/tv
   exit 1
 fi
 
+if [[ ! -s "$ROOT_DIR/core/src/main/java/tv/cinepilot/core/tv/BrowseSession.java" ]]; then
+  echo "Missing dedicated TV browse session state helper" >&2
+  exit 1
+fi
+
+if grep -q 'ArrayDeque\|FolderBrowseContext' "$ROOT_DIR/core/src/main/java/tv/cinepilot/core/tv/TvWorkflowController.java"; then
+  echo "TvWorkflowController must delegate temporary browse state to BrowseSession" >&2
+  exit 1
+fi
+
 if ! grep -q 'openFolder' "$PLAYBACK_ROUTE_CONTROLLER"; then
   echo "Playback route controller must open folders as browsable rows" >&2
   exit 1
