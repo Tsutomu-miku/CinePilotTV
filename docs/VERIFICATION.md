@@ -64,6 +64,7 @@ Android TV 设备或模拟器上需要验证：
 - Jellyfin 服务器启用 Quick Connect 时，可在登录页用授权码完成登录；授权后 TV 端会自动进入首页。
 - 点击播放后 Media3 player 能打开可播放 URL。
 - HTTP 本地服务器地址如 `http://host:8096` 可以连接。
+- 地址格式错误、DNS 失败、连接拒绝、超时、HTTPS/证书失败和常见 HTTP 错误会显示中文操作建议。
 - 播放 URL 携带 token 后，Media3 能访问受保护流。
 - 详情页能展示服务器返回的简介、类型、时长和季集信息。
 - 播放准备页的诊断信息不包含 token，且能显示 server、item、media source、play method。

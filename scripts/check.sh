@@ -451,6 +451,21 @@ if ! grep -q '目录中没有可打开的媒体' "$ROOT_DIR/app/src/main/java/tv
   exit 1
 fi
 
+if ! grep -q '无法连接到服务器' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/MainActivity.kt"; then
+  echo "MainActivity must explain connection failures in Chinese" >&2
+  exit 1
+fi
+
+if ! grep -q 'HTTPS 连接失败' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/MainActivity.kt"; then
+  echo "MainActivity must explain HTTPS failures in Chinese" >&2
+  exit 1
+fi
+
+if ! grep -q '服务器请求失败，HTTP' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/MainActivity.kt"; then
+  echo "MainActivity must explain HTTP failures in Chinese" >&2
+  exit 1
+fi
+
 rm -rf "$BUILD_DIR"
 mkdir -p "$MAIN_CLASSES" "$TEST_CLASSES"
 

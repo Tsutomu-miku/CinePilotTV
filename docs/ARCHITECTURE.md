@@ -90,6 +90,8 @@ Android 首页按钮获得选择意图时，应先调用 `TvWorkflowController.f
 
 `TvWorkflowController.loadPublicUsers()` 只用于减少 TV 端用户名输入。public users 来自 `/Users/Public`，选择用户后 Android UI 只能预填用户名，仍必须通过 `login(username, password)` 完成正式认证并获取 token。
 
+Android 错误页必须把地址格式、DNS、连接拒绝、超时、HTTPS/证书和常见 HTTP 状态转换成中文操作建议，不能把 Java 异常类名直接暴露给用户。
+
 当服务器返回 401 时，Android UI 应调用 `TvWorkflowController.forgetAuthenticatedSession()` 撤销当前 authenticated scope，并提示用户重新登录。这个撤销只删除当前服务器、用户和设备身份对应的 saved session，不影响其他服务器或其他用户。
 
 非 401 错误应调用 `TvWorkflowController.fail(message)` 保留当前上下文。错误页需要根据 `TvAppState` 提供恢复入口：有 selected item 时可回详情，有 home rows 时可回首页，有 server 时可重新登录，始终可回服务器输入。
