@@ -72,6 +72,8 @@ Android 首页按钮获得选择意图时，应先调用 `TvWorkflowController.f
 
 播放源选择规则在 `core` 中执行：优先 direct play，其次 direct stream，最后 transcode。相对 URL 必须按服务器基础地址解析；缺少可用 URL 但支持转码时，由 HLS 请求规格补齐。
 
+播放源选择还负责保留服务器默认 media stream index：显式用户偏好优先；没有偏好时，音轨使用服务器标记的默认音轨，缺失默认标记时退到第一个音轨；字幕只使用服务器标记的默认字幕，不自动选择任意字幕。
+
 播放 check-in 调度由 `PlaybackCheckInScheduler` 建模：开始播放立即发 started，常规进度约每 10 秒发 progress，暂停、seek、轨道变化等事件立即发 progress，停止播放发 stopped。调度器只产生领域事件；`MediaBrowserClient.sendPlaybackCheckIn` 负责把事件转换成协议请求并通过 transport 发送。
 
 `PlaybackSessionController` 组合 `PlayableMedia`、`PlaybackCheckInScheduler` 和 `MediaBrowserClient`，为 Media3 事件桥接提供单一入口。Media3 层应调用它的 start、progressIfDue、pause、seek、audioTrackChanged、subtitleTrackChanged、playbackRateChanged 和 stop 方法。

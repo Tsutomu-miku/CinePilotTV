@@ -176,6 +176,11 @@ if ! grep -q 'PlaybackUrlAuthorizer' "$ROOT_DIR/app/src/main/java/tv/cinepilot/t
   exit 1
 fi
 
+if ! grep -q 'defaultStreamIndex' "$ROOT_DIR/core/src/main/java/tv/cinepilot/core/protocol/PlaybackSourceSelector.java"; then
+  echo "PlaybackSourceSelector must preserve default media stream indexes" >&2
+  exit 1
+fi
+
 if ! grep -q '打开播放器' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/MainActivity.kt"; then
   echo "MainActivity must expose a player launch action" >&2
   exit 1

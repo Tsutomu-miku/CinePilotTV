@@ -355,7 +355,8 @@ public final class ProtocolCoreTest {
                 .directStreamUrl("https://cdn.example.com/movie.mkv")
                 .mediaStreams(List.of(
                         new MediaStreamInfo(0, MediaStreamType.VIDEO, "hevc", "", "4K HEVC", true, false, false, null),
-                        new MediaStreamInfo(1, MediaStreamType.AUDIO, "eac3", "eng", "English", true, false, false, null)
+                        new MediaStreamInfo(1, MediaStreamType.AUDIO, "eac3", "eng", "English", true, false, false, null),
+                        new MediaStreamInfo(2, MediaStreamType.SUBTITLE, "srt", "eng", "English SDH", true, false, true, null)
                 ))
                 .build();
         PlaybackInfo info = new PlaybackInfo(
@@ -374,6 +375,8 @@ public final class ProtocolCoreTest {
         assertEquals(PlayMethod.DIRECT_PLAY, selected.playMethod(), "selector prefers direct play");
         assertEquals("source-play", selected.mediaSourceId(), "selector source id");
         assertEquals("https://cdn.example.com/movie.mkv", selected.url(), "absolute direct play url");
+        assertEquals(1, selected.audioStreamIndex(), "selector keeps default audio stream");
+        assertEquals(2, selected.subtitleStreamIndex(), "selector keeps default subtitle stream");
 
         PlaybackInfo directStreamOnly = new PlaybackInfo("item-1", "play-session-1", List.of(transcodingOnly, directStream));
         PlayableMedia streamSelection = PlaybackSourceSelector.select(
@@ -392,6 +395,9 @@ public final class ProtocolCoreTest {
 
         MediaSourceInfo fallbackTranscode = MediaSourceInfo.builder("source-hls")
                 .supportsTranscoding(true)
+                .mediaStreams(List.of(
+                        new MediaStreamInfo(4, MediaStreamType.AUDIO, "aac", "eng", "English", false, false, false, null)
+                ))
                 .build();
         PlaybackInfo fallbackInfo = new PlaybackInfo("item-2", "play-session-2", List.of(fallbackTranscode));
         PlaybackSelectionPreferences preferences = new PlaybackSelectionPreferences(
@@ -415,6 +421,8 @@ public final class ProtocolCoreTest {
         assertEquals("/Videos/item-2/master.m3u8", fallback.request().path(), "fallback hls path");
         assertTrue(fallback.request().url(address).contains("MediaSourceId=source-hls"), "fallback media source query");
         assertTrue(fallback.request().url(address).contains("StartTimeTicks=600000000"), "fallback start ticks query");
+        assertEquals(2, fallback.audioStreamIndex(), "explicit audio preference wins");
+        assertEquals(5, fallback.subtitleStreamIndex(), "explicit subtitle preference wins");
 
         Optional<PlayableMedia> noPlayable = PlaybackSourceSelector.select(
                 address,

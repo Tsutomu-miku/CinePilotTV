@@ -86,8 +86,8 @@ public final class PlaybackSourceSelector {
                 method,
                 resolveUrl(serverAddress, url),
                 null,
-                preferences.audioStreamIndex(),
-                preferences.subtitleStreamIndex()
+                selectedAudioStreamIndex(source, preferences),
+                selectedSubtitleStreamIndex(source, preferences)
         );
     }
 
@@ -127,9 +127,41 @@ public final class PlaybackSourceSelector {
                 PlayMethod.TRANSCODE,
                 null,
                 MediaBrowserRequests.hlsStream(session, flavor, builder.build()),
-                preferences.audioStreamIndex(),
-                preferences.subtitleStreamIndex()
+                selectedAudioStreamIndex(source, preferences),
+                selectedSubtitleStreamIndex(source, preferences)
         );
+    }
+
+    private static Integer selectedAudioStreamIndex(MediaSourceInfo source, PlaybackSelectionPreferences preferences) {
+        if (preferences.audioStreamIndex() != null) {
+            return preferences.audioStreamIndex();
+        }
+        return defaultStreamIndex(source, MediaStreamType.AUDIO, true);
+    }
+
+    private static Integer selectedSubtitleStreamIndex(MediaSourceInfo source, PlaybackSelectionPreferences preferences) {
+        if (preferences.subtitleStreamIndex() != null) {
+            return preferences.subtitleStreamIndex();
+        }
+        return defaultStreamIndex(source, MediaStreamType.SUBTITLE, false);
+    }
+
+    private static Integer defaultStreamIndex(MediaSourceInfo source, MediaStreamType type, boolean fallbackToFirst) {
+        Optional<MediaStreamInfo> defaultStream = source.mediaStreams().stream()
+                .filter(stream -> stream.type() == type)
+                .filter(MediaStreamInfo::defaultStream)
+                .findFirst();
+        if (defaultStream.isPresent()) {
+            return defaultStream.get().index();
+        }
+        if (!fallbackToFirst) {
+            return null;
+        }
+        return source.mediaStreams().stream()
+                .filter(stream -> stream.type() == type)
+                .findFirst()
+                .map(MediaStreamInfo::index)
+                .orElse(null);
     }
 
     private static String resolveUrl(MediaServerAddress address, String url) {
@@ -143,4 +175,3 @@ public final class PlaybackSourceSelector {
         return value != null && !value.isBlank();
     }
 }
-
