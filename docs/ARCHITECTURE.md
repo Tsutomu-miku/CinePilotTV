@@ -16,6 +16,8 @@ Android app 的运行时入口是 `CinePilotRuntime`。它负责创建客户端�
 
 `Media3PlaybackBridge` 监听 Media3 player 状态并调用 `PlaybackSessionController`，把 ready、pause、unpause、seek、ended 和 release 转换为服务器播放上报。
 
+Android manifest 允许 cleartext traffic，因为家庭 Jellyfin / Emby 服务器常见地址是 `http://host:8096`。Media3 播放 URL 由 `PlaybackUrlAuthorizer` 追加 `api_key`，避免播放器脱离 `HttpTransport` 后丢失认证。
+
 后续的 `platform` 适配器会负责 HTTP transport、token 持久化、图片加载和 Android 专用存储。
 
 UI 界面应该调用应用控制器或 store。界面组件不能直接构造 Jellyfin / Emby URL、认证请求头或播放上报载荷。

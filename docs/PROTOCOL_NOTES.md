@@ -40,6 +40,7 @@
 - TV 首页组合：`HomeRowsLoader` -> `HomeRow` 列表。
 - TV 用例编排：`TvWorkflowController` 将服务器发现、登录、首页、详情和播放准备串成 `TvAppState`。
 - 播放上报调度与发送：`PlaybackSessionController` -> `PlaybackCheckInScheduler` -> `PlaybackCheckIn` -> `MediaBrowserClient.sendPlaybackCheckIn`。
+- 播放 URL 授权：`PlaybackUrlAuthorizer` 为 Media3 播放 URL 追加 `api_key`，已有 `api_key` 时不重复添加。
 - 登出：`logout` -> 撤销本地 saved session。
 
 ## 认证头策略

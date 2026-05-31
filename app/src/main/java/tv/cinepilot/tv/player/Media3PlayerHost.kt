@@ -7,6 +7,7 @@ import androidx.media3.common.MediaItem
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.ui.PlayerView
 import tv.cinepilot.core.protocol.MediaBrowserClient
+import tv.cinepilot.core.protocol.PlaybackUrlAuthorizer
 import tv.cinepilot.core.protocol.PlaybackSessionController
 import tv.cinepilot.core.tv.TvAppState
 
@@ -25,6 +26,10 @@ class Media3PlayerHost(
         val playbackUrl = playable.url()
             ?: playable.request()?.url(authenticated.server().address())
             ?: throw IllegalStateException("playback url is required")
+        val authorizedPlaybackUrl = PlaybackUrlAuthorizer.withAccessToken(
+            playbackUrl,
+            authenticated.session(),
+        )
 
         release()
         val playbackBridge = Media3PlaybackBridge(
@@ -32,7 +37,7 @@ class Media3PlayerHost(
         )
         val nextPlayer = ExoPlayer.Builder(context).build().apply {
             addListener(playbackBridge)
-            setMediaItem(MediaItem.fromUri(Uri.parse(playbackUrl)))
+            setMediaItem(MediaItem.fromUri(Uri.parse(authorizedPlaybackUrl)))
             prepare()
             playWhenReady = true
         }

@@ -74,7 +74,7 @@
 状态：进行中。
 
 - P0-13 获取播放信息，并保存 media source id 与 play session id。进度：playback info 请求规格、领域模型、响应 mapper 和 client 编排已完成。
-- P0-14 生成 Media3 可播放 media item，包括 direct stream / transcode URL。进度：播放源选择器已完成，Media3 接线未开始。
+- P0-14 生成 Media3 可播放 media item，包括 direct stream / transcode URL。进度：播放源选择器、Media3 URL 接线和播放 URL token 授权已完成。
 - P0-15 调度 started / progress / stopped 播放 check-in。进度：check-in 请求规格、10 秒进度调度器和 client 网络发送接线已完成。
 - P0-16 把播放暂停、seek、音轨、字幕和播放速度变化同步到协议层。进度：立即上报事件调度、client 发送和 `PlaybackSessionController` 已完成，Media3 事件桥接未开始。
 
@@ -84,7 +84,7 @@
 
 - P0-17 用 Android TV UI 渲染服务器输入、登录、首页、详情和播放器入口。进度：原生 View 最小流程已完成，尚未做最终 TV 视觉打磨。
 - P0-18 将 `TvWorkflow` 接入 Activity / ViewModel，保证焦点按 item id 恢复。进度：`TvWorkflow`、`HomeRowsLoader`、核心 `TvWorkflowController` 和 Android runtime 暴露已完成，Android ViewModel 接线未开始。
-- P0-19 将 `PlayableMedia` 接入 Media3 player host。进度：`Media3PlayerHost` 已接入最小播放器视图，真实设备播放验证未完成。
+- P0-19 将 `PlayableMedia` 接入 Media3 player host。进度：`Media3PlayerHost` 已接入最小播放器视图，并为播放 URL 追加 `api_key`；真实设备播放验证未完成。
 - P0-20 将 Media3 播放事件桥接到 `PlaybackSessionController`。进度：`Media3PlaybackBridge` 已接入 player host，真实设备验证未完成。
 
 退出标准：

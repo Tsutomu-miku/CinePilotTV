@@ -86,6 +86,16 @@ if ! grep -q 'Media3PlayerHost' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/Mai
   exit 1
 fi
 
+if ! grep -q 'usesCleartextTraffic="true"' "$ROOT_DIR/app/src/main/AndroidManifest.xml"; then
+  echo "AndroidManifest must allow cleartext traffic for local Jellyfin/Emby HTTP servers" >&2
+  exit 1
+fi
+
+if ! grep -q 'PlaybackUrlAuthorizer' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/player/Media3PlayerHost.kt"; then
+  echo "Media3PlayerHost must authorize playback URLs" >&2
+  exit 1
+fi
+
 if ! grep -q '打开播放器' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/MainActivity.kt"; then
   echo "MainActivity must expose a player launch action" >&2
   exit 1

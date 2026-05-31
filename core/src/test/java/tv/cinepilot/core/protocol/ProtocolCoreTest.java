@@ -33,6 +33,7 @@ public final class ProtocolCoreTest {
         schedulesPlaybackCheckIns();
         clientSendsPlaybackCheckIns();
         playbackSessionControllerSendsPlayerEvents();
+        authorizesPlaybackUrls();
         System.out.println("ProtocolCoreTest passed");
     }
 
@@ -793,6 +794,26 @@ public final class ProtocolCoreTest {
         assertTrue(transport.requests.get(6).bodyJson().contains("\"PlaybackRate\":1.25"), "controller playback rate event");
         assertTrue(transport.requests.get(7).bodyJson().contains("\"PlaybackRate\":1.25"), "controller playback rate persists to stop");
         assertEquals("/Sessions/Playing/Stopped", transport.requests.get(7).path(), "controller stop path");
+    }
+
+    private static void authorizesPlaybackUrls() {
+        ClientIdentity client = new ClientIdentity("CinePilot TV", "Living Room TV", "device-1", "0.1.0");
+        AuthSession session = new AuthSession("server-1", "user-1", "token value", client);
+        assertEquals(
+                "https://media.example.com/Videos/item-1/stream.mkv?api_key=token%20value",
+                PlaybackUrlAuthorizer.withAccessToken("https://media.example.com/Videos/item-1/stream.mkv", session),
+                "adds api key to URL without query"
+        );
+        assertEquals(
+                "https://media.example.com/Videos/item-1/master.m3u8?MediaSourceId=source-1&api_key=token%20value#frag",
+                PlaybackUrlAuthorizer.withAccessToken("https://media.example.com/Videos/item-1/master.m3u8?MediaSourceId=source-1#frag", session),
+                "adds api key before fragment"
+        );
+        assertEquals(
+                "https://media.example.com/Videos/item-1/master.m3u8?api_key=existing",
+                PlaybackUrlAuthorizer.withAccessToken("https://media.example.com/Videos/item-1/master.m3u8?api_key=existing", session),
+                "keeps existing api key"
+        );
     }
 
     private static PlaybackReport playbackReportAt(long positionMillis, boolean paused, Float rate) {
