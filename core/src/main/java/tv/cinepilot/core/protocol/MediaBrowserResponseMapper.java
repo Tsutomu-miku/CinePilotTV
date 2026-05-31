@@ -29,6 +29,23 @@ public final class MediaBrowserResponseMapper {
         return new AuthSession(serverId, userId, accessToken, client);
     }
 
+    public static List<PublicUserSummary> publicUsers(String json) {
+        List<PublicUserSummary> users = new ArrayList<>();
+        for (Object value : JsonValue.array(json)) {
+            if (value instanceof Map<?, ?> map) {
+                Map<String, Object> user = JsonValueMap.cast(map);
+                users.add(new PublicUserSummary(
+                        requiredString(user, "Id"),
+                        valueOrEmpty(JsonValue.string(user, "Name")),
+                        JsonValue.bool(user, "HasPassword")
+                                || JsonValue.bool(user, "HasConfiguredPassword")
+                                || JsonValue.bool(user, "HasConfiguredEasyPassword")
+                ));
+            }
+        }
+        return List.copyOf(users);
+    }
+
     public static PlaybackInfo playbackInfo(String itemId, String json) {
         Map<String, Object> root = JsonValue.object(json);
         String playSessionId = firstString(root, "PlaySessionId");

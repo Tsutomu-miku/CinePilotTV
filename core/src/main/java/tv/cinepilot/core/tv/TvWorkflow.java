@@ -5,6 +5,7 @@ import tv.cinepilot.core.protocol.AuthenticatedServer;
 import tv.cinepilot.core.protocol.MediaItemSummary;
 import tv.cinepilot.core.protocol.MediaServerAddress;
 import tv.cinepilot.core.protocol.PlayableMedia;
+import tv.cinepilot.core.protocol.PublicUserSummary;
 import tv.cinepilot.core.protocol.ServerIdentity;
 
 public final class TvWorkflow {
@@ -17,6 +18,7 @@ public final class TvWorkflow {
                 TvStatus.LOADING,
                 address,
                 null,
+                List.of(),
                 null,
                 List.of(),
                 null,
@@ -32,6 +34,7 @@ public final class TvWorkflow {
                 TvStatus.READY,
                 state.pendingAddress(),
                 server,
+                List.of(),
                 null,
                 List.of(),
                 null,
@@ -47,6 +50,7 @@ public final class TvWorkflow {
                 TvStatus.LOADING,
                 state.pendingAddress(),
                 state.server(),
+                state.publicUsers(),
                 null,
                 List.of(),
                 null,
@@ -62,6 +66,7 @@ public final class TvWorkflow {
                 TvStatus.LOADING,
                 state.pendingAddress(),
                 authenticated.server(),
+                state.publicUsers(),
                 authenticated,
                 List.of(),
                 null,
@@ -79,6 +84,7 @@ public final class TvWorkflow {
                 TvStatus.READY,
                 state.pendingAddress(),
                 state.server(),
+                state.publicUsers(),
                 state.authenticated(),
                 safeRows,
                 focus,
@@ -97,6 +103,7 @@ public final class TvWorkflow {
                 state.status(),
                 state.pendingAddress(),
                 state.server(),
+                state.publicUsers(),
                 state.authenticated(),
                 state.homeRows(),
                 new FocusedItem(rowId, itemId),
@@ -115,6 +122,7 @@ public final class TvWorkflow {
                 TvStatus.READY,
                 state.pendingAddress(),
                 state.server(),
+                state.publicUsers(),
                 state.authenticated(),
                 state.homeRows(),
                 state.focus(),
@@ -133,6 +141,7 @@ public final class TvWorkflow {
                 TvStatus.READY,
                 state.pendingAddress(),
                 state.server(),
+                state.publicUsers(),
                 state.authenticated(),
                 state.homeRows(),
                 state.focus(),
@@ -144,13 +153,29 @@ public final class TvWorkflow {
 
     public static TvAppState back(TvAppState state) {
         return switch (state.route()) {
-            case PLAYER -> state.with(TvRoute.DETAILS, TvStatus.READY, state.pendingAddress(), state.server(), state.authenticated(), state.homeRows(), state.focus(), state.selectedItem(), null, "");
-            case DETAILS -> state.with(TvRoute.HOME, TvStatus.READY, state.pendingAddress(), state.server(), state.authenticated(), state.homeRows(), state.focus(), null, null, "");
-            case HOME -> state.with(TvRoute.SERVER_ENTRY, TvStatus.IDLE, null, null, null, List.of(), null, null, null, "");
-            case LOGIN -> state.with(TvRoute.SERVER_ENTRY, TvStatus.IDLE, state.pendingAddress(), null, null, List.of(), null, null, null, "");
-            case ERROR -> state.with(TvRoute.SERVER_ENTRY, TvStatus.IDLE, null, null, null, List.of(), null, null, null, "");
+            case PLAYER -> state.with(TvRoute.DETAILS, TvStatus.READY, state.pendingAddress(), state.server(), state.publicUsers(), state.authenticated(), state.homeRows(), state.focus(), state.selectedItem(), null, "");
+            case DETAILS -> state.with(TvRoute.HOME, TvStatus.READY, state.pendingAddress(), state.server(), state.publicUsers(), state.authenticated(), state.homeRows(), state.focus(), null, null, "");
+            case HOME -> state.with(TvRoute.SERVER_ENTRY, TvStatus.IDLE, null, null, List.of(), null, List.of(), null, null, null, "");
+            case LOGIN -> state.with(TvRoute.SERVER_ENTRY, TvStatus.IDLE, state.pendingAddress(), null, List.of(), null, List.of(), null, null, null, "");
+            case ERROR -> state.with(TvRoute.SERVER_ENTRY, TvStatus.IDLE, null, null, List.of(), null, List.of(), null, null, null, "");
             case SERVER_ENTRY -> state;
         };
+    }
+
+    public static TvAppState publicUsersLoaded(TvAppState state, List<PublicUserSummary> users) {
+        return state.with(
+                state.route(),
+                state.status(),
+                state.pendingAddress(),
+                state.server(),
+                users == null ? List.of() : users,
+                state.authenticated(),
+                state.homeRows(),
+                state.focus(),
+                state.selectedItem(),
+                state.playableMedia(),
+                state.errorMessage()
+        );
     }
 
     public static TvAppState fail(TvAppState state, String message) {
@@ -159,6 +184,7 @@ public final class TvWorkflow {
                 TvStatus.ERROR,
                 state.pendingAddress(),
                 state.server(),
+                state.publicUsers(),
                 state.authenticated(),
                 state.homeRows(),
                 state.focus(),
@@ -177,4 +203,3 @@ public final class TvWorkflow {
         return null;
     }
 }
-

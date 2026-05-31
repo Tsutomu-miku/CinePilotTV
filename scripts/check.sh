@@ -111,6 +111,16 @@ if ! grep -q 'logout' "$ROOT_DIR/core/src/main/java/tv/cinepilot/core/tv/TvWorkf
   exit 1
 fi
 
+if [[ ! -s "$ROOT_DIR/core/src/main/java/tv/cinepilot/core/protocol/PublicUserSummary.java" ]]; then
+  echo "Missing public user summary model" >&2
+  exit 1
+fi
+
+if ! grep -q 'loadPublicUsers' "$ROOT_DIR/core/src/main/java/tv/cinepilot/core/tv/TvWorkflowController.java"; then
+  echo "TvWorkflowController must expose public user loading" >&2
+  exit 1
+fi
+
 if ! grep -q 'restoreSession' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/MainActivity.kt"; then
   echo "MainActivity must wire saved session restore" >&2
   exit 1
@@ -218,6 +228,11 @@ fi
 
 if ! grep -q '从头播放' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/MainActivity.kt"; then
   echo "MainActivity must expose start-over playback for resumable items" >&2
+  exit 1
+fi
+
+if ! grep -q '选择用户' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/MainActivity.kt"; then
+  echo "MainActivity must expose public users on the login screen" >&2
   exit 1
 fi
 

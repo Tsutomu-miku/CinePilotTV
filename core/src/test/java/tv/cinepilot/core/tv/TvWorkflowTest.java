@@ -16,6 +16,7 @@ import tv.cinepilot.core.protocol.PlayableMedia;
 import tv.cinepilot.core.protocol.PlaybackSelectionPreferences;
 import tv.cinepilot.core.protocol.ProtocolRequest;
 import tv.cinepilot.core.protocol.ProtocolResponse;
+import tv.cinepilot.core.protocol.PublicUserSummary;
 import tv.cinepilot.core.protocol.SavedSession;
 import tv.cinepilot.core.protocol.ServerFlavor;
 import tv.cinepilot.core.protocol.ServerIdentity;
@@ -29,6 +30,7 @@ public final class TvWorkflowTest {
         runsServerLoginHomeDetailsPlayerFlow();
         rejectsFocusForMissingItems();
         loadsHomeRowsFromMediaBrowserClient();
+        controllerLoadsPublicUsersForTvLogin();
         controllerRunsServerLoginBrowseAndPlaybackUseCase();
         controllerStartsPlaybackFromBeginningWhenRequested();
         controllerLogoutRevokesSavedSession();
@@ -171,6 +173,31 @@ public final class TvWorkflowTest {
         assertEquals("/Users/user-1/Views", transport.requests.get(2).path(), "loader fetches views for latest rows");
         assertTrue(transport.requests.get(3).url(authenticated.server().address()).contains("ParentId=movies"), "movies latest");
         assertTrue(transport.requests.get(4).url(authenticated.server().address()).contains("ParentId=series"), "series latest");
+    }
+
+    private static void controllerLoadsPublicUsersForTvLogin() {
+        FakeTransport transport = new FakeTransport();
+        transport.enqueue(200, "{\"Id\":\"server-1\",\"ServerName\":\"Jellyfin\"}");
+        transport.enqueue(200, """
+                [
+                  {"Id":"user-1","Name":"Demo","HasPassword":true},
+                  {"Id":"user-2","Name":"Kids","HasPassword":false}
+                ]
+                """);
+
+        ClientIdentity client = new ClientIdentity("CinePilot TV", "Living Room TV", "device-1", "0.1.0");
+        MediaBrowserClient mediaClient = new MediaBrowserClient(transport, new InMemorySessionRepository(), client);
+        TvWorkflowController controller = new TvWorkflowController(mediaClient, new HomeRowsLoader(mediaClient, 12));
+
+        controller.submitServer("https://media.example.com/jellyfin");
+        TvAppState state = controller.loadPublicUsers();
+        List<PublicUserSummary> users = state.publicUsers();
+
+        assertEquals(TvRoute.LOGIN, state.route(), "public users stay on login route");
+        assertEquals(2, users.size(), "controller public user count");
+        assertEquals("Demo", users.get(0).name(), "controller public user name");
+        assertTrue(users.get(0).passwordRequired(), "controller public user password flag");
+        assertEquals("/Users/Public", transport.requests.get(1).path(), "controller public users request");
     }
 
     private static void controllerRunsServerLoginBrowseAndPlaybackUseCase() {

@@ -1,6 +1,7 @@
 package tv.cinepilot.core.protocol;
 
 import java.io.IOException;
+import java.util.List;
 import java.util.Optional;
 
 public final class MediaBrowserClient {
@@ -40,6 +41,14 @@ public final class MediaBrowserClient {
         SavedSession saved = new SavedSession(SessionScope.from(server, session), session.accessToken());
         sessions.save(saved);
         return new AuthenticatedServer(server, session);
+    }
+
+    public List<PublicUserSummary> publicUsers(ServerIdentity server) {
+        ProtocolResponse response = send(
+                server.address(),
+                MediaBrowserRequests.publicUsers(client, server.flavor())
+        );
+        return MediaBrowserResponseMapper.publicUsers(response.body());
     }
 
     public Optional<AuthSession> restore(ServerIdentity server, String userId) {

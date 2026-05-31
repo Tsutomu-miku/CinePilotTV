@@ -15,6 +15,14 @@ final class JsonValue {
         throw new IllegalArgumentException("JSON root must be an object");
     }
 
+    static List<Object> array(String json) {
+        Object value = new Parser(json).parse();
+        if (value instanceof List<?> list) {
+            return List.copyOf(list);
+        }
+        throw new IllegalArgumentException("JSON root must be an array");
+    }
+
     static String string(Map<String, Object> object, String key) {
         Object value = object.get(key);
         return value instanceof String string ? string : null;
@@ -233,4 +241,3 @@ final class JsonValue {
         }
     }
 }
-

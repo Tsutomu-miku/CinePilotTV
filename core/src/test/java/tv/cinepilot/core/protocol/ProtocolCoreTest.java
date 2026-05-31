@@ -28,6 +28,7 @@ public final class ProtocolCoreTest {
         buildsPlaybackCheckInRequests();
         selectsPlayableMediaSources();
         mapsServerAndPlaybackResponses();
+        mapsAndLoadsPublicUsers();
         clientRunsDiscoveryLoginAndPlaybackFlow();
         mapsAndFetchesMediaItems();
         persistsSavedSessionsToFile();
@@ -484,6 +485,39 @@ public final class ProtocolCoreTest {
         assertEquals(3, source.mediaStreams().size(), "media streams map");
         assertEquals(MediaStreamType.SUBTITLE, source.mediaStreams().get(2).type(), "subtitle type maps");
         assertEquals("/Videos/item-1/Subtitles/2/Stream.srt", source.mediaStreams().get(2).deliveryUrl(), "subtitle url maps");
+    }
+
+    private static void mapsAndLoadsPublicUsers() {
+        List<PublicUserSummary> mapped = MediaBrowserResponseMapper.publicUsers("""
+                [
+                  {"Id":"user-1","Name":"Demo","HasPassword":true},
+                  {"Id":"user-2","Name":"Kids","HasConfiguredPassword":false}
+                ]
+                """);
+        assertEquals(2, mapped.size(), "public user count maps");
+        assertEquals("Demo", mapped.get(0).name(), "public user name maps");
+        assertTrue(mapped.get(0).passwordRequired(), "public user password flag maps");
+        assertTrue(!mapped.get(1).passwordRequired(), "public user passwordless flag maps");
+
+        FakeTransport transport = new FakeTransport();
+        transport.enqueue(200, "[{\"Id\":\"user-1\",\"Name\":\"Demo\",\"HasPassword\":true}]");
+        ClientIdentity client = new ClientIdentity("CinePilot TV", "Living Room TV", "device-1", "0.1.0");
+        MediaBrowserClient mediaClient = new MediaBrowserClient(transport, new InMemorySessionRepository(), client);
+        ServerIdentity server = new ServerIdentity(
+                MediaServerAddress.parse("https://media.example.com/jellyfin"),
+                "server-1",
+                ServerFlavor.JELLYFIN,
+                "Jellyfin"
+        );
+
+        List<PublicUserSummary> users = mediaClient.publicUsers(server);
+
+        assertEquals(1, users.size(), "client public user count");
+        assertEquals("/Users/Public", transport.requests.get(0).path(), "client public users path");
+        assertTrue(
+                transport.requests.get(0).headers().get("X-Emby-Authorization").startsWith("MediaBrowser "),
+                "client public users auth header"
+        );
     }
 
     private static void clientRunsDiscoveryLoginAndPlaybackFlow() {

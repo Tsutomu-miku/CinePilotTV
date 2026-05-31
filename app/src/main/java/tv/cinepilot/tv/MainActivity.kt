@@ -86,6 +86,7 @@ class MainActivity : Activity() {
             addView(action("连接服务器") {
                 runTask("正在连接服务器...", {
                     runtime.workflowController.submitServer(serverInput.text.toString())
+                    loadPublicUsersIfAvailable()
                 }) {
                     showLogin()
                 }
@@ -97,6 +98,15 @@ class MainActivity : Activity() {
         val usernameInput = input("用户名", InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_NORMAL)
         val passwordInput = input("密码", InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_PASSWORD)
         setContentView(screen("登录 ${runtime.workflowController.state().server()?.serverName() ?: ""}") {
+            if (runtime.workflowController.state().publicUsers().isNotEmpty()) {
+                addView(section("选择用户"))
+                runtime.workflowController.state().publicUsers().forEach { user ->
+                    addView(action(user.name().ifBlank { user.id() }) {
+                        usernameInput.setText(user.name().ifBlank { user.id() })
+                        passwordInput.requestFocus()
+                    })
+                }
+            }
             addView(label("用户名"))
             addView(usernameInput)
             addView(label("密码"))
@@ -297,6 +307,10 @@ class MainActivity : Activity() {
                 runOnUiThread { showError(error) }
             }
         }
+    }
+
+    private fun loadPublicUsersIfAvailable() {
+        runCatching { runtime.workflowController.loadPublicUsers() }
     }
 
     private fun screen(title: String, content: LinearLayout.() -> Unit): ScrollView {

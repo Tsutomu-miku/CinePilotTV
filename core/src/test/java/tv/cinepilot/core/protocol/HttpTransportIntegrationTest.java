@@ -32,6 +32,7 @@ public final class HttpTransportIntegrationTest {
 
             ServerIdentity identity = mediaClient.discover(address);
             assertEquals("server-1", identity.serverId(), "discovers server id over HTTP");
+            assertEquals(1, mediaClient.publicUsers(identity).size(), "loads public users over HTTP");
             AuthenticatedServer authenticated = mediaClient.authenticate(identity, "demo", "secret");
             assertEquals("user-1", authenticated.session().userId(), "authenticates user over HTTP");
 
@@ -67,6 +68,7 @@ public final class HttpTransportIntegrationTest {
             );
 
             assertTrue(requests.stream().anyMatch(value -> value.startsWith("GET /System/Info/Public")), "server info request observed");
+            assertTrue(requests.stream().anyMatch(value -> value.startsWith("GET /Users/Public")), "public users request observed");
             assertTrue(requests.stream().anyMatch(value -> value.startsWith("POST /Users/AuthenticateByName")), "auth request observed");
             assertTrue(
                     requests.stream().anyMatch(value -> value.startsWith("GET /Users/user-1/Items/Latest?") && value.contains("ParentId=movies")),
@@ -90,6 +92,8 @@ public final class HttpTransportIntegrationTest {
         int status = 200;
         if (path.equals("/System/Info/Public")) {
             response = "{\"Id\":\"server-1\",\"ServerName\":\"Jellyfin\"}";
+        } else if (path.equals("/Users/Public")) {
+            response = "[{\"Id\":\"user-1\",\"Name\":\"Demo\",\"HasPassword\":true}]";
         } else if (path.equals("/Users/AuthenticateByName")) {
             response = "{\"AccessToken\":\"token-1\",\"ServerId\":\"server-1\",\"User\":{\"Id\":\"user-1\"}}";
         } else if (path.equals("/Users/user-1/Views")) {

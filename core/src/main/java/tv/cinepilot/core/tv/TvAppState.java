@@ -5,6 +5,7 @@ import tv.cinepilot.core.protocol.AuthenticatedServer;
 import tv.cinepilot.core.protocol.MediaItemSummary;
 import tv.cinepilot.core.protocol.MediaServerAddress;
 import tv.cinepilot.core.protocol.PlayableMedia;
+import tv.cinepilot.core.protocol.PublicUserSummary;
 import tv.cinepilot.core.protocol.ServerIdentity;
 
 public record TvAppState(
@@ -12,6 +13,7 @@ public record TvAppState(
         TvStatus status,
         MediaServerAddress pendingAddress,
         ServerIdentity server,
+        List<PublicUserSummary> publicUsers,
         AuthenticatedServer authenticated,
         List<HomeRow> homeRows,
         FocusedItem focus,
@@ -26,6 +28,7 @@ public record TvAppState(
         if (status == null) {
             status = TvStatus.IDLE;
         }
+        publicUsers = List.copyOf(publicUsers == null ? List.of() : publicUsers);
         homeRows = List.copyOf(homeRows == null ? List.of() : homeRows);
         if (errorMessage == null) {
             errorMessage = "";
@@ -38,6 +41,7 @@ public record TvAppState(
                 TvStatus.IDLE,
                 null,
                 null,
+                List.of(),
                 null,
                 List.of(),
                 null,
@@ -52,6 +56,7 @@ public record TvAppState(
             TvStatus status,
             MediaServerAddress pendingAddress,
             ServerIdentity server,
+            List<PublicUserSummary> publicUsers,
             AuthenticatedServer authenticated,
             List<HomeRow> homeRows,
             FocusedItem focus,
@@ -64,6 +69,7 @@ public record TvAppState(
                 status,
                 pendingAddress,
                 server,
+                publicUsers,
                 authenticated,
                 homeRows,
                 focus,
@@ -73,4 +79,3 @@ public record TvAppState(
         );
     }
 }
-

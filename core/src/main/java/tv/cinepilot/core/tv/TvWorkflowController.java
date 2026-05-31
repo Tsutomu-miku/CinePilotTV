@@ -10,6 +10,7 @@ import tv.cinepilot.core.protocol.PlayableMedia;
 import tv.cinepilot.core.protocol.PlaybackInfo;
 import tv.cinepilot.core.protocol.PlaybackInfoOptions;
 import tv.cinepilot.core.protocol.PlaybackSelectionPreferences;
+import tv.cinepilot.core.protocol.PublicUserSummary;
 import tv.cinepilot.core.protocol.ServerIdentity;
 
 public final class TvWorkflowController {
@@ -51,6 +52,15 @@ public final class TvWorkflowController {
         AuthenticatedServer authenticated = client.authenticate(state.server(), username, password);
         state = TvWorkflow.loginSucceeded(state, authenticated);
         return loadHome();
+    }
+
+    public TvAppState loadPublicUsers() {
+        if (state.server() == null) {
+            throw new IllegalStateException("server must be discovered before loading public users");
+        }
+        List<PublicUserSummary> users = client.publicUsers(state.server());
+        state = TvWorkflow.publicUsersLoaded(state, users);
+        return state;
     }
 
     public TvAppState restoreSession(String userId) {
