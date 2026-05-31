@@ -201,8 +201,8 @@ if ! grep -q 'requestFocus' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/MainAct
   exit 1
 fi
 
-if ! grep -q 'setOnFocusChangeListener' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/MainActivity.kt"; then
-  echo "MainActivity must make D-pad focus visibly change controls" >&2
+if ! grep -R -q 'setOnFocusChangeListener' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/ui"; then
+  echo "TV UI helpers must make D-pad focus visibly change controls" >&2
   exit 1
 fi
 
@@ -256,8 +256,18 @@ if ! grep -q '打开子项目' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/Main
   exit 1
 fi
 
-if ! grep -q '简介：' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/MainActivity.kt"; then
+if ! grep -q '剧情简介' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/MainActivity.kt"; then
   echo "MainActivity must show media overview on details when available" >&2
+  exit 1
+fi
+
+if [[ ! -s "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/ui/TvUi.kt" ]]; then
+  echo "Missing reusable TV UI helper module" >&2
+  exit 1
+fi
+
+if [[ ! -s "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/ui/MediaShelf.kt" ]]; then
+  echo "Missing reusable media shelf UI module" >&2
   exit 1
 fi
 
@@ -286,7 +296,7 @@ if ! grep -q 'connectTimeout' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/MainA
   exit 1
 fi
 
-if ! grep -q '时长：' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/MainActivity.kt"; then
+if ! grep -q '时长 ' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/MainActivity.kt"; then
   echo "MainActivity must show runtime on details when available" >&2
   exit 1
 fi

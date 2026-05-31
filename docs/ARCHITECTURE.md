@@ -12,7 +12,7 @@ Android app 的运行时入口是 `CinePilotRuntime`。它负责创建客户端�
 
 客户端身份的 device id 应优先使用 `Settings.Secure.ANDROID_ID`，因为 session scope 依赖 device id 来避免 token 跨设备复用。只有无法读取 Android ID 时才 fallback 到设备型号和系统 build id。
 
-`MainActivity` 当前使用 Android 原生 View 渲染最小 TV 流程：服务器输入、登录、首页、详情和播放准备。界面事件必须通过 `TvWorkflowController` 推进状态。
+`MainActivity` 当前使用 Android 原生 View 渲染 TV 流程：服务器输入、登录、首页、详情和播放准备。界面事件必须通过 `TvWorkflowController` 推进状态。通用暗色 TV 主题、焦点态、按钮、输入框和媒体架组件放在 `app/.../tv/ui`，避免 Activity 继续承担所有视觉细节。
 
 Android 遥控器 Back 键必须和页面按钮使用同一套 workflow 语义：登录、首页和错误页回到服务器输入；详情回首页；播放器页先释放 Media3 player 再回详情；只有服务器输入页交给系统退出。
 
@@ -22,7 +22,7 @@ Jellyfin 登录页可以发起 Quick Connect：Activity 展示服务器返回的
 
 服务器地址输入应使用 URI text variation，密码输入必须使用 password variation。登录界面可以保留原生 `EditText`，但不能明文显示密码。
 
-按钮和输入框必须有显式 focus color，不能只依赖平台默认样式；这样在深色 TV 背景上 D-pad 当前焦点始终可见。
+按钮、输入框和媒体卡片必须有显式 focus color / focus border，不能只依赖平台默认样式；这样在深色 TV 背景上 D-pad 当前焦点始终可见。
 
 `TvDiagnostics` 生成不含 token 的联调快照，供 TV UI 展示 server、user、item、media source、play method 和焦点信息。
 

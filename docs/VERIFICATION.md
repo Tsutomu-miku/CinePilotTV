@@ -66,6 +66,7 @@ Android TV 设备或模拟器上需要验证：
 - 连接设备后运行 `./scripts/install-debug-apk.sh` 可以安装并启动 debug APK；多台设备在线时使用 `ANDROID_SERIAL=<serial>` 指定手机、Android TV 或模拟器。
 - sideload 到普通 Android 手机时，应用会出现在桌面 / 应用抽屉，而不只在应用管理里可见。
 - 可用 D-pad 完成服务器输入、登录、首页浏览和详情打开。
+- 首页应呈现暗色 TV 媒体架，媒体条目以横向海报卡片展示；详情页应呈现左海报、右信息与操作区，而不是调试面板式的竖排按钮列表。
 - Jellyfin 服务器启用 Quick Connect 时，可在登录页用授权码完成登录；授权后 TV 端会自动进入首页。
 - 点击播放后 Media3 player 能打开可播放 URL。
 - 当 Media3 因编码、转码、网络或 URL 问题播放失败时，界面会释放播放器并显示中文恢复建议，而不是停留在不可诊断的播放器页。

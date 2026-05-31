@@ -10,12 +10,9 @@ import android.os.Looper
 import android.text.InputType
 import android.view.Gravity
 import android.view.View
-import android.widget.Button
 import android.widget.EditText
 import android.widget.ImageView
 import android.widget.LinearLayout
-import android.widget.ScrollView
-import android.widget.TextView
 import androidx.activity.ComponentActivity
 import androidx.lifecycle.ViewModelProvider
 import androidx.media3.common.PlaybackException
@@ -43,6 +40,22 @@ import tv.cinepilot.core.tv.TvDiagnostics
 import tv.cinepilot.core.tv.TvRoute
 import tv.cinepilot.core.tv.TvWorkflowController
 import tv.cinepilot.tv.player.Media3PlayerHost
+import tv.cinepilot.tv.ui.action
+import tv.cinepilot.tv.ui.actionStrip
+import tv.cinepilot.tv.ui.bodyText
+import tv.cinepilot.tv.ui.compactAction
+import tv.cinepilot.tv.ui.dp
+import tv.cinepilot.tv.ui.emptyState
+import tv.cinepilot.tv.ui.input
+import tv.cinepilot.tv.ui.label
+import tv.cinepilot.tv.ui.mediaShelf
+import tv.cinepilot.tv.ui.metaLine
+import tv.cinepilot.tv.ui.resumeBadge
+import tv.cinepilot.tv.ui.rounded
+import tv.cinepilot.tv.ui.screen
+import tv.cinepilot.tv.ui.section
+import tv.cinepilot.tv.ui.supportingLabel
+import tv.cinepilot.tv.ui.toolbar
 
 class MainActivity : ComponentActivity() {
     private lateinit var viewModel: CinePilotViewModel
@@ -309,29 +322,73 @@ class MainActivity : ComponentActivity() {
 
     private fun showHome(state: TvAppState) {
         stopQuickConnectPolling()
-        var focusedButton: View? = null
+        var focusedCard: View? = null
         val searchInput = input("搜索媒体", InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_NORMAL)
         setContentView(screen("首页") {
+            addView(toolbar {
+                orientation = LinearLayout.VERTICAL
+                addView(searchInput, LinearLayout.LayoutParams(
+                    LinearLayout.LayoutParams.MATCH_PARENT,
+                    dp(56),
+                ).apply {
+                    bottomMargin = dp(12)
+                })
+                addView(actionStrip(listOf(
+                    compactAction("搜索") {
+                        val term = searchInput.text.toString().trim()
+                        if (term.isBlank()) {
+                            searchInput.requestFocus()
+                        } else {
+                            runTask("正在搜索...", {
+                                viewModel.workflowController.search(term)
+                            }) {
+                                showHome(viewModel.workflowController.state())
+                            }
+                        }
+                    },
+                    compactAction("刷新") {
+                        runTask("正在重新加载首页...", {
+                            viewModel.workflowController.loadHome()
+                        }) {
+                            showHome(viewModel.workflowController.state())
+                        }
+                    },
+                    compactAction("退出") {
+                        runTask("正在退出登录...", {
+                            forgetAuthenticatedAccount()
+                            viewModel.workflowController.logout()
+                        }) {
+                            showServerEntry()
+                        }
+                    },
+                )))
+            })
             if (state.homeRows().isEmpty() || state.homeRows().all { it.items().isEmpty() }) {
-                addView(label("没有可显示的媒体"))
+                addView(emptyState("没有可显示的媒体"))
             }
             state.homeRows().forEach { row ->
-                addView(section(row.title()))
-                row.items().forEach { item ->
-                    val button = itemButton(row, item)
-                    if (state.focus()?.rowId() == row.id() && state.focus()?.itemId() == item.id()) {
-                        focusedButton = button
-                    }
-                    addView(button)
+                if (row.items().isNotEmpty()) {
+                    addView(section(row.title()))
+                    addView(mediaShelf(
+                        row,
+                        onCard = { card, item ->
+                            if (state.focus()?.rowId() == row.id() && state.focus()?.itemId() == item.id()) {
+                                focusedCard = card
+                            }
+                        },
+                        onOpen = ::openMediaItem,
+                        loadImage = ::loadPrimaryImage,
+                    ))
                 }
             }
+            val navActions = mutableListOf<View>()
             if (viewModel.workflowController.canGoBackInBrowse()) {
-                addView(action("返回上级") {
+                navActions.add(action("返回上级") {
                     showHome(viewModel.workflowController.back())
                 })
             }
             if (viewModel.workflowController.canPageBackwardInBrowse()) {
-                addView(action("上一页") {
+                navActions.add(action("上一页") {
                     runTask("正在加载上一页...", {
                         viewModel.workflowController.previousBrowsePage()
                     }) {
@@ -340,7 +397,7 @@ class MainActivity : ComponentActivity() {
                 })
             }
             if (viewModel.workflowController.canPageForwardInBrowse()) {
-                addView(action("下一页") {
+                navActions.add(action("下一页") {
                     runTask("正在加载下一页...", {
                         viewModel.workflowController.nextBrowsePage()
                     }) {
@@ -348,94 +405,85 @@ class MainActivity : ComponentActivity() {
                     }
                 })
             }
-            addView(section("搜索"))
-            addView(searchInput)
-            addView(action("搜索媒体") {
-                val term = searchInput.text.toString().trim()
-                if (term.isBlank()) {
-                    searchInput.requestFocus()
-                } else {
-                    runTask("正在搜索...", {
-                        viewModel.workflowController.search(term)
-                    }) {
-                        showHome(viewModel.workflowController.state())
-                    }
-                }
-            })
-            addView(action("重新加载首页") {
-                runTask("正在重新加载首页...", {
-                    viewModel.workflowController.loadHome()
-                }) {
-                    showHome(viewModel.workflowController.state())
-                }
-            })
-            addView(action("退出登录") {
-                runTask("正在退出登录...", {
-                    forgetAuthenticatedAccount()
-                    viewModel.workflowController.logout()
-                }) {
-                    showServerEntry()
-                }
-            })
+            if (navActions.isNotEmpty()) {
+                addView(section("浏览"))
+                addView(actionStrip(navActions))
+            }
         })
-        focusedButton?.post { focusedButton?.requestFocus() }
+        focusedCard?.post { focusedCard?.requestFocus() }
     }
 
     private fun showDetails(item: MediaItemSummary) {
         setContentView(screen(item.name()) {
-            addPosterIfAvailable(this, item)
-            addView(label("${item.type()}${if (item.productionYear() != null) " · ${item.productionYear()}" else ""}"))
-            if (item.runTimeTicks() != null) {
-                addView(label("时长：${formatPlaybackPosition(item.runTimeTicks())}"))
-            }
-            if (episodeLabel(item).isNotBlank()) {
-                addView(label(episodeLabel(item)))
-            }
-            if (item.genres().isNotEmpty()) {
-                addView(label("类型：${item.genres().joinToString(" / ")}"))
-            }
-            if (item.overview().isNotBlank()) {
-                addView(label("简介：${item.overview()}"))
-            }
-            if (item.hasResumePosition()) {
-                addView(label("可从 ${formatPlaybackPosition(item.userData().playbackPositionTicks())} 继续播放"))
-            }
-            if (item.playable()) {
-                if (item.hasResumePosition()) {
-                    addView(playbackAction("继续播放", null))
-                    addView(playbackAction("从头播放", PlaybackSelectionPreferences.defaults()))
-                } else {
-                    addView(playbackAction("播放", null))
-                }
-                addView(playbackAction("低码率播放", lowBitratePreferences(item)))
-                addView(action("音轨 / 字幕") { loadPlaybackOptions(item) })
-            } else {
-                addView(openFolderAction(item))
-            }
-            addView(action("返回首页") {
-                viewModel.workflowController.back()
-                showHome(viewModel.workflowController.state())
+            addView(LinearLayout(this@MainActivity).apply {
+                orientation = LinearLayout.HORIZONTAL
+                gravity = Gravity.TOP
+                addPosterIfAvailable(this, item)
+                addView(LinearLayout(this@MainActivity).apply {
+                    orientation = LinearLayout.VERTICAL
+                    addView(metaLine(item))
+                    if (item.runTimeTicks() != null) {
+                        addView(supportingLabel("时长 ${formatPlaybackPosition(item.runTimeTicks())}"))
+                    }
+                    if (episodeLabel(item).isNotBlank()) {
+                        addView(supportingLabel(episodeLabel(item)))
+                    }
+                    if (item.genres().isNotEmpty()) {
+                        addView(supportingLabel(item.genres().joinToString(" / ")))
+                    }
+                    if (item.hasResumePosition()) {
+                        addView(resumeBadge("可从 ${formatPlaybackPosition(item.userData().playbackPositionTicks())} 继续播放"))
+                    }
+                    if (item.overview().isNotBlank()) {
+                        addView(section("剧情简介"))
+                        addView(bodyText(item.overview()))
+                    }
+                    addView(section("操作"))
+                    if (item.playable()) {
+                        val actions = mutableListOf<View>()
+                        if (item.hasResumePosition()) {
+                            actions.add(playbackAction("继续播放", null))
+                            actions.add(playbackAction("从头播放", PlaybackSelectionPreferences.defaults()))
+                        } else {
+                            actions.add(playbackAction("播放", null))
+                        }
+                        actions.add(playbackAction("低码率播放", lowBitratePreferences(item)))
+                        actions.add(action("音轨 / 字幕") { loadPlaybackOptions(item) })
+                        addView(actionStrip(actions))
+                    } else {
+                        addView(openFolderAction(item))
+                    }
+                    addView(action("返回首页") {
+                        viewModel.workflowController.back()
+                        showHome(viewModel.workflowController.state())
+                    })
+                }, LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f))
             })
         })
     }
 
     private fun addPosterIfAvailable(container: LinearLayout, item: MediaItemSummary) {
+        val poster = ImageView(this).apply {
+            contentDescription = "${item.name()} 海报"
+            scaleType = ImageView.ScaleType.CENTER_CROP
+            setBackground(rounded(Color.rgb(30, 41, 59), dp(8)))
+            adjustViewBounds = false
+        }
+        container.addView(poster, LinearLayout.LayoutParams(dp(300), dp(450)).apply {
+            rightMargin = dp(36)
+            bottomMargin = dp(20)
+        })
+        loadPrimaryImage(poster, item, 420, 630)
+    }
+
+    private fun loadPrimaryImage(target: ImageView, item: MediaItemSummary, width: Int, height: Int) {
         val authenticated = viewModel.workflowController.state().authenticated() ?: return
         if (item.imageTags()["Primary"].isNullOrBlank()) {
             return
         }
-        val poster = ImageView(this).apply {
-            contentDescription = "${item.name()} 海报"
-            scaleType = ImageView.ScaleType.CENTER_CROP
-            setBackgroundColor(Color.rgb(30, 41, 59))
-            adjustViewBounds = false
-        }
-        container.addView(poster, LinearLayout.LayoutParams(320, 480).apply {
-            bottomMargin = 20
-        })
         imageExecutor.execute {
             runCatching {
-                val imageUrl = viewModel.mediaBrowserClient.primaryImageUrl(authenticated, item, 320, 480)
+                val imageUrl = viewModel.mediaBrowserClient.primaryImageUrl(authenticated, item, width, height)
                 val connection = URL(imageUrl).openConnection() as HttpURLConnection
                 connection.connectTimeout = 3_000
                 connection.readTimeout = 5_000
@@ -447,7 +495,7 @@ class MainActivity : ComponentActivity() {
             }.getOrNull()?.let { bitmap ->
                 runOnUiThread {
                     if (!isFinishing && !isDestroyed) {
-                        poster.setImageBitmap(bitmap)
+                        target.setImageBitmap(bitmap)
                     }
                 }
             }
@@ -571,24 +619,28 @@ class MainActivity : ComponentActivity() {
 
     private fun itemButton(row: HomeRow, item: MediaItemSummary): View {
         return action(item.name().ifBlank { item.id() }) {
-            viewModel.workflowController.focusItem(row.id(), item.id())
-            val loadingMessage = if (item.playable()) "正在打开详情..." else "正在打开目录..."
-            runTask(loadingMessage, {
-                if (item.playable()) {
-                    viewModel.workflowController.openItem(item.id())
-                } else {
-                    viewModel.workflowController.openFolder(item.id(), item.name())
-                }
-            }) {
-                val state = viewModel.workflowController.state()
-                if (item.playable()) {
-                    state.selectedItem()?.let(::showDetails)
-                } else {
-                    showHome(state)
-                }
-            }
+            openMediaItem(row, item)
         }.also {
             it.contentDescription = "${row.title()} ${item.name()}"
+        }
+    }
+
+    private fun openMediaItem(row: HomeRow, item: MediaItemSummary) {
+        viewModel.workflowController.focusItem(row.id(), item.id())
+        val loadingMessage = if (item.playable()) "正在打开详情..." else "正在打开目录..."
+        runTask(loadingMessage, {
+            if (item.playable()) {
+                viewModel.workflowController.openItem(item.id())
+            } else {
+                viewModel.workflowController.openFolder(item.id(), item.name())
+            }
+        }) {
+            val state = viewModel.workflowController.state()
+            if (item.playable()) {
+                state.selectedItem()?.let(::showDetails)
+            } else {
+                showHome(state)
+            }
         }
     }
 
@@ -798,73 +850,6 @@ class MainActivity : ComponentActivity() {
 
     private fun loadPublicUsersIfAvailable() {
         runCatching { viewModel.workflowController.loadPublicUsers() }
-    }
-
-    private fun screen(title: String, content: LinearLayout.() -> Unit): ScrollView {
-        val container = LinearLayout(this).apply {
-            orientation = LinearLayout.VERTICAL
-            setPadding(48, 40, 48, 40)
-            setBackgroundColor(Color.rgb(11, 16, 32))
-        }
-        container.addView(TextView(this).apply {
-            text = title
-            textSize = 32f
-            setTextColor(Color.WHITE)
-            gravity = Gravity.START
-            setPadding(0, 0, 0, 24)
-        })
-        container.content()
-        return ScrollView(this).apply { addView(container) }
-    }
-
-    private fun input(hintText: String, inputTypeValue: Int): EditText {
-        return EditText(this).apply {
-            hint = hintText
-            inputType = inputTypeValue
-            textSize = 20f
-            setSingleLine(true)
-            setTextColor(Color.WHITE)
-            setHintTextColor(Color.LTGRAY)
-            setFocusableColors(this, Color.rgb(30, 41, 59), Color.rgb(15, 23, 42))
-            setPadding(20, 12, 20, 12)
-        }
-    }
-
-    private fun action(text: String, onClick: () -> Unit): Button {
-        return Button(this).apply {
-            this.text = text
-            textSize = 20f
-            isAllCaps = false
-            setTextColor(Color.WHITE)
-            setFocusableColors(this, Color.rgb(20, 184, 166), Color.rgb(30, 41, 59))
-            setOnClickListener { onClick() }
-            setPadding(20, 14, 20, 14)
-        }
-    }
-
-    private fun setFocusableColors(view: TextView, focusedColor: Int, normalColor: Int) {
-        view.setBackgroundColor(normalColor)
-        view.setOnFocusChangeListener { focusedView, hasFocus ->
-            focusedView.setBackgroundColor(if (hasFocus) focusedColor else normalColor)
-        }
-    }
-
-    private fun label(text: String): TextView {
-        return TextView(this).apply {
-            this.text = text
-            textSize = 20f
-            setTextColor(Color.WHITE)
-            setPadding(0, 10, 0, 10)
-        }
-    }
-
-    private fun section(text: String): TextView {
-        return TextView(this).apply {
-            this.text = text
-            textSize = 24f
-            setTextColor(Color.rgb(45, 212, 191))
-            setPadding(0, 28, 0, 8)
-        }
     }
 
     private fun rememberAccount() {
