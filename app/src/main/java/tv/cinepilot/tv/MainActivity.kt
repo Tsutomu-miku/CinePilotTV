@@ -215,6 +215,11 @@ class MainActivity : ComponentActivity() {
             if (state.selectedItem() != null && !authenticationExpired) {
                 addView(action("返回详情") { state.selectedItem()?.let(playbackRoutes::showDetails) })
             }
+            if (state.playableMedia() != null && !authenticationExpired) {
+                addView(action("诊断信息") {
+                    playbackRoutes.showDiagnosticsFromError(state) { showError(error) }
+                })
+            }
             if (state.homeRows().isNotEmpty() && !authenticationExpired) {
                 addView(action("返回首页") { showHome(state) })
             }

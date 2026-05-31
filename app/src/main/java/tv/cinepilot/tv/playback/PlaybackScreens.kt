@@ -80,6 +80,7 @@ fun ComponentActivity.playerReadyScreen(
 fun ComponentActivity.diagnosticsScreen(
     diagnostics: String,
     returnToPlayer: Boolean,
+    backLabel: String? = null,
     onExport: () -> Unit,
     onShare: () -> Unit,
     onBackDiagnosticsTarget: () -> Unit,
@@ -88,13 +89,14 @@ fun ComponentActivity.diagnosticsScreen(
         addView(label(diagnostics))
         addView(action("导出诊断", onExport))
         addView(action("分享诊断", onShare))
-        addView(diagnosticsBackAction(returnToPlayer, onBackDiagnosticsTarget))
+        addView(diagnosticsBackAction(returnToPlayer, backLabel, onBackDiagnosticsTarget))
     }
 }
 
 fun ComponentActivity.diagnosticsExportedScreen(
     path: String,
     returnToPlayer: Boolean,
+    backLabel: String? = null,
     onShare: () -> Unit,
     onBackDiagnostics: () -> Unit,
     onBackDiagnosticsTarget: () -> Unit,
@@ -103,7 +105,7 @@ fun ComponentActivity.diagnosticsExportedScreen(
         addView(label("诊断已导出：$path"))
         addView(action("分享诊断", onShare))
         addView(iconAction("返回诊断信息", TvIcon.BACK, onBackDiagnostics))
-        addView(diagnosticsBackAction(returnToPlayer, onBackDiagnosticsTarget))
+        addView(diagnosticsBackAction(returnToPlayer, backLabel, onBackDiagnosticsTarget))
     }
 }
 
@@ -155,11 +157,15 @@ private fun MediaSourceInfo.streamsOf(type: MediaStreamType): List<MediaStreamIn
 
 private fun ComponentActivity.diagnosticsBackAction(
     returnToPlayer: Boolean,
+    backLabel: String?,
     onBackDiagnosticsTarget: () -> Unit,
 ): View {
-    return if (returnToPlayer) {
-        iconAction("返回播放器", TvIcon.BACK, onBackDiagnosticsTarget)
+    val label = if (backLabel != null) {
+        backLabel
+    } else if (returnToPlayer) {
+        "返回播放器"
     } else {
-        iconAction("返回播放准备", TvIcon.BACK, onBackDiagnosticsTarget)
+        "返回播放准备"
     }
+    return iconAction(label, TvIcon.BACK, onBackDiagnosticsTarget)
 }

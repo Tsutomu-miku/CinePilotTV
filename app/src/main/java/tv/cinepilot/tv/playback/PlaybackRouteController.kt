@@ -134,6 +134,14 @@ class PlaybackRouteController(
         ))
     }
 
+    fun showDiagnosticsFromError(state: TvAppState, onBackError: () -> Unit) {
+        showDiagnostics(
+            state = state,
+            backLabel = "返回错误页",
+            onBackDiagnosticsTarget = onBackError,
+        )
+    }
+
     private fun showPlayerReady(state: TvAppState) {
         activity.setContentView(activity.playerReadyScreen(
             state = state,
@@ -146,29 +154,44 @@ class PlaybackRouteController(
         ))
     }
 
-    private fun showDiagnostics(state: TvAppState, returnToPlayer: Boolean = false) {
+    private fun showDiagnostics(
+        state: TvAppState,
+        returnToPlayer: Boolean = false,
+        backLabel: String? = null,
+        onBackDiagnosticsTarget: () -> Unit = { showDiagnosticsTarget(state, returnToPlayer) },
+    ) {
         val diagnostics = TvDiagnostics.describe(state)
         activity.setContentView(activity.diagnosticsScreen(
             diagnostics = diagnostics,
             returnToPlayer = returnToPlayer,
+            backLabel = backLabel,
             onExport = {
                 val file = activity.filesDir.resolve("cinepilot-diagnostics.txt")
                 file.writeText(diagnostics)
-                showDiagnosticsExported(state, file.absolutePath, returnToPlayer)
+                showDiagnosticsExported(state, file.absolutePath, returnToPlayer, backLabel, onBackDiagnosticsTarget)
             },
             onShare = { shareDiagnostics(diagnostics) },
-            onBackDiagnosticsTarget = { showDiagnosticsTarget(state, returnToPlayer) },
+            onBackDiagnosticsTarget = onBackDiagnosticsTarget,
         ))
     }
 
-    private fun showDiagnosticsExported(state: TvAppState, path: String, returnToPlayer: Boolean = false) {
+    private fun showDiagnosticsExported(
+        state: TvAppState,
+        path: String,
+        returnToPlayer: Boolean = false,
+        backLabel: String? = null,
+        onBackDiagnosticsTarget: () -> Unit = { showDiagnosticsTarget(state, returnToPlayer) },
+    ) {
         val diagnostics = TvDiagnostics.describe(state)
         activity.setContentView(activity.diagnosticsExportedScreen(
             path = path,
             returnToPlayer = returnToPlayer,
+            backLabel = backLabel,
             onShare = { shareDiagnostics(diagnostics) },
-            onBackDiagnostics = { showDiagnostics(state, returnToPlayer) },
-            onBackDiagnosticsTarget = { showDiagnosticsTarget(state, returnToPlayer) },
+            onBackDiagnostics = {
+                showDiagnostics(state, returnToPlayer, backLabel, onBackDiagnosticsTarget)
+            },
+            onBackDiagnosticsTarget = onBackDiagnosticsTarget,
         ))
     }
 

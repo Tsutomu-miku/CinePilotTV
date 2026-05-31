@@ -681,6 +681,21 @@ if ! grep -q '分享诊断' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/playbac
   exit 1
 fi
 
+if ! grep -q 'showDiagnosticsFromError' "$PLAYBACK_ROUTE_CONTROLLER"; then
+  echo "Playback route controller must expose diagnostics from playback errors" >&2
+  exit 1
+fi
+
+if ! grep -q '返回错误页' "$PLAYBACK_ROUTE_CONTROLLER"; then
+  echo "Playback diagnostics must return to the error recovery page when opened from an error" >&2
+  exit 1
+fi
+
+if ! grep -q 'showDiagnosticsFromError' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/MainActivity.kt"; then
+  echo "Error recovery page must expose playback diagnostics" >&2
+  exit 1
+fi
+
 if ! grep -q 'Intent.ACTION_SEND' "$PLAYBACK_ROUTE_CONTROLLER"; then
   echo "Diagnostics sharing must use a text share intent" >&2
   exit 1
