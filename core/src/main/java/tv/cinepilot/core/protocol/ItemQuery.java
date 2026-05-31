@@ -32,6 +32,13 @@ public final class ItemQuery {
                 .fields("PrimaryImageAspectRatio,MediaSources,MediaStreams,Overview,ParentId,Genres,ProductionYear");
     }
 
+    public static Builder search(String term) {
+        return browse()
+                .recursive(true)
+                .searchTerm(term)
+                .includeItemTypes("Movie,Episode,Series,Video");
+    }
+
     public static final class Builder {
         private final Map<String, String> values = new LinkedHashMap<>();
 
@@ -69,6 +76,10 @@ public final class ItemQuery {
 
         public Builder filters(String value) {
             return put("Filters", value);
+        }
+
+        public Builder searchTerm(String value) {
+            return put("SearchTerm", value);
         }
 
         public Builder fields(String value) {

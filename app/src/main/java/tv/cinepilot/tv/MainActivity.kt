@@ -173,6 +173,7 @@ class MainActivity : Activity() {
 
     private fun showHome(state: TvAppState) {
         var focusedButton: View? = null
+        val searchInput = input("搜索媒体", InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_NORMAL)
         setContentView(screen("首页") {
             if (state.homeRows().isEmpty()) {
                 addView(label("没有可显示的媒体"))
@@ -210,6 +211,20 @@ class MainActivity : Activity() {
                     }
                 })
             }
+            addView(section("搜索"))
+            addView(searchInput)
+            addView(action("搜索媒体") {
+                val term = searchInput.text.toString().trim()
+                if (term.isBlank()) {
+                    searchInput.requestFocus()
+                } else {
+                    runTask("正在搜索...", {
+                        runtime.workflowController.search(term)
+                    }) {
+                        showHome(runtime.workflowController.state())
+                    }
+                }
+            })
             addView(action("重新加载首页") {
                 runTask("正在重新加载首页...", {
                     runtime.workflowController.loadHome()

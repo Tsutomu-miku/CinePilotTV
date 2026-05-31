@@ -178,6 +178,16 @@ public final class ProtocolCoreTest {
         assertTrue(url.contains("SortBy=SortName"), "query includes stable sort field");
         assertTrue(url.contains("SortOrder=Ascending"), "query includes stable sort order");
 
+        ProtocolRequest search = MediaBrowserRequests.items(
+                session,
+                ServerFlavor.JELLYFIN,
+                ItemQuery.search("arrival movie").limit(25).build()
+        );
+        String searchUrl = search.url(address);
+        assertTrue(searchUrl.contains("SearchTerm=arrival%20movie"), "search query encodes term");
+        assertTrue(searchUrl.contains("Recursive=true"), "search query is recursive");
+        assertTrue(searchUrl.contains("IncludeItemTypes=Movie%2CEpisode%2CSeries%2CVideo"), "search query limits media types");
+
         ProtocolRequest detail = MediaBrowserRequests.item(session, ServerFlavor.JELLYFIN, "item/with/slash");
         assertEquals("/Users/user%201/Items/item%2Fwith%2Fslash", detail.path(), "item detail path encodes item id");
     }

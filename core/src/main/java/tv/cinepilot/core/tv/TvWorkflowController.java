@@ -131,6 +131,26 @@ public final class TvWorkflowController {
         return state;
     }
 
+    public TvAppState search(String term) {
+        if (state.authenticated() == null) {
+            throw new IllegalStateException("authenticated session is required before searching");
+        }
+        if (term == null || term.isBlank()) {
+            return state;
+        }
+        MediaItemPage page = client.items(
+                state.authenticated(),
+                ItemQuery.search(term.trim()).limit(FOLDER_PAGE_SIZE).build()
+        );
+        browseBackStack.push(state);
+        folderBrowseContext = null;
+        state = TvWorkflow.homeLoaded(
+                state,
+                List.of(new HomeRow("search:" + term.trim(), "搜索：" + term.trim(), page.items()))
+        );
+        return state;
+    }
+
     public boolean canGoBackInBrowse() {
         return !browseBackStack.isEmpty();
     }

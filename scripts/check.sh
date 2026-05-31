@@ -171,8 +171,18 @@ if ! grep -q '下一页' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/MainActivi
   exit 1
 fi
 
+if ! grep -q '搜索媒体' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/MainActivity.kt"; then
+  echo "MainActivity must expose media search" >&2
+  exit 1
+fi
+
 if ! grep -q 'canPageForwardInBrowse' "$ROOT_DIR/core/src/main/java/tv/cinepilot/core/tv/TvWorkflowController.java"; then
   echo "TvWorkflowController must support folder pagination" >&2
+  exit 1
+fi
+
+if ! grep -q 'SearchTerm' "$ROOT_DIR/core/src/main/java/tv/cinepilot/core/protocol/ItemQuery.java"; then
+  echo "ItemQuery must support server-side search terms" >&2
   exit 1
 fi
 

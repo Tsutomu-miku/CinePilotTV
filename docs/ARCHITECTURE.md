@@ -72,6 +72,8 @@ Android 首页按钮获得选择意图时，应先调用 `TvWorkflowController.f
 
 文件夹分页由 `TvWorkflowController` 持有当前 parent、title、total count 和 start index。Android 只根据 `canPageBackwardInBrowse()` / `canPageForwardInBrowse()` 展示“上一页 / 下一页”，并调用 controller 的分页方法，不自行拼 `StartIndex` 或 `Limit`。
 
+首页搜索使用服务器侧 `SearchTerm` 查询，并把结果渲染为临时 home row。搜索结果进入同一套返回栈，用户可以通过“返回上级”回到搜索前的首页或目录。
+
 普通 browse 查询默认使用 `SortBy=SortName` 和 `SortOrder=Ascending`，让分页、焦点恢复和剧集层级浏览有稳定顺序。特殊行如最新内容可以用自己的 endpoint 和排序语义。
 
 `TvWorkflowController` 是 Android ViewModel 应调用的核心用例入口，负责服务器发现、登录、首页加载、详情打开和播放准备。它保持 `TvAppState`，并把协议 client 的结果转换为 workflow 状态。

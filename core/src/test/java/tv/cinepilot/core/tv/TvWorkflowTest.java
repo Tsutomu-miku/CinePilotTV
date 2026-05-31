@@ -38,6 +38,7 @@ public final class TvWorkflowTest {
         controllerRestoresSavedSessionAndLoadsHome();
         controllerBrowsesFolderRowsAndReturnsToParent();
         controllerPaginatesFolderRows();
+        controllerSearchesMediaRows();
         controllerOpensFirstChildForFolderBrowse();
         controllerReportsEmptyFolderBrowse();
         controllerReportsUnsupportedPlayback();
@@ -454,6 +455,37 @@ public final class TvWorkflowTest {
         TvAppState backToFirstPage = controller.previousBrowsePage();
         assertEquals("episode-1", backToFirstPage.homeRows().get(0).items().get(0).id(), "previous page item");
         assertTrue(transport.requests.get(8).url(MediaServerAddress.parse("https://media.example.com/jellyfin")).contains("StartIndex=0"), "previous page start index");
+    }
+
+    private static void controllerSearchesMediaRows() {
+        FakeTransport transport = new FakeTransport();
+        transport.enqueue(200, "{\"Id\":\"server-1\",\"ServerName\":\"Jellyfin\"}");
+        transport.enqueue(200, "{\"AccessToken\":\"token-1\",\"ServerId\":\"server-1\",\"User\":{\"Id\":\"user-1\"}}");
+        enqueueHomeResponses(transport);
+        transport.enqueue(200, """
+                {"Items":[
+                  {"Id":"movie-1","Name":"Arrival","Type":"Movie","IsPlayable":true}
+                ],"TotalRecordCount":1,"StartIndex":0}
+                """);
+
+        ClientIdentity client = new ClientIdentity("CinePilot TV", "Living Room TV", "device-1", "0.1.0");
+        MediaBrowserClient mediaClient = new MediaBrowserClient(transport, new InMemorySessionRepository(), client);
+        TvWorkflowController controller = new TvWorkflowController(mediaClient, new HomeRowsLoader(mediaClient, 12));
+
+        controller.submitServer("https://media.example.com/jellyfin");
+        TvAppState home = controller.login("demo", "secret");
+        TvAppState search = controller.search(" arrival ");
+
+        assertEquals(TvRoute.HOME, search.route(), "search stays on home route");
+        assertEquals(1, search.homeRows().size(), "search uses one row");
+        assertEquals("搜索：arrival", search.homeRows().get(0).title(), "search title includes term");
+        assertEquals("movie-1", search.homeRows().get(0).items().get(0).id(), "search row item");
+        assertTrue(controller.canGoBackInBrowse(), "search enables back stack");
+        assertTrue(transport.requests.get(6).url(MediaServerAddress.parse("https://media.example.com/jellyfin")).contains("SearchTerm=arrival"), "search query passes term");
+        assertTrue(transport.requests.get(6).url(MediaServerAddress.parse("https://media.example.com/jellyfin")).contains("Limit=50"), "search query limits page size");
+
+        TvAppState restored = controller.back();
+        assertEquals(home.homeRows().get(0).id(), restored.homeRows().get(0).id(), "search back restores previous home");
     }
 
     private static void controllerReportsEmptyFolderBrowse() {
