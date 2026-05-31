@@ -45,7 +45,7 @@
 状态：未开始。
 
 - P0-6 本机具备 Android SDK 后启用 Gradle Android 构建。进度：`:core` 已接入 Gradle 多模块工程，完整 Android 构建仍等待 Android SDK。
-- P0-7 添加可启动的 TV Activity，并建立 D-pad 安全的导航脚手架。进度：TV workflow 状态 / 导航 reducer 已完成，Android UI 渲染未开始。
+- P0-7 添加可启动的 TV Activity，并建立 D-pad 安全的导航脚手架。进度：TV workflow 状态 / 导航 reducer 与 Android runtime composition root 已完成，Android UI 渲染未开始。
 - P0-8 添加 Media3 播放器宿主生命周期和占位播放状态接线。
 
 退出标准：

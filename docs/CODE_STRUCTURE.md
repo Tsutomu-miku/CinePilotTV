@@ -6,6 +6,7 @@
 app/
   src/main/java/tv/cinepilot/tv/
     MainActivity.kt              Android TV 启动 Activity
+    runtime/CinePilotRuntime.kt  Android app runtime composition root
 core/
   build.gradle.kts              JVM/Java Gradle module
   src/main/java/tv/cinepilot/core/

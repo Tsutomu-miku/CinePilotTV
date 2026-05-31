@@ -38,6 +38,16 @@ if [[ ! -s "$ROOT_DIR/core/build.gradle.kts" ]]; then
   exit 1
 fi
 
+if [[ ! -s "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/runtime/CinePilotRuntime.kt" ]]; then
+  echo "Missing Android app runtime entry" >&2
+  exit 1
+fi
+
+if ! grep -q 'CinePilotRuntime.create' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/MainActivity.kt"; then
+  echo "MainActivity must initialize CinePilotRuntime" >&2
+  exit 1
+fi
+
 rm -rf "$BUILD_DIR"
 mkdir -p "$MAIN_CLASSES" "$TEST_CLASSES"
 
