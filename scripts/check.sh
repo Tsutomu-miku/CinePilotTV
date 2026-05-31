@@ -637,6 +637,16 @@ if ! grep -q '低码率播放' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/Main
   exit 1
 fi
 
+if ! grep -q '播放速度' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/MainActivity.kt"; then
+  echo "MainActivity must expose playback speed selection" >&2
+  exit 1
+fi
+
+if ! grep -q 'setPlaybackSpeed' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/player/Media3PlayerHost.kt"; then
+  echo "Media3PlayerHost must apply selected playback speed" >&2
+  exit 1
+fi
+
 if ! grep -q '音轨 / 字幕' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/MainActivity.kt"; then
   echo "MainActivity must expose audio and subtitle selection" >&2
   exit 1

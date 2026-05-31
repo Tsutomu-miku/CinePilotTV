@@ -58,6 +58,7 @@ class Media3PlayerHost(
         val nextPlayer = ExoPlayer.Builder(context).build().apply {
             addListener(playbackBridge)
             setMediaItem(mediaItem(playable, authorizedPlaybackUrl, authenticated.session()))
+            playable.playbackRate()?.takeIf { it > 0f && it != 1f }?.let(::setPlaybackSpeed)
             prepare()
             playWhenReady = true
         }

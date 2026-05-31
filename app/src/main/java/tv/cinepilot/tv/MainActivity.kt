@@ -464,6 +464,7 @@ class MainActivity : ComponentActivity() {
         }
         actions.add(playbackAction("低码率播放", TvIcon.SPEED, lowBitratePreferences(item)))
         actions.add(iconAction("音轨 / 字幕", TvIcon.SUBTITLES) { loadPlaybackOptions(item) })
+        actions.add(iconAction("播放速度", TvIcon.SPEED) { showPlaybackSpeedOptions(item) })
         if (item.seriesId().isNotBlank()) {
             actions.add(iconAction("本剧下一集", TvIcon.PLAY) { openSeriesNextUp() })
         }
@@ -543,6 +544,17 @@ class MainActivity : ComponentActivity() {
                         preparePlaybackWith(trackPreferences(item, null, stream.index()))
                     })
                 }
+            }
+            addView(action("返回详情") { showDetails(item) })
+        })
+    }
+
+    private fun showPlaybackSpeedOptions(item: MediaItemSummary) {
+        setContentView(screen("播放速度") {
+            speedOptions().forEach { option ->
+                addView(action(option.label) {
+                    preparePlaybackWith(speedPreferences(item, option.rate))
+                })
             }
             addView(action("返回详情") { showDetails(item) })
         })
@@ -770,6 +782,21 @@ class MainActivity : ComponentActivity() {
         return PlaybackSelectionPreferences.lowBitrate(startTimeTicks)
     }
 
+    private fun speedPreferences(item: MediaItemSummary, rate: Float): PlaybackSelectionPreferences {
+        val startTimeTicks = if (item.hasResumePosition()) item.userData().playbackPositionTicks() else 0L
+        return PlaybackSelectionPreferences(startTimeTicks, null, null, null, 0, 0, 0).withPlaybackRate(rate)
+    }
+
+    private fun speedOptions(): List<PlaybackSpeedOption> {
+        return listOf(
+            PlaybackSpeedOption("0.75x", 0.75f),
+            PlaybackSpeedOption("1.0x（正常）", 1.0f),
+            PlaybackSpeedOption("1.25x", 1.25f),
+            PlaybackSpeedOption("1.5x", 1.5f),
+            PlaybackSpeedOption("2.0x", 2.0f),
+        )
+    }
+
     private fun formatPlaybackPosition(ticks: Long): String {
         val totalSeconds = MediaTicks.toMilliseconds(ticks) / 1000
         val hours = totalSeconds / 3600
@@ -891,4 +918,9 @@ class MainActivity : ComponentActivity() {
     companion object {
         private const val PLAYBACK_BACK_EXIT_WINDOW_MS = 2_000L
     }
+
+    private data class PlaybackSpeedOption(
+        val label: String,
+        val rate: Float,
+    )
 }

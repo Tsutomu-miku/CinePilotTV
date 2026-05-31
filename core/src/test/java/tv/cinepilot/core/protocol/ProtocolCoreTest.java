@@ -513,7 +513,7 @@ public final class ProtocolCoreTest {
                 3840,
                 2160,
                 80_000_000
-        );
+        ).withPlaybackRate(1.25f);
         PlayableMedia fallback = PlaybackSourceSelector.select(
                 address,
                 session,
@@ -529,6 +529,7 @@ public final class ProtocolCoreTest {
         assertTrue(fallback.request().url(address).contains("SubtitleMethod=Hls"), "fallback subtitle method query");
         assertEquals(2, fallback.audioStreamIndex(), "explicit audio preference wins");
         assertEquals(5, fallback.subtitleStreamIndex(), "explicit subtitle preference wins");
+        assertEquals(Float.valueOf(1.25f), fallback.playbackRate(), "explicit playback rate preference wins");
 
         MediaSourceInfo directPlayWithoutUrl = MediaSourceInfo.builder("source-static")
                 .supportsDirectPlay(true)

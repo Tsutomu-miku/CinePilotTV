@@ -45,6 +45,7 @@ public final class PlaybackSessionController {
         this.canSeek = canSeek;
         this.audioStreamIndex = playableMedia.audioStreamIndex();
         this.subtitleStreamIndex = playableMedia.subtitleStreamIndex();
+        this.playbackRate = playableMedia.playbackRate();
     }
 
     public void start(long nowMillis, long positionMillis) {
@@ -113,4 +114,3 @@ public final class PlaybackSessionController {
         client.sendPlaybackCheckIn(authenticated, scheduler.immediate(nowMillis, event, report(positionMillis)));
     }
 }
-

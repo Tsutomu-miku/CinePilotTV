@@ -120,7 +120,8 @@ public final class PlaybackSourceSelector {
                 selectedSubtitleDeliveryUrl(serverAddress, source, preferences),
                 selectedSubtitleCodec(source, preferences),
                 selectedSubtitleLanguage(source, preferences),
-                selectedSubtitleDisplayTitle(source, preferences)
+                selectedSubtitleDisplayTitle(source, preferences),
+                preferences.playbackRate()
         );
     }
 
@@ -150,7 +151,8 @@ public final class PlaybackSourceSelector {
                 selectedSubtitleDeliveryUrl(serverAddress, source, preferences),
                 selectedSubtitleCodec(source, preferences),
                 selectedSubtitleLanguage(source, preferences),
-                selectedSubtitleDisplayTitle(source, preferences)
+                selectedSubtitleDisplayTitle(source, preferences),
+                preferences.playbackRate()
         );
     }
 
@@ -194,7 +196,12 @@ public final class PlaybackSourceSelector {
                 null,
                 MediaBrowserRequests.hlsStream(session, flavor, builder.build()),
                 selectedAudioStreamIndex(source, preferences),
-                selectedSubtitleStreamIndex(source, preferences)
+                selectedSubtitleStreamIndex(source, preferences),
+                "",
+                "",
+                "",
+                "",
+                preferences.playbackRate()
         );
     }
 

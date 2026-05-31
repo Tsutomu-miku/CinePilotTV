@@ -12,7 +12,8 @@ public record PlayableMedia(
         String subtitleDeliveryUrl,
         String subtitleCodec,
         String subtitleLanguage,
-        String subtitleDisplayTitle
+        String subtitleDisplayTitle,
+        Float playbackRate
 ) {
     public PlayableMedia {
         require(itemId, "itemId");
@@ -35,6 +36,9 @@ public record PlayableMedia(
         }
         if (subtitleDisplayTitle == null) {
             subtitleDisplayTitle = "";
+        }
+        if (playbackRate != null && playbackRate <= 0f) {
+            playbackRate = null;
         }
     }
 
@@ -60,7 +64,8 @@ public record PlayableMedia(
                 "",
                 "",
                 "",
-                ""
+                "",
+                null
         );
     }
 
