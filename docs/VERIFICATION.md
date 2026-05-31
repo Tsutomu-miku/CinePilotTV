@@ -21,6 +21,12 @@
 
 当前机器没有全局 `ANDROID_HOME`，但仓库存在本地 `local.properties` 指向临时 SDK，因此可以完成 Android debug 构建。本线程尚未完成模拟器启动或真实设备播放验证。
 
+GitHub Actions：
+
+- `.github/workflows/android-apk.yml` 会在 push、pull request 和手动触发时构建 `:core:test` 与 `:app:assembleDebug`。
+- workflow 上传 `cinepilot-tv-debug-apk` artifact，内容是 `app/build/outputs/apk/debug/*.apk`，可下载安装到 Android TV 设备或模拟器。
+- `./scripts/check.sh` 会检查 workflow 是否仍然构建 debug APK 并上传 artifact。
+
 已确认：
 
 - `./scripts/bootstrap-gradle-wrapper.sh` 可以生成 Gradle wrapper。

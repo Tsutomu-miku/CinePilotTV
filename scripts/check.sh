@@ -49,6 +49,26 @@ if [[ ! -x "$ROOT_DIR/scripts/install-debug-apk.sh" ]]; then
   exit 1
 fi
 
+if [[ ! -s "$ROOT_DIR/.github/workflows/android-apk.yml" ]]; then
+  echo "Missing Android APK GitHub Actions workflow" >&2
+  exit 1
+fi
+
+if ! grep -q ':app:assembleDebug' "$ROOT_DIR/.github/workflows/android-apk.yml"; then
+  echo "Android APK workflow must build the debug APK" >&2
+  exit 1
+fi
+
+if ! grep -q 'actions/upload-artifact' "$ROOT_DIR/.github/workflows/android-apk.yml"; then
+  echo "Android APK workflow must upload the APK artifact" >&2
+  exit 1
+fi
+
+if ! grep -q 'cinepilot-tv-debug-apk' "$ROOT_DIR/.github/workflows/android-apk.yml"; then
+  echo "Android APK workflow must publish the expected artifact name" >&2
+  exit 1
+fi
+
 if [[ ! -s "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/runtime/CinePilotRuntime.kt" ]]; then
   echo "Missing Android app runtime entry" >&2
   exit 1
