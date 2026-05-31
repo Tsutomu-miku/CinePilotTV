@@ -1,9 +1,12 @@
 package tv.cinepilot.core.tv;
 
+import java.util.ArrayDeque;
+import java.util.Deque;
 import java.util.List;
 import tv.cinepilot.core.protocol.AuthenticatedServer;
 import tv.cinepilot.core.protocol.ItemQuery;
 import tv.cinepilot.core.protocol.MediaBrowserClient;
+import tv.cinepilot.core.protocol.MediaItemPage;
 import tv.cinepilot.core.protocol.MediaItemSummary;
 import tv.cinepilot.core.protocol.MediaServerAddress;
 import tv.cinepilot.core.protocol.PlayableMedia;
@@ -19,6 +22,7 @@ public final class TvWorkflowController {
 
     private final MediaBrowserClient client;
     private final HomeRowsLoader homeRowsLoader;
+    private final Deque<TvAppState> browseBackStack = new ArrayDeque<>();
     private TvAppState state = TvAppState.initial();
 
     public TvWorkflowController(MediaBrowserClient client, HomeRowsLoader homeRowsLoader) {
@@ -37,6 +41,7 @@ public final class TvWorkflowController {
     }
 
     public TvAppState submitServer(String rawAddress) {
+        browseBackStack.clear();
         MediaServerAddress address = MediaServerAddress.parse(rawAddress);
         state = TvWorkflow.submitServer(state, address);
         ServerIdentity server = client.discover(address);
@@ -78,6 +83,7 @@ public final class TvWorkflowController {
         if (state.authenticated() == null) {
             throw new IllegalStateException("authenticated session is required before loading home");
         }
+        browseBackStack.clear();
         List<HomeRow> rows = homeRowsLoader.load(state.authenticated());
         state = TvWorkflow.homeLoaded(state, rows);
         return state;
@@ -107,6 +113,27 @@ public final class TvWorkflowController {
         ).items().stream().findFirst().orElseThrow(() -> new IllegalStateException(NO_CHILD_ITEM_MESSAGE));
         state = TvWorkflow.openDetails(state, item);
         return state;
+    }
+
+    public TvAppState openFolder(String parentId, String title) {
+        if (state.authenticated() == null) {
+            throw new IllegalStateException("authenticated session is required before opening a folder");
+        }
+        MediaItemPage page = client.items(
+                state.authenticated(),
+                ItemQuery.browse().parentId(parentId).limit(50).build()
+        );
+        if (page.items().isEmpty()) {
+            throw new IllegalStateException(NO_CHILD_ITEM_MESSAGE);
+        }
+        browseBackStack.push(state);
+        String rowTitle = title == null || title.isBlank() ? "子项目" : title;
+        state = TvWorkflow.homeLoaded(state, List.of(new HomeRow("folder:" + parentId, rowTitle, page.items())));
+        return state;
+    }
+
+    public boolean canGoBackInBrowse() {
+        return !browseBackStack.isEmpty();
     }
 
     public TvAppState preparePlayback(PlaybackSelectionPreferences preferences) {
@@ -140,11 +167,16 @@ public final class TvWorkflowController {
     }
 
     public TvAppState back() {
-        state = TvWorkflow.back(state);
+        if (state.route() == TvRoute.HOME && !browseBackStack.isEmpty()) {
+            state = browseBackStack.pop();
+        } else {
+            state = TvWorkflow.back(state);
+        }
         return state;
     }
 
     public TvAppState forgetAuthenticatedSession() {
+        browseBackStack.clear();
         if (state.authenticated() != null) {
             client.forget(state.authenticated());
         }
@@ -157,6 +189,7 @@ public final class TvWorkflowController {
     }
 
     public TvAppState logout() {
+        browseBackStack.clear();
         if (state.authenticated() != null) {
             client.logout(state.authenticated());
         }

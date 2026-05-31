@@ -46,9 +46,21 @@ class MainActivity : Activity() {
     override fun onBackPressed() {
         when (runtime.workflowController.state().route()) {
             TvRoute.SERVER_ENTRY -> super.onBackPressed()
-            TvRoute.LOGIN, TvRoute.HOME, TvRoute.ERROR -> {
-                runtime.workflowController.back()
-                showServerEntry()
+            TvRoute.HOME -> {
+                val state = runtime.workflowController.back()
+                if (state.route() == TvRoute.HOME) {
+                    showHome(state)
+                } else {
+                    showServerEntry()
+                }
+            }
+            TvRoute.LOGIN, TvRoute.ERROR -> {
+                val state = runtime.workflowController.back()
+                if (state.route() == TvRoute.HOME) {
+                    showHome(state)
+                } else {
+                    showServerEntry()
+                }
             }
             TvRoute.DETAILS -> {
                 runtime.workflowController.back()
@@ -144,6 +156,11 @@ class MainActivity : Activity() {
                     addView(button)
                 }
             }
+            if (runtime.workflowController.canGoBackInBrowse()) {
+                addView(action("返回上级") {
+                    showHome(runtime.workflowController.back())
+                })
+            }
             addView(action("重新加载首页") {
                 runTask("正在重新加载首页...", {
                     runtime.workflowController.loadHome()
@@ -177,13 +194,7 @@ class MainActivity : Activity() {
                     addView(playbackAction("播放", null))
                 }
             } else {
-                addView(action("打开子项目") {
-                    runTask("正在打开目录...", {
-                        runtime.workflowController.openFirstChild(item.id())
-                    }) {
-                        runtime.workflowController.state().selectedItem()?.let(::showDetails)
-                    }
-                })
+                addView(openFolderAction(item))
             }
             addView(action("返回首页") {
                 runtime.workflowController.back()
@@ -236,13 +247,28 @@ class MainActivity : Activity() {
                 if (item.playable()) {
                     runtime.workflowController.openItem(item.id())
                 } else {
-                    runtime.workflowController.openFirstChild(item.id())
+                    runtime.workflowController.openFolder(item.id(), item.name())
                 }
             }) {
-                runtime.workflowController.state().selectedItem()?.let(::showDetails)
+                val state = runtime.workflowController.state()
+                if (item.playable()) {
+                    state.selectedItem()?.let(::showDetails)
+                } else {
+                    showHome(state)
+                }
             }
         }.also {
             it.contentDescription = "${row.title()} ${item.name()}"
+        }
+    }
+
+    private fun openFolderAction(item: MediaItemSummary): View {
+        return action("打开子项目") {
+            runTask("正在打开目录...", {
+                runtime.workflowController.openFolder(item.id(), item.name())
+            }) {
+                showHome(runtime.workflowController.state())
+            }
         }
     }
 

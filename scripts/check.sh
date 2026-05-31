@@ -141,8 +141,18 @@ if ! grep -q 'requestFocus' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/MainAct
   exit 1
 fi
 
-if ! grep -q 'openFirstChild' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/MainActivity.kt"; then
-  echo "MainActivity must browse non-playable folders" >&2
+if ! grep -q 'openFirstChild' "$ROOT_DIR/core/src/main/java/tv/cinepilot/core/tv/TvWorkflowController.java"; then
+  echo "TvWorkflowController must support opening the first child of a folder" >&2
+  exit 1
+fi
+
+if ! grep -q 'openFolder' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/MainActivity.kt"; then
+  echo "MainActivity must open folders as browsable rows" >&2
+  exit 1
+fi
+
+if ! grep -q '返回上级' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/MainActivity.kt"; then
+  echo "MainActivity must let users return from folder browsing" >&2
   exit 1
 fi
 

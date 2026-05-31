@@ -35,6 +35,7 @@ public final class TvWorkflowTest {
         controllerStartsPlaybackFromBeginningWhenRequested();
         controllerLogoutRevokesSavedSession();
         controllerRestoresSavedSessionAndLoadsHome();
+        controllerBrowsesFolderRowsAndReturnsToParent();
         controllerOpensFirstChildForFolderBrowse();
         controllerReportsEmptyFolderBrowse();
         controllerReportsUnsupportedPlayback();
@@ -345,6 +346,40 @@ public final class TvWorkflowTest {
         assertEquals("/Users/user-1/Items", transport.requests.get(6).path(), "folder browse uses items endpoint");
         assertTrue(transport.requests.get(6).url(MediaServerAddress.parse("https://media.example.com/jellyfin")).contains("ParentId=movies"), "folder browse passes parent id");
         assertTrue(transport.requests.get(6).url(MediaServerAddress.parse("https://media.example.com/jellyfin")).contains("Limit=1"), "folder browse limits to first child");
+    }
+
+    private static void controllerBrowsesFolderRowsAndReturnsToParent() {
+        FakeTransport transport = new FakeTransport();
+        transport.enqueue(200, "{\"Id\":\"server-1\",\"ServerName\":\"Jellyfin\"}");
+        transport.enqueue(200, "{\"AccessToken\":\"token-1\",\"ServerId\":\"server-1\",\"User\":{\"Id\":\"user-1\"}}");
+        enqueueHomeResponses(transport);
+        transport.enqueue(200, """
+                {"Items":[
+                  {"Id":"season-1","Name":"Season 1","Type":"Season","IsFolder":true},
+                  {"Id":"episode-1","Name":"Pilot","Type":"Episode","IsPlayable":true}
+                ],"TotalRecordCount":2,"StartIndex":0}
+                """);
+
+        ClientIdentity client = new ClientIdentity("CinePilot TV", "Living Room TV", "device-1", "0.1.0");
+        MediaBrowserClient mediaClient = new MediaBrowserClient(transport, new InMemorySessionRepository(), client);
+        TvWorkflowController controller = new TvWorkflowController(mediaClient, new HomeRowsLoader(mediaClient, 12));
+
+        controller.submitServer("https://media.example.com/jellyfin");
+        TvAppState root = controller.login("demo", "secret");
+        TvAppState folder = controller.openFolder("series", "Series");
+
+        assertEquals(TvRoute.HOME, folder.route(), "folder browse stays on home route");
+        assertTrue(controller.canGoBackInBrowse(), "folder browse enables back stack");
+        assertEquals(1, folder.homeRows().size(), "folder browse uses one row");
+        assertEquals("folder:series", folder.homeRows().get(0).id(), "folder row id");
+        assertEquals("season-1", folder.homeRows().get(0).items().get(0).id(), "folder child item");
+        assertTrue(transport.requests.get(6).url(MediaServerAddress.parse("https://media.example.com/jellyfin")).contains("ParentId=series"), "folder browse passes parent id");
+        assertTrue(transport.requests.get(6).url(MediaServerAddress.parse("https://media.example.com/jellyfin")).contains("Limit=50"), "folder browse requests a page");
+
+        TvAppState restored = controller.back();
+
+        assertEquals(root.homeRows().get(0).id(), restored.homeRows().get(0).id(), "folder back restores root rows");
+        assertTrue(!controller.canGoBackInBrowse(), "folder back clears one stack level");
     }
 
     private static void controllerReportsEmptyFolderBrowse() {
