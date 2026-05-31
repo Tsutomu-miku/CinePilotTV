@@ -175,7 +175,7 @@ class MainActivity : Activity() {
         var focusedButton: View? = null
         val searchInput = input("搜索媒体", InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_NORMAL)
         setContentView(screen("首页") {
-            if (state.homeRows().isEmpty()) {
+            if (state.homeRows().isEmpty() || state.homeRows().all { it.items().isEmpty() }) {
                 addView(label("没有可显示的媒体"))
             }
             state.homeRows().forEach { row ->
