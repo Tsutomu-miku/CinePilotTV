@@ -96,6 +96,11 @@ if ! grep -q 'TvWorkflowController' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv
   exit 1
 fi
 
+if ! grep -q 'Settings.Secure.ANDROID_ID' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/runtime/CinePilotRuntime.kt"; then
+  echo "CinePilotRuntime must use a stable Android device id for session scope" >&2
+  exit 1
+fi
+
 if ! grep -q 'restoreSession' "$ROOT_DIR/core/src/main/java/tv/cinepilot/core/tv/TvWorkflowController.java"; then
   echo "TvWorkflowController must expose saved session restore" >&2
   exit 1

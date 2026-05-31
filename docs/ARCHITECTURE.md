@@ -10,6 +10,8 @@ Gradle 工程必须保持 `:app` 依赖 `:core`。Android UI 和播放器层只�
 
 Android app 的运行时入口是 `CinePilotRuntime`。它负责创建客户端身份、HTTP transport、文件 session repository、`MediaBrowserClient`、`TvWorkflowController` 和初始 `TvAppState`。
 
+客户端身份的 device id 应优先使用 `Settings.Secure.ANDROID_ID`，因为 session scope 依赖 device id 来避免 token 跨设备复用。只有无法读取 Android ID 时才 fallback 到设备型号和系统 build id。
+
 `MainActivity` 当前使用 Android 原生 View 渲染最小 TV 流程：服务器输入、登录、首页、详情和播放准备。界面事件必须通过 `TvWorkflowController` 推进状态。
 
 Android 遥控器 Back 键必须和页面按钮使用同一套 workflow 语义：登录、首页和错误页回到服务器输入；详情回首页；播放器页先释放 Media3 player 再回详情；只有服务器输入页交给系统退出。

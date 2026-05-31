@@ -1,6 +1,7 @@
 package tv.cinepilot.tv.runtime
 
 import android.content.Context
+import android.provider.Settings
 import java.nio.file.Path
 import tv.cinepilot.core.protocol.ClientIdentity
 import tv.cinepilot.core.protocol.FileSessionRepository
@@ -22,7 +23,7 @@ class CinePilotRuntime private constructor(
             val clientIdentity = ClientIdentity(
                 "CinePilot TV",
                 android.os.Build.MODEL ?: "Android TV",
-                stableDeviceId(),
+                stableDeviceId(appContext),
                 "0.1.0",
             )
             val sessionFile: Path = appContext.filesDir.toPath().resolve("sessions.properties")
@@ -42,10 +43,16 @@ class CinePilotRuntime private constructor(
             )
         }
 
-        private fun stableDeviceId(): String {
-            val serial = runCatching { android.os.Build.ID }.getOrNull()
+        private fun stableDeviceId(context: Context): String {
+            val androidId = runCatching {
+                Settings.Secure.getString(context.contentResolver, Settings.Secure.ANDROID_ID)
+            }.getOrNull()
+            if (!androidId.isNullOrBlank()) {
+                return "cinepilot-tv-$androidId"
+            }
             val model = android.os.Build.MODEL ?: "android-tv"
-            return "cinepilot-tv-${model}-${serial ?: "unknown"}"
+            val buildId = runCatching { android.os.Build.ID }.getOrNull()
+            return "cinepilot-tv-${model}-${buildId ?: "unknown"}"
         }
     }
 }
