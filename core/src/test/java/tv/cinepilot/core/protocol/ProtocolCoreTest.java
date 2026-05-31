@@ -15,6 +15,8 @@ public final class ProtocolCoreTest {
         buildsDiscoveryAndLoginRequests();
         buildsBrowseRequests();
         scopesSavedSessions();
+        buildsPlaybackInfoAndStreamRequests();
+        buildsPlaybackCheckInRequests();
         System.out.println("ProtocolCoreTest passed");
     }
 
@@ -202,6 +204,97 @@ public final class ProtocolCoreTest {
         repository.revoke(firstSaved.scope());
         assertTrue(repository.find(firstSaved.scope()).isEmpty(), "revoked token is removed");
         assertTrue(repository.find(secondSaved.scope()).isPresent(), "revoking one server keeps another server");
+    }
+
+    private static void buildsPlaybackInfoAndStreamRequests() {
+        ClientIdentity client = new ClientIdentity("CinePilot TV", "Living Room TV", "device-1", "0.1.0");
+        AuthSession session = new AuthSession("server-1", "user 1", "token-1", client);
+        MediaServerAddress address = MediaServerAddress.parse("https://media.example.com/jellyfin");
+
+        PlaybackInfoOptions playbackInfoOptions = new PlaybackInfoOptions.Builder()
+                .maxStreamingBitrate(80_000_000L)
+                .startTimeTicks(MediaTicks.fromMilliseconds(30_000))
+                .audioStreamIndex(1)
+                .subtitleStreamIndex(3)
+                .maxAudioChannels(6)
+                .enableDirectPlay(true)
+                .enableDirectStream(true)
+                .enableTranscoding(true)
+                .build();
+        ProtocolRequest playbackInfo = MediaBrowserRequests.playbackInfo(
+                session,
+                ServerFlavor.JELLYFIN,
+                "movie 1",
+                playbackInfoOptions
+        );
+        assertEquals(HttpMethod.GET, playbackInfo.method(), "playback info method");
+        assertEquals("/Items/movie%201/PlaybackInfo", playbackInfo.path(), "playback info path");
+        String playbackInfoUrl = playbackInfo.url(address);
+        assertTrue(playbackInfoUrl.contains("UserId=user%201"), "playback info user id");
+        assertTrue(playbackInfoUrl.contains("MaxStreamingBitrate=80000000"), "playback info bitrate");
+        assertTrue(playbackInfoUrl.contains("StartTimeTicks=300000000"), "playback info start ticks");
+        assertTrue(playbackInfoUrl.contains("EnableDirectPlay=true"), "playback info direct play");
+
+        HlsStreamOptions streamOptions = HlsStreamOptions.builder("movie 1", "source 1")
+                .playSessionId("play-session-1")
+                .startTimeTicks(MediaTicks.fromMilliseconds(45_000))
+                .audioStreamIndex(1)
+                .subtitleStreamIndex(3)
+                .maxAudioChannels(6)
+                .maxWidth(3840)
+                .maxHeight(2160)
+                .videoBitRate(80_000_000)
+                .videoCodec("h264,hevc")
+                .audioCodec("aac")
+                .subtitleMethod("Hls")
+                .build();
+        ProtocolRequest hls = MediaBrowserRequests.hlsStream(session, ServerFlavor.JELLYFIN, streamOptions);
+        assertEquals(HttpMethod.GET, hls.method(), "hls method");
+        assertEquals("/Videos/movie%201/master.m3u8", hls.path(), "hls path");
+        String hlsUrl = hls.url(address);
+        assertTrue(hlsUrl.contains("MediaSourceId=source%201"), "hls media source");
+        assertTrue(hlsUrl.contains("DeviceId=device-1"), "hls device id");
+        assertTrue(hlsUrl.contains("PlaySessionId=play-session-1"), "hls play session");
+        assertTrue(hlsUrl.contains("Container=ts"), "hls container");
+        assertTrue(hlsUrl.contains("StartTimeTicks=450000000"), "hls start ticks");
+        assertTrue(hlsUrl.contains("VideoCodec=h264%2Chevc"), "hls video codec");
+    }
+
+    private static void buildsPlaybackCheckInRequests() {
+        ClientIdentity client = new ClientIdentity("CinePilot TV", "Living Room TV", "device-1", "0.1.0");
+        AuthSession session = new AuthSession("server-1", "user-1", "token-1", client);
+        PlaybackReport report = new PlaybackReport(
+                "item-1",
+                "source-1",
+                "play-session-1",
+                PlayMethod.TRANSCODE,
+                true,
+                true,
+                MediaTicks.fromMilliseconds(12_345),
+                2,
+                null,
+                1.25f
+        );
+
+        ProtocolRequest started = MediaBrowserRequests.playbackStarted(session, ServerFlavor.EMBY, report);
+        assertEquals(HttpMethod.POST, started.method(), "started method");
+        assertEquals("/Sessions/Playing", started.path(), "started path");
+        assertTrue(started.bodyJson().contains("\"QueueableMediaTypes\":[\"Video\"]"), "started body arrays as json");
+        assertTrue(started.headers().get("X-Emby-Authorization").startsWith("Emby "), "started emby auth");
+
+        ProtocolRequest progress = MediaBrowserRequests.playbackProgress(
+                session,
+                ServerFlavor.EMBY,
+                report,
+                PlaybackEvent.PAUSE
+        );
+        assertEquals("/Sessions/Playing/Progress", progress.path(), "progress path");
+        assertTrue(progress.bodyJson().contains("\"EventName\":\"Pause\""), "progress event");
+        assertTrue(progress.bodyJson().contains("\"PositionTicks\":123450000"), "progress ticks");
+
+        ProtocolRequest stopped = MediaBrowserRequests.playbackStopped(session, ServerFlavor.EMBY, report);
+        assertEquals("/Sessions/Playing/Stopped", stopped.path(), "stopped path");
+        assertTrue(stopped.bodyJson().contains("\"PlaySessionId\":\"play-session-1\""), "stopped play session");
     }
 
     private static void assertEquals(Object expected, Object actual, String message) {

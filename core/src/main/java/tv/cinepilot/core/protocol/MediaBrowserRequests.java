@@ -98,6 +98,54 @@ public final class MediaBrowserRequests {
                 .build();
     }
 
+    public static ProtocolRequest playbackInfo(
+            AuthSession session,
+            ServerFlavor flavor,
+            String itemId,
+            PlaybackInfoOptions options
+    ) {
+        require(itemId, "itemId");
+        String encodedItemId = ProtocolRequest.encodePathSegment(itemId);
+        ProtocolRequest.Builder builder = authenticated(
+                ProtocolRequest.get("/Items/" + encodedItemId + "/PlaybackInfo"),
+                session,
+                flavor
+        ).query("UserId", session.userId());
+        (options == null ? PlaybackInfoOptions.defaults() : options).applyTo(builder);
+        return builder.build();
+    }
+
+    public static ProtocolRequest hlsStream(AuthSession session, ServerFlavor flavor, HlsStreamOptions options) {
+        if (options == null) {
+            throw new IllegalArgumentException("options is required");
+        }
+        String encodedItemId = ProtocolRequest.encodePathSegment(options.itemId());
+        ProtocolRequest.Builder builder = authenticated(
+                ProtocolRequest.get("/Videos/" + encodedItemId + "/master.m3u8"),
+                session,
+                flavor
+        );
+        options.applyTo(builder, session.client());
+        return builder.build();
+    }
+
+    public static ProtocolRequest playbackStarted(AuthSession session, ServerFlavor flavor, PlaybackReport report) {
+        return playbackReportRequest(session, flavor, PlaybackEndpoint.STARTED, report.toPayload());
+    }
+
+    public static ProtocolRequest playbackProgress(
+            AuthSession session,
+            ServerFlavor flavor,
+            PlaybackReport report,
+            PlaybackEvent event
+    ) {
+        return playbackReportRequest(session, flavor, PlaybackEndpoint.PROGRESS, report.toProgressPayload(event));
+    }
+
+    public static ProtocolRequest playbackStopped(AuthSession session, ServerFlavor flavor, PlaybackReport report) {
+        return playbackReportRequest(session, flavor, PlaybackEndpoint.STOPPED, report.toPayload());
+    }
+
     static String clientAuthorization(ClientIdentity client, ServerFlavor flavor) {
         String scheme = flavor == ServerFlavor.EMBY ? "Emby" : "MediaBrowser";
         return scheme + " " +
@@ -118,6 +166,17 @@ public final class MediaBrowserRequests {
                 .header(session.legacyTokenHeaderName(), session.accessToken());
     }
 
+    private static ProtocolRequest playbackReportRequest(
+            AuthSession session,
+            ServerFlavor flavor,
+            PlaybackEndpoint endpoint,
+            Map<String, Object> payload
+    ) {
+        return authenticated(ProtocolRequest.post(endpoint.path()), session, flavor)
+                .jsonBody(JsonPayload.object(payload))
+                .build();
+    }
+
     private static String escape(String value) {
         return value.replace("\\", "\\\\").replace("\"", "\\\"");
     }
@@ -128,4 +187,3 @@ public final class MediaBrowserRequests {
         }
     }
 }
-

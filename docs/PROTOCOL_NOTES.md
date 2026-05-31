@@ -16,6 +16,11 @@
 - `GET /Users/{UserId}/Items/Resume`：继续观看候选。
 - `GET /Users/{UserId}/Items/Latest`：最新媒体候选。
 - `GET /Users/{UserId}/Items/{ItemId}`：媒体详情。
+- `GET /Items/{Id}/PlaybackInfo`：获取播放候选、`PlaySessionId` 和 `MediaSources`。
+- `GET /Videos/{Id}/master.m3u8`：生成 HLS 播放 URL，用于 direct stream / transcode 场景。
+- `POST /Sessions/Playing`：开始播放上报。
+- `POST /Sessions/Playing/Progress`：播放进度与暂停、seek、轨道变化等事件上报。
+- `POST /Sessions/Playing/Stopped`：停止播放上报。
 
 ## 认证头策略
 
@@ -31,10 +36,14 @@
 - Emby `POST /Users/AuthenticateByName` 参考页说明 endpoint、body 字段 `Username` / `Pw` 和返回的 `AccessToken` / `ServerId`：<https://dev.emby.media/reference/RestAPI/UserService/postUsersAuthenticatebyname.html>
 - Emby `GET /Users/{UserId}/Items` 参考页说明媒体浏览查询参数和 `BaseItemDto` 形状：<https://dev.emby.media/reference/RestAPI/ItemsService/getUsersByUseridItems.html>
 - Emby `GET /Users/Public` 参考页说明 public users 用于登录界面展示：<https://dev.emby.media/reference/RestAPI/UserService/getUsersPublic.html>
+- Emby `GET /Items/{Id}/PlaybackInfo` 参考页说明 playback info 返回播放候选、`PlaySessionId`、`MediaSources`、`DirectStreamUrl`、`TranscodingUrl` 和字幕 delivery 信息：<https://dev.emby.media/reference/RestAPI/MediaInfoService/getItemsByIdPlaybackinfo.html>
+- Emby HLS 文档说明 `/Videos/{Id}/master.m3u8` 是 HLS 入口，必需参数包括 path 里的 `Id`、`MediaSourceId` 和 `DeviceId`：<https://dev.emby.media/doc/restapi/Http-Live-Streaming.html>
+- Emby `GET /Videos/{Id}/master.m3u8` 参考页说明 start time 使用 ticks，并列出音轨、字幕、分辨率、码率、codec 等参数：<https://dev.emby.media/reference/RestAPI/DynamicHlsService/getVideosByIdMasterM3u8.html>
+- Jellyfin TypeScript SDK 暴露 `getPlaybackInfo`、`getPostedPlaybackInfo` 和 `openLiveStream`，其中 POST 版支持 max bitrate、start ticks、音轨、字幕、direct play / direct stream / transcoding 等参数：<https://typescript-sdk.jellyfin.org/functions/generated-client.MediaInfoApiFp.html>
 
 ## 后续确认项
 
 - Jellyfin 与 Emby 对 `/Users/{UserId}/Items/{ItemId}` 详情 endpoint 的差异需要在真实服务器或官方 OpenAPI 生成客户端上验证。
-- 播放信息获取、direct play / direct stream / transcode 决策和 subtitle delivery profile 需要下一批单独建模。
+- direct play / direct stream / transcode 的最终选择规则需要在解析 `PlaybackInfoResponse` 后建模。
+- Media3 设备能力到 `DeviceProfile` / codec 参数的映射需要在 Android 层可运行后补齐。
 - Quick Connect 只先写入需求和路线图，尚未进入 P0 请求规格。
-

@@ -9,6 +9,8 @@ app/
 core/
   src/main/java/tv/cinepilot/core/
     protocol/                    服务器、认证、endpoint 和播放协议规则
+      PlaybackInfoOptions.java   playback info 查询参数
+      HlsStreamOptions.java      HLS 播放 URL 参数
   src/test/java/tv/cinepilot/core/
     protocol/                    JVM 协议测试
 docs/                            项目指导文档
