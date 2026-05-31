@@ -752,8 +752,18 @@ if ! grep -q 'Quick Connect' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/MainAc
   exit 1
 fi
 
-if ! grep -q 'scheduleQuickConnectPoll' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/MainActivity.kt"; then
-  echo "MainActivity must poll Quick Connect authorization status" >&2
+if [[ ! -s "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/runtime/QuickConnectPoller.kt" ]]; then
+  echo "Missing dedicated Quick Connect poller" >&2
+  exit 1
+fi
+
+if ! grep -q 'quickConnectPoller.start' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/MainActivity.kt"; then
+  echo "MainActivity must start Quick Connect authorization polling" >&2
+  exit 1
+fi
+
+if ! grep -q 'QUICK_CONNECT_NOT_APPROVED_MESSAGE' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/runtime/QuickConnectPoller.kt"; then
+  echo "QuickConnectPoller must continue polling until authorization is approved" >&2
   exit 1
 fi
 

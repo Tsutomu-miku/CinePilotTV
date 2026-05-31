@@ -39,6 +39,7 @@ import tv.cinepilot.core.tv.TvRoute
 import tv.cinepilot.core.tv.TvWorkflowController
 import tv.cinepilot.tv.player.Media3PlayerHost
 import tv.cinepilot.tv.runtime.PrimaryImageLoader
+import tv.cinepilot.tv.runtime.QuickConnectPoller
 import tv.cinepilot.tv.runtime.RecentAccountStore
 import tv.cinepilot.tv.ui.action
 import tv.cinepilot.tv.ui.actionStrip
@@ -63,10 +64,10 @@ class MainActivity : ComponentActivity() {
     private lateinit var viewModel: CinePilotViewModel
     private lateinit var playerHost: Media3PlayerHost
     private lateinit var primaryImageLoader: PrimaryImageLoader
+    private lateinit var quickConnectPoller: QuickConnectPoller
     private val executor = Executors.newSingleThreadExecutor()
     private val mainHandler = Handler(Looper.getMainLooper())
     private val recentAccountStore by lazy { RecentAccountStore(this) }
-    @Volatile private var quickConnectPolling = false
     private var searchVisible = false
     private var selectedPlaybackInfo: PlaybackInfo? = null
     private var lastPlaybackBackPressAt = 0L
@@ -76,6 +77,16 @@ class MainActivity : ComponentActivity() {
         viewModel = ViewModelProvider(this, CinePilotViewModel.factory(applicationContext))[CinePilotViewModel::class.java]
         playerHost = Media3PlayerHost(this, viewModel.mediaBrowserClient)
         primaryImageLoader = PrimaryImageLoader(viewModel.mediaBrowserClient)
+        quickConnectPoller = QuickConnectPoller(
+            mainHandler,
+            executor,
+            viewModel.workflowController,
+            onApproved = {
+                rememberAccount()
+                showHome(viewModel.workflowController.state())
+            },
+            onError = ::showError,
+        )
         if (handleQaLoginIntent(intent)) {
             return
         }
@@ -88,7 +99,7 @@ class MainActivity : ComponentActivity() {
     }
 
     override fun onDestroy() {
-        stopQuickConnectPolling()
+        quickConnectPoller.stop()
         playerHost.shutdown()
         primaryImageLoader.shutdown()
         executor.shutdownNow()
@@ -149,7 +160,7 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun showServerEntry() {
-        stopQuickConnectPolling()
+        quickConnectPoller.stop()
         val serverInput = input("http://192.168.1.10:8096", InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_URI)
         val recentAccounts = recentAccountStore.accounts()
         val recentServers = recentAccountStore.servers()
@@ -215,7 +226,7 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun showLogin() {
-        stopQuickConnectPolling()
+        quickConnectPoller.stop()
         val usernameInput = input("用户名", InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_NORMAL)
         val passwordInput = input("密码", InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_PASSWORD)
         setContentView(screen("登录 ${viewModel.workflowController.state().server()?.serverName() ?: ""}") {
@@ -297,7 +308,7 @@ class MainActivity : ComponentActivity() {
                 val quickConnect = viewModel.workflowController.startQuickConnect()
                 runOnUiThread {
                     showQuickConnect(quickConnect)
-                    scheduleQuickConnectPoll()
+                    quickConnectPoller.start()
                 }
             } catch (error: Throwable) {
                 runOnUiThread { showError(error) }
@@ -306,7 +317,6 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun showQuickConnect(quickConnect: QuickConnectSession) {
-        quickConnectPolling = true
         setContentView(screen("Quick Connect") {
             addView(label("授权码：${quickConnect.code()}"))
             addView(label("请在 Jellyfin 中输入授权码，授权后会自动登录"))
@@ -322,46 +332,8 @@ class MainActivity : ComponentActivity() {
         })
     }
 
-    private fun scheduleQuickConnectPoll() {
-        if (!quickConnectPolling) {
-            return
-        }
-        mainHandler.postDelayed({
-            if (quickConnectPolling) {
-                pollQuickConnectApproval()
-            }
-        }, 2_000L)
-    }
-
-    private fun pollQuickConnectApproval() {
-        executor.execute {
-            try {
-                viewModel.workflowController.completeQuickConnect()
-                runOnUiThread {
-                    stopQuickConnectPolling()
-                    rememberAccount()
-                    showHome(viewModel.workflowController.state())
-                }
-            } catch (error: Throwable) {
-                if (error.message == TvWorkflowController.QUICK_CONNECT_NOT_APPROVED_MESSAGE) {
-                    runOnUiThread { scheduleQuickConnectPoll() }
-                } else {
-                    runOnUiThread {
-                        stopQuickConnectPolling()
-                        showError(error)
-                    }
-                }
-            }
-        }
-    }
-
-    private fun stopQuickConnectPolling() {
-        quickConnectPolling = false
-        mainHandler.removeCallbacksAndMessages(null)
-    }
-
     private fun showHome(state: TvAppState) {
-        stopQuickConnectPolling()
+        quickConnectPoller.stop()
         searchVisible = false
         var focusedCard: View? = null
         setContentView(homeScreen(
