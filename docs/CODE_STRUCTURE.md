@@ -13,6 +13,7 @@ core/
     protocol/                    服务器、认证、endpoint 和播放协议规则
     tv/                          Android TV 状态、导航和焦点领域规则
       HomeRowsLoader.java        组合媒体库首页 rows
+      TvWorkflowController.java  TV 用例编排入口
       PlaybackInfoOptions.java   playback info 查询参数
       HlsStreamOptions.java      HLS 播放 URL 参数
       PlaybackSourceSelector.java 播放源选择规则

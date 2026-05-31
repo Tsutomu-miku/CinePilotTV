@@ -13,6 +13,7 @@ import tv.cinepilot.core.protocol.MediaItemType;
 import tv.cinepilot.core.protocol.MediaServerAddress;
 import tv.cinepilot.core.protocol.PlayMethod;
 import tv.cinepilot.core.protocol.PlayableMedia;
+import tv.cinepilot.core.protocol.PlaybackSelectionPreferences;
 import tv.cinepilot.core.protocol.ProtocolRequest;
 import tv.cinepilot.core.protocol.ProtocolResponse;
 import tv.cinepilot.core.protocol.ServerFlavor;
@@ -26,6 +27,7 @@ public final class TvWorkflowTest {
         runsServerLoginHomeDetailsPlayerFlow();
         rejectsFocusForMissingItems();
         loadsHomeRowsFromMediaBrowserClient();
+        controllerRunsServerLoginBrowseAndPlaybackUseCase();
         System.out.println("TvWorkflowTest passed");
     }
 
@@ -160,6 +162,68 @@ public final class TvWorkflowTest {
         assertEquals("/Users/user-1/Views", transport.requests.get(2).path(), "loader fetches views for latest rows");
         assertTrue(transport.requests.get(3).url(authenticated.server().address()).contains("ParentId=movies"), "movies latest");
         assertTrue(transport.requests.get(4).url(authenticated.server().address()).contains("ParentId=series"), "series latest");
+    }
+
+    private static void controllerRunsServerLoginBrowseAndPlaybackUseCase() {
+        FakeTransport transport = new FakeTransport();
+        transport.enqueue(200, "{\"Id\":\"server-1\",\"ServerName\":\"Jellyfin\"}");
+        transport.enqueue(200, "{\"AccessToken\":\"token-1\",\"ServerId\":\"server-1\",\"User\":{\"Id\":\"user-1\"}}");
+        enqueueHomeResponses(transport);
+        transport.enqueue(200, "{\"Id\":\"movie-1\",\"Name\":\"Arrival\",\"Type\":\"Movie\",\"IsPlayable\":true,\"UserData\":{\"PlaybackPositionTicks\":120000000}}");
+        transport.enqueue(200, """
+                {"PlaySessionId":"play-session-1","MediaSources":[
+                  {"Id":"source-1","DirectStreamUrl":"/Videos/movie-1/stream.mkv?MediaSourceId=source-1","SupportsDirectStream":true}
+                ]}
+                """);
+
+        ClientIdentity client = new ClientIdentity("CinePilot TV", "Living Room TV", "device-1", "0.1.0");
+        MediaBrowserClient mediaClient = new MediaBrowserClient(transport, new InMemorySessionRepository(), client);
+        TvWorkflowController controller = new TvWorkflowController(mediaClient, new HomeRowsLoader(mediaClient, 12));
+
+        TvAppState state = controller.submitServer("https://media.example.com/jellyfin");
+        assertEquals(TvRoute.LOGIN, state.route(), "controller discovers server");
+
+        state = controller.login("demo", "secret");
+        assertEquals(TvRoute.HOME, state.route(), "controller logs in and loads home");
+        assertEquals(new FocusedItem("views", "movies"), state.focus(), "controller home focus");
+
+        state = controller.openItem("movie-1");
+        assertEquals(TvRoute.DETAILS, state.route(), "controller opens item details");
+        assertEquals("movie-1", state.selectedItem().id(), "controller selected item");
+
+        state = controller.preparePlayback(PlaybackSelectionPreferences.defaults());
+        assertEquals(TvRoute.PLAYER, state.route(), "controller prepares playback");
+        assertEquals("source-1", state.playableMedia().mediaSourceId(), "controller playable source");
+        assertEquals("https://media.example.com/jellyfin/Videos/movie-1/stream.mkv?MediaSourceId=source-1", state.playableMedia().url(), "controller playable url");
+
+        assertEquals("/System/Info/Public", transport.requests.get(0).path(), "controller discover request");
+        assertEquals("/Users/AuthenticateByName", transport.requests.get(1).path(), "controller login request");
+        assertEquals("/Users/user-1/Items/movie-1", transport.requests.get(6).path(), "controller item detail request");
+        assertEquals("/Items/movie-1/PlaybackInfo", transport.requests.get(7).path(), "controller playback info request");
+        assertTrue(transport.requests.get(7).url(MediaServerAddress.parse("https://media.example.com/jellyfin")).contains("StartTimeTicks=120000000"), "controller resume ticks");
+    }
+
+    private static void enqueueHomeResponses(FakeTransport transport) {
+        transport.enqueue(200, """
+                {"Items":[
+                  {"Id":"movies","Name":"Movies","Type":"CollectionFolder","IsFolder":true}
+                ],"TotalRecordCount":1,"StartIndex":0}
+                """);
+        transport.enqueue(200, """
+                {"Items":[
+                  {"Id":"resume-1","Name":"Resume Movie","Type":"Movie","IsPlayable":true}
+                ],"TotalRecordCount":1,"StartIndex":0}
+                """);
+        transport.enqueue(200, """
+                {"Items":[
+                  {"Id":"movies","Name":"Movies","Type":"CollectionFolder","IsFolder":true}
+                ],"TotalRecordCount":1,"StartIndex":0}
+                """);
+        transport.enqueue(200, """
+                {"Items":[
+                  {"Id":"movie-1","Name":"New Movie","Type":"Movie","IsPlayable":true}
+                ],"TotalRecordCount":1,"StartIndex":0}
+                """);
     }
 
     private static AuthenticatedServer authenticated(ClientIdentity client) {

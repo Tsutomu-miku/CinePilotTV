@@ -13,6 +13,7 @@ CinePilot TV 应该像一个原生 Android TV 媒体播放器，同时严格保�
 - 协议适配器与 UI、播放器组件分离。
 - 状态转换放进类型化 action 或领域函数中。
 - TV 界面状态和焦点身份先放在 JVM 可测试 workflow 中，再由 Android UI 渲染。
+- Android ViewModel 应调用 `TvWorkflowController`，不要在 UI 层直接编排协议请求。
 - 新行为进入 Android runtime 前，应尽量能通过 `./scripts/check.sh` 测试。
 - 优先修复身份、生命周期和适配器边界的根因问题。
 
