@@ -19,7 +19,7 @@
 
 ## Android 构建检查
 
-当前机器没有 `ANDROID_HOME`，因此本线程尚未完成 Android 编译、模拟器启动或真实设备播放验证。
+当前机器没有全局 `ANDROID_HOME`，但仓库存在本地 `local.properties` 指向临时 SDK，因此可以完成 Android debug 构建。本线程尚未完成模拟器启动或真实设备播放验证。
 
 已确认：
 
@@ -27,6 +27,12 @@
 - `./gradlew :core:test` 可以通过，并会执行 `ProtocolCoreTest` 与 `TvWorkflowTest`。
 - `HttpTransportIntegrationTest` 会启动本地 HTTP 服务，验证真实 `UrlConnectionHttpTransport` 可完成发现、登录、首页、详情、playback info 和播放进度上报。
 - 使用本地临时 SDK（`local.properties` 指向 `build/android-sdk`）时，`./gradlew :app:assembleDebug` 可以通过并生成 debug APK。
+
+最近验证记录（2026-05-31）：
+
+- `./scripts/check.sh` 通过。
+- `./scripts/install-debug-apk.sh` 可以完成 `:app:assembleDebug`。
+- `./scripts/install-debug-apk.sh` 在安装阶段停止，原因是 `adb devices` 没有在线 Android TV 设备或模拟器。
 
 具备 Android SDK 后，应运行：
 
