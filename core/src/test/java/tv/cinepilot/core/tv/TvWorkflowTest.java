@@ -36,6 +36,7 @@ public final class TvWorkflowTest {
         controllerLogoutRevokesSavedSession();
         controllerRestoresSavedSessionAndLoadsHome();
         controllerBrowsesFolderRowsAndReturnsToParent();
+        controllerPaginatesFolderRows();
         controllerOpensFirstChildForFolderBrowse();
         controllerReportsEmptyFolderBrowse();
         controllerReportsUnsupportedPlayback();
@@ -380,6 +381,49 @@ public final class TvWorkflowTest {
 
         assertEquals(root.homeRows().get(0).id(), restored.homeRows().get(0).id(), "folder back restores root rows");
         assertTrue(!controller.canGoBackInBrowse(), "folder back clears one stack level");
+    }
+
+    private static void controllerPaginatesFolderRows() {
+        FakeTransport transport = new FakeTransport();
+        transport.enqueue(200, "{\"Id\":\"server-1\",\"ServerName\":\"Jellyfin\"}");
+        transport.enqueue(200, "{\"AccessToken\":\"token-1\",\"ServerId\":\"server-1\",\"User\":{\"Id\":\"user-1\"}}");
+        enqueueHomeResponses(transport);
+        transport.enqueue(200, """
+                {"Items":[
+                  {"Id":"episode-1","Name":"Episode 1","Type":"Episode","IsPlayable":true}
+                ],"TotalRecordCount":75,"StartIndex":0}
+                """);
+        transport.enqueue(200, """
+                {"Items":[
+                  {"Id":"episode-51","Name":"Episode 51","Type":"Episode","IsPlayable":true}
+                ],"TotalRecordCount":75,"StartIndex":50}
+                """);
+        transport.enqueue(200, """
+                {"Items":[
+                  {"Id":"episode-1","Name":"Episode 1","Type":"Episode","IsPlayable":true}
+                ],"TotalRecordCount":75,"StartIndex":0}
+                """);
+
+        ClientIdentity client = new ClientIdentity("CinePilot TV", "Living Room TV", "device-1", "0.1.0");
+        MediaBrowserClient mediaClient = new MediaBrowserClient(transport, new InMemorySessionRepository(), client);
+        TvWorkflowController controller = new TvWorkflowController(mediaClient, new HomeRowsLoader(mediaClient, 12));
+
+        controller.submitServer("https://media.example.com/jellyfin");
+        controller.login("demo", "secret");
+        TvAppState firstPage = controller.openFolder("series", "Series");
+        assertTrue(controller.canPageForwardInBrowse(), "first page has next page");
+        assertTrue(!controller.canPageBackwardInBrowse(), "first page has no previous page");
+        assertTrue(firstPage.homeRows().get(0).title().contains("1-1/75"), "first page title includes range");
+
+        TvAppState secondPage = controller.nextBrowsePage();
+        assertTrue(!controller.canPageForwardInBrowse(), "last page has no next page");
+        assertTrue(controller.canPageBackwardInBrowse(), "last page has previous page");
+        assertEquals("episode-51", secondPage.homeRows().get(0).items().get(0).id(), "next page item");
+        assertTrue(transport.requests.get(7).url(MediaServerAddress.parse("https://media.example.com/jellyfin")).contains("StartIndex=50"), "next page start index");
+
+        TvAppState backToFirstPage = controller.previousBrowsePage();
+        assertEquals("episode-1", backToFirstPage.homeRows().get(0).items().get(0).id(), "previous page item");
+        assertTrue(transport.requests.get(8).url(MediaServerAddress.parse("https://media.example.com/jellyfin")).contains("StartIndex=0"), "previous page start index");
     }
 
     private static void controllerReportsEmptyFolderBrowse() {

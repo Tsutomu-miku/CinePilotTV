@@ -161,6 +161,24 @@ class MainActivity : Activity() {
                     showHome(runtime.workflowController.back())
                 })
             }
+            if (runtime.workflowController.canPageBackwardInBrowse()) {
+                addView(action("上一页") {
+                    runTask("正在加载上一页...", {
+                        runtime.workflowController.previousBrowsePage()
+                    }) {
+                        showHome(runtime.workflowController.state())
+                    }
+                })
+            }
+            if (runtime.workflowController.canPageForwardInBrowse()) {
+                addView(action("下一页") {
+                    runTask("正在加载下一页...", {
+                        runtime.workflowController.nextBrowsePage()
+                    }) {
+                        showHome(runtime.workflowController.state())
+                    }
+                })
+            }
             addView(action("重新加载首页") {
                 runTask("正在重新加载首页...", {
                     runtime.workflowController.loadHome()

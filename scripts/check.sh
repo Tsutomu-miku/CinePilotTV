@@ -156,6 +156,16 @@ if ! grep -q '返回上级' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/MainAct
   exit 1
 fi
 
+if ! grep -q '下一页' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/MainActivity.kt"; then
+  echo "MainActivity must expose folder pagination" >&2
+  exit 1
+fi
+
+if ! grep -q 'canPageForwardInBrowse' "$ROOT_DIR/core/src/main/java/tv/cinepilot/core/tv/TvWorkflowController.java"; then
+  echo "TvWorkflowController must support folder pagination" >&2
+  exit 1
+fi
+
 if ! grep -q '打开子项目' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/MainActivity.kt"; then
   echo "MainActivity must expose a child browse action in Chinese" >&2
   exit 1
