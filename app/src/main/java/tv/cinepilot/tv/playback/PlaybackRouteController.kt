@@ -142,23 +142,17 @@ class PlaybackRouteController(
         )
     }
 
-    private fun showPlayerReady(state: TvAppState) {
-        activity.setContentView(activity.playerReadyScreen(
-            state = state,
-            onOpenPlayer = { showPlayer(state) },
-            onDiagnostics = { showDiagnostics(state) },
-            onBackDetails = {
-                workflowController.back()
-                workflowController.state().selectedItem()?.let(::showDetails)
-            },
-        ))
+    fun retryLowBitrateFromError(state: TvAppState) {
+        state.selectedItem()?.let { item ->
+            preparePlaybackWith(lowBitratePreferences(item))
+        }
     }
 
     private fun showDiagnostics(
         state: TvAppState,
         returnToPlayer: Boolean = false,
         backLabel: String? = null,
-        onBackDiagnosticsTarget: () -> Unit = { showDiagnosticsTarget(state, returnToPlayer) },
+        onBackDiagnosticsTarget: () -> Unit,
     ) {
         val diagnostics = TvDiagnostics.describe(state)
         activity.setContentView(activity.diagnosticsScreen(
@@ -180,7 +174,7 @@ class PlaybackRouteController(
         path: String,
         returnToPlayer: Boolean = false,
         backLabel: String? = null,
-        onBackDiagnosticsTarget: () -> Unit = { showDiagnosticsTarget(state, returnToPlayer) },
+        onBackDiagnosticsTarget: () -> Unit,
     ) {
         val diagnostics = TvDiagnostics.describe(state)
         activity.setContentView(activity.diagnosticsExportedScreen(
@@ -193,14 +187,6 @@ class PlaybackRouteController(
             },
             onBackDiagnosticsTarget = onBackDiagnosticsTarget,
         ))
-    }
-
-    private fun showDiagnosticsTarget(state: TvAppState, returnToPlayer: Boolean) {
-        if (returnToPlayer) {
-            showPlayer(state)
-        } else {
-            showPlayerReady(state)
-        }
     }
 
     private fun shareDiagnostics(diagnostics: String) {
@@ -271,20 +257,24 @@ class PlaybackRouteController(
         audioStreamIndex: Int?,
         subtitleStreamIndex: Int?,
     ): PlaybackSelectionPreferences {
-        val startTimeTicks = if (item.hasResumePosition()) item.userData().playbackPositionTicks() else 0L
-        return PlaybackSelectionPreferences(startTimeTicks, audioStreamIndex, subtitleStreamIndex, null, 0, 0, 0)
+        return PlaybackSelectionPreferences(resumeStartTicks(item), audioStreamIndex, subtitleStreamIndex, null, 0, 0, 0)
             .withMediaSourceId(mediaSourceId)
     }
 
     private fun sourcePreferences(item: MediaItemSummary, mediaSourceId: String): PlaybackSelectionPreferences {
-        val startTimeTicks = if (item.hasResumePosition()) item.userData().playbackPositionTicks() else 0L
-        return PlaybackSelectionPreferences(startTimeTicks, null, null, null, 0, 0, 0).withMediaSourceId(mediaSourceId)
+        return PlaybackSelectionPreferences(resumeStartTicks(item), null, null, null, 0, 0, 0).withMediaSourceId(mediaSourceId)
+    }
+
+    private fun lowBitratePreferences(item: MediaItemSummary): PlaybackSelectionPreferences {
+        return PlaybackSelectionPreferences.lowBitrate(resumeStartTicks(item))
     }
 
     private fun speedPreferences(item: MediaItemSummary, rate: Float): PlaybackSelectionPreferences {
-        val startTimeTicks = if (item.hasResumePosition()) item.userData().playbackPositionTicks() else 0L
-        return PlaybackSelectionPreferences(startTimeTicks, null, null, null, 0, 0, 0).withPlaybackRate(rate)
+        return PlaybackSelectionPreferences(resumeStartTicks(item), null, null, null, 0, 0, 0).withPlaybackRate(rate)
     }
+
+    private fun resumeStartTicks(item: MediaItemSummary): Long =
+        if (item.hasResumePosition()) item.userData().playbackPositionTicks() else 0L
 
     companion object {
         private const val PLAYBACK_BACK_EXIT_WINDOW_MS = 2_000L

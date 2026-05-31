@@ -696,6 +696,16 @@ if ! grep -q 'showDiagnosticsFromError' "$ROOT_DIR/app/src/main/java/tv/cinepilo
   exit 1
 fi
 
+if ! grep -q 'retryLowBitrateFromError' "$PLAYBACK_ROUTE_CONTROLLER"; then
+  echo "Playback route controller must support low bitrate retry from playback errors" >&2
+  exit 1
+fi
+
+if ! grep -q '低码率重试' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/MainActivity.kt"; then
+  echo "Error recovery page must expose low bitrate retry" >&2
+  exit 1
+fi
+
 if ! grep -q 'Intent.ACTION_SEND' "$PLAYBACK_ROUTE_CONTROLLER"; then
   echo "Diagnostics sharing must use a text share intent" >&2
   exit 1

@@ -216,6 +216,9 @@ class MainActivity : ComponentActivity() {
                 addView(action("返回详情") { state.selectedItem()?.let(playbackRoutes::showDetails) })
             }
             if (state.playableMedia() != null && !authenticationExpired) {
+                addView(action("低码率重试") {
+                    playbackRoutes.retryLowBitrateFromError(state)
+                })
                 addView(action("诊断信息") {
                     playbackRoutes.showDiagnosticsFromError(state) { showError(error) }
                 })
