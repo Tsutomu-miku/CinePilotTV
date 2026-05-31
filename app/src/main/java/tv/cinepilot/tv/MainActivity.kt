@@ -65,9 +65,9 @@ class MainActivity : Activity() {
 
     private fun showServerEntry() {
         val serverInput = input("https://your-server.example.com", InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_URI)
-        val lastAccount = savedLastAccount()
+        val recentAccounts = savedAccounts()
         setContentView(screen("CinePilot TV") {
-            lastAccount?.let { account ->
+            recentAccounts.forEach { account ->
                 addView(action("继续 ${account.displayName()}") {
                     runTask("正在恢复上次登录...", {
                         runtime.workflowController.submitServer(account.serverAddress)
@@ -76,8 +76,10 @@ class MainActivity : Activity() {
                         showHome(runtime.workflowController.state())
                     }
                 })
-                addView(action("清除上次登录") {
-                    clearLastAccount()
+            }
+            if (recentAccounts.isNotEmpty()) {
+                addView(action("清除已保存登录") {
+                    clearSavedAccounts()
                     showServerEntry()
                 })
             }
@@ -118,7 +120,7 @@ class MainActivity : Activity() {
                         passwordInput.text.toString(),
                     )
                 }) {
-                    rememberLastAccount()
+                    rememberAccount()
                     showHome(runtime.workflowController.state())
                 }
             })
@@ -151,8 +153,8 @@ class MainActivity : Activity() {
             })
             addView(action("退出登录") {
                 runTask("正在退出登录...", {
+                    forgetAuthenticatedAccount()
                     runtime.workflowController.logout()
-                    clearLastAccount()
                 }) {
                     showServerEntry()
                 }
@@ -263,7 +265,7 @@ class MainActivity : Activity() {
     private fun showError(error: Throwable) {
         val authenticationExpired = error is MediaBrowserException && error.statusCode() == 401
         if (authenticationExpired) {
-            clearLastAccount()
+            forgetAuthenticatedAccount()
             runtime.workflowController.forgetAuthenticatedSession()
         } else {
             runtime.workflowController.fail(error.message ?: error::class.java.simpleName)
@@ -370,16 +372,37 @@ class MainActivity : Activity() {
         }
     }
 
-    private fun rememberLastAccount() {
+    private fun rememberAccount() {
         val authenticated = runtime.workflowController.state().authenticated() ?: return
+        val account = LastAccount(
+            authenticated.server().address().value(),
+            authenticated.server().serverName(),
+            authenticated.session().userId(),
+        )
+        val accounts = (listOf(account) + savedAccounts().filterNot {
+            it.serverAddress == account.serverAddress && it.userId == account.userId
+        }).take(5)
         lastAccountStore.edit()
-            .putString("server_address", authenticated.server().address().value())
-            .putString("server_name", authenticated.server().serverName())
-            .putString("user_id", authenticated.session().userId())
+            .putString("recent_accounts", accounts.joinToString("\n") { it.serialize() })
+            .putString("server_address", account.serverAddress)
+            .putString("server_name", account.serverName)
+            .putString("user_id", account.userId)
             .apply()
     }
 
-    private fun savedLastAccount(): LastAccount? {
+    private fun savedAccounts(): List<LastAccount> {
+        val recentAccounts = lastAccountStore.getString("recent_accounts", null)
+            ?.lineSequence()
+            ?.mapNotNull(LastAccount::deserialize)
+            ?.toList()
+            .orEmpty()
+        if (recentAccounts.isNotEmpty()) {
+            return recentAccounts
+        }
+        return savedLegacyAccount()?.let(::listOf).orEmpty()
+    }
+
+    private fun savedLegacyAccount(): LastAccount? {
         val serverAddress = lastAccountStore.getString("server_address", null)?.takeIf { it.isNotBlank() }
         val userId = lastAccountStore.getString("user_id", null)?.takeIf { it.isNotBlank() }
         if (serverAddress == null || userId == null) {
@@ -392,8 +415,26 @@ class MainActivity : Activity() {
         )
     }
 
-    private fun clearLastAccount() {
+    private fun clearSavedAccounts() {
         lastAccountStore.edit().clear().apply()
+    }
+
+    private fun forgetAuthenticatedAccount() {
+        val authenticated = runtime.workflowController.state().authenticated() ?: return
+        val account = LastAccount(
+            authenticated.server().address().value(),
+            authenticated.server().serverName(),
+            authenticated.session().userId(),
+        )
+        val accounts = savedAccounts().filterNot {
+            it.serverAddress == account.serverAddress && it.userId == account.userId
+        }
+        lastAccountStore.edit()
+            .putString("recent_accounts", accounts.joinToString("\n") { it.serialize() })
+            .remove("server_address")
+            .remove("server_name")
+            .remove("user_id")
+            .apply()
     }
 
     private data class LastAccount(
@@ -404,6 +445,24 @@ class MainActivity : Activity() {
         fun displayName(): String {
             val serverLabel = serverName.ifBlank { serverAddress }
             return "$serverLabel / $userId"
+        }
+
+        fun serialize(): String {
+            return listOf(serverAddress, serverName, userId).joinToString("\t", transform = ::safeField)
+        }
+
+        companion object {
+            fun deserialize(value: String): LastAccount? {
+                val fields = value.split('\t')
+                if (fields.size != 3 || fields[0].isBlank() || fields[2].isBlank()) {
+                    return null
+                }
+                return LastAccount(fields[0], fields[1], fields[2])
+            }
+
+            private fun safeField(value: String): String {
+                return value.replace('\t', ' ').replace('\n', ' ').trim()
+            }
         }
     }
 }

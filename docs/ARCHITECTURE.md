@@ -62,7 +62,7 @@ Android 首页按钮获得选择意图时，应先调用 `TvWorkflowController.f
 
 `TvWorkflowController` 是 Android ViewModel 应调用的核心用例入口，负责服务器发现、登录、首页加载、详情打开和播放准备。它保持 `TvAppState`，并把协议 client 的结果转换为 workflow 状态。
 
-`TvWorkflowController.restoreSession(userId)` 要求先完成服务器发现，再按已发现服务器、userId、客户端身份和设备身份恢复会话。Android UI 可以记住上次服务器地址和 userId 来提供“继续”入口，但不能自行保存或拼接 token。
+`TvWorkflowController.restoreSession(userId)` 要求先完成服务器发现，再按已发现服务器、userId、客户端身份和设备身份恢复会话。Android UI 可以记住最近服务器地址和 userId 列表来提供多个“继续”入口，但不能自行保存或拼接 token。
 
 `TvWorkflowController.loadPublicUsers()` 只用于减少 TV 端用户名输入。public users 来自 `/Users/Public`，选择用户后 Android UI 只能预填用户名，仍必须通过 `login(username, password)` 完成正式认证并获取 token。
 
@@ -72,7 +72,7 @@ Android 首页按钮获得选择意图时，应先调用 `TvWorkflowController.f
 
 `TvWorkflowController` 对可预期的内容边界使用稳定错误消息：空目录使用 `NO_CHILD_ITEM_MESSAGE`，无法从 playback info 选择播放源时使用 `NO_PLAYABLE_SOURCE_MESSAGE`。Android UI 负责把这些消息翻译成中文用户提示。
 
-TV 首页必须提供退出登录入口，调用 `TvWorkflowController.logout()` 让服务器 logout endpoint 和本地 scoped session 撤销走同一条路径，并清除 Android 的上次登录提示。
+TV 首页必须提供退出登录入口，调用 `TvWorkflowController.logout()` 让服务器 logout endpoint 和本地 scoped session 撤销走同一条路径，并从 Android 最近登录列表移除当前服务器 / 用户。
 
 ## 播放层
 
@@ -100,7 +100,7 @@ Media3 播放速度变化通过 `onPlaybackParametersChanged` 上报到 `Playbac
 
 当前 `InMemorySessionRepository` 用于领域验证和早期集成，`FileSessionRepository` 提供 JVM 可用的落盘实现。Android 可用版本可以复用文件实现或包一层平台存储路径，但必须保持相同 `SessionScope` 规则。
 
-Android Activity 只用 SharedPreferences 保存上次登录提示信息：服务器地址、服务器显示名和 userId。真正的访问 token 仍由 `FileSessionRepository` 存在 app 私有文件中，并在恢复时经过 `MediaBrowserClient.restore` 读取。
+Android Activity 只用 SharedPreferences 保存最近登录提示信息：服务器地址、服务器显示名和 userId。真正的访问 token 仍由 `FileSessionRepository` 存在 app 私有文件中，并在恢复时经过 `MediaBrowserClient.restore` 读取。
 
 ## 验证策略
 
