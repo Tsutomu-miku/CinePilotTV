@@ -122,6 +122,8 @@ public final class MediaBrowserResponseMapper {
                 optionalInt(item, "IndexNumber"),
                 optionalInt(item, "ParentIndexNumber"),
                 valueOrEmpty(JsonValue.string(item, "SeriesName")),
+                valueOrEmpty(JsonValue.string(item, "Overview")),
+                stringList(item, "Genres"),
                 userData(JsonValue.childObject(item, "UserData")),
                 imageTags(JsonValue.childObject(item, "ImageTags"))
         );
@@ -147,6 +149,16 @@ public final class MediaBrowserResponseMapper {
             }
         }
         return tags;
+    }
+
+    private static List<String> stringList(Map<String, Object> object, String key) {
+        List<String> values = new ArrayList<>();
+        for (Object value : JsonValue.array(object, key)) {
+            if (value instanceof String stringValue && !stringValue.isBlank()) {
+                values.add(stringValue);
+            }
+        }
+        return values;
     }
 
     private static String firstString(Map<String, Object> object, String... keys) {

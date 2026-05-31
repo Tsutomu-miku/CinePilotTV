@@ -201,6 +201,16 @@ if ! grep -q '打开子项目' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/Main
   exit 1
 fi
 
+if ! grep -q '简介：' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/MainActivity.kt"; then
+  echo "MainActivity must show media overview on details when available" >&2
+  exit 1
+fi
+
+if ! grep -q 'Genres' "$ROOT_DIR/core/src/main/java/tv/cinepilot/core/protocol/MediaBrowserResponseMapper.java"; then
+  echo "MediaBrowserResponseMapper must map media genres" >&2
+  exit 1
+fi
+
 if ! grep -q 'forgetAuthenticatedSession' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/MainActivity.kt"; then
   echo "MainActivity must clear expired authenticated sessions" >&2
   exit 1

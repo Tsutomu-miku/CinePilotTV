@@ -1,5 +1,6 @@
 package tv.cinepilot.core.protocol;
 
+import java.util.List;
 import java.util.Map;
 
 public record MediaItemSummary(
@@ -14,6 +15,8 @@ public record MediaItemSummary(
         Integer indexNumber,
         Integer parentIndexNumber,
         String seriesName,
+        String overview,
+        List<String> genres,
         UserItemData userData,
         Map<String, String> imageTags
 ) {
@@ -31,6 +34,10 @@ public record MediaItemSummary(
         if (userData == null) {
             userData = UserItemData.empty();
         }
+        if (overview == null) {
+            overview = "";
+        }
+        genres = List.copyOf(genres == null ? List.of() : genres);
         imageTags = Map.copyOf(imageTags == null ? Map.of() : imageTags);
     }
 
@@ -44,4 +51,3 @@ public record MediaItemSummary(
         }
     }
 }
-

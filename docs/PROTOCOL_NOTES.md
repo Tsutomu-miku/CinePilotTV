@@ -27,7 +27,7 @@
 - 系统信息响应到 `ServerIdentity`。
 - 登录响应到 `AuthSession`。
 - playback info 响应到 `PlaybackInfo`、`MediaSourceInfo` 和 `MediaStreamInfo`。
-- 媒体列表和详情响应到 `MediaItemPage` 与 `MediaItemSummary`。
+- 媒体列表和详情响应到 `MediaItemPage` 与 `MediaItemSummary`，包含简介、类型和图片标签等详情页 metadata。
 
 `MediaBrowserClient` 已把以下流程串成可测试编排：
 

@@ -248,6 +248,12 @@ class MainActivity : Activity() {
     private fun showDetails(item: MediaItemSummary) {
         setContentView(screen(item.name()) {
             addView(label("${item.type()}${if (item.productionYear() != null) " · ${item.productionYear()}" else ""}"))
+            if (item.genres().isNotEmpty()) {
+                addView(label("类型：${item.genres().joinToString(" / ")}"))
+            }
+            if (item.overview().isNotBlank()) {
+                addView(label("简介：${item.overview()}"))
+            }
             if (item.hasResumePosition()) {
                 addView(label("可从 ${formatPlaybackPosition(item.userData().playbackPositionTicks())} 继续播放"))
             }

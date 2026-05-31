@@ -620,6 +620,8 @@ public final class ProtocolCoreTest {
                       "IsPlayable": true,
                       "RunTimeTicks": 69900000000,
                       "ProductionYear": 2016,
+                      "Overview": "A linguist meets visitors from another world.",
+                      "Genres": ["Science Fiction", "Drama"],
                       "ImageTags": {"Primary": "primary-tag"},
                       "UserData": {"Played": false, "PlaybackPositionTicks": 120000000, "PlayCount": 0, "IsFavorite": true}
                     },
@@ -642,6 +644,8 @@ public final class ProtocolCoreTest {
         assertTrue(movie.playable(), "movie playable maps");
         assertEquals(120000000L, movie.userData().playbackPositionTicks(), "resume ticks map");
         assertTrue(movie.userData().favorite(), "favorite maps");
+        assertEquals("A linguist meets visitors from another world.", movie.overview(), "overview maps");
+        assertEquals("Science Fiction", movie.genres().get(0), "genres map");
         assertEquals("primary-tag", movie.imageTags().get("Primary"), "image tags map");
         assertTrue(movie.hasResumePosition(), "resume helper");
         assertEquals(MediaItemType.SERIES, page.items().get(1).type(), "series type maps");
