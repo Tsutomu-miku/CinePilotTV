@@ -2,6 +2,8 @@ package tv.cinepilot.tv.player
 
 import android.content.Context
 import android.net.Uri
+import android.os.Handler
+import android.os.Looper
 import android.view.View
 import androidx.media3.common.MediaItem
 import androidx.media3.exoplayer.ExoPlayer
@@ -15,8 +17,10 @@ class Media3PlayerHost(
     private val context: Context,
     private val mediaBrowserClient: MediaBrowserClient,
 ) {
+    private val handler = Handler(Looper.getMainLooper())
     private var player: ExoPlayer? = null
     private var bridge: Media3PlaybackBridge? = null
+    private var progressTicker: Runnable? = null
 
     fun createPlayerView(state: TvAppState): View {
         val playable = state.playableMedia()
@@ -43,6 +47,7 @@ class Media3PlayerHost(
         }
         bridge = playbackBridge
         player = nextPlayer
+        startProgressTicks(nextPlayer, playbackBridge)
         return PlayerView(context).apply {
             this.player = nextPlayer
             useController = true
@@ -51,9 +56,24 @@ class Media3PlayerHost(
     }
 
     fun release() {
+        progressTicker?.let(handler::removeCallbacks)
+        progressTicker = null
         player?.let { bridge?.stop(it.currentPosition) }
         player?.release()
         player = null
         bridge = null
+    }
+
+    private fun startProgressTicks(nextPlayer: ExoPlayer, playbackBridge: Media3PlaybackBridge) {
+        val ticker = object : Runnable {
+            override fun run() {
+                if (player === nextPlayer && bridge === playbackBridge) {
+                    playbackBridge.tick(nextPlayer.currentPosition)
+                    handler.postDelayed(this, 1_000L)
+                }
+            }
+        }
+        progressTicker = ticker
+        handler.post(ticker)
     }
 }

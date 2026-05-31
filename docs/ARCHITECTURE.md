@@ -72,6 +72,8 @@ Android 首页按钮获得选择意图时，应先调用 `TvWorkflowController.f
 
 `PlaybackSessionController` 组合 `PlayableMedia`、`PlaybackCheckInScheduler` 和 `MediaBrowserClient`，为 Media3 事件桥接提供单一入口。Media3 层应调用它的 start、progressIfDue、pause、seek、audioTrackChanged、subtitleTrackChanged、playbackRateChanged 和 stop 方法。
 
+`Media3PlayerHost` 创建播放器后需要用主线程 ticker 定期调用 `Media3PlaybackBridge.tick(currentPosition)`；真正的 10 秒节流仍由 core scheduler 控制，Android ticker 只负责给 scheduler 提供播放进度采样。
+
 ## 状态与持久化
 
 会话状态按服务器和用户身份划分作用域。持久化记录必须包含足够身份信息，避免用户修改 URL 或切换多服务器后把 token 发给错误服务器。

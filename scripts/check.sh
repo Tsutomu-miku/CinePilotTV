@@ -131,6 +131,11 @@ if ! grep -q 'PlaybackSessionController' "$ROOT_DIR/app/src/main/java/tv/cinepil
   exit 1
 fi
 
+if ! grep -q 'postDelayed' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/player/Media3PlayerHost.kt"; then
+  echo "Media3PlayerHost must periodically tick playback progress" >&2
+  exit 1
+fi
+
 if ! grep -q 'Media3PlayerHost' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/MainActivity.kt"; then
   echo "MainActivity must initialize Media3PlayerHost" >&2
   exit 1
