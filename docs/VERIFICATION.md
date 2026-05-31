@@ -40,7 +40,8 @@ GitHub Actions：
 
 - `./scripts/check.sh` 通过。
 - `./scripts/install-debug-apk.sh` 可以完成 `:app:assembleDebug`。
-- `./scripts/install-debug-apk.sh` 在安装阶段停止，原因是 `adb devices` 没有在线 Android TV 设备或模拟器。
+- `adb devices` 已识别 Xiaomi 2211133C 真机；`./scripts/install-debug-apk.sh` 可以完成构建，但安装阶段被设备系统以 `INSTALL_FAILED_USER_RESTRICTED` 拒绝。需要在设备开发者选项中开启“通过 USB 安装”和“USB 调试（安全设置）”，并在安装确认弹窗中允许。
+- 测试 Jellyfin `http://192.168.31.82:49156` 从开发机可达，`/System/Info/Public` 返回 Jellyfin Server 10.10.7，测试账号认证成功；真机 app 登录 / 浏览 / 播放仍等待 APK 安装成功后验证。
 
 具备 Android SDK 后，应运行：
 

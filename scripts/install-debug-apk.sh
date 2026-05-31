@@ -37,9 +37,23 @@ if [[ -n "${ANDROID_SERIAL:-}" ]] && ! "$ADB" devices | awk -v serial="$ANDROID_
 fi
 
 if [[ -n "${ANDROID_SERIAL:-}" ]]; then
-  "$ADB" -s "$ANDROID_SERIAL" install -r "$ROOT_DIR/app/build/outputs/apk/debug/app-debug.apk"
+  INSTALL_OUTPUT="$("$ADB" -s "$ANDROID_SERIAL" install -r "$ROOT_DIR/app/build/outputs/apk/debug/app-debug.apk" 2>&1)" || {
+    echo "$INSTALL_OUTPUT" >&2
+    if grep -q 'INSTALL_FAILED_USER_RESTRICTED' <<<"$INSTALL_OUTPUT"; then
+      echo "设备拒绝通过 USB 安装 APK。请在设备开发者选项中开启“通过 USB 安装”和“USB 调试（安全设置）”，并在安装确认弹窗中点允许。" >&2
+    fi
+    exit 1
+  }
+  echo "$INSTALL_OUTPUT"
   "$ADB" -s "$ANDROID_SERIAL" shell am start -n tv.cinepilot.tv/.MainActivity
 else
-  "$ADB" install -r "$ROOT_DIR/app/build/outputs/apk/debug/app-debug.apk"
+  INSTALL_OUTPUT="$("$ADB" install -r "$ROOT_DIR/app/build/outputs/apk/debug/app-debug.apk" 2>&1)" || {
+    echo "$INSTALL_OUTPUT" >&2
+    if grep -q 'INSTALL_FAILED_USER_RESTRICTED' <<<"$INSTALL_OUTPUT"; then
+      echo "设备拒绝通过 USB 安装 APK。请在设备开发者选项中开启“通过 USB 安装”和“USB 调试（安全设置）”，并在安装确认弹窗中点允许。" >&2
+    fi
+    exit 1
+  }
+  echo "$INSTALL_OUTPUT"
   "$ADB" shell am start -n tv.cinepilot.tv/.MainActivity
 fi
