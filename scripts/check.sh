@@ -400,8 +400,8 @@ if ! grep -R -q 'durationLabel' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/ui/
   exit 1
 fi
 
-if ! grep -q 'episodeLabel' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/MainActivity.kt"; then
-  echo "MainActivity must show episode season context on details when available" >&2
+if ! grep -q 'episodeLabel' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/ui/PlaybackText.kt"; then
+  echo "PlaybackText must show episode season context on details when available" >&2
   exit 1
 fi
 
@@ -677,8 +677,8 @@ if grep -q 'ticks 继续播放' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/Mai
   exit 1
 fi
 
-if ! grep -q 'formatPlaybackPosition' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/MainActivity.kt"; then
-  echo "MainActivity must format resume playback position for users" >&2
+if ! grep -q 'formatPlaybackPosition' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/ui/PlaybackText.kt"; then
+  echo "PlaybackText must format resume playback position for users" >&2
   exit 1
 fi
 
