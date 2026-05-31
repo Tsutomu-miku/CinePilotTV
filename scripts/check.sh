@@ -64,6 +64,16 @@ if ! grep -q 'workflowController' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/M
   exit 1
 fi
 
+if ! grep -q 'onBackPressed' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/MainActivity.kt"; then
+  echo "MainActivity must handle Android TV Back navigation" >&2
+  exit 1
+fi
+
+if ! grep -q 'TvRoute.PLAYER' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/MainActivity.kt"; then
+  echo "MainActivity Back handling must release the player route" >&2
+  exit 1
+fi
+
 for ui_text in "连接服务器" "登录" "首页" "播放" "继续" "清除上次登录"; do
   if ! grep -q "$ui_text" "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/MainActivity.kt"; then
     echo "MainActivity is missing TV UI text: $ui_text" >&2

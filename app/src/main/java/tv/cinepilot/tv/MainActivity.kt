@@ -17,6 +17,7 @@ import tv.cinepilot.core.protocol.PlaybackSelectionPreferences
 import tv.cinepilot.core.tv.HomeRow
 import tv.cinepilot.core.tv.TvAppState
 import tv.cinepilot.core.tv.TvDiagnostics
+import tv.cinepilot.core.tv.TvRoute
 import tv.cinepilot.tv.player.Media3PlayerHost
 import tv.cinepilot.tv.runtime.CinePilotRuntime
 
@@ -37,6 +38,27 @@ class MainActivity : Activity() {
         playerHost.release()
         executor.shutdownNow()
         super.onDestroy()
+    }
+
+    @Deprecated("Deprecated in Android framework; retained for API 26 TV devices.")
+    override fun onBackPressed() {
+        when (runtime.workflowController.state().route()) {
+            TvRoute.SERVER_ENTRY -> super.onBackPressed()
+            TvRoute.LOGIN, TvRoute.HOME, TvRoute.ERROR -> {
+                runtime.workflowController.back()
+                showServerEntry()
+            }
+            TvRoute.DETAILS -> {
+                runtime.workflowController.back()
+                showHome(runtime.workflowController.state())
+            }
+            TvRoute.PLAYER -> {
+                playerHost.release()
+                runtime.workflowController.back()
+                runtime.workflowController.state().selectedItem()?.let(::showDetails)
+                    ?: showHome(runtime.workflowController.state())
+            }
+        }
     }
 
     private fun showServerEntry() {
