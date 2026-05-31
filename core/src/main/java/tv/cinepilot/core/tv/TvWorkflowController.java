@@ -116,6 +116,18 @@ public final class TvWorkflowController {
         return state;
     }
 
+    public TvAppState forgetAuthenticatedSession() {
+        if (state.authenticated() != null) {
+            client.forget(state.authenticated());
+        }
+        if (state.server() != null) {
+            state = TvWorkflow.serverDiscovered(state, state.server());
+        } else {
+            state = TvAppState.initial();
+        }
+        return state;
+    }
+
     public TvAppState fail(String message) {
         state = TvWorkflow.fail(state, message);
         return state;

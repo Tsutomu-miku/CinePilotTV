@@ -157,8 +157,15 @@ public final class MediaBrowserClient {
                     MediaBrowserRequests.logout(authenticated.session(), authenticated.server().flavor())
             );
         } finally {
-            sessions.revoke(SessionScope.from(authenticated.server(), authenticated.session()));
+            forget(authenticated);
         }
+    }
+
+    public void forget(AuthenticatedServer authenticated) {
+        if (authenticated == null) {
+            return;
+        }
+        sessions.revoke(SessionScope.from(authenticated.server(), authenticated.session()));
     }
 
     private ProtocolResponse send(MediaServerAddress address, ProtocolRequest request) {

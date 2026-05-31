@@ -86,6 +86,16 @@ if ! grep -q 'restoreSession' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/MainA
   exit 1
 fi
 
+if ! grep -q 'forgetAuthenticatedSession' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/MainActivity.kt"; then
+  echo "MainActivity must clear expired authenticated sessions" >&2
+  exit 1
+fi
+
+if ! grep -q '会话已过期，请重新登录' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/MainActivity.kt"; then
+  echo "MainActivity must explain expired sessions in Chinese" >&2
+  exit 1
+fi
+
 if [[ ! -s "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/player/Media3PlayerHost.kt" ]]; then
   echo "Missing Media3 player host" >&2
   exit 1

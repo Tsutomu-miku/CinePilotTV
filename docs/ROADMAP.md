@@ -60,12 +60,12 @@
 
 - P0-9 通过直接 URL 实现服务器发现。进度：请求规格、系统信息响应 mapper、HTTP transport 和 client 编排已完成。
 - P0-10 实现 Jellyfin 与 Emby 的用户名 / 密码认证。进度：请求规格、登录响应 mapper、HTTP transport 和 client 编排已完成。
-- P0-11 按服务器和用户作用域持久化会话。进度：内存 repository、文件 repository、client 保存 / 恢复 / logout 撤销流程和 Android 上次登录恢复入口已完成；token 仍只通过 `SessionScope` 查找。
+- P0-11 按服务器和用户作用域持久化会话。进度：内存 repository、文件 repository、client 保存 / 恢复 / logout / 本地忘记撤销流程和 Android 上次登录恢复入口已完成；401 过期会话会清除当前 scope 并回到重新登录。
 - P0-12 通过协议适配器获取首页分区和媒体详情。进度：views、items、resume、latest、detail 请求规格、响应模型、client 编排、TV 首页 row 组合和本地 HTTP 集成测试已完成。
 
 退出标准：
 
-- token 失效时只影响对应服务器并触发重新认证。
+- token 失效时只影响对应服务器并触发重新认证。进度：`MediaBrowserClient.forget` 和 Android 401 处理已完成，本地验证覆盖当前 scope 撤销不影响其他服务器。
 - 浏览页能打开一个可播放媒体项详情。
 - 会话持久化测试覆盖多服务器场景。
 

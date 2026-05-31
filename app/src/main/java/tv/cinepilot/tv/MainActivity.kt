@@ -11,6 +11,7 @@ import android.widget.LinearLayout
 import android.widget.ScrollView
 import android.widget.TextView
 import java.util.concurrent.Executors
+import tv.cinepilot.core.protocol.MediaBrowserException
 import tv.cinepilot.core.protocol.MediaItemSummary
 import tv.cinepilot.core.protocol.PlaybackSelectionPreferences
 import tv.cinepilot.core.tv.HomeRow
@@ -187,8 +188,21 @@ class MainActivity : Activity() {
     }
 
     private fun showError(error: Throwable) {
+        val authenticationExpired = error is MediaBrowserException && error.statusCode() == 401
+        if (authenticationExpired) {
+            clearLastAccount()
+            runtime.workflowController.forgetAuthenticatedSession()
+        }
         setContentView(screen("出错了") {
-            addView(label(error.message ?: error::class.java.simpleName))
+            val message = if (authenticationExpired) {
+                "会话已过期，请重新登录"
+            } else {
+                error.message ?: error::class.java.simpleName
+            }
+            addView(label(message))
+            if (authenticationExpired && runtime.workflowController.state().server() != null) {
+                addView(action("重新登录") { showLogin() })
+            }
             addView(action("返回服务器输入") { showServerEntry() })
         })
     }

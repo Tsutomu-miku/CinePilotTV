@@ -54,6 +54,8 @@ TV 状态流由 `core.tv.TvWorkflow` 建模。Android UI 应渲染 `TvAppState`�
 
 `TvWorkflowController.restoreSession(userId)` 要求先完成服务器发现，再按已发现服务器、userId、客户端身份和设备身份恢复会话。Android UI 可以记住上次服务器地址和 userId 来提供“继续”入口，但不能自行保存或拼接 token。
 
+当服务器返回 401 时，Android UI 应调用 `TvWorkflowController.forgetAuthenticatedSession()` 撤销当前 authenticated scope，并提示用户重新登录。这个撤销只删除当前服务器、用户和设备身份对应的 saved session，不影响其他服务器或其他用户。
+
 ## 播放层
 
 播放层将负责 Media3 player 设置、media source 创建、轨道选择、字幕处理和播放 check-in 调度。它把领域播放事件报告给协议层，不关心界面如何渲染。

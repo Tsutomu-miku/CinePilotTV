@@ -23,6 +23,7 @@ public final class ProtocolCoreTest {
         buildsDiscoveryAndLoginRequests();
         buildsBrowseRequests();
         scopesSavedSessions();
+        mediaBrowserClientForgetsOnlyAuthenticatedScope();
         buildsPlaybackInfoAndStreamRequests();
         buildsPlaybackCheckInRequests();
         selectsPlayableMediaSources();
@@ -221,6 +222,26 @@ public final class ProtocolCoreTest {
         repository.revoke(firstSaved.scope());
         assertTrue(repository.find(firstSaved.scope()).isEmpty(), "revoked token is removed");
         assertTrue(repository.find(secondSaved.scope()).isPresent(), "revoking one server keeps another server");
+    }
+
+    private static void mediaBrowserClientForgetsOnlyAuthenticatedScope() {
+        ClientIdentity client = new ClientIdentity("CinePilot TV", "Living Room TV", "device-1", "0.1.0");
+        MediaServerAddress firstUrl = MediaServerAddress.parse("https://media.example.com/jellyfin");
+        MediaServerAddress secondUrl = MediaServerAddress.parse("https://media.example.com/emby");
+        ServerIdentity firstServer = new ServerIdentity(firstUrl, "server-a", ServerFlavor.JELLYFIN, "Jellyfin");
+        ServerIdentity secondServer = new ServerIdentity(secondUrl, "server-b", ServerFlavor.EMBY, "Emby");
+        AuthSession firstSession = new AuthSession("server-a", "user-1", "token-a", client);
+        AuthSession secondSession = new AuthSession("server-b", "user-1", "token-b", client);
+
+        InMemorySessionRepository repository = new InMemorySessionRepository();
+        repository.save(new SavedSession(SessionScope.from(firstServer, firstSession), firstSession.accessToken()));
+        repository.save(new SavedSession(SessionScope.from(secondServer, secondSession), secondSession.accessToken()));
+
+        MediaBrowserClient mediaClient = new MediaBrowserClient(new FakeTransport(), repository, client);
+        mediaClient.forget(new AuthenticatedServer(firstServer, firstSession));
+
+        assertTrue(mediaClient.restore(firstServer, "user-1").isEmpty(), "forget removes current server token");
+        assertTrue(mediaClient.restore(secondServer, "user-1").isPresent(), "forget keeps other server token");
     }
 
     private static void buildsPlaybackInfoAndStreamRequests() {
