@@ -101,6 +101,11 @@ if ! grep -q '打开播放器' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/Main
   exit 1
 fi
 
+if ! grep -q '诊断信息' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/MainActivity.kt"; then
+  echo "MainActivity must expose diagnostics" >&2
+  exit 1
+fi
+
 rm -rf "$BUILD_DIR"
 mkdir -p "$MAIN_CLASSES" "$TEST_CLASSES"
 

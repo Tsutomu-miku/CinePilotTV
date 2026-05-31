@@ -15,6 +15,7 @@ import tv.cinepilot.core.protocol.MediaItemSummary
 import tv.cinepilot.core.protocol.PlaybackSelectionPreferences
 import tv.cinepilot.core.tv.HomeRow
 import tv.cinepilot.core.tv.TvAppState
+import tv.cinepilot.core.tv.TvDiagnostics
 import tv.cinepilot.tv.player.Media3PlayerHost
 import tv.cinepilot.tv.runtime.CinePilotRuntime
 
@@ -121,10 +122,18 @@ class MainActivity : Activity() {
             addView(label("媒体源：${playable?.mediaSourceId() ?: ""}"))
             addView(label(playable?.url() ?: playable?.request()?.path() ?: ""))
             addView(action("打开播放器") { showPlayer(state) })
+            addView(action("诊断信息") { showDiagnostics(state) })
             addView(action("返回详情") {
                 runtime.workflowController.back()
                 runtime.workflowController.state().selectedItem()?.let(::showDetails)
             })
+        })
+    }
+
+    private fun showDiagnostics(state: TvAppState) {
+        setContentView(screen("诊断信息") {
+            addView(label(TvDiagnostics.describe(state)))
+            addView(action("返回播放准备") { showPlayerReady(state) })
         })
     }
 

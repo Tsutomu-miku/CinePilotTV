@@ -28,6 +28,7 @@ public final class TvWorkflowTest {
         rejectsFocusForMissingItems();
         loadsHomeRowsFromMediaBrowserClient();
         controllerRunsServerLoginBrowseAndPlaybackUseCase();
+        describesDiagnosticsWithoutToken();
         System.out.println("TvWorkflowTest passed");
     }
 
@@ -201,6 +202,37 @@ public final class TvWorkflowTest {
         assertEquals("/Users/user-1/Items/movie-1", transport.requests.get(6).path(), "controller item detail request");
         assertEquals("/Items/movie-1/PlaybackInfo", transport.requests.get(7).path(), "controller playback info request");
         assertTrue(transport.requests.get(7).url(MediaServerAddress.parse("https://media.example.com/jellyfin")).contains("StartTimeTicks=120000000"), "controller resume ticks");
+    }
+
+    private static void describesDiagnosticsWithoutToken() {
+        ClientIdentity client = new ClientIdentity("CinePilot TV", "Living Room TV", "device-1", "0.1.0");
+        AuthenticatedServer authenticated = authenticated(client);
+        MediaItemSummary movie = item("movie-1", "Arrival", MediaItemType.MOVIE, true);
+        PlayableMedia playable = new PlayableMedia(
+                "movie-1",
+                "source-1",
+                "play-session-1",
+                PlayMethod.DIRECT_PLAY,
+                "https://media.example.com/movie.mkv",
+                null,
+                1,
+                2
+        );
+        TvAppState state = TvWorkflow.playbackReady(
+                TvWorkflow.openDetails(
+                        TvWorkflow.homeLoaded(
+                                TvWorkflow.loginSucceeded(TvAppState.initial(), authenticated),
+                                List.of(new HomeRow("continue", "继续观看", List.of(movie)))
+                        ),
+                        movie
+                ),
+                playable
+        );
+        String diagnostics = TvDiagnostics.describe(state);
+        assertTrue(diagnostics.contains("serverId=server-1"), "diagnostics includes server");
+        assertTrue(diagnostics.contains("itemId=movie-1"), "diagnostics includes item");
+        assertTrue(diagnostics.contains("playMethod=DIRECT_PLAY"), "diagnostics includes play method");
+        assertTrue(!diagnostics.contains("token-1"), "diagnostics does not include token");
     }
 
     private static void enqueueHomeResponses(FakeTransport transport) {
