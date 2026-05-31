@@ -27,6 +27,7 @@
 - 系统信息响应到 `ServerIdentity`。
 - 登录响应到 `AuthSession`。
 - playback info 响应到 `PlaybackInfo`、`MediaSourceInfo` 和 `MediaStreamInfo`。
+- 媒体列表和详情响应到 `MediaItemPage` 与 `MediaItemSummary`。
 
 `MediaBrowserClient` 已把以下流程串成可测试编排：
 
@@ -34,6 +35,7 @@
 - 用户名 / 密码登录：`authenticateByName` -> `AuthSession` -> `SavedSession`。
 - 播放信息：`playbackInfo` -> `PlaybackInfo`。
 - 播放源选择：`PlaybackInfo` -> `PlayableMedia`。
+- 媒体库浏览：`userViews` / `items` / `resumeItems` / `latestItems` / `item` -> 媒体条目模型。
 - 登出：`logout` -> 撤销本地 saved session。
 
 ## 认证头策略

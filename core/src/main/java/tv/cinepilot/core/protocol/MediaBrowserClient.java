@@ -85,6 +85,46 @@ public final class MediaBrowserClient {
         );
     }
 
+    public MediaItemPage userViews(AuthenticatedServer authenticated) {
+        ProtocolResponse response = send(
+                authenticated.server().address(),
+                MediaBrowserRequests.userViews(authenticated.session(), authenticated.server().flavor())
+        );
+        return MediaBrowserResponseMapper.itemPage(response.body());
+    }
+
+    public MediaItemPage items(AuthenticatedServer authenticated, ItemQuery query) {
+        ProtocolResponse response = send(
+                authenticated.server().address(),
+                MediaBrowserRequests.items(authenticated.session(), authenticated.server().flavor(), query)
+        );
+        return MediaBrowserResponseMapper.itemPage(response.body());
+    }
+
+    public MediaItemPage resumeItems(AuthenticatedServer authenticated, int limit) {
+        ProtocolResponse response = send(
+                authenticated.server().address(),
+                MediaBrowserRequests.resumeItems(authenticated.session(), authenticated.server().flavor(), limit)
+        );
+        return MediaBrowserResponseMapper.itemPage(response.body());
+    }
+
+    public MediaItemPage latestItems(AuthenticatedServer authenticated, String parentId, int limit) {
+        ProtocolResponse response = send(
+                authenticated.server().address(),
+                MediaBrowserRequests.latestItems(authenticated.session(), authenticated.server().flavor(), parentId, limit)
+        );
+        return MediaBrowserResponseMapper.itemPage(response.body());
+    }
+
+    public MediaItemSummary item(AuthenticatedServer authenticated, String itemId) {
+        ProtocolResponse response = send(
+                authenticated.server().address(),
+                MediaBrowserRequests.item(authenticated.session(), authenticated.server().flavor(), itemId)
+        );
+        return MediaBrowserResponseMapper.item(response.body());
+    }
+
     public void logout(AuthenticatedServer authenticated) {
         try {
             send(
@@ -114,4 +154,3 @@ public final class MediaBrowserClient {
         }
     }
 }
-

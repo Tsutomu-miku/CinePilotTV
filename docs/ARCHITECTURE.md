@@ -30,6 +30,8 @@ UI 界面应该调用应用控制器或 store。界面组件不能直接构造 J
 
 `MediaBrowserClient` 是协议核心的编排入口，负责发现服务器、登录、恢复会话、获取 playback info、选择播放源和登出。真实网络由 `HttpTransport` 提供；JVM 默认实现是 `JavaNetHttpTransport`，Android 层可以替换为带平台配置的 transport。
 
+媒体库浏览响应映射到 `MediaItemPage` 和 `MediaItemSummary`。UI 必须使用这些领域模型里的 `id` 保持焦点和选择身份，而不是用标题或列表位置。
+
 ## 播放层
 
 播放层将负责 Media3 player 设置、media source 创建、轨道选择、字幕处理和播放 check-in 调度。它把领域播放事件报告给协议层，不关心界面如何渲染。

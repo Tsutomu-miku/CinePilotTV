@@ -15,6 +15,8 @@ core/
       PlaybackInfo.java          playback info 领域模型
       MediaBrowserResponseMapper.java 核心 API 响应到领域模型的映射
       MediaBrowserClient.java    发现、登录、播放信息和登出的协议编排入口
+      MediaItemSummary.java      TV UI 可消费的媒体条目摘要
+      MediaItemPage.java         媒体列表分页响应
       HttpTransport.java         HTTP 发送边界
       JavaNetHttpTransport.java  JVM 默认 HTTP transport
   src/test/java/tv/cinepilot/core/

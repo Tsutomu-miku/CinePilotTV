@@ -25,6 +25,7 @@ public final class ProtocolCoreTest {
         selectsPlayableMediaSources();
         mapsServerAndPlaybackResponses();
         clientRunsDiscoveryLoginAndPlaybackFlow();
+        mapsAndFetchesMediaItems();
         System.out.println("ProtocolCoreTest passed");
     }
 
@@ -521,6 +522,76 @@ public final class ProtocolCoreTest {
                 "client forwards playback options"
         );
         assertEquals("/Sessions/Logout", transport.requests.get(3).path(), "fourth request logs out");
+    }
+
+    private static void mapsAndFetchesMediaItems() {
+        MediaItemPage page = MediaBrowserResponseMapper.itemPage(
+                """
+                {
+                  "Items": [
+                    {
+                      "Id": "movie-1",
+                      "Name": "Arrival",
+                      "Type": "Movie",
+                      "IsFolder": false,
+                      "IsPlayable": true,
+                      "RunTimeTicks": 69900000000,
+                      "ProductionYear": 2016,
+                      "ImageTags": {"Primary": "primary-tag"},
+                      "UserData": {"Played": false, "PlaybackPositionTicks": 120000000, "PlayCount": 0, "IsFavorite": true}
+                    },
+                    {
+                      "Id": "series-1",
+                      "Name": "Example Show",
+                      "Type": "Series",
+                      "IsFolder": true,
+                      "IsPlayable": false
+                    }
+                  ],
+                  "TotalRecordCount": 2,
+                  "StartIndex": 0
+                }
+                """
+        );
+        assertEquals(2, page.items().size(), "item page count");
+        MediaItemSummary movie = page.items().get(0);
+        assertEquals(MediaItemType.MOVIE, movie.type(), "movie type maps");
+        assertTrue(movie.playable(), "movie playable maps");
+        assertEquals(120000000L, movie.userData().playbackPositionTicks(), "resume ticks map");
+        assertTrue(movie.userData().favorite(), "favorite maps");
+        assertEquals("primary-tag", movie.imageTags().get("Primary"), "image tags map");
+        assertTrue(movie.hasResumePosition(), "resume helper");
+        assertEquals(MediaItemType.SERIES, page.items().get(1).type(), "series type maps");
+
+        FakeTransport transport = new FakeTransport();
+        transport.enqueue(200, "{\"Items\":[{\"Id\":\"library-1\",\"Name\":\"Movies\",\"Type\":\"CollectionFolder\",\"IsFolder\":true}],\"TotalRecordCount\":1,\"StartIndex\":0}");
+        transport.enqueue(200, "{\"Items\":[{\"Id\":\"movie-1\",\"Name\":\"Arrival\",\"Type\":\"Movie\",\"IsPlayable\":true}],\"TotalRecordCount\":1,\"StartIndex\":0}");
+        transport.enqueue(200, "{\"Id\":\"movie-1\",\"Name\":\"Arrival\",\"Type\":\"Movie\",\"IsPlayable\":true,\"UserData\":{\"PlaybackPositionTicks\":120000000}}");
+
+        ClientIdentity client = new ClientIdentity("CinePilot TV", "Living Room TV", "device-1", "0.1.0");
+        MediaBrowserClient mediaClient = new MediaBrowserClient(transport, new InMemorySessionRepository(), client);
+        AuthenticatedServer authenticated = new AuthenticatedServer(
+                new ServerIdentity(MediaServerAddress.parse("https://media.example.com/jellyfin"), "server-1", ServerFlavor.JELLYFIN, "Jellyfin"),
+                new AuthSession("server-1", "user-1", "token-1", client)
+        );
+
+        MediaItemPage views = mediaClient.userViews(authenticated);
+        assertEquals("library-1", views.items().get(0).id(), "client fetches views");
+
+        MediaItemPage items = mediaClient.items(
+                authenticated,
+                ItemQuery.browse().parentId("library-1").limit(20).build()
+        );
+        assertEquals("movie-1", items.items().get(0).id(), "client fetches items");
+
+        MediaItemSummary detail = mediaClient.item(authenticated, "movie-1");
+        assertEquals("Arrival", detail.name(), "client fetches item detail");
+        assertTrue(detail.hasResumePosition(), "client detail maps resume position");
+
+        assertEquals("/Users/user-1/Views", transport.requests.get(0).path(), "views request path");
+        assertEquals("/Users/user-1/Items", transport.requests.get(1).path(), "items request path");
+        assertTrue(transport.requests.get(1).url(authenticated.server().address()).contains("ParentId=library-1"), "items parent query");
+        assertEquals("/Users/user-1/Items/movie-1", transport.requests.get(2).path(), "detail request path");
     }
 
     private static final class FakeTransport implements HttpTransport {
