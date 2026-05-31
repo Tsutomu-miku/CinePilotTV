@@ -5,7 +5,7 @@
 ```text
 app/
   src/main/java/tv/cinepilot/tv/
-    MainActivity.kt              Android TV 启动 Activity
+    MainActivity.kt              Android TV 启动 Activity 和最小原生 View UI
     runtime/CinePilotRuntime.kt  Android app runtime composition root
 core/
   build.gradle.kts              JVM/Java Gradle module
