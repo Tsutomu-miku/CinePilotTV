@@ -3,6 +3,7 @@ package tv.cinepilot.tv
 import android.app.Activity
 import android.graphics.Color
 import android.os.Bundle
+import android.text.InputType
 import android.view.Gravity
 import android.view.View
 import android.widget.Button
@@ -62,7 +63,7 @@ class MainActivity : Activity() {
     }
 
     private fun showServerEntry() {
-        val serverInput = input("https://your-server.example.com")
+        val serverInput = input("https://your-server.example.com", InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_URI)
         val lastAccount = savedLastAccount()
         setContentView(screen("CinePilot TV") {
             lastAccount?.let { account ->
@@ -92,8 +93,8 @@ class MainActivity : Activity() {
     }
 
     private fun showLogin() {
-        val usernameInput = input("用户名")
-        val passwordInput = input("密码")
+        val usernameInput = input("用户名", InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_NORMAL)
+        val passwordInput = input("密码", InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_PASSWORD)
         setContentView(screen("登录 ${runtime.workflowController.state().server()?.serverName() ?: ""}") {
             addView(label("用户名"))
             addView(usernameInput)
@@ -280,9 +281,10 @@ class MainActivity : Activity() {
         return ScrollView(this).apply { addView(container) }
     }
 
-    private fun input(hintText: String): EditText {
+    private fun input(hintText: String, inputTypeValue: Int): EditText {
         return EditText(this).apply {
             hint = hintText
+            inputType = inputTypeValue
             textSize = 20f
             setSingleLine(true)
             setTextColor(Color.WHITE)

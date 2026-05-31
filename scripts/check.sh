@@ -74,6 +74,16 @@ if ! grep -q 'TvRoute.PLAYER' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/MainA
   exit 1
 fi
 
+if ! grep -q 'TYPE_TEXT_VARIATION_PASSWORD' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/MainActivity.kt"; then
+  echo "MainActivity must mask the password input" >&2
+  exit 1
+fi
+
+if ! grep -q 'TYPE_TEXT_VARIATION_URI' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/MainActivity.kt"; then
+  echo "MainActivity must optimize server URL input" >&2
+  exit 1
+fi
+
 for ui_text in "连接服务器" "登录" "首页" "播放" "继续" "清除上次登录"; do
   if ! grep -q "$ui_text" "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/MainActivity.kt"; then
     echo "MainActivity is missing TV UI text: $ui_text" >&2
