@@ -25,6 +25,7 @@
 
 - `./scripts/bootstrap-gradle-wrapper.sh` 可以生成 Gradle wrapper。
 - `./gradlew :core:test` 可以通过，并会执行 `ProtocolCoreTest` 与 `TvWorkflowTest`。
+- `HttpTransportIntegrationTest` 会启动本地 HTTP 服务，验证真实 `UrlConnectionHttpTransport` 可完成发现、登录、首页、详情、playback info 和播放进度上报。
 - 使用本地临时 SDK（`local.properties` 指向 `build/android-sdk`）时，`./gradlew :app:assembleDebug` 可以通过并生成 debug APK。
 
 具备 Android SDK 后，应运行：

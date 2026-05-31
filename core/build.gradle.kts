@@ -20,6 +20,13 @@ val runTvWorkflowTest by tasks.registering(JavaExec::class) {
     mainClass.set("tv.cinepilot.core.tv.TvWorkflowTest")
 }
 
+val runHttpTransportIntegrationTest by tasks.registering(JavaExec::class) {
+    group = "verification"
+    description = "Runs CinePilot HTTP transport integration tests."
+    classpath = sourceSets["test"].runtimeClasspath
+    mainClass.set("tv.cinepilot.core.protocol.HttpTransportIntegrationTest")
+}
+
 tasks.named("test") {
-    dependsOn(runProtocolCoreTest, runTvWorkflowTest)
+    dependsOn(runProtocolCoreTest, runTvWorkflowTest, runHttpTransportIntegrationTest)
 }

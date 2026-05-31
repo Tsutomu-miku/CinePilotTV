@@ -28,7 +28,7 @@ CinePilot TV 是一个面向 Android TV 的原生播放器，用来连接兼容 
 
 - `./scripts/check.sh` 使用 `javac` 编译 JVM 协议核心、运行协议测试，并确认项目指导文档存在。
 - `./scripts/bootstrap-gradle-wrapper.sh` 在没有全局 Gradle 时下载临时 Gradle 并生成 wrapper。
-- `./gradlew :core:test` 已可运行，并会执行协议与 TV workflow 测试；Android SDK 可用时，`./gradlew :app:assembleDebug` 可生成 debug APK。
+- `./gradlew :core:test` 已可运行，并会执行协议、TV workflow 和 HTTP transport 集成测试；Android SDK 可用时，`./gradlew :app:assembleDebug` 可生成 debug APK。
 
 ## 仓库结构
 
