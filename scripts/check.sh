@@ -382,6 +382,13 @@ for technical_label in HDR Dolby 字幕 声道; do
   fi
 done
 
+for technical_label in 默认音轨 默认字幕 外挂字幕 强制字幕; do
+  if ! grep -q "$technical_label" "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/ui/MediaTechnicalInfo.kt"; then
+    echo "Media technical info formatter must expose track detail: $technical_label" >&2
+    exit 1
+  fi
+done
+
 for icon in search refresh logout play back subtitles speed; do
   if [[ ! -s "$ROOT_DIR/app/src/main/res/drawable/ic_${icon}.xml" ]]; then
     echo "Missing TV action icon: ic_${icon}.xml" >&2

@@ -104,7 +104,7 @@
 - Jellyfin Quick Connect 已具备登录入口、授权状态自动轮询和可见等待状态。
 - public-user 登录界面已具备最小入口和 passwordless 一键确认，后续可补头像。
 - 继续观看、下一集、最新媒体行、剧集 / 季 / 集浏览、分页和稳定默认排序已具备最小入口。
-- 详情页技术信息展示：分辨率、容器 / 编码、文件大小、声道、HDR、Dolby Vision、Dolby Atmos 和字幕概览需要从 playback info / media stream metadata 中整理成次级信息，避免主信息拥挤。
+- 详情页技术信息展示：已从 playback info / media stream metadata 整理分辨率、容器 / 编码、文件大小、码率、声道、HDR、Dolby Vision、Dolby Atmos、音轨数量、默认音轨、字幕数量、字幕语言、默认字幕、外挂字幕和强制字幕，作为播放按钮之后的次级信息展示；后续继续根据真机样式微调密度。
 - 详情页长标题排版：标题过长时必须保护首行元信息和播放按钮，不得遮挡或挤压到不可读。
 - 播放前媒体源、字幕和音轨选择已具备最小入口；字幕选择必须作为正式能力继续打磨，播放中切换仍等待稳定的 Media3 track 到 Jellyfin / Emby `MediaStream.Index` 映射。
 - 恢复播放弹窗和下一集行为；详情页已提供继续播放、从头播放、低码率播放，以及基于 `SeriesId` / `/Shows/NextUp` 的“本剧下一集”入口。
