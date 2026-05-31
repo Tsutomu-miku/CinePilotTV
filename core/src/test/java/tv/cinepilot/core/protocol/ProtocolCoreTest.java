@@ -1,6 +1,8 @@
 package tv.cinepilot.core.protocol;
 
 import java.util.Map;
+import java.util.List;
+import java.util.Optional;
 
 public final class ProtocolCoreTest {
     public static void main(String[] args) {
@@ -17,6 +19,7 @@ public final class ProtocolCoreTest {
         scopesSavedSessions();
         buildsPlaybackInfoAndStreamRequests();
         buildsPlaybackCheckInRequests();
+        selectsPlayableMediaSources();
         System.out.println("ProtocolCoreTest passed");
     }
 
@@ -295,6 +298,97 @@ public final class ProtocolCoreTest {
         ProtocolRequest stopped = MediaBrowserRequests.playbackStopped(session, ServerFlavor.EMBY, report);
         assertEquals("/Sessions/Playing/Stopped", stopped.path(), "stopped path");
         assertTrue(stopped.bodyJson().contains("\"PlaySessionId\":\"play-session-1\""), "stopped play session");
+    }
+
+    private static void selectsPlayableMediaSources() {
+        ClientIdentity client = new ClientIdentity("CinePilot TV", "Living Room TV", "device-1", "0.1.0");
+        AuthSession session = new AuthSession("server-1", "user-1", "token-1", client);
+        MediaServerAddress address = MediaServerAddress.parse("https://media.example.com/jellyfin");
+
+        MediaSourceInfo transcodingOnly = MediaSourceInfo.builder("source-transcode")
+                .supportsTranscoding(true)
+                .transcodingUrl("/videos/item-1/master.m3u8?MediaSourceId=source-transcode")
+                .build();
+        MediaSourceInfo directStream = MediaSourceInfo.builder("source-direct")
+                .supportsDirectStream(true)
+                .supportsTranscoding(true)
+                .directStreamUrl("/videos/item-1/stream.mkv?MediaSourceId=source-direct")
+                .build();
+        MediaSourceInfo directPlay = MediaSourceInfo.builder("source-play")
+                .supportsDirectPlay(true)
+                .supportsDirectStream(true)
+                .directStreamUrl("https://cdn.example.com/movie.mkv")
+                .mediaStreams(List.of(
+                        new MediaStreamInfo(0, MediaStreamType.VIDEO, "hevc", "", "4K HEVC", true, false, false, null),
+                        new MediaStreamInfo(1, MediaStreamType.AUDIO, "eac3", "eng", "English", true, false, false, null)
+                ))
+                .build();
+        PlaybackInfo info = new PlaybackInfo(
+                "item-1",
+                "play-session-1",
+                List.of(transcodingOnly, directStream, directPlay)
+        );
+
+        PlayableMedia selected = PlaybackSourceSelector.select(
+                address,
+                session,
+                ServerFlavor.JELLYFIN,
+                info,
+                PlaybackSelectionPreferences.defaults()
+        ).orElseThrow();
+        assertEquals(PlayMethod.DIRECT_PLAY, selected.playMethod(), "selector prefers direct play");
+        assertEquals("source-play", selected.mediaSourceId(), "selector source id");
+        assertEquals("https://cdn.example.com/movie.mkv", selected.url(), "absolute direct play url");
+
+        PlaybackInfo directStreamOnly = new PlaybackInfo("item-1", "play-session-1", List.of(transcodingOnly, directStream));
+        PlayableMedia streamSelection = PlaybackSourceSelector.select(
+                address,
+                session,
+                ServerFlavor.JELLYFIN,
+                directStreamOnly,
+                PlaybackSelectionPreferences.defaults()
+        ).orElseThrow();
+        assertEquals(PlayMethod.DIRECT_STREAM, streamSelection.playMethod(), "selector prefers direct stream over transcode");
+        assertEquals(
+                "https://media.example.com/jellyfin/videos/item-1/stream.mkv?MediaSourceId=source-direct",
+                streamSelection.url(),
+                "relative direct stream url resolves against server"
+        );
+
+        MediaSourceInfo fallbackTranscode = MediaSourceInfo.builder("source-hls")
+                .supportsTranscoding(true)
+                .build();
+        PlaybackInfo fallbackInfo = new PlaybackInfo("item-2", "play-session-2", List.of(fallbackTranscode));
+        PlaybackSelectionPreferences preferences = new PlaybackSelectionPreferences(
+                MediaTicks.fromMilliseconds(60_000),
+                2,
+                5,
+                6,
+                3840,
+                2160,
+                80_000_000
+        );
+        PlayableMedia fallback = PlaybackSourceSelector.select(
+                address,
+                session,
+                ServerFlavor.JELLYFIN,
+                fallbackInfo,
+                preferences
+        ).orElseThrow();
+        assertEquals(PlayMethod.TRANSCODE, fallback.playMethod(), "fallback uses transcode");
+        assertTrue(!fallback.hasReadyUrl(), "fallback waits for request url");
+        assertEquals("/Videos/item-2/master.m3u8", fallback.request().path(), "fallback hls path");
+        assertTrue(fallback.request().url(address).contains("MediaSourceId=source-hls"), "fallback media source query");
+        assertTrue(fallback.request().url(address).contains("StartTimeTicks=600000000"), "fallback start ticks query");
+
+        Optional<PlayableMedia> noPlayable = PlaybackSourceSelector.select(
+                address,
+                session,
+                ServerFlavor.JELLYFIN,
+                new PlaybackInfo("item-3", "play-session-3", List.of(MediaSourceInfo.builder("source-none").build())),
+                PlaybackSelectionPreferences.defaults()
+        );
+        assertTrue(noPlayable.isEmpty(), "selector returns empty for unsupported sources");
     }
 
     private static void assertEquals(Object expected, Object actual, String message) {
