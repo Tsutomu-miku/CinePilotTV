@@ -569,6 +569,14 @@ public final class ProtocolCoreTest {
         assertEquals(2, latestItems.items().size(), "latest array item count maps");
         assertEquals(2, latestItems.totalRecordCount(), "latest array total count maps");
         assertEquals("latest-1", latestItems.items().get(0).id(), "latest array item maps");
+        assertTrue(latestItems.items().get(0).playable(), "movie without IsPlayable defaults to playable");
+
+        MediaItemPage explicitUnplayable = MediaBrowserResponseMapper.itemPage("""
+                {"Items":[
+                  {"Id":"episode-1","Name":"Episode","Type":"Episode","IsFolder":false,"IsPlayable":false}
+                ],"TotalRecordCount":1,"StartIndex":0}
+                """);
+        assertTrue(!explicitUnplayable.items().get(0).playable(), "explicit IsPlayable false is respected");
     }
 
     private static void mapsAndLoadsPublicUsers() {

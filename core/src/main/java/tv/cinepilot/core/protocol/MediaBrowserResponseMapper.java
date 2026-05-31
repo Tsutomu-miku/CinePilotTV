@@ -131,13 +131,15 @@ public final class MediaBrowserResponseMapper {
     }
 
     private static MediaItemSummary mediaItem(Map<String, Object> item) {
+        MediaItemType type = MediaItemType.fromWireName(JsonValue.string(item, "Type"));
+        boolean folder = JsonValue.bool(item, "IsFolder");
         return new MediaItemSummary(
                 requiredString(item, "Id"),
                 valueOrEmpty(JsonValue.string(item, "ParentId")),
                 valueOrEmpty(JsonValue.string(item, "Name")),
-                MediaItemType.fromWireName(JsonValue.string(item, "Type")),
-                JsonValue.bool(item, "IsFolder"),
-                JsonValue.bool(item, "IsPlayable"),
+                type,
+                folder,
+                playable(item, type, folder),
                 optionalLong(item, "RunTimeTicks"),
                 optionalInt(item, "ProductionYear"),
                 optionalInt(item, "IndexNumber"),
@@ -148,6 +150,13 @@ public final class MediaBrowserResponseMapper {
                 userData(JsonValue.childObject(item, "UserData")),
                 imageTags(JsonValue.childObject(item, "ImageTags"))
         );
+    }
+
+    private static boolean playable(Map<String, Object> item, MediaItemType type, boolean folder) {
+        if (item.containsKey("IsPlayable")) {
+            return JsonValue.bool(item, "IsPlayable");
+        }
+        return !folder && (type == MediaItemType.MOVIE || type == MediaItemType.EPISODE || type == MediaItemType.VIDEO);
     }
 
     private static UserItemData userData(Map<String, Object> object) {

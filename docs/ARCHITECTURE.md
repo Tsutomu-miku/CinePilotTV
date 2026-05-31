@@ -64,6 +64,8 @@ UI 界面应该调用应用控制器或 store。界面组件不能直接构造 J
 
 媒体库浏览响应映射到 `MediaItemPage` 和 `MediaItemSummary`。普通分页接口返回 `{Items, TotalRecordCount, StartIndex}`，Jellyfin / Emby 的 latest items 接口可能直接返回数组；mapper 必须兼容这两种形状并把数组包装成从 0 开始的 `MediaItemPage`。UI 必须使用这些领域模型里的 `id` 保持焦点和选择身份，而不是用标题或列表位置。
 
+Jellyfin 某些列表接口不会为 Movie / Episode / Video 返回 `IsPlayable`。当字段缺失时，mapper 应把非 folder 的 Movie / Episode / Video 视为可播放；当服务器明确返回 `IsPlayable=false` 时必须尊重该值。
+
 媒体图片 URL 由 `MediaBrowserClient.primaryImageUrl` 基于 `MediaItemSummary.imageTags` 生成并追加 token；Android UI 只负责异步加载位图。图片加载必须使用独立线程池和短超时，失败时不能阻塞详情页按钮、焦点或播放流程。
 
 TV 状态流由 `core.tv.TvWorkflow` 建模。Android UI 应渲染 `TvAppState`，并把遥控操作转换成 workflow 输入；焦点恢复必须使用 `FocusedItem(rowId, itemId)`。
