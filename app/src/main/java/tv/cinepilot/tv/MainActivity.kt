@@ -139,6 +139,14 @@ class MainActivity : Activity() {
                     showHome(runtime.workflowController.state())
                 }
             })
+            addView(action("退出登录") {
+                runTask("正在退出登录...", {
+                    runtime.workflowController.logout()
+                    clearLastAccount()
+                }) {
+                    showServerEntry()
+                }
+            })
         })
         focusedButton?.post { focusedButton?.requestFocus() }
     }

@@ -31,6 +31,7 @@ public final class TvWorkflowTest {
         loadsHomeRowsFromMediaBrowserClient();
         controllerRunsServerLoginBrowseAndPlaybackUseCase();
         controllerStartsPlaybackFromBeginningWhenRequested();
+        controllerLogoutRevokesSavedSession();
         controllerRestoresSavedSessionAndLoadsHome();
         controllerOpensFirstChildForFolderBrowse();
         controllerReportsEmptyFolderBrowse();
@@ -238,6 +239,30 @@ public final class TvWorkflowTest {
 
         String playbackInfoUrl = transport.requests.get(7).url(MediaServerAddress.parse("https://media.example.com/jellyfin"));
         assertTrue(playbackInfoUrl.contains("StartTimeTicks=0"), "explicit playback preferences start from beginning");
+    }
+
+    private static void controllerLogoutRevokesSavedSession() {
+        FakeTransport transport = new FakeTransport();
+        transport.enqueue(200, "{\"Id\":\"server-1\",\"ServerName\":\"Jellyfin\"}");
+        transport.enqueue(200, "{\"AccessToken\":\"token-1\",\"ServerId\":\"server-1\",\"User\":{\"Id\":\"user-1\"}}");
+        enqueueHomeResponses(transport);
+        transport.enqueue(204, "");
+
+        ClientIdentity client = new ClientIdentity("CinePilot TV", "Living Room TV", "device-1", "0.1.0");
+        InMemorySessionRepository repository = new InMemorySessionRepository();
+        MediaBrowserClient mediaClient = new MediaBrowserClient(transport, repository, client);
+        TvWorkflowController controller = new TvWorkflowController(mediaClient, new HomeRowsLoader(mediaClient, 12));
+
+        controller.submitServer("https://media.example.com/jellyfin");
+        TvAppState state = controller.login("demo", "secret");
+        ServerIdentity server = state.server();
+        assertTrue(mediaClient.restore(server, "user-1").isPresent(), "login saved session before logout");
+
+        state = controller.logout();
+
+        assertEquals(TvRoute.SERVER_ENTRY, state.route(), "logout returns to server entry");
+        assertTrue(mediaClient.restore(server, "user-1").isEmpty(), "logout revokes saved session");
+        assertEquals("/Sessions/Logout", transport.requests.get(6).path(), "controller sends logout request");
     }
 
     private static void controllerRestoresSavedSessionAndLoadsHome() {

@@ -84,7 +84,7 @@ if ! grep -q 'TYPE_TEXT_VARIATION_URI' "$ROOT_DIR/app/src/main/java/tv/cinepilot
   exit 1
 fi
 
-for ui_text in "连接服务器" "登录" "首页" "播放" "继续" "清除上次登录"; do
+for ui_text in "连接服务器" "登录" "首页" "播放" "继续" "清除上次登录" "退出登录"; do
   if ! grep -q "$ui_text" "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/MainActivity.kt"; then
     echo "MainActivity is missing TV UI text: $ui_text" >&2
     exit 1
@@ -103,6 +103,11 @@ fi
 
 if ! grep -q 'focusItem' "$ROOT_DIR/core/src/main/java/tv/cinepilot/core/tv/TvWorkflowController.java"; then
   echo "TvWorkflowController must expose TV focus updates" >&2
+  exit 1
+fi
+
+if ! grep -q 'logout' "$ROOT_DIR/core/src/main/java/tv/cinepilot/core/tv/TvWorkflowController.java"; then
+  echo "TvWorkflowController must expose logout" >&2
   exit 1
 fi
 

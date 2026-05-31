@@ -146,6 +146,14 @@ public final class TvWorkflowController {
         return state;
     }
 
+    public TvAppState logout() {
+        if (state.authenticated() != null) {
+            client.logout(state.authenticated());
+        }
+        state = TvAppState.initial();
+        return state;
+    }
+
     public TvAppState fail(String message) {
         state = TvWorkflow.fail(state, message);
         return state;
