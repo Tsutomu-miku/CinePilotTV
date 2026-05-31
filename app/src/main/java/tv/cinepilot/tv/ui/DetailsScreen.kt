@@ -1,8 +1,11 @@
 package tv.cinepilot.tv.ui
 
+import android.graphics.Typeface
+import android.text.TextUtils
 import android.view.Gravity
 import android.view.View
 import android.widget.LinearLayout
+import android.widget.TextView
 import androidx.activity.ComponentActivity
 import tv.cinepilot.core.protocol.MediaItemType
 import tv.cinepilot.core.protocol.MediaItemSummary
@@ -18,7 +21,7 @@ fun ComponentActivity.detailsScreen(
     loadPoster: (LinearLayout, MediaItemSummary) -> Unit,
     onBackHome: () -> Unit,
 ): View {
-    return screen(item.name()) {
+    return screen("详情") {
         addView(LinearLayout(this@detailsScreen).apply {
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.TOP
@@ -26,6 +29,7 @@ fun ComponentActivity.detailsScreen(
             addView(
                 LinearLayout(this@detailsScreen).apply {
                     orientation = LinearLayout.VERTICAL
+                    addView(detailTitle(item.name()))
                     addView(metadataPills(detailMetadata(item, episodeLabel)))
                     if (item.hasResumePosition()) {
                         addView(resumeBadge("可从 ${formatTicks(item.userData().playbackPositionTicks())} 继续播放"))
@@ -49,6 +53,20 @@ fun ComponentActivity.detailsScreen(
                 LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f),
             )
         })
+    }
+}
+
+private fun ComponentActivity.detailTitle(title: String): TextView {
+    return TextView(this).apply {
+        text = title
+        textSize = TvType.Title
+        typeface = Typeface.DEFAULT_BOLD
+        setTextColor(TvColors.TextPrimary)
+        maxLines = 3
+        ellipsize = TextUtils.TruncateAt.END
+        includeFontPadding = false
+        setLineSpacing(2f, 1.02f)
+        setPadding(0, 0, 0, dp(14))
     }
 }
 

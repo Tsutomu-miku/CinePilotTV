@@ -373,6 +373,16 @@ if [[ ! -s "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/ui/DetailsScreen.kt" ]];
   exit 1
 fi
 
+if ! grep -q 'detailTitle' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/ui/DetailsScreen.kt"; then
+  echo "Details screen must isolate long media titles from the page header" >&2
+  exit 1
+fi
+
+if ! grep -q 'maxLines = 3' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/ui/DetailsScreen.kt"; then
+  echo "Details title must clamp long titles to protect metadata and actions" >&2
+  exit 1
+fi
+
 if [[ ! -s "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/ui/MediaTechnicalInfo.kt" ]]; then
   echo "Missing reusable media technical info formatter" >&2
   exit 1
