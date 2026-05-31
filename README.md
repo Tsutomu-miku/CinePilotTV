@@ -25,6 +25,14 @@ CinePilot TV 是一个面向 Android TV 的原生播放器，用来连接兼容 
 ./scripts/install-debug-apk.sh
 ```
 
+## GitHub Action 打包
+
+仓库包含 `Android APK` workflow，会在 push、pull request 和手动触发时运行：
+
+- 设置 JDK 17、Gradle 和 Android SDK 35。
+- 执行 `./gradlew --no-daemon :core:test :app:assembleDebug`。
+- 上传 `cinepilot-tv-debug-apk` artifact，里面包含可直接安装到设备或模拟器的 debug APK。
+
 ## 脚本
 
 - `./scripts/check.sh` 使用 `javac` 编译 JVM 协议核心、运行协议测试，并确认项目指导文档存在。
