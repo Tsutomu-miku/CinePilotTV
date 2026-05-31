@@ -211,6 +211,12 @@ public final class ProtocolCoreTest {
         assertTrue(searchUrl.contains("Recursive=true"), "search query is recursive");
         assertTrue(searchUrl.contains("IncludeItemTypes=Movie%2CEpisode%2CSeries%2CVideo"), "search query limits media types");
 
+        ProtocolRequest nextUp = MediaBrowserRequests.nextUpItems(session, ServerFlavor.JELLYFIN, 12);
+        assertEquals("/Shows/NextUp", nextUp.path(), "next up path");
+        assertTrue(nextUp.url(address).contains("UserId=user%201"), "next up user id");
+        assertTrue(nextUp.url(address).contains("Limit=12"), "next up limit");
+        assertTrue(nextUp.url(address).contains("EnableUserData=true"), "next up user data");
+
         ProtocolRequest detail = MediaBrowserRequests.item(session, ServerFlavor.JELLYFIN, "item/with/slash");
         assertEquals("/Users/user%201/Items/item%2Fwith%2Fslash", detail.path(), "item detail path encodes item id");
     }

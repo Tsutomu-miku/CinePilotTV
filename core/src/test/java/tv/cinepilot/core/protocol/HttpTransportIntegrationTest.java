@@ -37,7 +37,7 @@ public final class HttpTransportIntegrationTest {
             assertEquals("user-1", authenticated.session().userId(), "authenticates user over HTTP");
 
             HomeRowsLoader loader = new HomeRowsLoader(mediaClient, 12);
-            assertEquals(3, loader.load(authenticated).size(), "loads TV home rows over HTTP");
+            assertEquals(4, loader.load(authenticated).size(), "loads TV home rows over HTTP");
 
             MediaItemSummary detail = mediaClient.item(authenticated, "movie-1");
             assertEquals("Arrival", detail.name(), "loads detail over HTTP");
@@ -74,6 +74,7 @@ public final class HttpTransportIntegrationTest {
                     requests.stream().anyMatch(value -> value.startsWith("GET /Users/user-1/Items/Latest?") && value.contains("ParentId=movies")),
                     "latest request observed"
             );
+            assertTrue(requests.stream().anyMatch(value -> value.startsWith("GET /Shows/NextUp?")), "next up request observed");
             assertTrue(requests.stream().anyMatch(value -> value.startsWith("POST /Sessions/Playing/Progress")), "progress check-in observed");
             assertTrue(requests.stream().anyMatch(value -> value.contains("X-Emby-Token=token-1")), "token header observed");
         } finally {
@@ -100,6 +101,8 @@ public final class HttpTransportIntegrationTest {
             response = "{\"Items\":[{\"Id\":\"movies\",\"Name\":\"Movies\",\"Type\":\"CollectionFolder\",\"IsFolder\":true}],\"TotalRecordCount\":1,\"StartIndex\":0}";
         } else if (path.equals("/Users/user-1/Items/Resume")) {
             response = "{\"Items\":[{\"Id\":\"resume-1\",\"Name\":\"Resume\",\"Type\":\"Movie\",\"IsPlayable\":true}],\"TotalRecordCount\":1,\"StartIndex\":0}";
+        } else if (path.equals("/Shows/NextUp")) {
+            response = "{\"Items\":[{\"Id\":\"episode-2\",\"Name\":\"Next Episode\",\"Type\":\"Episode\",\"IsPlayable\":true}],\"TotalRecordCount\":1,\"StartIndex\":0}";
         } else if (path.equals("/Users/user-1/Items/Latest")) {
             response = "{\"Items\":[{\"Id\":\"movie-1\",\"Name\":\"Arrival\",\"Type\":\"Movie\",\"IsPlayable\":true}],\"TotalRecordCount\":1,\"StartIndex\":0}";
         } else if (path.equals("/Users/user-1/Items/movie-1")) {

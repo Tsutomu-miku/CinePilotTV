@@ -123,6 +123,17 @@ public final class MediaBrowserRequests {
                 .build();
     }
 
+    public static ProtocolRequest nextUpItems(AuthSession session, ServerFlavor flavor, int limit) {
+        return authenticated(ProtocolRequest.get("/Shows/NextUp"), session, flavor)
+                .query("UserId", session.userId())
+                .query("Limit", Integer.toString(limit))
+                .query("EnableImages", "true")
+                .query("EnableUserData", "true")
+                .query("ImageTypeLimit", "1")
+                .query("Fields", "PrimaryImageAspectRatio,MediaSources,MediaStreams,Overview,ParentId,Genres,ProductionYear")
+                .build();
+    }
+
     public static ProtocolRequest item(AuthSession session, ServerFlavor flavor, String itemId) {
         require(itemId, "itemId");
         String userId = ProtocolRequest.encodePathSegment(session.userId());

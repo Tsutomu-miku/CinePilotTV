@@ -30,6 +30,7 @@ public final class HomeRowsLoader {
         List<HomeRow> rows = new ArrayList<>();
         addIfNotEmpty(rows, "views", "媒体库", client.userViews(authenticated).items());
         addIfNotEmpty(rows, "resume", "继续观看", client.resumeItems(authenticated, rowLimit).items());
+        addIfNotEmpty(rows, "next-up", "下一集", client.nextUpItems(authenticated, rowLimit).items());
 
         MediaItemPage views = client.userViews(authenticated);
         for (MediaItemSummary view : views.items()) {
@@ -52,4 +53,3 @@ public final class HomeRowsLoader {
         }
     }
 }
-

@@ -66,7 +66,7 @@ TV 状态流由 `core.tv.TvWorkflow` 建模。Android UI 应渲染 `TvAppState`�
 
 Android 首页按钮获得选择意图时，应先调用 `TvWorkflowController.focusItem(rowId, itemId)` 写回领域状态；从详情或播放器返回首页时，再用 `TvAppState.focus` 对应按钮调用平台 `requestFocus()`。
 
-首页内容由 `HomeRowsLoader` 组合：用户媒体库、继续观看和每个媒体库的最新内容都转换成 `HomeRow`。Android UI 不应直接调多个媒体库 API 来拼首页。
+首页内容由 `HomeRowsLoader` 组合：用户媒体库、继续观看、下一集和每个媒体库的最新内容都转换成 `HomeRow`。Android UI 不应直接调多个媒体库 API 来拼首页。`下一集` 使用 `/Shows/NextUp`，只在服务器返回非空结果时展示，避免没有剧集库的用户看到空行。
 
 首页中的可播放条目打开详情和播放准备入口；不可播放的媒体库或文件夹应调用 `TvWorkflowController.openFirstChild(parentId)` 浏览子项目，避免把 collection folder 当作影片播放。
 

@@ -18,6 +18,7 @@
 - `GET /Users/{UserId}/Views`：用户可见媒体库。
 - `GET /Users/{UserId}/Items`：媒体库浏览。
 - `GET /Users/{UserId}/Items/Resume`：继续观看候选。
+- `GET /Shows/NextUp`：剧集下一集候选。
 - `GET /Users/{UserId}/Items/Latest`：最新媒体候选。
 - `GET /Users/{UserId}/Items/{ItemId}`：媒体详情。
 - `GET /Items/{Id}/PlaybackInfo`：获取播放候选、`PlaySessionId` 和 `MediaSources`。
@@ -41,7 +42,7 @@
 - 会话持久化：`SessionScope` -> `InMemorySessionRepository` / `FileSessionRepository`。
 - 播放信息：`playbackInfo` -> `PlaybackInfo`；播放前音轨 / 字幕选择复用该响应里的 `MediaStreams[].Index`。
 - 播放源选择：`PlaybackInfo` -> `PlayableMedia`。
-- 媒体库浏览：`userViews` / `items` / `resumeItems` / `latestItems` / `item` -> 媒体条目模型。
+- 媒体库浏览：`userViews` / `items` / `resumeItems` / `nextUpItems` / `latestItems` / `item` -> 媒体条目模型。
 - 服务器侧搜索：`ItemQuery.search` -> `/Users/{UserId}/Items?SearchTerm=...`。
 - TV 首页组合：`HomeRowsLoader` -> `HomeRow` 列表。
 - TV 用例编排：`TvWorkflowController` 将服务器发现、登录、首页、详情和播放准备串成 `TvAppState`。
@@ -67,6 +68,8 @@
 - Emby `GET /Items/{Id}/PlaybackInfo` 参考页说明 playback info 返回播放候选、`PlaySessionId`、`MediaSources`、`DirectStreamUrl`、`TranscodingUrl` 和字幕 delivery 信息：<https://dev.emby.media/reference/RestAPI/MediaInfoService/getItemsByIdPlaybackinfo.html>
 - Emby HLS 文档说明 `/Videos/{Id}/master.m3u8` 是 HLS 入口，必需参数包括 path 里的 `Id`、`MediaSourceId` 和 `DeviceId`：<https://dev.emby.media/doc/restapi/Http-Live-Streaming.html>
 - Emby `GET /Videos/{Id}/master.m3u8` 参考页说明 start time 使用 ticks，并列出音轨、字幕、分辨率、码率、codec 等参数：<https://dev.emby.media/reference/RestAPI/DynamicHlsService/getVideosByIdMasterM3u8.html>
+- Emby TV shows reference 暴露 `GET /Shows/NextUp`，用于获取下一集候选：<https://dev.emby.media/reference/RestAPI/TvShowsService.html>
+- Jellyfin SDK `TvShowsApi.getNextUp` 暴露 `userId`、`limit`、`parentId`、`enableUserData` 等参数：<https://javadoc.io/static/org.jellyfin.sdk/jellyfin-api/1.6.2/jellyfin-api/org.jellyfin.sdk.api.operations/-tv-shows-api/index.html>
 - Jellyfin TypeScript SDK 暴露 `getPlaybackInfo`、`getPostedPlaybackInfo` 和 `openLiveStream`，其中 POST 版支持 max bitrate、start ticks、音轨、字幕、direct play / direct stream / transcoding 等参数：<https://typescript-sdk.jellyfin.org/functions/generated-client.MediaInfoApiFp.html>
 
 ## 后续确认项
