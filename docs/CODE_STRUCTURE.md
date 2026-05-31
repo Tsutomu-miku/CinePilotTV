@@ -38,6 +38,7 @@ docs/                            项目指导文档
   VERIFICATION.md                本地检查、Android 构建和设备 QA 说明
 scripts/                         健康检查和本地自动化
   bootstrap-gradle-wrapper.sh    生成 Gradle wrapper 的辅助脚本
+  install-debug-apk.sh           安装并启动 debug APK 的设备 QA 脚本
 ```
 
 ## 放置规则

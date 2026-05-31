@@ -44,6 +44,11 @@ if [[ ! -x "$ROOT_DIR/scripts/bootstrap-gradle-wrapper.sh" ]]; then
   exit 1
 fi
 
+if [[ ! -x "$ROOT_DIR/scripts/install-debug-apk.sh" ]]; then
+  echo "Missing executable APK install script" >&2
+  exit 1
+fi
+
 if [[ ! -s "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/runtime/CinePilotRuntime.kt" ]]; then
   echo "Missing Android app runtime entry" >&2
   exit 1
