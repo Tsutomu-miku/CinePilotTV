@@ -16,6 +16,7 @@ import android.widget.ScrollView
 import android.widget.TextView
 import androidx.activity.ComponentActivity
 import androidx.lifecycle.ViewModelProvider
+import androidx.media3.common.PlaybackException
 import java.net.ConnectException
 import java.net.HttpURLConnection
 import java.net.SocketTimeoutException
@@ -502,7 +503,12 @@ class MainActivity : ComponentActivity() {
     private fun showPlayer(state: TvAppState) {
         var playerView: View? = null
         setContentView(screen("播放器") {
-            playerView = playerHost.createPlayerView(state)
+            playerView = playerHost.createPlayerView(state) { error ->
+                runOnUiThread {
+                    playerHost.release()
+                    showError(error)
+                }
+            }
             addView(playerView, LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT,
                 720,
@@ -676,6 +682,10 @@ class MainActivity : ComponentActivity() {
             }
         }
         val cause = rootCause(error)
+        if (error is PlaybackException || cause is PlaybackException) {
+            val playbackError = (error as? PlaybackException) ?: (cause as PlaybackException)
+            return "播放器无法打开媒体，请尝试低码率播放、切换音轨 / 字幕，或检查服务器转码设置（${playbackError.errorCodeName}）"
+        }
         when (cause) {
             is UnknownHostException -> return "无法解析服务器地址，请检查主机名、端口或网络 DNS"
             is ConnectException -> return "无法连接到服务器，请确认地址、端口和 Jellyfin / Emby 服务已启动"

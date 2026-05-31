@@ -15,6 +15,7 @@
 - Android app 依赖 `:core`。
 - Android ViewModel、runtime、TV workflow controller、最小 TV UI、Media3 player host 和 Media3 playback bridge 入口存在。
 - Android manifest 允许 HTTP 明文流量，同时提供普通桌面 `LAUNCHER` 和 TV `LEANBACK_LAUNCHER` 入口，并把 leanback / touchscreen 声明为非必需 feature；Media3 player host 会授权播放 URL。
+- Media3 播放错误会回到中文错误页，播放器释放时 stopped 上报失败不会阻止错误恢复。
 - `core` 的协议、媒体库、播放、session 和 TV workflow JVM 测试通过。
 
 ## Android 构建检查
@@ -63,6 +64,7 @@ Android TV 设备或模拟器上需要验证：
 - 可用 D-pad 完成服务器输入、登录、首页浏览和详情打开。
 - Jellyfin 服务器启用 Quick Connect 时，可在登录页用授权码完成登录；授权后 TV 端会自动进入首页。
 - 点击播放后 Media3 player 能打开可播放 URL。
+- 当 Media3 因编码、转码、网络或 URL 问题播放失败时，界面会释放播放器并显示中文恢复建议，而不是停留在不可诊断的播放器页。
 - HTTP 本地服务器地址如 `http://host:8096` 可以连接。
 - 地址格式错误、DNS 失败、连接拒绝、超时、HTTPS/证书失败和常见 HTTP 错误会显示中文操作建议。
 - 播放 URL 携带 token 后，Media3 能访问受保护流。

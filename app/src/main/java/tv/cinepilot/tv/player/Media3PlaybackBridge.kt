@@ -1,11 +1,13 @@
 package tv.cinepilot.tv.player
 
 import androidx.media3.common.PlaybackParameters
+import androidx.media3.common.PlaybackException
 import androidx.media3.common.Player
 import tv.cinepilot.core.protocol.PlaybackSessionController
 
 class Media3PlaybackBridge(
     private val controller: PlaybackSessionController,
+    private val onPlaybackError: (PlaybackException) -> Unit = {},
     private val clock: () -> Long = { System.currentTimeMillis() },
 ) : Player.Listener {
     private var started = false
@@ -54,6 +56,10 @@ class Media3PlaybackBridge(
         if (started && !stopped) {
             controller.playbackRateChanged(clock(), lastPositionBeforeSeek, nextPlaybackRate)
         }
+    }
+
+    override fun onPlayerError(error: PlaybackException) {
+        onPlaybackError(error)
     }
 
     fun tick(positionMillis: Long) {

@@ -326,8 +326,18 @@ if ! grep -q 'onPlaybackParametersChanged' "$ROOT_DIR/app/src/main/java/tv/cinep
   exit 1
 fi
 
+if ! grep -q 'onPlayerError' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/player/Media3PlaybackBridge.kt"; then
+  echo "Media3PlaybackBridge must report Media3 playback failures" >&2
+  exit 1
+fi
+
 if ! grep -q 'PlaybackSessionController' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/player/Media3PlayerHost.kt"; then
   echo "Media3PlayerHost must create PlaybackSessionController" >&2
+  exit 1
+fi
+
+if ! grep -q 'runCatching { bridge?.stop' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/player/Media3PlayerHost.kt"; then
+  echo "Media3PlayerHost must tolerate stopped check-in failures during release" >&2
   exit 1
 fi
 
@@ -488,6 +498,11 @@ fi
 
 if ! grep -q '没有可用播放源' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/MainActivity.kt"; then
   echo "MainActivity must explain unsupported playback in Chinese" >&2
+  exit 1
+fi
+
+if ! grep -q '播放器无法打开媒体' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/MainActivity.kt"; then
+  echo "MainActivity must explain Media3 playback failures in Chinese" >&2
   exit 1
 fi
 

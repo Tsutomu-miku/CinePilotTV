@@ -6,6 +6,7 @@ import android.os.Handler
 import android.os.Looper
 import android.view.View
 import androidx.media3.common.MediaItem
+import androidx.media3.common.PlaybackException
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.ui.PlayerView
 import tv.cinepilot.core.protocol.MediaBrowserClient
@@ -22,7 +23,7 @@ class Media3PlayerHost(
     private var bridge: Media3PlaybackBridge? = null
     private var progressTicker: Runnable? = null
 
-    fun createPlayerView(state: TvAppState): View {
+    fun createPlayerView(state: TvAppState, onPlaybackError: (PlaybackException) -> Unit = {}): View {
         val playable = state.playableMedia()
             ?: throw IllegalStateException("playable media is required")
         val authenticated = state.authenticated()
@@ -38,6 +39,7 @@ class Media3PlayerHost(
         release()
         val playbackBridge = Media3PlaybackBridge(
             PlaybackSessionController(mediaBrowserClient, authenticated, playable),
+            onPlaybackError,
         )
         val nextPlayer = ExoPlayer.Builder(context).build().apply {
             addListener(playbackBridge)
@@ -58,7 +60,9 @@ class Media3PlayerHost(
     fun release() {
         progressTicker?.let(handler::removeCallbacks)
         progressTicker = null
-        player?.let { bridge?.stop(it.currentPosition) }
+        player?.let { currentPlayer ->
+            runCatching { bridge?.stop(currentPlayer.currentPosition) }
+        }
         player?.release()
         player = null
         bridge = null
