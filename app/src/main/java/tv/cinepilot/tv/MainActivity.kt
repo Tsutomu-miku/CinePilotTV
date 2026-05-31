@@ -3,7 +3,6 @@ package tv.cinepilot.tv
 import android.content.Intent
 import android.content.pm.ApplicationInfo
 import android.graphics.Color
-import android.graphics.BitmapFactory
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
@@ -17,9 +16,7 @@ import androidx.activity.ComponentActivity
 import androidx.lifecycle.ViewModelProvider
 import androidx.media3.common.PlaybackException
 import java.net.ConnectException
-import java.net.HttpURLConnection
 import java.net.SocketTimeoutException
-import java.net.URL
 import java.net.UnknownHostException
 import java.util.concurrent.Executors
 import javax.net.ssl.SSLException
@@ -40,6 +37,7 @@ import tv.cinepilot.core.tv.TvDiagnostics
 import tv.cinepilot.core.tv.TvRoute
 import tv.cinepilot.core.tv.TvWorkflowController
 import tv.cinepilot.tv.player.Media3PlayerHost
+import tv.cinepilot.tv.runtime.PrimaryImageLoader
 import tv.cinepilot.tv.runtime.RecentAccountStore
 import tv.cinepilot.tv.ui.action
 import tv.cinepilot.tv.ui.actionStrip
@@ -63,8 +61,8 @@ import tv.cinepilot.tv.ui.TvSize
 class MainActivity : ComponentActivity() {
     private lateinit var viewModel: CinePilotViewModel
     private lateinit var playerHost: Media3PlayerHost
+    private lateinit var primaryImageLoader: PrimaryImageLoader
     private val executor = Executors.newSingleThreadExecutor()
-    private val imageExecutor = Executors.newFixedThreadPool(2)
     private val mainHandler = Handler(Looper.getMainLooper())
     private val recentAccountStore by lazy { RecentAccountStore(this) }
     @Volatile private var quickConnectPolling = false
@@ -76,6 +74,7 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         viewModel = ViewModelProvider(this, CinePilotViewModel.factory(applicationContext))[CinePilotViewModel::class.java]
         playerHost = Media3PlayerHost(this, viewModel.mediaBrowserClient)
+        primaryImageLoader = PrimaryImageLoader(viewModel.mediaBrowserClient)
         if (handleQaLoginIntent(intent)) {
             return
         }
@@ -90,7 +89,7 @@ class MainActivity : ComponentActivity() {
     override fun onDestroy() {
         stopQuickConnectPolling()
         playerHost.shutdown()
-        imageExecutor.shutdownNow()
+        primaryImageLoader.shutdown()
         executor.shutdownNow()
         super.onDestroy()
     }
@@ -486,29 +485,7 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun loadPrimaryImage(target: ImageView, item: MediaItemSummary, width: Int, height: Int) {
-        val authenticated = viewModel.workflowController.state().authenticated() ?: return
-        if (item.imageTags()["Primary"].isNullOrBlank()) {
-            return
-        }
-        imageExecutor.execute {
-            runCatching {
-                val imageUrl = viewModel.mediaBrowserClient.primaryImageUrl(authenticated, item, width, height)
-                val connection = URL(imageUrl).openConnection() as HttpURLConnection
-                connection.connectTimeout = 3_000
-                connection.readTimeout = 5_000
-                try {
-                    connection.inputStream.use(BitmapFactory::decodeStream)
-                } finally {
-                    connection.disconnect()
-                }
-            }.getOrNull()?.let { bitmap ->
-                runOnUiThread {
-                    if (!isFinishing && !isDestroyed) {
-                        target.setImageBitmap(bitmap)
-                    }
-                }
-            }
-        }
+        primaryImageLoader.load(this, viewModel.workflowController.state().authenticated(), target, item, width, height)
     }
 
     private fun loadPlaybackOptions(item: MediaItemSummary) {

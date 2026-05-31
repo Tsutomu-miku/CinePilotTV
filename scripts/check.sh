@@ -157,6 +157,16 @@ if ! grep -q 'Settings.Secure.ANDROID_ID' "$ROOT_DIR/app/src/main/java/tv/cinepi
   exit 1
 fi
 
+if [[ ! -s "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/runtime/PrimaryImageLoader.kt" ]]; then
+  echo "Missing dedicated primary image loader" >&2
+  exit 1
+fi
+
+if ! grep -q 'connectTimeout = 3_000' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/runtime/PrimaryImageLoader.kt"; then
+  echo "PrimaryImageLoader must keep poster loading on short timeouts" >&2
+  exit 1
+fi
+
 if [[ ! -s "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/runtime/RecentAccountStore.kt" ]]; then
   echo "Missing dedicated recent account store" >&2
   exit 1
@@ -345,18 +355,18 @@ if ! grep -q 'primaryImageUrl' "$ROOT_DIR/core/src/main/java/tv/cinepilot/core/p
   exit 1
 fi
 
-if ! grep -q 'runCatching' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/MainActivity.kt"; then
-  echo "MainActivity must keep image loading failures non-blocking" >&2
+if ! grep -q 'runCatching' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/runtime/PrimaryImageLoader.kt"; then
+  echo "PrimaryImageLoader must keep image loading failures non-blocking" >&2
   exit 1
 fi
 
-if ! grep -q 'imageExecutor' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/MainActivity.kt"; then
-  echo "MainActivity must load images outside the workflow executor" >&2
+if ! grep -q 'Executors.newFixedThreadPool' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/runtime/PrimaryImageLoader.kt"; then
+  echo "PrimaryImageLoader must load images outside the workflow executor" >&2
   exit 1
 fi
 
-if ! grep -q 'connectTimeout' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/MainActivity.kt"; then
-  echo "MainActivity must bound poster connection time" >&2
+if ! grep -q 'connectTimeout' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/runtime/PrimaryImageLoader.kt"; then
+  echo "PrimaryImageLoader must bound poster connection time" >&2
   exit 1
 fi
 
