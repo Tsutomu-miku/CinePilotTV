@@ -148,6 +148,10 @@ class PlaybackRouteController(
         }
     }
 
+    fun showPlaybackOptionsFromError(state: TvAppState) {
+        state.selectedItem()?.let(::loadPlaybackOptions)
+    }
+
     private fun showDiagnostics(
         state: TvAppState,
         returnToPlayer: Boolean = false,

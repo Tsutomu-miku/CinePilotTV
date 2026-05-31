@@ -219,6 +219,9 @@ class MainActivity : ComponentActivity() {
                 addView(action("低码率重试") {
                     playbackRoutes.retryLowBitrateFromError(state)
                 })
+                addView(action("切换音轨 / 字幕") {
+                    playbackRoutes.showPlaybackOptionsFromError(state)
+                })
                 addView(action("诊断信息") {
                     playbackRoutes.showDiagnosticsFromError(state) { showError(error) }
                 })
