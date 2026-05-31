@@ -37,6 +37,7 @@
 - 播放信息：`playbackInfo` -> `PlaybackInfo`。
 - 播放源选择：`PlaybackInfo` -> `PlayableMedia`。
 - 媒体库浏览：`userViews` / `items` / `resumeItems` / `latestItems` / `item` -> 媒体条目模型。
+- TV 首页组合：`HomeRowsLoader` -> `HomeRow` 列表。
 - 播放上报调度与发送：`PlaybackCheckInScheduler` -> `PlaybackCheckIn` -> `MediaBrowserClient.sendPlaybackCheckIn`。
 - 登出：`logout` -> 撤销本地 saved session。
 

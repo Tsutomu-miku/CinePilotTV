@@ -36,6 +36,8 @@ UI 界面应该调用应用控制器或 store。界面组件不能直接构造 J
 
 TV 状态流由 `core.tv.TvWorkflow` 建模。Android UI 应渲染 `TvAppState`，并把遥控操作转换成 workflow 输入；焦点恢复必须使用 `FocusedItem(rowId, itemId)`。
 
+首页内容由 `HomeRowsLoader` 组合：用户媒体库、继续观看和每个媒体库的最新内容都转换成 `HomeRow`。Android UI 不应直接调多个媒体库 API 来拼首页。
+
 ## 播放层
 
 播放层将负责 Media3 player 设置、media source 创建、轨道选择、字幕处理和播放 check-in 调度。它把领域播放事件报告给协议层，不关心界面如何渲染。
