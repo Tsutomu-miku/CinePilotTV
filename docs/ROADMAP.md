@@ -82,7 +82,7 @@
 
 状态：未开始。
 
-- P0-17 用 Android TV UI 渲染服务器输入、登录、首页、详情和播放器入口。进度：原生 View 最小流程已完成，尚未做最终 TV 视觉打磨。
+- P0-17 用 Android TV UI 渲染服务器输入、登录、首页、详情和播放器入口。进度：原生 View 最小流程已完成，服务器连接、登录、首页加载、详情加载和播放准备均走后台任务，尚未做最终 TV 视觉打磨。
 - P0-18 将 `TvWorkflow` 接入 Activity / ViewModel，保证焦点按 item id 恢复。进度：`TvWorkflow`、`HomeRowsLoader`、核心 `TvWorkflowController` 和 Android runtime 暴露已完成，Android ViewModel 接线未开始。
 - P0-19 将 `PlayableMedia` 接入 Media3 player host。进度：`Media3PlayerHost` 已接入最小播放器视图，并为播放 URL 追加 `api_key`；真实设备播放验证未完成。
 - P0-20 将 Media3 播放事件桥接到 `PlaybackSessionController`。进度：`Media3PlaybackBridge` 已接入 player host，真实设备验证未完成。

@@ -153,8 +153,11 @@ class MainActivity : Activity() {
 
     private fun itemButton(row: HomeRow, item: MediaItemSummary): View {
         return action(item.name().ifBlank { item.id() }) {
-            runtime.workflowController.openItem(item.id())
-            runtime.workflowController.state().selectedItem()?.let(::showDetails)
+            runTask("正在打开详情...", {
+                runtime.workflowController.openItem(item.id())
+            }) {
+                runtime.workflowController.state().selectedItem()?.let(::showDetails)
+            }
         }.also {
             it.contentDescription = "${row.title()} ${item.name()}"
         }
