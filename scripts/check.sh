@@ -136,6 +136,16 @@ if ! grep -q '会话已过期，请重新登录' "$ROOT_DIR/app/src/main/java/tv
   exit 1
 fi
 
+if ! grep -q 'workflowController.fail' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/MainActivity.kt"; then
+  echo "MainActivity must preserve workflow state for recoverable errors" >&2
+  exit 1
+fi
+
+if ! grep -q '返回详情' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/MainActivity.kt"; then
+  echo "MainActivity must let users recover from detail-scoped errors" >&2
+  exit 1
+fi
+
 if [[ ! -s "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/player/Media3PlayerHost.kt" ]]; then
   echo "Missing Media3 player host" >&2
   exit 1

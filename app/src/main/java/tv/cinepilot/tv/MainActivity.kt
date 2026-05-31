@@ -237,7 +237,10 @@ class MainActivity : Activity() {
         if (authenticationExpired) {
             clearLastAccount()
             runtime.workflowController.forgetAuthenticatedSession()
+        } else {
+            runtime.workflowController.fail(error.message ?: error::class.java.simpleName)
         }
+        val state = runtime.workflowController.state()
         setContentView(screen("出错了") {
             val message = if (authenticationExpired) {
                 "会话已过期，请重新登录"
@@ -245,7 +248,13 @@ class MainActivity : Activity() {
                 error.message ?: error::class.java.simpleName
             }
             addView(label(message))
-            if (authenticationExpired && runtime.workflowController.state().server() != null) {
+            if (state.selectedItem() != null && !authenticationExpired) {
+                addView(action("返回详情") { state.selectedItem()?.let(::showDetails) })
+            }
+            if (state.homeRows().isNotEmpty() && !authenticationExpired) {
+                addView(action("返回首页") { showHome(state) })
+            }
+            if (state.server() != null) {
                 addView(action("重新登录") { showLogin() })
             }
             addView(action("返回服务器输入") { showServerEntry() })

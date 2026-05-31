@@ -64,6 +64,8 @@ Android 首页按钮获得选择意图时，应先调用 `TvWorkflowController.f
 
 当服务器返回 401 时，Android UI 应调用 `TvWorkflowController.forgetAuthenticatedSession()` 撤销当前 authenticated scope，并提示用户重新登录。这个撤销只删除当前服务器、用户和设备身份对应的 saved session，不影响其他服务器或其他用户。
 
+非 401 错误应调用 `TvWorkflowController.fail(message)` 保留当前上下文。错误页需要根据 `TvAppState` 提供恢复入口：有 selected item 时可回详情，有 home rows 时可回首页，有 server 时可重新登录，始终可回服务器输入。
+
 ## 播放层
 
 播放层将负责 Media3 player 设置、media source 创建、轨道选择、字幕处理和播放 check-in 调度。它把领域播放事件报告给协议层，不关心界面如何渲染。
