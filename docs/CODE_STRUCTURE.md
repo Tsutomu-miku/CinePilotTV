@@ -7,6 +7,7 @@ app/
   src/main/java/tv/cinepilot/tv/
     MainActivity.kt              Android TV 启动 Activity 和最小原生 View UI
     player/Media3PlayerHost.kt   Media3 ExoPlayer / PlayerView 宿主
+    player/Media3PlaybackBridge.kt Media3 事件到播放上报控制器的桥接
     runtime/CinePilotRuntime.kt  Android app runtime composition root
 core/
   build.gradle.kts              JVM/Java Gradle module
