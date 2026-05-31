@@ -16,6 +16,7 @@
 - Android ViewModel、runtime、TV workflow controller、最小 TV UI、Media3 player host 和 Media3 playback bridge 入口存在。
 - Android manifest 允许 HTTP 明文流量，同时提供普通桌面 `LAUNCHER` 和 TV `LEANBACK_LAUNCHER` 入口，并把 leanback / touchscreen 声明为非必需 feature；Media3 player host 会授权播放 URL。
 - Media3 播放错误会回到中文错误页，播放器释放时 stopped 上报失败不会阻止错误恢复。
+- debug APK 提供受 `FLAG_DEBUGGABLE` 限制的 QA 登录 intent，配套 `./scripts/qa-login.sh`，用于禁止 adb input 注入的设备。
 - `core` 的协议、媒体库、播放、session 和 TV workflow JVM 测试通过。
 
 ## Android 构建检查
@@ -41,7 +42,9 @@ GitHub Actions：
 - `./scripts/check.sh` 通过。
 - `./scripts/install-debug-apk.sh` 可以完成 `:app:assembleDebug`。
 - `adb devices` 已识别 Xiaomi 2211133C 真机；`./scripts/install-debug-apk.sh` 可以完成构建，但安装阶段被设备系统以 `INSTALL_FAILED_USER_RESTRICTED` 拒绝。需要在设备开发者选项中开启“通过 USB 安装”和“USB 调试（安全设置）”，并在安装确认弹窗中允许。
-- 测试 Jellyfin `http://192.168.31.82:49156` 从开发机可达，`/System/Info/Public` 返回 Jellyfin Server 10.10.7，测试账号认证成功；真机 app 登录 / 浏览 / 播放仍等待 APK 安装成功后验证。
+- Xiaomi 2211133C 手动安装成功，包名 `tv.cinepilot.tv` 同时暴露 `LAUNCHER` 和 `LEANBACK_LAUNCHER`；该设备禁止 adb `input tap/text/keyevent` 注入，因此补充 debug-only QA 登录入口用于继续真机验证。
+- 新连接的 Xiaomi 24129PN74C 支持 adb input 注入，可用于常规 UI 登录 / 浏览 / 播放路径验证。
+- 测试 Jellyfin `http://192.168.31.82:49156` 从开发机可达，`/System/Info/Public` 返回 Jellyfin Server 10.10.7，测试账号认证成功；真机 app 登录 / 浏览 / 播放仍需在支持输入注入的新设备上完成验证。
 
 具备 Android SDK 后，应运行：
 

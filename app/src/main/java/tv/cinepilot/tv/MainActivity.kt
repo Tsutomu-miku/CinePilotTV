@@ -1,5 +1,7 @@
 package tv.cinepilot.tv
 
+import android.content.Intent
+import android.content.pm.ApplicationInfo
 import android.graphics.Color
 import android.graphics.BitmapFactory
 import android.os.Bundle
@@ -55,7 +57,15 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         viewModel = ViewModelProvider(this, CinePilotViewModel.factory(applicationContext))[CinePilotViewModel::class.java]
         playerHost = Media3PlayerHost(this, viewModel.mediaBrowserClient)
+        if (handleQaLoginIntent(intent)) {
+            return
+        }
         restoreRecentAccountOnLaunch()
+    }
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        handleQaLoginIntent(intent)
     }
 
     override fun onDestroy() {
@@ -197,6 +207,34 @@ class MainActivity : ComponentActivity() {
             rememberAccount()
             showHome(viewModel.workflowController.state())
         }
+    }
+
+    private fun handleQaLoginIntent(intent: Intent?): Boolean {
+        if (!isDebuggable()) {
+            return false
+        }
+        val server = intent?.getStringExtra("qa_server")?.takeIf { it.isNotBlank() } ?: return false
+        val username = intent.getStringExtra("qa_username").orEmpty()
+        val password = intent.getStringExtra("qa_password").orEmpty()
+        showLoading("正在执行 QA 登录...")
+        executor.execute {
+            try {
+                viewModel.workflowController.submitServer(server)
+                loadPublicUsersIfAvailable()
+                viewModel.workflowController.login(username, password)
+                runOnUiThread {
+                    rememberAccount()
+                    showHome(viewModel.workflowController.state())
+                }
+            } catch (error: Throwable) {
+                runOnUiThread { showError(error) }
+            }
+        }
+        return true
+    }
+
+    private fun isDebuggable(): Boolean {
+        return (applicationInfo.flags and ApplicationInfo.FLAG_DEBUGGABLE) != 0
     }
 
     private fun startQuickConnectLogin() {

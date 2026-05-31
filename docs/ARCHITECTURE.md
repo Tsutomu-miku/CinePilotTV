@@ -90,6 +90,8 @@ Android 首页按钮获得选择意图时，应先调用 `TvWorkflowController.f
 
 启动时 Android UI 应优先尝试恢复最近账号；恢复成功直接进入首页，恢复失败则回到服务器选择页，保证首屏不是不可操作的错误状态。
 
+debug APK 可以通过 `qa_server` / `qa_username` / `qa_password` intent extras 触发 QA 登录，用于小米等禁止 adb input 注入的真机验证。该入口必须检查 `ApplicationInfo.FLAG_DEBUGGABLE`，非 debuggable 构建不能响应。
+
 `TvWorkflowController.loadPublicUsers()` 只用于减少 TV 端用户名输入。public users 来自 `/Users/Public`，选择用户后 Android UI 只能预填用户名，仍必须通过 `login(username, password)` 完成正式认证并获取 token。
 
 Android 错误页必须把地址格式、DNS、连接拒绝、超时、HTTPS/证书和常见 HTTP 状态转换成中文操作建议，不能把 Java 异常类名直接暴露给用户。

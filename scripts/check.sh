@@ -351,6 +351,21 @@ if ! grep -q 'Media3PlayerHost' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/Mai
   exit 1
 fi
 
+if ! grep -q 'qa_server' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/MainActivity.kt"; then
+  echo "MainActivity must keep a debug-only QA login intent for restricted ADB input devices" >&2
+  exit 1
+fi
+
+if ! grep -q 'FLAG_DEBUGGABLE' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/MainActivity.kt"; then
+  echo "QA login intent must be limited to debuggable builds" >&2
+  exit 1
+fi
+
+if [[ ! -x "$ROOT_DIR/scripts/qa-login.sh" ]]; then
+  echo "Missing executable QA login helper" >&2
+  exit 1
+fi
+
 if ! grep -q 'playerView?.requestFocus' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/MainActivity.kt"; then
   echo "MainActivity must focus the Media3 player view" >&2
   exit 1
