@@ -56,7 +56,7 @@ Android TV 设备或模拟器上需要验证：
 - 点击播放后 Media3 player 能打开可播放 URL。
 - HTTP 本地服务器地址如 `http://host:8096` 可以连接。
 - 播放 URL 携带 token 后，Media3 能访问受保护流。
-- 详情页能展示服务器返回的简介和类型信息。
+- 详情页能展示服务器返回的简介、类型、时长和季集信息。
 - 播放准备页的诊断信息不包含 token，且能显示 server、item、media source、play method。
 - 详情页展示可读的恢复播放时间，不显示原始协议 ticks。
 - 详情页的低码率播放会把最大码率、声道数、起播 ticks 等偏好传入 playback info，并在 HLS URL 构造时继续使用分辨率 / 码率偏好。

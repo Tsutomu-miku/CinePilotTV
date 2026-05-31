@@ -206,6 +206,16 @@ if ! grep -q '简介：' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/MainActivi
   exit 1
 fi
 
+if ! grep -q '时长：' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/MainActivity.kt"; then
+  echo "MainActivity must show runtime on details when available" >&2
+  exit 1
+fi
+
+if ! grep -q 'episodeLabel' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/MainActivity.kt"; then
+  echo "MainActivity must show episode season context on details when available" >&2
+  exit 1
+fi
+
 if ! grep -q 'Genres' "$ROOT_DIR/core/src/main/java/tv/cinepilot/core/protocol/MediaBrowserResponseMapper.java"; then
   echo "MediaBrowserResponseMapper must map media genres" >&2
   exit 1

@@ -248,6 +248,12 @@ class MainActivity : Activity() {
     private fun showDetails(item: MediaItemSummary) {
         setContentView(screen(item.name()) {
             addView(label("${item.type()}${if (item.productionYear() != null) " · ${item.productionYear()}" else ""}"))
+            if (item.runTimeTicks() != null) {
+                addView(label("时长：${formatPlaybackPosition(item.runTimeTicks())}"))
+            }
+            if (episodeLabel(item).isNotBlank()) {
+                addView(label(episodeLabel(item)))
+            }
             if (item.genres().isNotEmpty()) {
                 addView(label("类型：${item.genres().joinToString(" / ")}"))
             }
@@ -355,6 +361,23 @@ class MainActivity : Activity() {
                 showPlayerReady(runtime.workflowController.state())
             }
         }
+    }
+
+    private fun episodeLabel(item: MediaItemSummary): String {
+        val seriesName = item.seriesName().ifBlank { "" }
+        val season = item.parentIndexNumber()
+        val episode = item.indexNumber()
+        val parts = mutableListOf<String>()
+        if (seriesName.isNotBlank()) {
+            parts.add(seriesName)
+        }
+        if (season != null) {
+            parts.add("第 ${season} 季")
+        }
+        if (episode != null) {
+            parts.add("第 ${episode} 集")
+        }
+        return parts.joinToString(" · ")
     }
 
     private fun lowBitratePreferences(item: MediaItemSummary): PlaybackSelectionPreferences {
