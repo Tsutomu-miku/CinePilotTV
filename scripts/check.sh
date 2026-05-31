@@ -140,6 +140,16 @@ if ! grep -q 'TYPE_TEXT_VARIATION_URI' "$ROOT_DIR/app/src/main/java/tv/cinepilot
   exit 1
 fi
 
+if ! grep -q 'http://192.168.1.10:8096' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/MainActivity.kt"; then
+  echo "Server entry placeholder should match common local Jellyfin/Emby HTTP addresses" >&2
+  exit 1
+fi
+
+if ! grep -q 'candidate = "http://"' "$ROOT_DIR/core/src/main/java/tv/cinepilot/core/protocol/MediaServerAddress.java"; then
+  echo "Bare server addresses must default to local HTTP" >&2
+  exit 1
+fi
+
 for ui_text in "连接服务器" "登录" "首页" "播放" "继续" "清除已保存登录" "退出登录"; do
   if ! grep -q "$ui_text" "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/MainActivity.kt"; then
     echo "MainActivity is missing TV UI text: $ui_text" >&2

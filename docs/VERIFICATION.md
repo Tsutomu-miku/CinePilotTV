@@ -89,6 +89,7 @@ Android TV 设备或模拟器上需要验证：
 - 当 Media3 因编码、转码、网络或 URL 问题播放失败时，界面会释放播放器并显示中文恢复建议，而不是停留在不可诊断的播放器页。
 - Jellyfin / Emby 返回 HLS 转码播放候选时，APK 包含 `media3-exoplayer-hls`，打开播放器不会因缺少 `HlsMediaSource.Factory` 崩溃。
 - HTTP 本地服务器地址如 `http://host:8096` 可以连接。
+- 裸地址如 `192.168.1.10:8096` 会默认补成 `http://192.168.1.10:8096/`；显式 `https://` 地址不应被降级。
 - Jellyfin latest items 返回数组时，首页仍能加载最新媒体行，不会因只支持分页对象而失败。
 - Jellyfin 列表条目缺少 `IsPlayable` 时，非 folder 的 Movie / Episode / Video 仍会作为可播放项进入详情，而不是被误当作目录。
 - 地址格式错误、DNS 失败、连接拒绝、超时、HTTPS/证书失败和常见 HTTP 错误会显示中文操作建议。

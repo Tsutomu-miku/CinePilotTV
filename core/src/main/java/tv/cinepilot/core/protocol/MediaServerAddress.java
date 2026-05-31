@@ -18,7 +18,7 @@ public final class MediaServerAddress {
 
         String candidate = rawAddress.trim();
         if (!candidate.contains("://")) {
-            candidate = "https://" + candidate;
+            candidate = "http://" + candidate;
         }
 
         try {
@@ -91,4 +91,3 @@ public final class MediaServerAddress {
         return Objects.hash(baseUri);
     }
 }
-

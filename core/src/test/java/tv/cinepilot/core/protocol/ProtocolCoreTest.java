@@ -42,7 +42,7 @@ public final class ProtocolCoreTest {
 
     private static void normalizesServerAddress() {
         MediaServerAddress address = MediaServerAddress.parse("Example.COM:8096/");
-        assertEquals("https://example.com:8096/", address.value(), "default scheme and host normalization");
+        assertEquals("http://example.com:8096/", address.value(), "default scheme and host normalization");
     }
 
     private static void preservesServerPathPrefix() {

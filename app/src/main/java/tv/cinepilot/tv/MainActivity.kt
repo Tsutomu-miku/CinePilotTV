@@ -149,7 +149,7 @@ class MainActivity : ComponentActivity() {
 
     private fun showServerEntry() {
         stopQuickConnectPolling()
-        val serverInput = input("https://your-server.example.com", InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_URI)
+        val serverInput = input("http://192.168.1.10:8096", InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_URI)
         val recentAccounts = recentAccountStore.accounts()
         setContentView(screen("CinePilot TV") {
             recentAccounts.forEach { account ->
