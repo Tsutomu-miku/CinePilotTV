@@ -19,7 +19,13 @@
 
 ## Android 构建检查
 
-当前机器没有 `ANDROID_HOME`，也没有全局 `gradle` 命令，因此本线程尚未完成 Android 编译、模拟器启动或真实设备播放验证。
+当前机器没有 `ANDROID_HOME`，因此本线程尚未完成 Android 编译、模拟器启动或真实设备播放验证。
+
+已确认：
+
+- `./scripts/bootstrap-gradle-wrapper.sh` 可以生成 Gradle wrapper。
+- `./gradlew :core:test` 可以通过。
+- `./gradlew :app:assembleDebug` 当前失败原因是 SDK 路径缺失，需要设置 `ANDROID_HOME` 或 `local.properties` 的 `sdk.dir`。
 
 具备 Android SDK 后，应运行：
 

@@ -119,4 +119,8 @@ javac --release 17 -cp "$MAIN_CLASSES" -d "$TEST_CLASSES" $(find "$ROOT_DIR/core
 java -cp "$MAIN_CLASSES:$TEST_CLASSES" tv.cinepilot.core.protocol.ProtocolCoreTest
 java -cp "$MAIN_CLASSES:$TEST_CLASSES" tv.cinepilot.core.tv.TvWorkflowTest
 
+if [[ -x "$ROOT_DIR/gradlew" ]]; then
+  "$ROOT_DIR/gradlew" -q :core:test
+fi
+
 echo "check passed"
