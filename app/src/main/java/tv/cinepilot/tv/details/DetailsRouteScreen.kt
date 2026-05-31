@@ -25,6 +25,7 @@ fun ComponentActivity.detailsRouteScreen(
     loadPosterImage: (ImageView, MediaItemSummary, Int, Int) -> Unit,
     onPreparePlayback: (PlaybackSelectionPreferences?) -> Unit,
     onPlaybackOptions: () -> Unit,
+    onSubtitleStyle: () -> Unit,
     onPlaybackSpeed: () -> Unit,
     onSeriesNextUp: () -> Unit,
     onOpenFolder: () -> Unit,
@@ -35,7 +36,7 @@ fun ComponentActivity.detailsRouteScreen(
         episodeLabel = episodeLabel(item),
         formatTicks = ::formatPlaybackPosition,
         playbackActions = if (item.playable()) {
-            playbackActions(item, onPreparePlayback, onPlaybackOptions, onPlaybackSpeed, onSeriesNextUp)
+            playbackActions(item, onPreparePlayback, onPlaybackOptions, onSubtitleStyle, onPlaybackSpeed, onSeriesNextUp)
         } else {
             emptyList()
         },
@@ -52,6 +53,7 @@ private fun ComponentActivity.playbackActions(
     item: MediaItemSummary,
     onPreparePlayback: (PlaybackSelectionPreferences?) -> Unit,
     onPlaybackOptions: () -> Unit,
+    onSubtitleStyle: () -> Unit,
     onPlaybackSpeed: () -> Unit,
     onSeriesNextUp: () -> Unit,
 ): List<View> {
@@ -64,6 +66,7 @@ private fun ComponentActivity.playbackActions(
     }
     actions.add(playbackAction("低码率播放", TvIcon.SPEED, lowBitratePreferences(item), onPreparePlayback))
     actions.add(iconAction("音轨 / 字幕", TvIcon.SUBTITLES, onPlaybackOptions))
+    actions.add(iconAction("字幕样式", TvIcon.SUBTITLES, onSubtitleStyle))
     actions.add(iconAction("播放速度", TvIcon.SPEED, onPlaybackSpeed))
     if (item.seriesId().isNotBlank()) {
         actions.add(iconAction("本剧下一集", TvIcon.PLAY, onSeriesNextUp))

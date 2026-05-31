@@ -12,6 +12,7 @@ object TvColors {
     val PosterBorder = Color.rgb(30, 41, 59)
     val Focus = Color.rgb(20, 184, 166)
     val FocusRing = Color.rgb(153, 246, 228)
+    val FocusText = Color.rgb(3, 18, 22)
     val Accent = Color.rgb(45, 212, 191)
     val AccentStrong = Color.rgb(94, 234, 212)
     val Resume = Color.rgb(15, 118, 110)
@@ -21,13 +22,13 @@ object TvColors {
 }
 
 object TvSpacing {
-    const val ScreenX = 56
-    const val ScreenTop = 42
+    const val ScreenX = 48
+    const val ScreenTop = 36
     const val ScreenBottom = 56
-    const val SectionTop = 28
-    const val SectionBottom = 12
+    const val SectionTop = 22
+    const val SectionBottom = 10
     const val ControlGap = 12
-    const val CardGap = 18
+    const val CardGap = 14
     const val PlayerOverlayX = 48
 }
 
@@ -49,10 +50,10 @@ object TvType {
 object TvSize {
     const val ControlHeight = 56
     const val InputHeight = 56
-    const val PosterWidth = 190
-    const val PosterHeight = 285
-    const val DetailPosterWidth = 220
-    const val DetailPosterHeight = 330
+    const val PosterWidth = 150
+    const val PosterHeight = 225
+    const val DetailPosterWidth = 190
+    const val DetailPosterHeight = 285
     const val PlayerTopOverlay = 82
     const val PlayerBottomOverlay = 96
 }

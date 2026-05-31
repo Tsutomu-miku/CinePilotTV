@@ -1,6 +1,7 @@
 package tv.cinepilot.tv.player
 
 import android.content.Context
+import android.graphics.Typeface
 import android.net.Uri
 import android.os.Handler
 import android.os.Looper
@@ -11,6 +12,7 @@ import androidx.media3.common.MediaItem
 import androidx.media3.common.MimeTypes
 import androidx.media3.common.PlaybackException
 import androidx.media3.exoplayer.ExoPlayer
+import androidx.media3.ui.CaptionStyleCompat
 import androidx.media3.ui.PlayerView
 import java.util.concurrent.Executors
 import tv.cinepilot.core.protocol.AuthSession
@@ -21,10 +23,13 @@ import tv.cinepilot.core.protocol.PlayableMedia
 import tv.cinepilot.core.protocol.PlaybackUrlAuthorizer
 import tv.cinepilot.core.protocol.PlaybackSessionController
 import tv.cinepilot.core.tv.TvAppState
+import tv.cinepilot.tv.playback.SubtitleBackground
+import tv.cinepilot.tv.playback.SubtitleStyleStore
 
 class Media3PlayerHost(
     private val context: Context,
     private val mediaBrowserClient: MediaBrowserClient,
+    private val subtitleStyleStore: SubtitleStyleStore,
 ) {
     private val handler = Handler(Looper.getMainLooper())
     private var player: ExoPlayer? = null
@@ -78,6 +83,7 @@ class Media3PlayerHost(
             setShowNextButton(false)
             setControllerAutoShow(true)
             setControllerShowTimeoutMs(PLAYER_CONTROLLER_TIMEOUT_MS)
+            applySubtitleStyle(this)
             setOnKeyListener { _, keyCode, event -> handleRemoteKey(this, keyCode, event) }
         }
     }
@@ -206,6 +212,29 @@ class Media3PlayerHost(
             "vtt", "webvtt" -> MimeTypes.TEXT_VTT
             "ttml", "dfxp" -> MimeTypes.APPLICATION_TTML
             else -> MimeTypes.APPLICATION_SUBRIP
+        }
+    }
+
+    private fun applySubtitleStyle(playerView: PlayerView) {
+        val style = subtitleStyleStore.current()
+        val edgeType = if (style.background == SubtitleBackground.NONE) {
+            CaptionStyleCompat.EDGE_TYPE_NONE
+        } else {
+            CaptionStyleCompat.EDGE_TYPE_OUTLINE
+        }
+        playerView.subtitleView?.apply {
+            setApplyEmbeddedStyles(false)
+            setApplyEmbeddedFontSizes(false)
+            setFractionalTextSize(style.size.fraction)
+            setBottomPaddingFraction(0.08f)
+            setStyle(CaptionStyleCompat(
+                style.color.color,
+                style.background.backgroundColor,
+                android.graphics.Color.TRANSPARENT,
+                edgeType,
+                style.background.edgeColor,
+                Typeface.DEFAULT_BOLD,
+            ))
         }
     }
 

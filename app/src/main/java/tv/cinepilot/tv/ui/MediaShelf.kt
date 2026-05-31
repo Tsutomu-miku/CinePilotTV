@@ -47,16 +47,6 @@ private fun ComponentActivity.mediaCard(
         contentDescription = "${row.title()} ${item.name()}"
         background = rounded(TvColors.SurfaceRaised, dp(TvRadius.Card))
         setOnClickListener { onOpen(row, item) }
-        setOnFocusChangeListener { focusedView, hasFocus ->
-            focusedView.scaleX = if (hasFocus) 1.06f else 1f
-            focusedView.scaleY = if (hasFocus) 1.06f else 1f
-            (focusedView as FrameLayout).foreground = rounded(
-                Color.TRANSPARENT,
-                dp(TvRadius.Card),
-                if (hasFocus) dp(3) else 0,
-                TvColors.AccentStrong,
-            )
-        }
     }
     val poster = ImageView(this).apply {
         scaleType = ImageView.ScaleType.CENTER_CROP
@@ -69,24 +59,38 @@ private fun ComponentActivity.mediaCard(
             FrameLayout.LayoutParams.MATCH_PARENT,
         ),
     )
+    val title = TextView(this).apply {
+        text = item.name().ifBlank { item.id() }
+        textSize = TvType.CardTitle
+        typeface = Typeface.DEFAULT_BOLD
+        setTextColor(TvColors.TextPrimary)
+        maxLines = 2
+        ellipsize = TextUtils.TruncateAt.END
+        setBackgroundColor(Color.argb(210, 8, 13, 24))
+        setPadding(dp(12), dp(10), dp(12), dp(10))
+    }
     card.addView(
-        TextView(this).apply {
-            text = item.name().ifBlank { item.id() }
-            textSize = TvType.CardTitle
-            typeface = Typeface.DEFAULT_BOLD
-            setTextColor(TvColors.TextPrimary)
-            maxLines = 2
-            ellipsize = TextUtils.TruncateAt.END
-            setBackgroundColor(Color.argb(210, 8, 13, 24))
-            setPadding(dp(12), dp(10), dp(12), dp(10))
-        },
+        title,
         FrameLayout.LayoutParams(
             FrameLayout.LayoutParams.MATCH_PARENT,
             FrameLayout.LayoutParams.WRAP_CONTENT,
             Gravity.BOTTOM,
         ),
     )
-    loadImage(poster, item, 320, 480)
+    card.setOnFocusChangeListener { focusedView, hasFocus ->
+        focusedView.scaleX = if (hasFocus) 1.08f else 1f
+        focusedView.scaleY = if (hasFocus) 1.08f else 1f
+        focusedView.elevation = if (hasFocus) dp(10).toFloat() else 0f
+        title.setTextColor(if (hasFocus) TvColors.FocusText else TvColors.TextPrimary)
+        title.setBackgroundColor(if (hasFocus) TvColors.AccentStrong else Color.argb(210, 8, 13, 24))
+        (focusedView as FrameLayout).foreground = rounded(
+            Color.TRANSPARENT,
+            dp(TvRadius.Card),
+            if (hasFocus) dp(5) else 0,
+            TvColors.FocusRing,
+        )
+    }
+    loadImage(poster, item, 240, 360)
     card.layoutParams = LinearLayout.LayoutParams(dp(TvSize.PosterWidth), dp(TvSize.PosterHeight)).apply {
         rightMargin = dp(TvSpacing.CardGap)
         bottomMargin = dp(TvSpacing.CardGap)

@@ -37,8 +37,10 @@ fun ComponentActivity.detailsScreen(
                     addView(verticalSpace(14))
                     if (item.playable()) {
                         addView(actionStrip(playbackActions))
+                        playbackActions.firstOrNull()?.requestInitialFocus()
                     } else {
                         addView(folderAction)
+                        folderAction.requestInitialFocus()
                     }
                     if (technicalInfo.isNotEmpty()) {
                         addView(section("媒体信息"))

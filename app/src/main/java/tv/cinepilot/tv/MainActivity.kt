@@ -21,6 +21,7 @@ import tv.cinepilot.tv.home.homeRouteScreen
 import tv.cinepilot.tv.home.searchScreen
 import tv.cinepilot.tv.player.Media3PlayerHost
 import tv.cinepilot.tv.playback.PlaybackRouteController
+import tv.cinepilot.tv.playback.SubtitleStyleStore
 import tv.cinepilot.tv.runtime.PrimaryImageLoader
 import tv.cinepilot.tv.ui.label
 import tv.cinepilot.tv.ui.screen
@@ -32,6 +33,7 @@ class MainActivity : ComponentActivity() {
     private lateinit var authRoutes: AuthRouteController
     private lateinit var playbackRoutes: PlaybackRouteController
     private lateinit var primaryImageLoader: PrimaryImageLoader
+    private lateinit var subtitleStyleStore: SubtitleStyleStore
     private val executor = Executors.newSingleThreadExecutor()
     private val mainHandler = Handler(Looper.getMainLooper())
     private var searchVisible = false
@@ -39,7 +41,8 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         viewModel = ViewModelProvider(this, CinePilotViewModel.factory(applicationContext))[CinePilotViewModel::class.java]
-        playerHost = Media3PlayerHost(this, viewModel.mediaBrowserClient)
+        subtitleStyleStore = SubtitleStyleStore(this)
+        playerHost = Media3PlayerHost(this, viewModel.mediaBrowserClient, subtitleStyleStore)
         primaryImageLoader = PrimaryImageLoader(viewModel.mediaBrowserClient)
         authRoutes = AuthRouteController(
             activity = this,
@@ -55,6 +58,7 @@ class MainActivity : ComponentActivity() {
             activity = this,
             workflowController = viewModel.workflowController,
             playerHost = playerHost,
+            subtitleStyleStore = subtitleStyleStore,
             runTask = ::runTask,
             showHome = ::showHome,
             showError = ::showError,

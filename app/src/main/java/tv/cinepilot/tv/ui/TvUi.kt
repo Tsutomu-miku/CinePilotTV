@@ -76,7 +76,14 @@ fun ComponentActivity.action(text: String, onClick: () -> Unit): Button {
         minHeight = dp(TvSize.ControlHeight)
         minimumHeight = dp(TvSize.ControlHeight)
         setTextColor(TvColors.TextPrimary)
-        setFocusableColors(this, TvColors.Focus, TvColors.SurfaceControl)
+        typeface = Typeface.DEFAULT_BOLD
+        setFocusableColors(
+            view = this,
+            focusedColor = TvColors.Focus,
+            normalColor = TvColors.SurfaceControl,
+            focusedTextColor = TvColors.FocusText,
+            normalTextColor = TvColors.TextPrimary,
+        )
         setOnClickListener { onClick() }
         setPadding(dp(18), 0, dp(18), 0)
     }
@@ -201,6 +208,11 @@ fun ComponentActivity.verticalSpace(height: Int): View {
     }
 }
 
+fun <T : View> T.requestInitialFocus(): T {
+    post { requestFocus() }
+    return this
+}
+
 fun ComponentActivity.emptyState(text: String): TextView {
     return label(text).apply {
         gravity = Gravity.CENTER
@@ -228,13 +240,25 @@ fun ComponentActivity.bodyText(text: String): TextView {
     }
 }
 
-fun ComponentActivity.setFocusableColors(view: TextView, focusedColor: Int, normalColor: Int) {
+fun ComponentActivity.setFocusableColors(
+    view: TextView,
+    focusedColor: Int,
+    normalColor: Int,
+    focusedTextColor: Int? = null,
+    normalTextColor: Int? = null,
+) {
     view.background = rounded(normalColor, dp(TvRadius.Control))
     view.setOnFocusChangeListener { focusedView, hasFocus ->
+        focusedView.scaleX = if (hasFocus) 1.035f else 1f
+        focusedView.scaleY = if (hasFocus) 1.035f else 1f
+        focusedView.elevation = if (hasFocus) dp(8).toFloat() else 0f
+        if (focusedView is TextView && focusedTextColor != null && normalTextColor != null) {
+            focusedView.setTextColor(if (hasFocus) focusedTextColor else normalTextColor)
+        }
         focusedView.background = rounded(
             if (hasFocus) focusedColor else normalColor,
             dp(TvRadius.Control),
-            if (hasFocus) dp(2) else 0,
+            if (hasFocus) dp(4) else dp(1),
             TvColors.FocusRing,
         )
     }

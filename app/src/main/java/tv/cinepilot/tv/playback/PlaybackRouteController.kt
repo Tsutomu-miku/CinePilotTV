@@ -20,6 +20,7 @@ class PlaybackRouteController(
     private val activity: ComponentActivity,
     private val workflowController: TvWorkflowController,
     private val playerHost: Media3PlayerHost,
+    private val subtitleStyleStore: SubtitleStyleStore,
     private val runTask: (String, () -> Unit, () -> Unit) -> Unit,
     private val showHome: (TvAppState) -> Unit,
     private val showError: (Throwable) -> Unit,
@@ -39,6 +40,7 @@ class PlaybackRouteController(
             loadPosterImage = loadPosterImage,
             onPreparePlayback = ::preparePlaybackWith,
             onPlaybackOptions = { loadPlaybackOptions(item) },
+            onSubtitleStyle = { activity.showSubtitleStyleScreen(subtitleStyleStore) { showDetails(item) } },
             onPlaybackSpeed = { showPlaybackSpeedOptions(item) },
             onSeriesNextUp = ::openSeriesNextUp,
             onOpenFolder = {

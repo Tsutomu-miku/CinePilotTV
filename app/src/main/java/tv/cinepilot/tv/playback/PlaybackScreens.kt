@@ -15,6 +15,7 @@ import tv.cinepilot.tv.ui.action
 import tv.cinepilot.tv.ui.iconAction
 import tv.cinepilot.tv.ui.label
 import tv.cinepilot.tv.ui.playbackSpeedOptions
+import tv.cinepilot.tv.ui.requestInitialFocus
 import tv.cinepilot.tv.ui.screen
 import tv.cinepilot.tv.ui.section
 import tv.cinepilot.tv.ui.sourceLabel
@@ -31,7 +32,7 @@ fun ComponentActivity.playbackOptionsScreen(
     onBackDetails: () -> Unit,
 ): ScrollView {
     return screen("音轨 / 字幕") {
-        addView(action("按服务器默认播放", onDefault))
+        addView(action("按服务器默认播放", onDefault).requestInitialFocus())
         playbackInfo.mediaSources().forEachIndexed { index, source ->
             addMediaSourceOptions(
                 activity = this@playbackOptionsScreen,
@@ -53,8 +54,9 @@ fun ComponentActivity.playbackSpeedScreen(
     onBackDetails: () -> Unit,
 ): ScrollView {
     return screen("播放速度") {
-        playbackSpeedOptions().forEach { option ->
-            addView(action(option.label) { onSpeed(option.rate) })
+        playbackSpeedOptions().forEachIndexed { index, option ->
+            val optionAction = action(option.label) { onSpeed(option.rate) }
+            addView(if (index == 0) optionAction.requestInitialFocus() else optionAction)
         }
         addView(action("返回详情", onBackDetails))
     }
@@ -73,7 +75,7 @@ fun ComponentActivity.subtitleOptionsForAudioScreen(
     val subtitleStreams = source.streamsOf(MediaStreamType.SUBTITLE)
     return screen("选择字幕") {
         addView(label("已选择音轨：${selectedAudio?.let(::streamLabel) ?: "音轨 $audioStreamIndex"}"))
-        addView(action("使用服务器默认字幕") { onDefaultSubtitles() })
+        addView(action("使用服务器默认字幕") { onDefaultSubtitles() }.requestInitialFocus())
         addView(action("关闭字幕播放") { onDisableSubtitles() })
         if (subtitleStreams.isEmpty()) {
             addView(label("服务器未返回可选字幕"))
@@ -99,7 +101,7 @@ fun ComponentActivity.playerReadyScreen(
         addView(label("播放方式：${playable?.playMethod() ?: ""}"))
         addView(label("媒体源：${playable?.mediaSourceId() ?: ""}"))
         addView(label("播放地址已准备"))
-        addView(iconAction("打开播放器", TvIcon.PLAY, onOpenPlayer))
+        addView(iconAction("打开播放器", TvIcon.PLAY, onOpenPlayer).requestInitialFocus())
         addView(action("诊断信息", onDiagnostics))
         addView(iconAction("返回详情", TvIcon.BACK, onBackDetails))
     }
@@ -115,7 +117,7 @@ fun ComponentActivity.diagnosticsScreen(
 ): ScrollView {
     return screen("诊断信息") {
         addView(label(diagnostics))
-        addView(action("导出诊断", onExport))
+        addView(action("导出诊断", onExport).requestInitialFocus())
         addView(action("分享诊断", onShare))
         addView(diagnosticsBackAction(returnToPlayer, backLabel, onBackDiagnosticsTarget))
     }
@@ -131,7 +133,7 @@ fun ComponentActivity.diagnosticsExportedScreen(
 ): ScrollView {
     return screen("诊断信息") {
         addView(label("诊断已导出：$path"))
-        addView(action("分享诊断", onShare))
+        addView(action("分享诊断", onShare).requestInitialFocus())
         addView(iconAction("返回诊断信息", TvIcon.BACK, onBackDiagnostics))
         addView(diagnosticsBackAction(returnToPlayer, backLabel, onBackDiagnosticsTarget))
     }
