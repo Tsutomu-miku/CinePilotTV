@@ -13,10 +13,6 @@ core/
   build.gradle.kts              JVM/Java Gradle module
   src/main/java/tv/cinepilot/core/
     protocol/                    服务器、认证、endpoint 和播放协议规则
-    tv/                          Android TV 状态、导航和焦点领域规则
-      HomeRowsLoader.java        组合媒体库首页 rows
-      TvDiagnostics.java         不含 token 的 TV 联调诊断信息
-      TvWorkflowController.java  TV 用例编排入口
       PlaybackInfoOptions.java   playback info 查询参数
       HlsStreamOptions.java      HLS 播放 URL 参数
       PlaybackSourceSelector.java 播放源选择规则
@@ -31,6 +27,10 @@ core/
       HttpTransport.java         HTTP 发送边界
       UrlConnectionHttpTransport.java Android/JVM 可用的默认 HTTP transport
       FileSessionRepository.java 文件持久化 session repository
+    tv/                          Android TV 状态、导航和焦点领域规则
+      HomeRowsLoader.java        组合媒体库首页 rows
+      TvDiagnostics.java         不含 token 的 TV 联调诊断信息
+      TvWorkflowController.java  TV 用例编排入口
   src/test/java/tv/cinepilot/core/
     protocol/                    JVM 协议测试
 docs/                            项目指导文档
@@ -45,8 +45,8 @@ scripts/                         健康检查和本地自动化
 
 - 纯服务器语义和播放语义放在 `core`，并通过 Gradle `:core` module 暴露给 Android app。
 - TV workflow、焦点身份和导航规则放在 `core/tv`，Android UI 只负责渲染和事件转发。
-- Android 生命周期、焦点和 Media3 集成放在 `app`。
-- HTTP client 和持久化放在后续 platform adapter 包下。
+- Android 生命周期、焦点、私有文件目录接线和 Media3 集成放在 `app`。
+- HTTP 发送边界和 session repository 接口放在 `core/protocol`；当前默认实现是 `UrlConnectionHttpTransport` 和 `FileSessionRepository`，后续如引入更完整 platform adapter，也必须保留核心接口语义。
 - UI 代码不能依赖协议包里的实现细节。
 - 测试放在保护对应行为的模块旁边。
 - P0 / P1 批次开始或完成时，更新 `docs/ROADMAP.md`。
