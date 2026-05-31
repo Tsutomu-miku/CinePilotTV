@@ -3,8 +3,6 @@ package tv.cinepilot.core.protocol;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
-import java.net.URLEncoder;
-import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Optional;
@@ -78,7 +76,6 @@ public final class FileSessionRepository implements SessionRepository {
     }
 
     private static String encode(String value) {
-        return URLEncoder.encode(value, StandardCharsets.UTF_8).replace("+", "%20");
+        return UrlEncoding.encodeComponent(value);
     }
 }
-

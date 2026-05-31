@@ -1,7 +1,5 @@
 package tv.cinepilot.core.protocol;
 
-import java.net.URLEncoder;
-import java.nio.charset.StandardCharsets;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Objects;
@@ -87,7 +85,7 @@ public final class ProtocolRequest {
     }
 
     private static String encode(String value) {
-        return URLEncoder.encode(value, StandardCharsets.UTF_8).replace("+", "%20");
+        return UrlEncoding.encodeComponent(value);
     }
 
     private static String requirePath(String path) {
@@ -135,4 +133,3 @@ public final class ProtocolRequest {
         }
     }
 }
-

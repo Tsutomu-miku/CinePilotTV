@@ -52,6 +52,21 @@ if [[ ! -s "$ROOT_DIR/core/build.gradle.kts" ]]; then
   exit 1
 fi
 
+if grep -R -q 'readAllBytes()' "$ROOT_DIR/core/src/main/java" "$ROOT_DIR/app/src/main/java"; then
+  echo "Android runtime code must not call InputStream.readAllBytes()" >&2
+  exit 1
+fi
+
+if grep -R -q 'URLEncoder.encode([^,]*,[^)]*StandardCharsets' "$ROOT_DIR/core/src/main/java" "$ROOT_DIR/app/src/main/java"; then
+  echo "Android runtime code must not call URLEncoder.encode with Charset" >&2
+  exit 1
+fi
+
+if [[ ! -s "$ROOT_DIR/core/src/main/java/tv/cinepilot/core/protocol/UrlEncoding.java" ]]; then
+  echo "Missing Android-compatible URL encoding helper" >&2
+  exit 1
+fi
+
 if [[ ! -x "$ROOT_DIR/scripts/bootstrap-gradle-wrapper.sh" ]]; then
   echo "Missing executable Gradle wrapper bootstrap script" >&2
   exit 1

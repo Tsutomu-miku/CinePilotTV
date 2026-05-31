@@ -3,6 +3,7 @@ package tv.cinepilot.core.protocol;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.io.ByteArrayOutputStream;
 import java.net.HttpURLConnection;
 import java.net.URI;
 import java.nio.charset.StandardCharsets;
@@ -56,7 +57,13 @@ public final class UrlConnectionHttpTransport implements HttpTransport {
             return "";
         }
         try (InputStream input = stream) {
-            return new String(input.readAllBytes(), StandardCharsets.UTF_8);
+            ByteArrayOutputStream output = new ByteArrayOutputStream();
+            byte[] buffer = new byte[8192];
+            int read;
+            while ((read = input.read(buffer)) != -1) {
+                output.write(buffer, 0, read);
+            }
+            return output.toString(StandardCharsets.UTF_8.name());
         }
     }
 
@@ -77,4 +84,3 @@ public final class UrlConnectionHttpTransport implements HttpTransport {
         return value;
     }
 }
-

@@ -1,0 +1,17 @@
+package tv.cinepilot.core.protocol;
+
+import java.io.UnsupportedEncodingException;
+import java.net.URLEncoder;
+
+final class UrlEncoding {
+    private UrlEncoding() {
+    }
+
+    static String encodeComponent(String value) {
+        try {
+            return URLEncoder.encode(value, "UTF-8").replace("+", "%20");
+        } catch (UnsupportedEncodingException exception) {
+            throw new IllegalStateException("UTF-8 is not available", exception);
+        }
+    }
+}

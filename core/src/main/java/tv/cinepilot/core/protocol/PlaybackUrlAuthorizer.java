@@ -1,8 +1,5 @@
 package tv.cinepilot.core.protocol;
 
-import java.net.URLEncoder;
-import java.nio.charset.StandardCharsets;
-
 public final class PlaybackUrlAuthorizer {
     private PlaybackUrlAuthorizer() {
     }
@@ -45,7 +42,6 @@ public final class PlaybackUrlAuthorizer {
     }
 
     private static String encode(String value) {
-        return URLEncoder.encode(value, StandardCharsets.UTF_8).replace("+", "%20");
+        return UrlEncoding.encodeComponent(value);
     }
 }
-

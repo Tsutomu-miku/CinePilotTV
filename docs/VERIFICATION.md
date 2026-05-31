@@ -48,6 +48,8 @@ GitHub Actions：
 - Xiaomi 2211133C 手动安装成功，包名 `tv.cinepilot.tv` 同时暴露 `LAUNCHER` 和 `LEANBACK_LAUNCHER`；该设备禁止 adb `input tap/text/keyevent` 注入，因此补充 debug-only QA 登录入口用于继续真机验证。
 - 新连接的 Xiaomi 24129PN74C 支持 adb input 注入，可用于常规 UI 登录 / 浏览 / 播放路径验证。
 - 测试 Jellyfin `http://192.168.31.82:49156` 从开发机可达，`/System/Info/Public` 返回 Jellyfin Server 10.10.7，测试账号认证成功；真机 app 已完成登录恢复、首页浏览、继续观看进入详情和 Media3 播放验证。
+- 小米电视远程调试曾暴露 `InputStream.readAllBytes()` 在设备 Android Runtime 上不存在的问题；`UrlConnectionHttpTransport` 必须使用 Android 兼容的 buffer 读取响应体，不能依赖 Java 9+ `InputStream.readAllBytes()`。
+- 小米电视远程调试还暴露 `URLEncoder.encode(String, Charset)` 在设备 Android Runtime 上不存在；主代码必须通过 `UrlEncoding.encodeComponent` 使用 Android 兼容的 `URLEncoder.encode(String, String)`。
 - 登录成功后执行系统关闭 / force-stop，再从普通 launcher 入口启动，已验证自动恢复最近账号并进入首页，不要求重新输入服务器和账号。
 - 详情页已验证显示中文元信息，例如“单集”“第 1 季 / 第 2 集”“约 25 分钟”，不再暴露 `EPISODE` 这类协议枚举。
 - 播放器已验证为黑底全屏 `PlayerView`；UI dump 只包含 Media3 `PlayerView` / `SurfaceView` / `exo_*` 控件树，没有第二套 app 级播放按钮。
