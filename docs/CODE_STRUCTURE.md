@@ -21,6 +21,7 @@ core/
       MediaItemSummary.java      TV UI 可消费的媒体条目摘要
       MediaItemPage.java         媒体列表分页响应
       PlaybackCheckInScheduler.java 播放 started/progress/stopped 调度规则
+      PlaybackSessionController.java 播放器事件到协议上报的控制器
       HttpTransport.java         HTTP 发送边界
       UrlConnectionHttpTransport.java Android/JVM 可用的默认 HTTP transport
       FileSessionRepository.java 文件持久化 session repository

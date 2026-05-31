@@ -32,6 +32,7 @@ public final class ProtocolCoreTest {
         persistsSavedSessionsToFile();
         schedulesPlaybackCheckIns();
         clientSendsPlaybackCheckIns();
+        playbackSessionControllerSendsPlayerEvents();
         System.out.println("ProtocolCoreTest passed");
     }
 
@@ -738,6 +739,60 @@ public final class ProtocolCoreTest {
                 transport.requests.get(2).headers().get("X-Emby-Token").equals("token-1"),
                 "client sends token header"
         );
+    }
+
+    private static void playbackSessionControllerSendsPlayerEvents() {
+        FakeTransport transport = new FakeTransport();
+        for (int index = 0; index < 8; index++) {
+            transport.enqueue(204, "");
+        }
+
+        ClientIdentity client = new ClientIdentity("CinePilot TV", "Living Room TV", "device-1", "0.1.0");
+        AuthenticatedServer authenticated = new AuthenticatedServer(
+                new ServerIdentity(MediaServerAddress.parse("https://media.example.com/jellyfin"), "server-1", ServerFlavor.JELLYFIN, "Jellyfin"),
+                new AuthSession("server-1", "user-1", "token-1", client)
+        );
+        MediaBrowserClient mediaClient = new MediaBrowserClient(transport, new InMemorySessionRepository(), client);
+        PlayableMedia playable = new PlayableMedia(
+                "item-1",
+                "source-1",
+                "play-session-1",
+                PlayMethod.DIRECT_STREAM,
+                "https://media.example.com/Videos/item-1/stream.mkv",
+                null,
+                1,
+                null
+        );
+        PlaybackSessionController controller = new PlaybackSessionController(
+                mediaClient,
+                authenticated,
+                playable,
+                Duration.ofSeconds(10),
+                true
+        );
+
+        controller.start(0L, 0L);
+        assertTrue(!controller.progressIfDue(9_999L, 9_999L), "controller suppresses early progress");
+        assertTrue(controller.progressIfDue(10_000L, 10_000L), "controller sends timed progress");
+        controller.pause(11_000L, 11_000L);
+        controller.seek(12_000L, 60_000L);
+        controller.audioTrackChanged(13_000L, 61_000L, 2);
+        controller.subtitleTrackChanged(14_000L, 62_000L, 5);
+        controller.playbackRateChanged(15_000L, 63_000L, 1.25f);
+        controller.stop(64_000L);
+
+        assertEquals(8, transport.requests.size(), "controller request count");
+        assertEquals("/Sessions/Playing", transport.requests.get(0).path(), "controller start path");
+        assertEquals("/Sessions/Playing/Progress", transport.requests.get(1).path(), "controller timed progress path");
+        assertTrue(transport.requests.get(1).bodyJson().contains("\"EventName\":\"TimeUpdate\""), "controller timed event");
+        assertTrue(transport.requests.get(2).bodyJson().contains("\"EventName\":\"Pause\""), "controller pause event");
+        assertTrue(transport.requests.get(2).bodyJson().contains("\"IsPaused\":true"), "controller pause state");
+        assertTrue(transport.requests.get(3).bodyJson().contains("\"PositionTicks\":600000000"), "controller seek position");
+        assertTrue(transport.requests.get(4).bodyJson().contains("\"AudioStreamIndex\":2"), "controller audio track");
+        assertTrue(transport.requests.get(5).bodyJson().contains("\"SubtitleStreamIndex\":5"), "controller subtitle track");
+        assertTrue(transport.requests.get(6).bodyJson().contains("\"PlaybackRate\":1.25"), "controller playback rate event");
+        assertTrue(transport.requests.get(7).bodyJson().contains("\"PlaybackRate\":1.25"), "controller playback rate persists to stop");
+        assertEquals("/Sessions/Playing/Stopped", transport.requests.get(7).path(), "controller stop path");
     }
 
     private static PlaybackReport playbackReportAt(long positionMillis, boolean paused, Float rate) {
