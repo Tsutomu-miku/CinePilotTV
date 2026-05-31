@@ -89,6 +89,9 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun handleBackPressed() {
+        if (playbackRoutes.handleAuxiliaryBackPressed()) {
+            return
+        }
         if (searchVisible) {
             searchVisible = false
             showHome(viewModel.workflowController.state())
@@ -148,7 +151,6 @@ class MainActivity : ComponentActivity() {
         searchVisible = true
         val searchViews = searchScreen(
             onSubmit = ::submitSearch,
-            onBackHome = { showHome(viewModel.workflowController.state()) },
         )
         setContentView(searchViews.root)
         searchViews.input.post { searchViews.input.requestFocus() }

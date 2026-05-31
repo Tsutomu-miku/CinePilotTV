@@ -19,7 +19,6 @@ fun ComponentActivity.detailsScreen(
     technicalInfo: List<String>,
     folderAction: View,
     loadPoster: (LinearLayout, MediaItemSummary) -> Unit,
-    onBackHome: () -> Unit,
 ): View {
     return screen("详情") {
         addView(LinearLayout(this@detailsScreen).apply {
@@ -34,12 +33,13 @@ fun ComponentActivity.detailsScreen(
                     if (item.hasResumePosition()) {
                         addView(resumeBadge("可从 ${formatTicks(item.userData().playbackPositionTicks())} 继续播放"))
                     }
-                    addView(verticalSpace(14))
+                    addView(verticalSpace(8))
                     if (item.playable()) {
+                        playbackActions.forEach { actionView -> actionView.keepFocusOnVerticalDpad() }
                         addView(actionStrip(playbackActions))
                         playbackActions.firstOrNull()?.requestInitialFocus()
                     } else {
-                        addView(folderAction)
+                        addView(folderAction.keepFocusOnVerticalDpad())
                         folderAction.requestInitialFocus()
                     }
                     if (technicalInfo.isNotEmpty()) {
@@ -50,7 +50,6 @@ fun ComponentActivity.detailsScreen(
                         addView(section("剧情简介"))
                         addView(bodyText(item.overview()))
                     }
-                    addView(iconAction("返回首页", TvIcon.BACK, onBackHome))
                 },
                 LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f),
             )
@@ -62,13 +61,13 @@ private fun ComponentActivity.detailTitle(title: String): TextView {
     return TextView(this).apply {
         text = title
         textSize = TvType.Title
-        typeface = Typeface.DEFAULT_BOLD
+        typeface = Typeface.DEFAULT
         setTextColor(TvColors.TextPrimary)
         maxLines = 3
         ellipsize = TextUtils.TruncateAt.END
         includeFontPadding = false
         setLineSpacing(2f, 1.02f)
-        setPadding(0, 0, 0, dp(14))
+        setPadding(0, 0, 0, dp(10))
     }
 }
 

@@ -22,14 +22,15 @@ object TvColors {
 }
 
 object TvSpacing {
-    const val ScreenX = 48
-    const val ScreenTop = 36
-    const val ScreenBottom = 56
-    const val SectionTop = 22
-    const val SectionBottom = 10
-    const val ControlGap = 12
-    const val CardGap = 14
-    const val PlayerOverlayX = 48
+    const val ScreenX = 40
+    const val ScreenTop = 28
+    const val ScreenBottom = 44
+    const val SectionTop = 16
+    const val SectionBottom = 8
+    const val ControlGap = 10
+    const val CardGap = 12
+    const val FocusInset = 0
+    const val PlayerOverlayX = 40
 }
 
 object TvRadius {
@@ -38,22 +39,22 @@ object TvRadius {
 }
 
 object TvType {
-    const val Brand = 14f
-    const val Title = 36f
-    const val Section = 22f
-    const val Body = 18f
-    const val Metadata = 15f
-    const val CardTitle = 16f
-    const val PlayerTitle = 20f
+    const val Brand = 13f
+    const val Title = 30f
+    const val Section = 19f
+    const val Body = 16f
+    const val Metadata = 13f
+    const val CardTitle = 14f
+    const val PlayerTitle = 18f
 }
 
 object TvSize {
-    const val ControlHeight = 56
-    const val InputHeight = 56
-    const val PosterWidth = 150
-    const val PosterHeight = 225
-    const val DetailPosterWidth = 190
-    const val DetailPosterHeight = 285
-    const val PlayerTopOverlay = 82
-    const val PlayerBottomOverlay = 96
+    const val ControlHeight = 48
+    const val InputHeight = 48
+    const val PosterWidth = 130
+    const val PosterHeight = 195
+    const val DetailPosterWidth = 160
+    const val DetailPosterHeight = 240
+    const val PlayerTopOverlay = 72
+    const val PlayerBottomOverlay = 84
 }

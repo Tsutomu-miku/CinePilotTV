@@ -29,7 +29,6 @@ fun ComponentActivity.detailsRouteScreen(
     onPlaybackSpeed: () -> Unit,
     onSeriesNextUp: () -> Unit,
     onOpenFolder: () -> Unit,
-    onBackHome: () -> Unit,
 ): View {
     return detailsScreen(
         item = item,
@@ -45,7 +44,6 @@ fun ComponentActivity.detailsRouteScreen(
         loadPoster = { container, mediaItem ->
             addPosterIfAvailable(container, mediaItem, loadPosterImage)
         },
-        onBackHome = onBackHome,
     )
 }
 
@@ -102,8 +100,8 @@ private fun ComponentActivity.addPosterIfAvailable(
         adjustViewBounds = false
     }
     container.addView(poster, LinearLayout.LayoutParams(dp(TvSize.DetailPosterWidth), dp(TvSize.DetailPosterHeight)).apply {
-        rightMargin = dp(28)
-        bottomMargin = dp(20)
+        rightMargin = dp(22)
+        bottomMargin = dp(16)
     })
-    loadPosterImage(poster, item, 320, 480)
+    loadPosterImage(poster, item, 240, 360)
 }

@@ -311,8 +311,8 @@ if ! grep -q 'openFolder' "$PLAYBACK_ROUTE_CONTROLLER"; then
   exit 1
 fi
 
-if ! grep -R -q '返回上级' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv"; then
-  echo "Android TV UI must let users return from folder browsing" >&2
+if ! grep -q 'workflowController.back()' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/MainActivity.kt"; then
+  echo "Android TV Back handling must let users return from folder browsing" >&2
   exit 1
 fi
 

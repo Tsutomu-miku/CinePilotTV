@@ -42,9 +42,6 @@ fun ComponentActivity.homeScreen(
         }
 
         val browseActions = mutableListOf<View>()
-        if (navigation.canGoBack) {
-            browseActions.add(iconAction("返回上级", TvIcon.BACK, navigation.onBackInBrowse))
-        }
         if (navigation.canPageBackward) {
             browseActions.add(action("上一页", navigation.onPreviousPage))
         }

@@ -29,7 +29,6 @@ fun ComponentActivity.playbackOptionsScreen(
     onAudio: (String, Int) -> Unit,
     onDisableSubtitles: (String) -> Unit,
     onSubtitle: (String, Int) -> Unit,
-    onBackDetails: () -> Unit,
 ): ScrollView {
     return screen("音轨 / 字幕") {
         addView(action("按服务器默认播放", onDefault).requestInitialFocus())
@@ -45,20 +44,17 @@ fun ComponentActivity.playbackOptionsScreen(
                 onSubtitle = onSubtitle,
             )
         }
-        addView(action("返回详情", onBackDetails))
     }
 }
 
 fun ComponentActivity.playbackSpeedScreen(
     onSpeed: (Float) -> Unit,
-    onBackDetails: () -> Unit,
 ): ScrollView {
     return screen("播放速度") {
         playbackSpeedOptions().forEachIndexed { index, option ->
             val optionAction = action(option.label) { onSpeed(option.rate) }
             addView(if (index == 0) optionAction.requestInitialFocus() else optionAction)
         }
-        addView(action("返回详情", onBackDetails))
     }
 }
 
@@ -68,7 +64,6 @@ fun ComponentActivity.subtitleOptionsForAudioScreen(
     onDefaultSubtitles: () -> Unit,
     onDisableSubtitles: () -> Unit,
     onSubtitle: (Int) -> Unit,
-    onBackTracks: () -> Unit,
 ): ScrollView {
     val selectedAudio = source.mediaStreams()
         .firstOrNull { stream -> stream.type() == MediaStreamType.AUDIO && stream.index() == audioStreamIndex }
@@ -86,7 +81,6 @@ fun ComponentActivity.subtitleOptionsForAudioScreen(
                 })
             }
         }
-        addView(iconAction("返回音轨 / 字幕", TvIcon.BACK, onBackTracks))
     }
 }
 
@@ -94,7 +88,6 @@ fun ComponentActivity.playerReadyScreen(
     state: TvAppState,
     onOpenPlayer: () -> Unit,
     onDiagnostics: () -> Unit,
-    onBackDetails: () -> Unit,
 ): ScrollView {
     val playable = state.playableMedia()
     return screen("准备播放") {
@@ -103,7 +96,6 @@ fun ComponentActivity.playerReadyScreen(
         addView(label("播放地址已准备"))
         addView(iconAction("打开播放器", TvIcon.PLAY, onOpenPlayer).requestInitialFocus())
         addView(action("诊断信息", onDiagnostics))
-        addView(iconAction("返回详情", TvIcon.BACK, onBackDetails))
     }
 }
 

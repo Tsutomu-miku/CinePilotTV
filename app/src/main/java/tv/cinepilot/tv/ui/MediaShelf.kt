@@ -5,6 +5,7 @@ import android.graphics.Typeface
 import android.text.TextUtils
 import android.view.Gravity
 import android.view.View
+import android.view.ViewGroup
 import android.widget.FrameLayout
 import android.widget.HorizontalScrollView
 import android.widget.ImageView
@@ -22,7 +23,9 @@ fun ComponentActivity.mediaShelf(
 ): HorizontalScrollView {
     val shelf = LinearLayout(this).apply {
         orientation = LinearLayout.HORIZONTAL
-        setPadding(0, 0, dp(12), dp(6))
+        clipChildren = false
+        clipToPadding = false
+        setPadding(dp(TvSpacing.FocusInset), dp(TvSpacing.FocusInset), dp(12), dp(6))
     }
     row.items().forEach { item ->
         val card = mediaCard(row, item, onOpen, loadImage)
@@ -31,6 +34,10 @@ fun ComponentActivity.mediaShelf(
     }
     return HorizontalScrollView(this).apply {
         isHorizontalScrollBarEnabled = false
+        isFocusable = false
+        descendantFocusability = ViewGroup.FOCUS_AFTER_DESCENDANTS
+        clipChildren = false
+        clipToPadding = false
         addView(shelf)
     }
 }
@@ -44,6 +51,7 @@ private fun ComponentActivity.mediaCard(
     val card = FrameLayout(this).apply {
         isFocusable = true
         isClickable = true
+        clipToOutline = true
         contentDescription = "${row.title()} ${item.name()}"
         background = rounded(TvColors.SurfaceRaised, dp(TvRadius.Card))
         setOnClickListener { onOpen(row, item) }
@@ -62,11 +70,10 @@ private fun ComponentActivity.mediaCard(
     val title = TextView(this).apply {
         text = item.name().ifBlank { item.id() }
         textSize = TvType.CardTitle
-        typeface = Typeface.DEFAULT_BOLD
         setTextColor(TvColors.TextPrimary)
         maxLines = 2
         ellipsize = TextUtils.TruncateAt.END
-        setBackgroundColor(Color.argb(210, 8, 13, 24))
+        background = rounded(Color.argb(210, 8, 13, 24), dp(TvRadius.Card))
         setPadding(dp(12), dp(10), dp(12), dp(10))
     }
     card.addView(
@@ -78,19 +85,24 @@ private fun ComponentActivity.mediaCard(
         ),
     )
     card.setOnFocusChangeListener { focusedView, hasFocus ->
-        focusedView.scaleX = if (hasFocus) 1.08f else 1f
-        focusedView.scaleY = if (hasFocus) 1.08f else 1f
-        focusedView.elevation = if (hasFocus) dp(10).toFloat() else 0f
+        focusedView.animate()
+            .alpha(if (hasFocus) 1f else 0.96f)
+            .translationZ(if (hasFocus) dp(8).toFloat() else 0f)
+            .setDuration(120L)
+            .start()
         title.setTextColor(if (hasFocus) TvColors.FocusText else TvColors.TextPrimary)
-        title.setBackgroundColor(if (hasFocus) TvColors.AccentStrong else Color.argb(210, 8, 13, 24))
+        title.background = rounded(
+            if (hasFocus) TvColors.AccentStrong else Color.argb(210, 8, 13, 24),
+            dp(TvRadius.Card),
+        )
         (focusedView as FrameLayout).foreground = rounded(
             Color.TRANSPARENT,
             dp(TvRadius.Card),
-            if (hasFocus) dp(5) else 0,
+            if (hasFocus) dp(4) else 0,
             TvColors.FocusRing,
         )
     }
-    loadImage(poster, item, 240, 360)
+    loadImage(poster, item, 220, 330)
     card.layoutParams = LinearLayout.LayoutParams(dp(TvSize.PosterWidth), dp(TvSize.PosterHeight)).apply {
         rightMargin = dp(TvSpacing.CardGap)
         bottomMargin = dp(TvSpacing.CardGap)

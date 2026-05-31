@@ -16,7 +16,6 @@ import tv.cinepilot.tv.ui.actionStrip
 import tv.cinepilot.tv.ui.compactIconAction
 import tv.cinepilot.tv.ui.dp
 import tv.cinepilot.tv.ui.homeScreen
-import tv.cinepilot.tv.ui.iconAction
 import tv.cinepilot.tv.ui.input
 import tv.cinepilot.tv.ui.screen
 
@@ -54,7 +53,6 @@ fun ComponentActivity.homeRouteScreen(
 
 fun ComponentActivity.searchScreen(
     onSubmit: (String, EditText) -> Unit,
-    onBackHome: () -> Unit,
 ): SearchViews {
     val searchInput = input("搜索媒体", InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_NORMAL)
     fun submitSearch() {
@@ -78,7 +76,6 @@ fun ComponentActivity.searchScreen(
         })
         addView(actionStrip(listOf(
             compactIconAction("搜索", TvIcon.SEARCH, ::submitSearch),
-            iconAction("返回", TvIcon.BACK, onBackHome),
         )))
     }
     return SearchViews(root, searchInput)

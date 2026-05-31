@@ -28,8 +28,10 @@ class PlaybackRouteController(
 ) {
     private var selectedPlaybackInfo: PlaybackInfo? = null
     private var lastPlaybackBackPressAt = 0L
+    private var auxiliaryBackAction: (() -> Unit)? = null
 
     fun showDetails(item: MediaItemSummary, playbackInfo: PlaybackInfo? = null) {
+        auxiliaryBackAction = null
         if (playbackInfo != null && playbackInfo.itemId() == item.id()) {
             selectedPlaybackInfo = playbackInfo
         }
@@ -40,7 +42,7 @@ class PlaybackRouteController(
             loadPosterImage = loadPosterImage,
             onPreparePlayback = ::preparePlaybackWith,
             onPlaybackOptions = { loadPlaybackOptions(item) },
-            onSubtitleStyle = { activity.showSubtitleStyleScreen(subtitleStyleStore) { showDetails(item) } },
+            onSubtitleStyle = { showSubtitleStyleOptions(item) },
             onPlaybackSpeed = { showPlaybackSpeedOptions(item) },
             onSeriesNextUp = ::openSeriesNextUp,
             onOpenFolder = {
@@ -50,11 +52,13 @@ class PlaybackRouteController(
                     showHome(workflowController.state())
                 }
             },
-            onBackHome = {
-                workflowController.back()
-                showHome(workflowController.state())
-            },
         ))
+    }
+
+    fun handleAuxiliaryBackPressed(): Boolean {
+        val backAction = auxiliaryBackAction ?: return false
+        backAction()
+        return true
     }
 
     fun openMediaItem(row: HomeRow, item: MediaItemSummary) {
@@ -108,6 +112,7 @@ class PlaybackRouteController(
     }
 
     private fun showPlaybackOptions(item: MediaItemSummary, playbackInfo: PlaybackInfo) {
+        auxiliaryBackAction = { showDetails(item) }
         if (playbackInfo.itemId() == item.id()) {
             selectedPlaybackInfo = playbackInfo
         }
@@ -125,7 +130,6 @@ class PlaybackRouteController(
             onSubtitle = { sourceId, subtitleStreamIndex ->
                 preparePlaybackWith(trackPreferences(item, sourceId, null, subtitleStreamIndex))
             },
-            onBackDetails = { showDetails(item) },
         ))
     }
 
@@ -140,6 +144,7 @@ class PlaybackRouteController(
             preparePlaybackWith(trackPreferences(item, sourceId, audioStreamIndex, null))
             return
         }
+        auxiliaryBackAction = { showPlaybackOptions(item, playbackInfo) }
         activity.setContentView(activity.subtitleOptionsForAudioScreen(
             source = source,
             audioStreamIndex = audioStreamIndex,
@@ -152,15 +157,19 @@ class PlaybackRouteController(
             onSubtitle = { subtitleStreamIndex ->
                 preparePlaybackWith(trackPreferences(item, sourceId, audioStreamIndex, subtitleStreamIndex))
             },
-            onBackTracks = { showPlaybackOptions(item, playbackInfo) },
         ))
     }
 
     private fun showPlaybackSpeedOptions(item: MediaItemSummary) {
+        auxiliaryBackAction = { showDetails(item) }
         activity.setContentView(activity.playbackSpeedScreen(
             onSpeed = { rate -> preparePlaybackWith(speedPreferences(item, rate)) },
-            onBackDetails = { showDetails(item) },
         ))
+    }
+
+    private fun showSubtitleStyleOptions(item: MediaItemSummary) {
+        auxiliaryBackAction = { showDetails(item) }
+        activity.showSubtitleStyleScreen(subtitleStyleStore)
     }
 
     fun showDiagnosticsFromError(state: TvAppState, onBackError: () -> Unit) {
@@ -236,6 +245,7 @@ class PlaybackRouteController(
     }
 
     private fun showPlayer(state: TvAppState) {
+        auxiliaryBackAction = null
         lastPlaybackBackPressAt = 0L
         val playerView = playerHost.createPlayerView(
             state = state,

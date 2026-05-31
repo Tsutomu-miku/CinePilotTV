@@ -7,6 +7,7 @@ import android.graphics.drawable.GradientDrawable
 import android.text.InputType
 import android.view.Gravity
 import android.view.View
+import android.view.ViewGroup
 import android.widget.Button
 import android.widget.EditText
 import android.widget.HorizontalScrollView
@@ -26,15 +27,14 @@ fun ComponentActivity.screen(title: String, content: LinearLayout.() -> Unit): S
     container.addView(TextView(this).apply {
         text = "CinePilot TV"
         textSize = TvType.Brand
-        typeface = Typeface.DEFAULT_BOLD
         setTextColor(TvColors.AccentStrong)
         letterSpacing = 0.08f
-        setPadding(0, 0, 0, dp(6))
+        setPadding(0, 0, 0, dp(4))
     })
     container.addView(TextView(this).apply {
         text = title
         textSize = TvType.Title
-        typeface = Typeface.DEFAULT_BOLD
+        typeface = Typeface.DEFAULT
         setTextColor(TvColors.TextPrimary)
         gravity = Gravity.START
         maxLines = 2
@@ -45,6 +45,8 @@ fun ComponentActivity.screen(title: String, content: LinearLayout.() -> Unit): S
     return ScrollView(this).apply {
         setBackgroundColor(TvColors.Background)
         isFillViewport = true
+        isFocusable = false
+        descendantFocusability = ViewGroup.FOCUS_AFTER_DESCENDANTS
         addView(
             container,
             LinearLayout.LayoutParams(
@@ -76,7 +78,7 @@ fun ComponentActivity.action(text: String, onClick: () -> Unit): Button {
         minHeight = dp(TvSize.ControlHeight)
         minimumHeight = dp(TvSize.ControlHeight)
         setTextColor(TvColors.TextPrimary)
-        typeface = Typeface.DEFAULT_BOLD
+        typeface = Typeface.DEFAULT
         setFocusableColors(
             view = this,
             focusedColor = TvColors.Focus,
@@ -85,7 +87,7 @@ fun ComponentActivity.action(text: String, onClick: () -> Unit): Button {
             normalTextColor = TvColors.TextPrimary,
         )
         setOnClickListener { onClick() }
-        setPadding(dp(18), 0, dp(18), 0)
+        setPadding(dp(14), 0, dp(14), 0)
     }
 }
 
@@ -98,16 +100,16 @@ fun ComponentActivity.iconAction(text: String, icon: TvIcon, onClick: () -> Unit
 
 fun ComponentActivity.compactIconAction(text: String, icon: TvIcon, onClick: () -> Unit): Button {
     return iconAction(text, icon, onClick).apply {
-        layoutParams = LinearLayout.LayoutParams(dp(142), dp(TvSize.ControlHeight)).apply {
-            rightMargin = dp(10)
+        layoutParams = LinearLayout.LayoutParams(dp(124), dp(TvSize.ControlHeight)).apply {
+            rightMargin = dp(8)
         }
     }
 }
 
 fun ComponentActivity.compactAction(text: String, onClick: () -> Unit): Button {
     return action(text, onClick).apply {
-        layoutParams = LinearLayout.LayoutParams(dp(118), dp(TvSize.ControlHeight)).apply {
-            rightMargin = dp(10)
+        layoutParams = LinearLayout.LayoutParams(dp(104), dp(TvSize.ControlHeight)).apply {
+            rightMargin = dp(8)
         }
     }
 }
@@ -136,7 +138,7 @@ fun ComponentActivity.section(text: String): TextView {
     return TextView(this).apply {
         this.text = text
         textSize = TvType.Section
-        typeface = Typeface.DEFAULT_BOLD
+        typeface = Typeface.DEFAULT
         setTextColor(TvColors.Accent)
         setPadding(0, dp(TvSpacing.SectionTop), 0, dp(TvSpacing.SectionBottom))
     }
@@ -169,33 +171,29 @@ fun ComponentActivity.actionStrip(actions: List<View>): HorizontalScrollView {
     }
     return HorizontalScrollView(this).apply {
         isHorizontalScrollBarEnabled = false
+        isFocusable = false
+        descendantFocusability = ViewGroup.FOCUS_AFTER_DESCENDANTS
         addView(row)
     }
 }
 
-fun ComponentActivity.metadataPills(values: List<String>): HorizontalScrollView {
-    val row = LinearLayout(this).apply {
-        orientation = LinearLayout.HORIZONTAL
+fun ComponentActivity.metadataPills(values: List<String>): TvFlowLayout {
+    return TvFlowLayout(this).apply {
         values.filter { it.isNotBlank() }.forEach { value ->
             addView(TextView(this@metadataPills).apply {
                 text = value
                 textSize = TvType.Metadata
-                typeface = Typeface.DEFAULT_BOLD
                 setTextColor(TvColors.TextSecondary)
                 background = rounded(TvColors.PosterFallback, dp(TvRadius.Control), dp(1), Color.rgb(51, 65, 85))
-                setPadding(dp(12), dp(7), dp(12), dp(7))
-            }, LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.WRAP_CONTENT,
-                LinearLayout.LayoutParams.WRAP_CONTENT,
+                setPadding(dp(10), dp(5), dp(10), dp(5))
+            }, ViewGroup.MarginLayoutParams(
+                ViewGroup.LayoutParams.WRAP_CONTENT,
+                ViewGroup.LayoutParams.WRAP_CONTENT,
             ).apply {
-                rightMargin = dp(10)
-                bottomMargin = dp(10)
+                rightMargin = dp(8)
+                bottomMargin = dp(8)
             })
         }
-    }
-    return HorizontalScrollView(this).apply {
-        isHorizontalScrollBarEnabled = false
-        addView(row)
     }
 }
 
@@ -208,24 +206,18 @@ fun ComponentActivity.verticalSpace(height: Int): View {
     }
 }
 
-fun <T : View> T.requestInitialFocus(): T {
-    post { requestFocus() }
-    return this
-}
-
 fun ComponentActivity.emptyState(text: String): TextView {
     return label(text).apply {
         gravity = Gravity.CENTER
         textSize = TvType.Section
         setTextColor(TvColors.TextMuted)
         background = rounded(TvColors.Surface, dp(TvRadius.Card), dp(1), TvColors.PosterBorder)
-        setPadding(dp(28), dp(42), dp(28), dp(42))
+        setPadding(dp(24), dp(34), dp(24), dp(34))
     }
 }
 
 fun ComponentActivity.resumeBadge(text: String): TextView {
     return label(text).apply {
-        typeface = Typeface.DEFAULT_BOLD
         setTextColor(TvColors.TextPrimary)
         background = rounded(TvColors.Resume, dp(TvRadius.Control))
         setPadding(dp(14), dp(10), dp(14), dp(10))
@@ -237,30 +229,6 @@ fun ComponentActivity.bodyText(text: String): TextView {
         textSize = TvType.Body
         setTextColor(TvColors.TextSecondary)
         setLineSpacing(4f, 1.08f)
-    }
-}
-
-fun ComponentActivity.setFocusableColors(
-    view: TextView,
-    focusedColor: Int,
-    normalColor: Int,
-    focusedTextColor: Int? = null,
-    normalTextColor: Int? = null,
-) {
-    view.background = rounded(normalColor, dp(TvRadius.Control))
-    view.setOnFocusChangeListener { focusedView, hasFocus ->
-        focusedView.scaleX = if (hasFocus) 1.035f else 1f
-        focusedView.scaleY = if (hasFocus) 1.035f else 1f
-        focusedView.elevation = if (hasFocus) dp(8).toFloat() else 0f
-        if (focusedView is TextView && focusedTextColor != null && normalTextColor != null) {
-            focusedView.setTextColor(if (hasFocus) focusedTextColor else normalTextColor)
-        }
-        focusedView.background = rounded(
-            if (hasFocus) focusedColor else normalColor,
-            dp(TvRadius.Control),
-            if (hasFocus) dp(4) else dp(1),
-            TvColors.FocusRing,
-        )
     }
 }
 
