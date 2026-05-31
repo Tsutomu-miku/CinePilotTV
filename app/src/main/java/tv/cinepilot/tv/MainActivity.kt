@@ -40,6 +40,7 @@ import tv.cinepilot.core.tv.TvDiagnostics
 import tv.cinepilot.core.tv.TvRoute
 import tv.cinepilot.core.tv.TvWorkflowController
 import tv.cinepilot.tv.player.Media3PlayerHost
+import tv.cinepilot.tv.runtime.RecentAccountStore
 import tv.cinepilot.tv.ui.action
 import tv.cinepilot.tv.ui.actionStrip
 import tv.cinepilot.tv.ui.compactAction
@@ -65,7 +66,7 @@ class MainActivity : ComponentActivity() {
     private val executor = Executors.newSingleThreadExecutor()
     private val imageExecutor = Executors.newFixedThreadPool(2)
     private val mainHandler = Handler(Looper.getMainLooper())
-    private val lastAccountStore by lazy { getSharedPreferences("cinepilot_last_account", MODE_PRIVATE) }
+    private val recentAccountStore by lazy { RecentAccountStore(this) }
     @Volatile private var quickConnectPolling = false
     private var searchVisible = false
     private var selectedPlaybackInfo: PlaybackInfo? = null
@@ -150,7 +151,7 @@ class MainActivity : ComponentActivity() {
     private fun showServerEntry() {
         stopQuickConnectPolling()
         val serverInput = input("https://your-server.example.com", InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_URI)
-        val recentAccounts = savedAccounts()
+        val recentAccounts = recentAccountStore.accounts()
         setContentView(screen("CinePilot TV") {
             recentAccounts.forEach { account ->
                 addView(action("继续 ${account.displayName()}") {
@@ -182,7 +183,7 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun restoreRecentAccountOnLaunch() {
-        val account = savedAccounts().firstOrNull()
+        val account = recentAccountStore.accounts().firstOrNull()
         if (account == null) {
             showServerEntry()
             return
@@ -866,96 +867,16 @@ class MainActivity : ComponentActivity() {
 
     private fun rememberAccount() {
         val authenticated = viewModel.workflowController.state().authenticated() ?: return
-        val account = LastAccount(
-            authenticated.server().address().value(),
-            authenticated.server().serverName(),
-            authenticated.session().userId(),
-        )
-        val accounts = (listOf(account) + savedAccounts().filterNot {
-            it.serverAddress == account.serverAddress && it.userId == account.userId
-        }).take(5)
-        lastAccountStore.edit()
-            .putString("recent_accounts", accounts.joinToString("\n") { it.serialize() })
-            .putString("server_address", account.serverAddress)
-            .putString("server_name", account.serverName)
-            .putString("user_id", account.userId)
-            .apply()
-    }
-
-    private fun savedAccounts(): List<LastAccount> {
-        val recentAccounts = lastAccountStore.getString("recent_accounts", null)
-            ?.lineSequence()
-            ?.mapNotNull(LastAccount::deserialize)
-            ?.toList()
-            .orEmpty()
-        if (recentAccounts.isNotEmpty()) {
-            return recentAccounts
-        }
-        return savedLegacyAccount()?.let(::listOf).orEmpty()
-    }
-
-    private fun savedLegacyAccount(): LastAccount? {
-        val serverAddress = lastAccountStore.getString("server_address", null)?.takeIf { it.isNotBlank() }
-        val userId = lastAccountStore.getString("user_id", null)?.takeIf { it.isNotBlank() }
-        if (serverAddress == null || userId == null) {
-            return null
-        }
-        return LastAccount(
-            serverAddress,
-            lastAccountStore.getString("server_name", null).orEmpty(),
-            userId,
-        )
+        recentAccountStore.remember(authenticated)
     }
 
     private fun clearSavedAccounts() {
-        lastAccountStore.edit().clear().apply()
+        recentAccountStore.clear()
     }
 
     private fun forgetAuthenticatedAccount() {
         val authenticated = viewModel.workflowController.state().authenticated() ?: return
-        val account = LastAccount(
-            authenticated.server().address().value(),
-            authenticated.server().serverName(),
-            authenticated.session().userId(),
-        )
-        val accounts = savedAccounts().filterNot {
-            it.serverAddress == account.serverAddress && it.userId == account.userId
-        }
-        lastAccountStore.edit()
-            .putString("recent_accounts", accounts.joinToString("\n") { it.serialize() })
-            .remove("server_address")
-            .remove("server_name")
-            .remove("user_id")
-            .apply()
-    }
-
-    private data class LastAccount(
-        val serverAddress: String,
-        val serverName: String,
-        val userId: String,
-    ) {
-        fun displayName(): String {
-            val serverLabel = serverName.ifBlank { serverAddress }
-            return "$serverLabel / $userId"
-        }
-
-        fun serialize(): String {
-            return listOf(serverAddress, serverName, userId).joinToString("\t", transform = ::safeField)
-        }
-
-        companion object {
-            fun deserialize(value: String): LastAccount? {
-                val fields = value.split('\t')
-                if (fields.size != 3 || fields[0].isBlank() || fields[2].isBlank()) {
-                    return null
-                }
-                return LastAccount(fields[0], fields[1], fields[2])
-            }
-
-            private fun safeField(value: String): String {
-                return value.replace('\t', ' ').replace('\n', ' ').trim()
-            }
-        }
+        recentAccountStore.forget(authenticated)
     }
 
     companion object {

@@ -10,6 +10,7 @@ app/
     player/Media3PlayerHost.kt   Media3 ExoPlayer / PlayerView 宿主和遥控器媒体键控制
     player/Media3PlaybackBridge.kt Media3 事件到播放上报控制器的桥接
     runtime/CinePilotRuntime.kt  Android app runtime composition root
+    runtime/RecentAccountStore.kt 最近登录账号列表和旧版本账号存储兼容
     ui/TvDesign.kt               TV 色彩、间距、圆角、字号和固定尺寸 design tokens
     ui/TvUi.kt                   TV 暗色主题、按钮、输入框、文字和布局 helper
     ui/MediaShelf.kt             首页横向媒体架和海报卡片

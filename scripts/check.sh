@@ -157,8 +157,18 @@ if ! grep -q 'Settings.Secure.ANDROID_ID' "$ROOT_DIR/app/src/main/java/tv/cinepi
   exit 1
 fi
 
-if ! grep -q 'recent_accounts' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/MainActivity.kt"; then
-  echo "MainActivity must remember multiple recent accounts" >&2
+if [[ ! -s "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/runtime/RecentAccountStore.kt" ]]; then
+  echo "Missing dedicated recent account store" >&2
+  exit 1
+fi
+
+if ! grep -q 'recent_accounts' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/runtime/RecentAccountStore.kt"; then
+  echo "RecentAccountStore must remember multiple recent accounts" >&2
+  exit 1
+fi
+
+if ! grep -q 'RecentAccountStore' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/MainActivity.kt"; then
+  echo "MainActivity must delegate saved account handling to RecentAccountStore" >&2
   exit 1
 fi
 
