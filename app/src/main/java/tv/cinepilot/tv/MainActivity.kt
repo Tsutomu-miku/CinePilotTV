@@ -469,8 +469,22 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun showDiagnostics(state: TvAppState) {
+        val diagnostics = TvDiagnostics.describe(state)
         setContentView(screen("诊断信息") {
-            addView(label(TvDiagnostics.describe(state)))
+            addView(label(diagnostics))
+            addView(action("导出诊断") {
+                val file = filesDir.resolve("cinepilot-diagnostics.txt")
+                file.writeText(diagnostics)
+                showDiagnosticsExported(state, file.absolutePath)
+            })
+            addView(action("返回播放准备") { showPlayerReady(state) })
+        })
+    }
+
+    private fun showDiagnosticsExported(state: TvAppState, path: String) {
+        setContentView(screen("诊断信息") {
+            addView(label("诊断已导出：$path"))
+            addView(action("返回诊断信息") { showDiagnostics(state) })
             addView(action("返回播放准备") { showPlayerReady(state) })
         })
     }

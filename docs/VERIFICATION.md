@@ -69,6 +69,7 @@ Android TV 设备或模拟器上需要验证：
 - 详情页有 Primary 图片时会加载海报；图片加载失败不能影响按钮焦点或播放入口。
 - 详情页能展示服务器返回的简介、类型、时长和季集信息。
 - 播放准备页的诊断信息不包含 token，且能显示 server、item、media source、play method。
+- 诊断页可以导出不含 token 的 `cinepilot-diagnostics.txt` 到 app 私有文件目录。
 - 详情页展示可读的恢复播放时间，不显示原始协议 ticks。
 - 详情页的音轨 / 字幕入口能列出 playback info 中的 audio / subtitle streams，并把选择的 stream index 用于播放准备。
 - 详情页的低码率播放会把最大码率、声道数、起播 ticks 等偏好传入 playback info，并在 HLS URL 构造时继续使用分辨率 / 码率偏好。

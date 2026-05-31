@@ -391,6 +391,16 @@ if ! grep -q '诊断信息' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/MainAct
   exit 1
 fi
 
+if ! grep -q '导出诊断' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/MainActivity.kt"; then
+  echo "MainActivity must export diagnostics" >&2
+  exit 1
+fi
+
+if ! grep -q 'cinepilot-diagnostics.txt' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/MainActivity.kt"; then
+  echo "MainActivity must use a stable diagnostics export file name" >&2
+  exit 1
+fi
+
 if ! grep -q '正在打开详情' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/MainActivity.kt"; then
   echo "MainActivity must load media details through the background task path" >&2
   exit 1
