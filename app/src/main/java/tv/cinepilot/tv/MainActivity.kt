@@ -891,7 +891,7 @@ class MainActivity : ComponentActivity() {
         val cause = rootCause(error)
         if (error is PlaybackException || cause is PlaybackException) {
             val playbackError = (error as? PlaybackException) ?: (cause as PlaybackException)
-            return "播放器无法打开媒体，请尝试低码率播放、切换音轨 / 字幕，或检查服务器转码设置（${playbackError.errorCodeName}）"
+            return playbackErrorMessage(playbackError)
         }
         when (cause) {
             is UnknownHostException -> return "无法解析服务器地址，请检查主机名、端口或网络 DNS"
@@ -909,6 +909,35 @@ class MainActivity : ComponentActivity() {
             TvWorkflowController.QUICK_CONNECT_NOT_APPROVED_MESSAGE -> "Quick Connect 还没有完成授权"
             else -> error.message ?: error::class.java.simpleName
         }
+    }
+
+    private fun playbackErrorMessage(error: PlaybackException): String {
+        val codeName = error.errorCodeName
+        val normalized = codeName.lowercase()
+        val advice = when {
+            normalized.contains("network") || normalized.contains("io_bad_http_status") -> {
+                "网络或服务器响应异常，请检查电视网络、服务器地址、反向代理和媒体文件访问权限"
+            }
+            normalized.contains("timeout") -> {
+                "连接或读取超时，请检查 Wi-Fi 稳定性，或尝试低码率播放"
+            }
+            normalized.contains("decoder") ||
+                normalized.contains("decoding") ||
+                normalized.contains("format_unsupported") ||
+                normalized.contains("format_exceeds") -> {
+                "当前设备可能不支持这个视频 / 音频编码，请尝试低码率播放，让服务器转码后再播放"
+            }
+            normalized.contains("drm") -> {
+                "媒体可能包含 DRM 或受保护内容，当前版本无法播放受 DRM 保护的视频"
+            }
+            normalized.contains("cleartext") -> {
+                "HTTP 明文播放被系统拦截，请确认应用允许本地 HTTP，或改用 HTTPS 服务器地址"
+            }
+            else -> {
+                "请尝试低码率播放、切换音轨 / 字幕，或检查服务器转码设置"
+            }
+        }
+        return "播放器无法打开媒体：$advice（$codeName）"
     }
 
     private fun rootCause(error: Throwable): Throwable {

@@ -767,6 +767,13 @@ if ! grep -q '播放器无法打开媒体' "$ROOT_DIR/app/src/main/java/tv/cinep
   exit 1
 fi
 
+for playback_error_hint in 网络 超时 编码 DRM; do
+  if ! grep -q "$playback_error_hint" "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/MainActivity.kt"; then
+    echo "MainActivity must classify Media3 playback failure hint: $playback_error_hint" >&2
+    exit 1
+  fi
+done
+
 if ! grep -q '目录中没有可打开的媒体' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/MainActivity.kt"; then
   echo "MainActivity must explain empty folders in Chinese" >&2
   exit 1
