@@ -8,10 +8,12 @@ class QuickConnectPoller(
     private val mainHandler: Handler,
     private val backgroundExecutor: Executor,
     private val controller: TvWorkflowController,
+    private val onWaiting: (Int) -> Unit,
     private val onApproved: () -> Unit,
     private val onError: (Throwable) -> Unit,
 ) {
     @Volatile private var polling = false
+    private var attempts = 0
 
     private val pollRunnable = Runnable {
         if (polling) {
@@ -20,6 +22,7 @@ class QuickConnectPoller(
     }
 
     fun start() {
+        attempts = 0
         polling = true
         scheduleNext()
     }
@@ -51,6 +54,8 @@ class QuickConnectPoller(
                         return@post
                     }
                     if (error.message == TvWorkflowController.QUICK_CONNECT_NOT_APPROVED_MESSAGE) {
+                        attempts += 1
+                        onWaiting(attempts)
                         scheduleNext()
                     } else {
                         stop()

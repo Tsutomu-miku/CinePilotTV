@@ -101,7 +101,7 @@
 
 ## P1 候选
 
-- Jellyfin Quick Connect 已具备最小登录入口和授权状态自动轮询，后续可补更细的等待状态。
+- Jellyfin Quick Connect 已具备登录入口、授权状态自动轮询和可见等待状态。
 - public-user 登录界面已具备最小入口和 passwordless 一键确认，后续可补头像。
 - 继续观看、下一集、最新媒体行、剧集 / 季 / 集浏览、分页和稳定默认排序已具备最小入口。
 - 详情页技术信息展示：分辨率、容器 / 编码、文件大小、声道、HDR、Dolby Vision、Dolby Atmos 和字幕概览需要从 playback info / media stream metadata 中整理成次级信息，避免主信息拥挤。

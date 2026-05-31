@@ -777,6 +777,11 @@ if ! grep -q 'QUICK_CONNECT_NOT_APPROVED_MESSAGE' "$ROOT_DIR/app/src/main/java/t
   exit 1
 fi
 
+if ! grep -q 'updateQuickConnectWaiting' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/MainActivity.kt"; then
+  echo "MainActivity must show visible Quick Connect polling status" >&2
+  exit 1
+fi
+
 if ! grep -q 'AuthenticateWithQuickConnect' "$ROOT_DIR/core/src/main/java/tv/cinepilot/core/protocol/MediaBrowserRequests.java"; then
   echo "MediaBrowserRequests must model Quick Connect authentication" >&2
   exit 1

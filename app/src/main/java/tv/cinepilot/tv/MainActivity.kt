@@ -12,6 +12,7 @@ import android.view.inputmethod.EditorInfo
 import android.widget.EditText
 import android.widget.ImageView
 import android.widget.LinearLayout
+import android.widget.TextView
 import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.OnBackPressedCallback
@@ -32,6 +33,7 @@ import tv.cinepilot.core.tv.HomeRow
 import tv.cinepilot.core.tv.TvAppState
 import tv.cinepilot.core.tv.TvDiagnostics
 import tv.cinepilot.core.tv.TvRoute
+import tv.cinepilot.core.tv.TvWorkflowController
 import tv.cinepilot.tv.player.Media3PlayerHost
 import tv.cinepilot.tv.runtime.PrimaryImageLoader
 import tv.cinepilot.tv.runtime.QuickConnectPoller
@@ -67,6 +69,7 @@ class MainActivity : ComponentActivity() {
     private var searchVisible = false
     private var selectedPlaybackInfo: PlaybackInfo? = null
     private var lastPlaybackBackPressAt = 0L
+    private var quickConnectStatus: TextView? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -77,6 +80,7 @@ class MainActivity : ComponentActivity() {
             mainHandler,
             executor,
             viewModel.workflowController,
+            onWaiting = ::updateQuickConnectWaiting,
             onApproved = {
                 rememberAccount()
                 showHome(viewModel.workflowController.state())
@@ -320,16 +324,38 @@ class MainActivity : ComponentActivity() {
         setContentView(screen("Quick Connect") {
             addView(label("授权码：${quickConnect.code()}"))
             addView(label("请在 Jellyfin 中输入授权码，授权后会自动登录"))
-            addView(action("完成登录") {
-                runTask("正在完成 Quick Connect 登录...", {
-                    viewModel.workflowController.completeQuickConnect()
-                }) {
+            quickConnectStatus = label("正在等待授权，电视会每 2 秒自动检查一次").also { status ->
+                addView(status)
+            }
+            addView(action("立即检查授权") { checkQuickConnectNow() })
+            addView(action("返回登录") { showLogin() })
+        })
+    }
+
+    private fun updateQuickConnectWaiting(attempts: Int) {
+        quickConnectStatus?.text = "还没有授权，已自动检查 $attempts 次"
+    }
+
+    private fun checkQuickConnectNow() {
+        quickConnectStatus?.text = "正在检查授权..."
+        executor.execute {
+            try {
+                viewModel.workflowController.completeQuickConnect()
+                runOnUiThread {
+                    quickConnectPoller.stop()
                     rememberAccount()
                     showHome(viewModel.workflowController.state())
                 }
-            })
-            addView(action("返回登录") { showLogin() })
-        })
+            } catch (error: Throwable) {
+                runOnUiThread {
+                    if (error.message == TvWorkflowController.QUICK_CONNECT_NOT_APPROVED_MESSAGE) {
+                        quickConnectStatus?.text = "还没有授权，请在 Jellyfin 中输入授权码后稍等"
+                    } else {
+                        showError(error)
+                    }
+                }
+            }
+        }
     }
 
     private fun showHome(state: TvAppState) {
