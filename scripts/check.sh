@@ -216,23 +216,23 @@ if ! grep -q 'openFolder' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/MainActiv
   exit 1
 fi
 
-if ! grep -q '返回上级' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/MainActivity.kt"; then
-  echo "MainActivity must let users return from folder browsing" >&2
+if ! grep -R -q '返回上级' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv"; then
+  echo "Android TV UI must let users return from folder browsing" >&2
   exit 1
 fi
 
-if ! grep -q '下一页' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/MainActivity.kt"; then
-  echo "MainActivity must expose folder pagination" >&2
+if ! grep -R -q '下一页' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv"; then
+  echo "Android TV UI must expose folder pagination" >&2
   exit 1
 fi
 
-if ! grep -q '搜索媒体' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/MainActivity.kt"; then
-  echo "MainActivity must expose media search" >&2
+if ! grep -R -q '搜索媒体' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv"; then
+  echo "Android TV UI must expose media search" >&2
   exit 1
 fi
 
-if ! grep -q 'homeRows().all' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/MainActivity.kt"; then
-  echo "MainActivity must show an empty state for empty search results" >&2
+if ! grep -R -q 'homeRows().all' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv"; then
+  echo "Android TV UI must show an empty state for empty search results" >&2
   exit 1
 fi
 
@@ -256,8 +256,8 @@ if ! grep -q '打开子项目' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/Main
   exit 1
 fi
 
-if ! grep -q '剧情简介' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/MainActivity.kt"; then
-  echo "MainActivity must show media overview on details when available" >&2
+if ! grep -R -q '剧情简介' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv"; then
+  echo "Android TV UI must show media overview on details when available" >&2
   exit 1
 fi
 
@@ -268,6 +268,28 @@ fi
 
 if [[ ! -s "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/ui/MediaShelf.kt" ]]; then
   echo "Missing reusable media shelf UI module" >&2
+  exit 1
+fi
+
+if [[ ! -s "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/ui/HomeScreen.kt" ]]; then
+  echo "Missing reusable home screen UI module" >&2
+  exit 1
+fi
+
+if [[ ! -s "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/ui/DetailsScreen.kt" ]]; then
+  echo "Missing reusable details screen UI module" >&2
+  exit 1
+fi
+
+for icon in search refresh logout play back subtitles speed; do
+  if [[ ! -s "$ROOT_DIR/app/src/main/res/drawable/ic_${icon}.xml" ]]; then
+    echo "Missing TV action icon: ic_${icon}.xml" >&2
+    exit 1
+  fi
+done
+
+if ! grep -q 'enum class TvIcon' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/ui/TvUi.kt"; then
+  echo "TV UI helpers must centralize action icons" >&2
   exit 1
 fi
 
@@ -296,8 +318,8 @@ if ! grep -q 'connectTimeout' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/MainA
   exit 1
 fi
 
-if ! grep -q '时长 ' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/MainActivity.kt"; then
-  echo "MainActivity must show runtime on details when available" >&2
+if ! grep -R -q '时长 ' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv"; then
+  echo "Android TV UI must show runtime on details when available" >&2
   exit 1
 fi
 
@@ -453,6 +475,11 @@ fi
 
 if ! grep -q '播放地址已准备' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/MainActivity.kt"; then
   echo "MainActivity must avoid showing raw playback URLs on the player-ready screen" >&2
+  exit 1
+fi
+
+if ! grep -q 'showPlayer(viewModel.workflowController.state())' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/MainActivity.kt"; then
+  echo "MainActivity must enter the Media3 player directly after preparing playback" >&2
   exit 1
 fi
 

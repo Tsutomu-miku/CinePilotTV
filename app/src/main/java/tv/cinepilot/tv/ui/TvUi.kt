@@ -13,7 +13,9 @@ import android.widget.LinearLayout
 import android.widget.ScrollView
 import android.widget.TextView
 import androidx.activity.ComponentActivity
+import androidx.annotation.DrawableRes
 import tv.cinepilot.core.protocol.MediaItemSummary
+import tv.cinepilot.tv.R
 
 fun ComponentActivity.screen(title: String, content: LinearLayout.() -> Unit): ScrollView {
     val container = LinearLayout(this).apply {
@@ -78,12 +80,37 @@ fun ComponentActivity.action(text: String, onClick: () -> Unit): Button {
     }
 }
 
+fun ComponentActivity.iconAction(text: String, icon: TvIcon, onClick: () -> Unit): Button {
+    return action(text, onClick).apply {
+        setCompoundDrawablesRelativeWithIntrinsicBounds(icon.drawableRes, 0, 0, 0)
+        compoundDrawablePadding = dp(10)
+    }
+}
+
+fun ComponentActivity.compactIconAction(text: String, icon: TvIcon, onClick: () -> Unit): Button {
+    return iconAction(text, icon, onClick).apply {
+        layoutParams = LinearLayout.LayoutParams(dp(142), dp(56)).apply {
+            rightMargin = dp(10)
+        }
+    }
+}
+
 fun ComponentActivity.compactAction(text: String, onClick: () -> Unit): Button {
     return action(text, onClick).apply {
         layoutParams = LinearLayout.LayoutParams(dp(118), dp(56)).apply {
             rightMargin = dp(10)
         }
     }
+}
+
+enum class TvIcon(@DrawableRes val drawableRes: Int) {
+    SEARCH(R.drawable.ic_search),
+    REFRESH(R.drawable.ic_refresh),
+    LOGOUT(R.drawable.ic_logout),
+    PLAY(R.drawable.ic_play),
+    BACK(R.drawable.ic_back),
+    SUBTITLES(R.drawable.ic_subtitles),
+    SPEED(R.drawable.ic_speed),
 }
 
 fun ComponentActivity.label(text: String): TextView {

@@ -8,7 +8,6 @@ import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
 import android.text.InputType
-import android.view.Gravity
 import android.view.View
 import android.widget.EditText
 import android.widget.ImageView
@@ -42,20 +41,19 @@ import tv.cinepilot.core.tv.TvWorkflowController
 import tv.cinepilot.tv.player.Media3PlayerHost
 import tv.cinepilot.tv.ui.action
 import tv.cinepilot.tv.ui.actionStrip
-import tv.cinepilot.tv.ui.bodyText
 import tv.cinepilot.tv.ui.compactAction
+import tv.cinepilot.tv.ui.compactIconAction
+import tv.cinepilot.tv.ui.detailsScreen
 import tv.cinepilot.tv.ui.dp
-import tv.cinepilot.tv.ui.emptyState
+import tv.cinepilot.tv.ui.homeScreen
+import tv.cinepilot.tv.ui.iconAction
 import tv.cinepilot.tv.ui.input
 import tv.cinepilot.tv.ui.label
-import tv.cinepilot.tv.ui.mediaShelf
-import tv.cinepilot.tv.ui.metaLine
-import tv.cinepilot.tv.ui.resumeBadge
 import tv.cinepilot.tv.ui.rounded
 import tv.cinepilot.tv.ui.screen
 import tv.cinepilot.tv.ui.section
-import tv.cinepilot.tv.ui.supportingLabel
-import tv.cinepilot.tv.ui.toolbar
+import tv.cinepilot.tv.ui.HomeNavigation
+import tv.cinepilot.tv.ui.TvIcon
 
 class MainActivity : ComponentActivity() {
     private lateinit var viewModel: CinePilotViewModel
@@ -65,6 +63,7 @@ class MainActivity : ComponentActivity() {
     private val mainHandler = Handler(Looper.getMainLooper())
     private val lastAccountStore by lazy { getSharedPreferences("cinepilot_last_account", MODE_PRIVATE) }
     @Volatile private var quickConnectPolling = false
+    private var searchVisible = false
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -91,6 +90,11 @@ class MainActivity : ComponentActivity() {
 
     @Deprecated("Deprecated in Android framework; retained for API 26 TV devices.")
     override fun onBackPressed() {
+        if (searchVisible) {
+            searchVisible = false
+            showHome(viewModel.workflowController.state())
+            return
+        }
         when (viewModel.workflowController.state().route()) {
             TvRoute.SERVER_ENTRY -> super.onBackPressed()
             TvRoute.HOME -> {
@@ -322,144 +326,115 @@ class MainActivity : ComponentActivity() {
 
     private fun showHome(state: TvAppState) {
         stopQuickConnectPolling()
+        searchVisible = false
         var focusedCard: View? = null
-        val searchInput = input("搜索媒体", InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_NORMAL)
-        setContentView(screen("首页") {
-            addView(toolbar {
-                orientation = LinearLayout.VERTICAL
-                addView(searchInput, LinearLayout.LayoutParams(
-                    LinearLayout.LayoutParams.MATCH_PARENT,
-                    dp(56),
-                ).apply {
-                    bottomMargin = dp(12)
-                })
-                addView(actionStrip(listOf(
-                    compactAction("搜索") {
-                        val term = searchInput.text.toString().trim()
-                        if (term.isBlank()) {
-                            searchInput.requestFocus()
-                        } else {
-                            runTask("正在搜索...", {
-                                viewModel.workflowController.search(term)
-                            }) {
-                                showHome(viewModel.workflowController.state())
-                            }
-                        }
-                    },
-                    compactAction("刷新") {
-                        runTask("正在重新加载首页...", {
-                            viewModel.workflowController.loadHome()
-                        }) {
-                            showHome(viewModel.workflowController.state())
-                        }
-                    },
-                    compactAction("退出") {
-                        runTask("正在退出登录...", {
-                            forgetAuthenticatedAccount()
-                            viewModel.workflowController.logout()
-                        }) {
-                            showServerEntry()
-                        }
-                    },
-                )))
-            })
-            if (state.homeRows().isEmpty() || state.homeRows().all { it.items().isEmpty() }) {
-                addView(emptyState("没有可显示的媒体"))
-            }
-            state.homeRows().forEach { row ->
-                if (row.items().isNotEmpty()) {
-                    addView(section(row.title()))
-                    addView(mediaShelf(
-                        row,
-                        onCard = { card, item ->
-                            if (state.focus()?.rowId() == row.id() && state.focus()?.itemId() == item.id()) {
-                                focusedCard = card
-                            }
-                        },
-                        onOpen = ::openMediaItem,
-                        loadImage = ::loadPrimaryImage,
-                    ))
-                }
-            }
-            val navActions = mutableListOf<View>()
-            if (viewModel.workflowController.canGoBackInBrowse()) {
-                navActions.add(action("返回上级") {
+        setContentView(homeScreen(
+            state = state,
+            navigation = HomeNavigation(
+                canGoBack = viewModel.workflowController.canGoBackInBrowse(),
+                canPageBackward = viewModel.workflowController.canPageBackwardInBrowse(),
+                canPageForward = viewModel.workflowController.canPageForwardInBrowse(),
+                onSearch = ::showSearch,
+                onRefresh = {
+                    runTask("正在重新加载首页...", {
+                        viewModel.workflowController.loadHome()
+                    }) {
+                        showHome(viewModel.workflowController.state())
+                    }
+                },
+                onLogout = {
+                    runTask("正在退出登录...", {
+                        forgetAuthenticatedAccount()
+                        viewModel.workflowController.logout()
+                    }) {
+                        showServerEntry()
+                    }
+                },
+                onBackInBrowse = {
                     showHome(viewModel.workflowController.back())
-                })
-            }
-            if (viewModel.workflowController.canPageBackwardInBrowse()) {
-                navActions.add(action("上一页") {
+                },
+                onPreviousPage = {
                     runTask("正在加载上一页...", {
                         viewModel.workflowController.previousBrowsePage()
                     }) {
                         showHome(viewModel.workflowController.state())
                     }
-                })
-            }
-            if (viewModel.workflowController.canPageForwardInBrowse()) {
-                navActions.add(action("下一页") {
+                },
+                onNextPage = {
                     runTask("正在加载下一页...", {
                         viewModel.workflowController.nextBrowsePage()
                     }) {
                         showHome(viewModel.workflowController.state())
                     }
-                })
-            }
-            if (navActions.isNotEmpty()) {
-                addView(section("浏览"))
-                addView(actionStrip(navActions))
-            }
-        })
+                },
+            ),
+            onOpen = ::openMediaItem,
+            loadImage = ::loadPrimaryImage,
+            onFocusedCard = { focusedCard = it },
+        ))
         focusedCard?.post { focusedCard?.requestFocus() }
     }
 
-    private fun showDetails(item: MediaItemSummary) {
-        setContentView(screen(item.name()) {
-            addView(LinearLayout(this@MainActivity).apply {
-                orientation = LinearLayout.HORIZONTAL
-                gravity = Gravity.TOP
-                addPosterIfAvailable(this, item)
-                addView(LinearLayout(this@MainActivity).apply {
-                    orientation = LinearLayout.VERTICAL
-                    addView(metaLine(item))
-                    if (item.runTimeTicks() != null) {
-                        addView(supportingLabel("时长 ${formatPlaybackPosition(item.runTimeTicks())}"))
-                    }
-                    if (episodeLabel(item).isNotBlank()) {
-                        addView(supportingLabel(episodeLabel(item)))
-                    }
-                    if (item.genres().isNotEmpty()) {
-                        addView(supportingLabel(item.genres().joinToString(" / ")))
-                    }
-                    if (item.hasResumePosition()) {
-                        addView(resumeBadge("可从 ${formatPlaybackPosition(item.userData().playbackPositionTicks())} 继续播放"))
-                    }
-                    if (item.overview().isNotBlank()) {
-                        addView(section("剧情简介"))
-                        addView(bodyText(item.overview()))
-                    }
-                    addView(section("操作"))
-                    if (item.playable()) {
-                        val actions = mutableListOf<View>()
-                        if (item.hasResumePosition()) {
-                            actions.add(playbackAction("继续播放", null))
-                            actions.add(playbackAction("从头播放", PlaybackSelectionPreferences.defaults()))
-                        } else {
-                            actions.add(playbackAction("播放", null))
-                        }
-                        actions.add(playbackAction("低码率播放", lowBitratePreferences(item)))
-                        actions.add(action("音轨 / 字幕") { loadPlaybackOptions(item) })
-                        addView(actionStrip(actions))
-                    } else {
-                        addView(openFolderAction(item))
-                    }
-                    addView(action("返回首页") {
-                        viewModel.workflowController.back()
-                        showHome(viewModel.workflowController.state())
-                    })
-                }, LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f))
+    private fun showSearch() {
+        searchVisible = true
+        val searchInput = input("搜索媒体", InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_NORMAL)
+        setContentView(screen("搜索媒体") {
+            addView(searchInput, LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                dp(56),
+            ).apply {
+                bottomMargin = dp(16)
             })
+            addView(actionStrip(listOf(
+                compactIconAction("搜索", TvIcon.SEARCH) {
+                    val term = searchInput.text.toString().trim()
+                    if (term.isBlank()) {
+                        searchInput.requestFocus()
+                    } else {
+                        runTask("正在搜索...", {
+                            viewModel.workflowController.search(term)
+                        }) {
+                            showHome(viewModel.workflowController.state())
+                        }
+                    }
+                },
+                iconAction("返回", TvIcon.BACK) { showHome(viewModel.workflowController.state()) },
+            )))
         })
+        searchInput.post { searchInput.requestFocus() }
+    }
+
+    private fun showDetails(item: MediaItemSummary) {
+        val playbackActions = if (item.playable()) {
+            buildPlaybackActions(item)
+        } else {
+            emptyList()
+        }
+        setContentView(detailsScreen(
+            item = item,
+            episodeLabel = episodeLabel(item),
+            formatTicks = ::formatPlaybackPosition,
+            playbackActions = playbackActions,
+            folderAction = openFolderAction(item),
+            loadPoster = ::addPosterIfAvailable,
+            onBackHome = {
+                viewModel.workflowController.back()
+                showHome(viewModel.workflowController.state())
+            },
+        ))
+    }
+
+    private fun buildPlaybackActions(item: MediaItemSummary): List<View> {
+        val actions = mutableListOf<View>()
+        if (item.hasResumePosition()) {
+            actions.add(playbackAction("继续播放", TvIcon.PLAY, null))
+            actions.add(playbackAction("从头播放", TvIcon.PLAY, PlaybackSelectionPreferences.defaults()))
+        } else {
+            actions.add(playbackAction("播放", TvIcon.PLAY, null))
+        }
+        actions.add(playbackAction("低码率播放", TvIcon.SPEED, lowBitratePreferences(item)))
+        actions.add(iconAction("音轨 / 字幕", TvIcon.SUBTITLES) { loadPlaybackOptions(item) })
+        return actions
     }
 
     private fun addPosterIfAvailable(container: LinearLayout, item: MediaItemSummary) {
@@ -469,11 +444,11 @@ class MainActivity : ComponentActivity() {
             setBackground(rounded(Color.rgb(30, 41, 59), dp(8)))
             adjustViewBounds = false
         }
-        container.addView(poster, LinearLayout.LayoutParams(dp(300), dp(450)).apply {
-            rightMargin = dp(36)
+        container.addView(poster, LinearLayout.LayoutParams(dp(220), dp(330)).apply {
+            rightMargin = dp(28)
             bottomMargin = dp(20)
         })
-        loadPrimaryImage(poster, item, 420, 630)
+        loadPrimaryImage(poster, item, 320, 480)
     }
 
     private fun loadPrimaryImage(target: ImageView, item: MediaItemSummary, width: Int, height: Int) {
@@ -565,9 +540,9 @@ class MainActivity : ComponentActivity() {
             addView(label("播放方式：${playable?.playMethod() ?: ""}"))
             addView(label("媒体源：${playable?.mediaSourceId() ?: ""}"))
             addView(label("播放地址已准备"))
-            addView(action("打开播放器") { showPlayer(state) })
+            addView(iconAction("打开播放器", TvIcon.PLAY) { showPlayer(state) })
             addView(action("诊断信息") { showDiagnostics(state) })
-            addView(action("返回详情") {
+            addView(iconAction("返回详情", TvIcon.BACK) {
                 viewModel.workflowController.back()
                 viewModel.workflowController.state().selectedItem()?.let(::showDetails)
             })
@@ -583,15 +558,15 @@ class MainActivity : ComponentActivity() {
                 file.writeText(diagnostics)
                 showDiagnosticsExported(state, file.absolutePath)
             })
-            addView(action("返回播放准备") { showPlayerReady(state) })
+            addView(iconAction("返回播放准备", TvIcon.BACK) { showPlayerReady(state) })
         })
     }
 
     private fun showDiagnosticsExported(state: TvAppState, path: String) {
         setContentView(screen("诊断信息") {
             addView(label("诊断已导出：$path"))
-            addView(action("返回诊断信息") { showDiagnostics(state) })
-            addView(action("返回播放准备") { showPlayerReady(state) })
+            addView(iconAction("返回诊断信息", TvIcon.BACK) { showDiagnostics(state) })
+            addView(iconAction("返回播放准备", TvIcon.BACK) { showPlayerReady(state) })
         })
     }
 
@@ -608,7 +583,7 @@ class MainActivity : ComponentActivity() {
                 LinearLayout.LayoutParams.MATCH_PARENT,
                 720,
             ))
-            addView(action("停止并返回详情") {
+            addView(iconAction("停止并返回详情", TvIcon.BACK) {
                 playerHost.release()
                 viewModel.workflowController.back()
                 viewModel.workflowController.state().selectedItem()?.let(::showDetails)
@@ -654,8 +629,8 @@ class MainActivity : ComponentActivity() {
         }
     }
 
-    private fun playbackAction(text: String, preferences: PlaybackSelectionPreferences?): View {
-        return action(text) {
+    private fun playbackAction(text: String, icon: TvIcon, preferences: PlaybackSelectionPreferences?): View {
+        return iconAction(text, icon) {
             preparePlaybackWith(preferences)
         }
     }
@@ -664,7 +639,7 @@ class MainActivity : ComponentActivity() {
         runTask("正在准备播放...", {
             viewModel.workflowController.preparePlayback(preferences)
         }) {
-            showPlayerReady(viewModel.workflowController.state())
+            showPlayer(viewModel.workflowController.state())
         }
     }
 

@@ -12,6 +12,9 @@ app/
     runtime/CinePilotRuntime.kt  Android app runtime composition root
     ui/TvUi.kt                   TV 暗色主题、按钮、输入框、文字和布局 helper
     ui/MediaShelf.kt             首页横向媒体架和海报卡片
+    ui/HomeScreen.kt             首页屏幕布局和浏览操作区
+    ui/DetailsScreen.kt          媒体详情屏幕布局
+  src/main/res/drawable/ic_*.xml 开源 Material Icons 风格矢量图标资源
 core/
   build.gradle.kts              JVM/Java Gradle module
   src/main/java/tv/cinepilot/core/

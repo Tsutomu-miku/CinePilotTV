@@ -45,6 +45,7 @@ GitHub Actions：
 - Xiaomi 2211133C 手动安装成功，包名 `tv.cinepilot.tv` 同时暴露 `LAUNCHER` 和 `LEANBACK_LAUNCHER`；该设备禁止 adb `input tap/text/keyevent` 注入，因此补充 debug-only QA 登录入口用于继续真机验证。
 - 新连接的 Xiaomi 24129PN74C 支持 adb input 注入，可用于常规 UI 登录 / 浏览 / 播放路径验证。
 - 测试 Jellyfin `http://192.168.31.82:49156` 从开发机可达，`/System/Info/Public` 返回 Jellyfin Server 10.10.7，测试账号认证成功；真机 app 登录 / 浏览 / 播放仍需在支持输入注入的新设备上完成验证。
+- 登录成功后执行系统关闭 / force-stop，再从普通 launcher 入口启动，应自动恢复最近账号并进入首页，不要求重新输入服务器和账号。
 
 具备 Android SDK 后，应运行：
 
@@ -67,8 +68,11 @@ Android TV 设备或模拟器上需要验证：
 - sideload 到普通 Android 手机时，应用会出现在桌面 / 应用抽屉，而不只在应用管理里可见。
 - 可用 D-pad 完成服务器输入、登录、首页浏览和详情打开。
 - 首页应呈现暗色 TV 媒体架，媒体条目以横向海报卡片展示；详情页应呈现左海报、右信息与操作区，而不是调试面板式的竖排按钮列表。
+- 首页首屏应优先露出媒体内容；搜索输入放在独立搜索页，避免占用 TV 浏览页的主要视野。
+- 搜索、刷新、退出、播放、返回、字幕和低码率播放等关键操作应显示图标，帮助遥控器用户快速识别动作。
 - Jellyfin 服务器启用 Quick Connect 时，可在登录页用授权码完成登录；授权后 TV 端会自动进入首页。
 - 点击播放后 Media3 player 能打开可播放 URL。
+- 详情页点击播放、继续播放、从头播放或低码率播放后，应在准备播放信息加载完成后直接进入播放器，不再要求用户停在中间确认页再点一次。
 - 当 Media3 因编码、转码、网络或 URL 问题播放失败时，界面会释放播放器并显示中文恢复建议，而不是停留在不可诊断的播放器页。
 - Jellyfin / Emby 返回 HLS 转码播放候选时，APK 包含 `media3-exoplayer-hls`，打开播放器不会因缺少 `HlsMediaSource.Factory` 崩溃。
 - HTTP 本地服务器地址如 `http://host:8096` 可以连接。

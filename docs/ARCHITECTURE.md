@@ -12,7 +12,7 @@ Android app 的运行时入口是 `CinePilotRuntime`。它负责创建客户端�
 
 客户端身份的 device id 应优先使用 `Settings.Secure.ANDROID_ID`，因为 session scope 依赖 device id 来避免 token 跨设备复用。只有无法读取 Android ID 时才 fallback 到设备型号和系统 build id。
 
-`MainActivity` 当前使用 Android 原生 View 渲染 TV 流程：服务器输入、登录、首页、详情和播放准备。界面事件必须通过 `TvWorkflowController` 推进状态。通用暗色 TV 主题、焦点态、按钮、输入框和媒体架组件放在 `app/.../tv/ui`，避免 Activity 继续承担所有视觉细节。
+`MainActivity` 当前使用 Android 原生 View 承载 TV 流程：服务器输入、登录、首页、详情和播放准备。界面事件必须通过 `TvWorkflowController` 推进状态。通用暗色 TV 主题、焦点态、按钮、输入框、首页媒体架和详情屏幕组件放在 `app/.../tv/ui`，避免 Activity 继续承担所有视觉细节。
 
 Android 遥控器 Back 键必须和页面按钮使用同一套 workflow 语义：登录、首页和错误页回到服务器输入；详情回首页；播放器页先释放 Media3 player 再回详情；只有服务器输入页交给系统退出。
 
@@ -23,6 +23,8 @@ Jellyfin 登录页可以发起 Quick Connect：Activity 展示服务器返回的
 服务器地址输入应使用 URI text variation，密码输入必须使用 password variation。登录界面可以保留原生 `EditText`，但不能明文显示密码。
 
 按钮、输入框和媒体卡片必须有显式 focus color / focus border，不能只依赖平台默认样式；这样在深色 TV 背景上 D-pad 当前焦点始终可见。
+
+关键操作按钮应配套开源 Material Icons 风格矢量图标资源，例如搜索、刷新、退出、播放、返回、字幕和低码率播放。图标资源放在 Android `drawable`，由 `tv/ui/TvUi.kt` 的 `TvIcon` 统一引用，避免页面里散落资源 id。
 
 `TvDiagnostics` 生成不含 token 的联调快照，供 TV UI 展示 server、user、item、media source、play method 和焦点信息。
 
@@ -112,7 +114,7 @@ TV 首页必须提供退出登录入口，调用 `TvWorkflowController.logout()`
 
 播放信息请求、HLS URL 构造和播放 check-in 请求规格属于 `core`；Media3 只消费已经选出的播放 URL 和轨道选择结果。
 
-播放准备的 start ticks 由 `TvWorkflowController.preparePlayback` 决定：调用方传入 `null` 表示按媒体项 resume ticks 继续播放；传入 `PlaybackSelectionPreferences` 表示显式偏好，`startTimeTicks=0` 即从头播放。最大码率、音轨、字幕和最大声道数偏好会转发给 playback info 请求，分辨率和码率偏好也会继续用于 HLS URL 构造。Android 详情页应在有 resume 进度时同时暴露“继续播放”和“从头播放”，用可读时间展示恢复位置、媒体时长和剧集上下文，不能把协议 ticks 直接显示给用户，并提供低码率播放入口。
+播放准备的 start ticks 由 `TvWorkflowController.preparePlayback` 决定：调用方传入 `null` 表示按媒体项 resume ticks 继续播放；传入 `PlaybackSelectionPreferences` 表示显式偏好，`startTimeTicks=0` 即从头播放。最大码率、音轨、字幕和最大声道数偏好会转发给 playback info 请求，分辨率和码率偏好也会继续用于 HLS URL 构造。Android 详情页应在有 resume 进度时同时暴露“继续播放”和“从头播放”，用可读时间展示恢复位置、媒体时长和剧集上下文，不能把协议 ticks 直接显示给用户，并提供低码率播放入口。播放操作完成 playback info 准备后应直接进入 Media3 播放器，减少详情到播放的点击层级。
 
 播放前的媒体源、音轨和字幕选择由 `TvWorkflowController.loadPlaybackChoices` 获取服务器 playback info。Android 对多个 `MediaSources` 必须展示可选媒体源，优先使用服务器返回的 source name、path 文件名、container 和 bitrate 形成可读标签；音轨 / 字幕只展示 `MediaStream.Index`、语言、标题和默认 / 强制 / 外挂标记。用户选择后通过 `PlaybackSelectionPreferences` 重新准备播放，确保 playback info 请求、播放源选择、HLS URL 和播放上报使用同一个协议 media source id / stream index。
 
