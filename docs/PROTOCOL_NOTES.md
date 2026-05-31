@@ -33,6 +33,7 @@
 
 - 服务器发现：`publicSystemInfo` -> `ServerIdentity`。
 - 用户名 / 密码登录：`authenticateByName` -> `AuthSession` -> `SavedSession`。
+- 会话持久化：`SessionScope` -> `InMemorySessionRepository` / `FileSessionRepository`。
 - 播放信息：`playbackInfo` -> `PlaybackInfo`。
 - 播放源选择：`PlaybackInfo` -> `PlayableMedia`。
 - 媒体库浏览：`userViews` / `items` / `resumeItems` / `latestItems` / `item` -> 媒体条目模型。
@@ -61,6 +62,6 @@
 
 - Jellyfin 与 Emby 对 `/Users/{UserId}/Items/{ItemId}` 详情 endpoint 的差异需要在真实服务器或官方 OpenAPI 生成客户端上验证。
 - direct play / direct stream / transcode 的基础选择规则已在 `PlaybackSourceSelector` 建模；真实服务器联调后需要继续用兼容矩阵校准。
-- Android 落盘 session repository 尚未实现。
+- Android 入口尚未接入 session repository 存储路径。
 - Media3 设备能力到 `DeviceProfile` / codec 参数的映射需要在 Android 层可运行后补齐。
 - Quick Connect 只先写入需求和路线图，尚未进入 P0 请求规格。

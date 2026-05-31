@@ -44,7 +44,7 @@ UI 界面应该调用应用控制器或 store。界面组件不能直接构造 J
 
 会话状态按服务器和用户身份划分作用域。持久化记录必须包含足够身份信息，避免用户修改 URL 或切换多服务器后把 token 发给错误服务器。
 
-当前 `InMemorySessionRepository` 用于领域验证和早期集成。Android 可用版本需要提供落盘实现，并保持相同 `SessionScope` 规则。
+当前 `InMemorySessionRepository` 用于领域验证和早期集成，`FileSessionRepository` 提供 JVM 可用的落盘实现。Android 可用版本可以复用文件实现或包一层平台存储路径，但必须保持相同 `SessionScope` 规则。
 
 ## 验证策略
 

@@ -60,7 +60,7 @@
 
 - P0-9 通过直接 URL 实现服务器发现。进度：请求规格、系统信息响应 mapper、HTTP transport 和 client 编排已完成。
 - P0-10 实现 Jellyfin 与 Emby 的用户名 / 密码认证。进度：请求规格、登录响应 mapper、HTTP transport 和 client 编排已完成。
-- P0-11 按服务器和用户作用域持久化会话。进度：内存 repository 和 client 保存 / 恢复 / logout 撤销流程已完成，Android 落盘未开始。
+- P0-11 按服务器和用户作用域持久化会话。进度：内存 repository、文件 repository 和 client 保存 / 恢复 / logout 撤销流程已完成；Android 集成路径未接线。
 - P0-12 通过协议适配器获取首页分区和媒体详情。进度：views、items、resume、latest、detail 请求规格、响应模型和 client 编排已完成。
 
 退出标准：

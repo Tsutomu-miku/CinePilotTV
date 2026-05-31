@@ -6,6 +6,8 @@ import java.util.Optional;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
+import java.nio.file.Files;
+import java.nio.file.Path;
 
 public final class ProtocolCoreTest {
     public static void main(String[] args) {
@@ -26,6 +28,7 @@ public final class ProtocolCoreTest {
         mapsServerAndPlaybackResponses();
         clientRunsDiscoveryLoginAndPlaybackFlow();
         mapsAndFetchesMediaItems();
+        persistsSavedSessionsToFile();
         System.out.println("ProtocolCoreTest passed");
     }
 
@@ -592,6 +595,61 @@ public final class ProtocolCoreTest {
         assertEquals("/Users/user-1/Items", transport.requests.get(1).path(), "items request path");
         assertTrue(transport.requests.get(1).url(authenticated.server().address()).contains("ParentId=library-1"), "items parent query");
         assertEquals("/Users/user-1/Items/movie-1", transport.requests.get(2).path(), "detail request path");
+    }
+
+    private static void persistsSavedSessionsToFile() {
+        try {
+            Path tempDir = Files.createTempDirectory("cinepilot-sessions");
+            Path file = tempDir.resolve("sessions.properties");
+            ClientIdentity client = new ClientIdentity("CinePilot TV", "Living Room TV", "device-1", "0.1.0");
+            ServerIdentity firstServer = new ServerIdentity(
+                    MediaServerAddress.parse("https://media.example.com/jellyfin"),
+                    "server-1",
+                    ServerFlavor.JELLYFIN,
+                    "Jellyfin"
+            );
+            ServerIdentity secondServer = new ServerIdentity(
+                    MediaServerAddress.parse("https://media.example.com/emby"),
+                    "server-2",
+                    ServerFlavor.EMBY,
+                    "Emby"
+            );
+
+            SavedSession firstSaved = new SavedSession(
+                    SessionScope.from(firstServer, new AuthSession("server-1", "user-1", "token-1", client)),
+                    "token-1"
+            );
+            SavedSession secondSaved = new SavedSession(
+                    SessionScope.from(secondServer, new AuthSession("server-2", "user-1", "token-2", client)),
+                    "token-2"
+            );
+
+            FileSessionRepository repository = new FileSessionRepository(file);
+            repository.save(firstSaved);
+            repository.save(secondSaved);
+
+            FileSessionRepository reloaded = new FileSessionRepository(file);
+            assertEquals("token-1", reloaded.find(firstSaved.scope()).orElseThrow().accessToken(), "first token reloads");
+            assertEquals("token-2", reloaded.find(secondSaved.scope()).orElseThrow().accessToken(), "second token reloads");
+
+            ClientIdentity otherDevice = new ClientIdentity("CinePilot TV", "Bedroom TV", "device-2", "0.1.0");
+            SessionScope otherScope = new SessionScope(
+                    firstSaved.scope().serverId(),
+                    firstSaved.scope().serverUrl(),
+                    firstSaved.scope().userId(),
+                    otherDevice.clientName(),
+                    otherDevice.deviceId(),
+                    otherDevice.version()
+            );
+            assertTrue(reloaded.find(otherScope).isEmpty(), "file repository respects device scope");
+
+            reloaded.revoke(firstSaved.scope());
+            FileSessionRepository afterRevoke = new FileSessionRepository(file);
+            assertTrue(afterRevoke.find(firstSaved.scope()).isEmpty(), "file repository revokes one scope");
+            assertTrue(afterRevoke.find(secondSaved.scope()).isPresent(), "file repository keeps other server scope");
+        } catch (IOException exception) {
+            throw new AssertionError("Temp session repository setup failed", exception);
+        }
     }
 
     private static final class FakeTransport implements HttpTransport {

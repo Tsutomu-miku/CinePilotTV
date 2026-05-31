@@ -19,6 +19,7 @@ core/
       MediaItemPage.java         媒体列表分页响应
       HttpTransport.java         HTTP 发送边界
       JavaNetHttpTransport.java  JVM 默认 HTTP transport
+      FileSessionRepository.java 文件持久化 session repository
   src/test/java/tv/cinepilot/core/
     protocol/                    JVM 协议测试
 docs/                            项目指导文档
