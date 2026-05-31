@@ -149,13 +149,12 @@ class MainActivity : Activity() {
                 addView(label("可从 ${item.userData().playbackPositionTicks()} ticks 继续播放"))
             }
             if (item.playable()) {
-                addView(action("播放") {
-                    runTask("正在准备播放...", {
-                        runtime.workflowController.preparePlayback(PlaybackSelectionPreferences.defaults())
-                    }) {
-                        showPlayerReady(runtime.workflowController.state())
-                    }
-                })
+                if (item.hasResumePosition()) {
+                    addView(playbackAction("继续播放", null))
+                    addView(playbackAction("从头播放", PlaybackSelectionPreferences.defaults()))
+                } else {
+                    addView(playbackAction("播放", null))
+                }
             } else {
                 addView(action("打开子项目") {
                     runTask("正在打开目录...", {
@@ -223,6 +222,16 @@ class MainActivity : Activity() {
             }
         }.also {
             it.contentDescription = "${row.title()} ${item.name()}"
+        }
+    }
+
+    private fun playbackAction(text: String, preferences: PlaybackSelectionPreferences?): View {
+        return action(text) {
+            runTask("正在准备播放...", {
+                runtime.workflowController.preparePlayback(preferences)
+            }) {
+                showPlayerReady(runtime.workflowController.state())
+            }
         }
     }
 

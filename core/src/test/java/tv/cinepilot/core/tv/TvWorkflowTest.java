@@ -30,6 +30,7 @@ public final class TvWorkflowTest {
         rejectsFocusForMissingItems();
         loadsHomeRowsFromMediaBrowserClient();
         controllerRunsServerLoginBrowseAndPlaybackUseCase();
+        controllerStartsPlaybackFromBeginningWhenRequested();
         controllerRestoresSavedSessionAndLoadsHome();
         controllerOpensFirstChildForFolderBrowse();
         describesDiagnosticsWithoutToken();
@@ -200,7 +201,7 @@ public final class TvWorkflowTest {
         assertEquals(new FocusedItem("latest:movies", "movie-1"), state.focus(), "controller keeps focus through details");
         assertEquals("movie-1", state.selectedItem().id(), "controller selected item");
 
-        state = controller.preparePlayback(PlaybackSelectionPreferences.defaults());
+        state = controller.preparePlayback(null);
         assertEquals(TvRoute.PLAYER, state.route(), "controller prepares playback");
         assertEquals("source-1", state.playableMedia().mediaSourceId(), "controller playable source");
         assertEquals("https://media.example.com/jellyfin/Videos/movie-1/stream.mkv?MediaSourceId=source-1", state.playableMedia().url(), "controller playable url");
@@ -210,6 +211,31 @@ public final class TvWorkflowTest {
         assertEquals("/Users/user-1/Items/movie-1", transport.requests.get(6).path(), "controller item detail request");
         assertEquals("/Items/movie-1/PlaybackInfo", transport.requests.get(7).path(), "controller playback info request");
         assertTrue(transport.requests.get(7).url(MediaServerAddress.parse("https://media.example.com/jellyfin")).contains("StartTimeTicks=120000000"), "controller resume ticks");
+    }
+
+    private static void controllerStartsPlaybackFromBeginningWhenRequested() {
+        FakeTransport transport = new FakeTransport();
+        transport.enqueue(200, "{\"Id\":\"server-1\",\"ServerName\":\"Jellyfin\"}");
+        transport.enqueue(200, "{\"AccessToken\":\"token-1\",\"ServerId\":\"server-1\",\"User\":{\"Id\":\"user-1\"}}");
+        enqueueHomeResponses(transport);
+        transport.enqueue(200, "{\"Id\":\"movie-1\",\"Name\":\"Arrival\",\"Type\":\"Movie\",\"IsPlayable\":true,\"UserData\":{\"PlaybackPositionTicks\":120000000}}");
+        transport.enqueue(200, """
+                {"PlaySessionId":"play-session-1","MediaSources":[
+                  {"Id":"source-1","DirectStreamUrl":"/Videos/movie-1/stream.mkv?MediaSourceId=source-1","SupportsDirectStream":true}
+                ]}
+                """);
+
+        ClientIdentity client = new ClientIdentity("CinePilot TV", "Living Room TV", "device-1", "0.1.0");
+        MediaBrowserClient mediaClient = new MediaBrowserClient(transport, new InMemorySessionRepository(), client);
+        TvWorkflowController controller = new TvWorkflowController(mediaClient, new HomeRowsLoader(mediaClient, 12));
+
+        controller.submitServer("https://media.example.com/jellyfin");
+        controller.login("demo", "secret");
+        controller.openItem("movie-1");
+        controller.preparePlayback(PlaybackSelectionPreferences.defaults());
+
+        String playbackInfoUrl = transport.requests.get(7).url(MediaServerAddress.parse("https://media.example.com/jellyfin"));
+        assertTrue(playbackInfoUrl.contains("StartTimeTicks=0"), "explicit playback preferences start from beginning");
     }
 
     private static void controllerRestoresSavedSessionAndLoadsHome() {
