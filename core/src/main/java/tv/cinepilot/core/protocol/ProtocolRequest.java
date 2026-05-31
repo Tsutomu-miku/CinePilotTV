@@ -3,6 +3,7 @@ package tv.cinepilot.core.protocol;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Objects;
+import tv.cinepilot.core.AndroidCollections;
 
 public final class ProtocolRequest {
     private final HttpMethod method;
@@ -20,8 +21,8 @@ public final class ProtocolRequest {
     ) {
         this.method = Objects.requireNonNull(method, "method");
         this.path = requirePath(path);
-        this.headers = Map.copyOf(headers);
-        this.query = Map.copyOf(query);
+        this.headers = AndroidCollections.mapCopy(headers);
+        this.query = AndroidCollections.mapCopy(query);
         this.bodyJson = bodyJson;
     }
 

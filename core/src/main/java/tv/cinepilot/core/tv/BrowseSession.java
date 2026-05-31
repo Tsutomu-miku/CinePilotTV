@@ -2,7 +2,7 @@ package tv.cinepilot.core.tv;
 
 import java.util.ArrayDeque;
 import java.util.Deque;
-import java.util.List;
+import tv.cinepilot.core.AndroidCollections;
 import tv.cinepilot.core.protocol.MediaItemPage;
 
 final class BrowseSession {
@@ -29,7 +29,7 @@ final class BrowseSession {
         folderContext = null;
         return TvWorkflow.homeLoaded(
                 state,
-                List.of(new HomeRow("search:" + query, "搜索：" + query, page.items()))
+                AndroidCollections.singletonList(new HomeRow("search:" + query, "搜索：" + query, page.items()))
         );
     }
 
@@ -90,7 +90,7 @@ final class BrowseSession {
         }
         return TvWorkflow.homeLoaded(
                 state,
-                List.of(new HomeRow("folder:" + folderContext.parentId(), title, page.items()))
+                AndroidCollections.singletonList(new HomeRow("folder:" + folderContext.parentId(), title, page.items()))
         );
     }
 

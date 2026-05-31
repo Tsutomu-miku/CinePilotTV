@@ -2,13 +2,14 @@ package tv.cinepilot.core.protocol;
 
 import java.util.LinkedHashMap;
 import java.util.Map;
+import tv.cinepilot.core.AndroidCollections;
 
 public final class ItemQuery {
     private static final String ITEM_FIELDS = "PrimaryImageAspectRatio,MediaSources,MediaStreams,Overview,ParentId,Genres,ProductionYear,SeriesId";
     private final Map<String, String> values;
 
     private ItemQuery(Map<String, String> values) {
-        this.values = Map.copyOf(values);
+        this.values = AndroidCollections.mapCopy(values);
     }
 
     public Map<String, String> values() {

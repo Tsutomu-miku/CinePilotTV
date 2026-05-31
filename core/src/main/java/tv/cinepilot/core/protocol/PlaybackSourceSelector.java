@@ -1,5 +1,6 @@
 package tv.cinepilot.core.protocol;
 
+import java.util.ArrayList;
 import java.util.Optional;
 
 public final class PlaybackSourceSelector {
@@ -95,9 +96,13 @@ public final class PlaybackSourceSelector {
         if (!hasValue(preferences.mediaSourceId())) {
             return playbackInfo.mediaSources();
         }
-        return playbackInfo.mediaSources().stream()
-                .filter(source -> preferences.mediaSourceId().equals(source.id()))
-                .toList();
+        java.util.List<MediaSourceInfo> matches = new ArrayList<>();
+        for (MediaSourceInfo source : playbackInfo.mediaSources()) {
+            if (preferences.mediaSourceId().equals(source.id())) {
+                matches.add(source);
+            }
+        }
+        return matches;
     }
 
     private static PlayableMedia playableFromUrl(

@@ -1,6 +1,7 @@
 package tv.cinepilot.core.protocol;
 
 import java.util.List;
+import tv.cinepilot.core.AndroidCollections;
 
 public record MediaSourceInfo(
         String id,
@@ -33,7 +34,7 @@ public record MediaSourceInfo(
         if (bitRate < 0) {
             bitRate = 0;
         }
-        mediaStreams = List.copyOf(mediaStreams == null ? List.of() : mediaStreams);
+        mediaStreams = AndroidCollections.listCopy(mediaStreams);
     }
 
     public static Builder builder(String id) {
@@ -58,7 +59,7 @@ public record MediaSourceInfo(
         private String path = "";
         private long sizeBytes;
         private long bitRate;
-        private List<MediaStreamInfo> mediaStreams = List.of();
+        private List<MediaStreamInfo> mediaStreams = AndroidCollections.emptyList();
 
         private Builder(String id) {
             this.id = id;

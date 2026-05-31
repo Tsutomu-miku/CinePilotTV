@@ -1,6 +1,7 @@
 package tv.cinepilot.core.protocol;
 
 import java.util.Map;
+import tv.cinepilot.core.AndroidCollections;
 
 public record ProtocolResponse(
         int statusCode,
@@ -8,7 +9,7 @@ public record ProtocolResponse(
         String body
 ) {
     public ProtocolResponse {
-        headers = Map.copyOf(headers == null ? Map.of() : headers);
+        headers = AndroidCollections.mapCopy(headers);
         body = body == null ? "" : body;
     }
 
@@ -20,4 +21,3 @@ public record ProtocolResponse(
         return statusCode == 401;
     }
 }
-

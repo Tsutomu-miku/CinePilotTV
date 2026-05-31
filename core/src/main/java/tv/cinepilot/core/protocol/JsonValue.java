@@ -2,6 +2,7 @@ package tv.cinepilot.core.protocol;
 
 import java.util.List;
 import java.util.Map;
+import tv.cinepilot.core.AndroidCollections;
 
 final class JsonValue {
     private JsonValue() {
@@ -18,7 +19,7 @@ final class JsonValue {
     static List<Object> array(String json) {
         Object value = new Parser(json).parse();
         if (value instanceof List<?> list) {
-            return List.copyOf(list);
+            return AndroidCollections.listCopy(list);
         }
         throw new IllegalArgumentException("JSON root must be an array");
     }
@@ -38,15 +39,15 @@ final class JsonValue {
         if (value instanceof Map<?, ?> map) {
             return castMap(map);
         }
-        return Map.of();
+        return AndroidCollections.emptyMap();
     }
 
     static List<Object> array(Map<String, Object> object, String key) {
         Object value = object.get(key);
         if (value instanceof List<?> list) {
-            return List.copyOf(list);
+            return AndroidCollections.listCopy(list);
         }
-        return List.of();
+        return AndroidCollections.emptyList();
     }
 
     @SuppressWarnings("unchecked")

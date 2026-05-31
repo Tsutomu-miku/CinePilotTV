@@ -1,6 +1,7 @@
 package tv.cinepilot.core.tv;
 
 import java.util.List;
+import tv.cinepilot.core.AndroidCollections;
 import tv.cinepilot.core.protocol.AuthenticatedServer;
 import tv.cinepilot.core.protocol.MediaItemSummary;
 import tv.cinepilot.core.protocol.MediaServerAddress;
@@ -28,8 +29,8 @@ public record TvAppState(
         if (status == null) {
             status = TvStatus.IDLE;
         }
-        publicUsers = List.copyOf(publicUsers == null ? List.of() : publicUsers);
-        homeRows = List.copyOf(homeRows == null ? List.of() : homeRows);
+        publicUsers = AndroidCollections.listCopy(publicUsers);
+        homeRows = AndroidCollections.listCopy(homeRows);
         if (errorMessage == null) {
             errorMessage = "";
         }
@@ -41,9 +42,9 @@ public record TvAppState(
                 TvStatus.IDLE,
                 null,
                 null,
-                List.of(),
+                AndroidCollections.emptyList(),
                 null,
-                List.of(),
+                AndroidCollections.emptyList(),
                 null,
                 null,
                 null,

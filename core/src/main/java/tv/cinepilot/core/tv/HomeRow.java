@@ -1,6 +1,7 @@
 package tv.cinepilot.core.tv;
 
 import java.util.List;
+import tv.cinepilot.core.AndroidCollections;
 import tv.cinepilot.core.protocol.MediaItemSummary;
 
 public record HomeRow(
@@ -13,7 +14,7 @@ public record HomeRow(
         if (title == null) {
             title = "";
         }
-        items = List.copyOf(items == null ? List.of() : items);
+        items = AndroidCollections.listCopy(items);
     }
 
     public boolean containsItem(String itemId) {
@@ -26,4 +27,3 @@ public record HomeRow(
         }
     }
 }
-

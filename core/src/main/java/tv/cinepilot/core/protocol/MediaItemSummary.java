@@ -2,6 +2,7 @@ package tv.cinepilot.core.protocol;
 
 import java.util.List;
 import java.util.Map;
+import tv.cinepilot.core.AndroidCollections;
 
 public record MediaItemSummary(
         String id,
@@ -41,8 +42,8 @@ public record MediaItemSummary(
         if (overview == null) {
             overview = "";
         }
-        genres = List.copyOf(genres == null ? List.of() : genres);
-        imageTags = Map.copyOf(imageTags == null ? Map.of() : imageTags);
+        genres = AndroidCollections.listCopy(genres);
+        imageTags = AndroidCollections.mapCopy(imageTags);
     }
 
     public boolean hasResumePosition() {

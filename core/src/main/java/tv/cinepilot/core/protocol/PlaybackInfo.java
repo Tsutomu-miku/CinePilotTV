@@ -1,6 +1,7 @@
 package tv.cinepilot.core.protocol;
 
 import java.util.List;
+import tv.cinepilot.core.AndroidCollections;
 
 public record PlaybackInfo(
         String itemId,
@@ -10,7 +11,7 @@ public record PlaybackInfo(
     public PlaybackInfo {
         require(itemId, "itemId");
         require(playSessionId, "playSessionId");
-        mediaSources = List.copyOf(mediaSources == null ? List.of() : mediaSources);
+        mediaSources = AndroidCollections.listCopy(mediaSources);
     }
 
     private static void require(String value, String name) {
@@ -19,4 +20,3 @@ public record PlaybackInfo(
         }
     }
 }
-

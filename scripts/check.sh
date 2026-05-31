@@ -67,6 +67,16 @@ if [[ ! -s "$ROOT_DIR/core/src/main/java/tv/cinepilot/core/protocol/UrlEncoding.
   exit 1
 fi
 
+if grep -R -qE '\b(List|Map|Set)\.of\(|\b(List|Map|Set)\.copyOf\(|\.toList\(' "$ROOT_DIR/core/src/main/java"; then
+  echo "Android runtime Java code must not use Java 9+ collection factories or Stream.toList()" >&2
+  exit 1
+fi
+
+if [[ ! -s "$ROOT_DIR/core/src/main/java/tv/cinepilot/core/AndroidCollections.java" ]]; then
+  echo "Missing Android-compatible collection helper" >&2
+  exit 1
+fi
+
 if [[ ! -x "$ROOT_DIR/scripts/bootstrap-gradle-wrapper.sh" ]]; then
   echo "Missing executable Gradle wrapper bootstrap script" >&2
   exit 1

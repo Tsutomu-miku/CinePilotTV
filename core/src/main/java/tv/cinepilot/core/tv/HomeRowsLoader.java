@@ -2,6 +2,7 @@ package tv.cinepilot.core.tv;
 
 import java.util.ArrayList;
 import java.util.List;
+import tv.cinepilot.core.AndroidCollections;
 import tv.cinepilot.core.protocol.AuthenticatedServer;
 import tv.cinepilot.core.protocol.MediaBrowserClient;
 import tv.cinepilot.core.protocol.MediaItemPage;
@@ -44,7 +45,7 @@ public final class HomeRowsLoader {
                     client.latestItems(authenticated, view.id(), rowLimit).items()
             );
         }
-        return List.copyOf(rows);
+        return AndroidCollections.listCopy(rows);
     }
 
     private static void addIfNotEmpty(List<HomeRow> rows, String id, String title, List<MediaItemSummary> items) {

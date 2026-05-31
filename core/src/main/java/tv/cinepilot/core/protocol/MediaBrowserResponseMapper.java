@@ -4,6 +4,7 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import tv.cinepilot.core.AndroidCollections;
 
 public final class MediaBrowserResponseMapper {
     private MediaBrowserResponseMapper() {
@@ -43,7 +44,7 @@ public final class MediaBrowserResponseMapper {
                 ));
             }
         }
-        return List.copyOf(users);
+        return AndroidCollections.listCopy(users);
     }
 
     public static QuickConnectSession quickConnectSession(String json) {
@@ -88,7 +89,7 @@ public final class MediaBrowserResponseMapper {
                 items.add(mediaItem(JsonValueMap.cast(map)));
             }
         }
-        return List.copyOf(items);
+        return AndroidCollections.listCopy(items);
     }
 
     public static MediaItemSummary item(String json) {

@@ -1,6 +1,7 @@
 package tv.cinepilot.core.tv;
 
 import java.util.List;
+import tv.cinepilot.core.AndroidCollections;
 import tv.cinepilot.core.protocol.AuthenticatedServer;
 import tv.cinepilot.core.protocol.MediaItemSummary;
 import tv.cinepilot.core.protocol.MediaServerAddress;
@@ -18,9 +19,9 @@ public final class TvWorkflow {
                 TvStatus.LOADING,
                 address,
                 null,
-                List.of(),
+                AndroidCollections.emptyList(),
                 null,
-                List.of(),
+                AndroidCollections.emptyList(),
                 null,
                 null,
                 null,
@@ -34,9 +35,9 @@ public final class TvWorkflow {
                 TvStatus.READY,
                 state.pendingAddress(),
                 server,
-                List.of(),
+                AndroidCollections.emptyList(),
                 null,
-                List.of(),
+                AndroidCollections.emptyList(),
                 null,
                 null,
                 null,
@@ -52,7 +53,7 @@ public final class TvWorkflow {
                 state.server(),
                 state.publicUsers(),
                 null,
-                List.of(),
+                AndroidCollections.emptyList(),
                 null,
                 null,
                 null,
@@ -68,7 +69,7 @@ public final class TvWorkflow {
                 authenticated.server(),
                 state.publicUsers(),
                 authenticated,
-                List.of(),
+                AndroidCollections.emptyList(),
                 null,
                 null,
                 null,
@@ -77,7 +78,7 @@ public final class TvWorkflow {
     }
 
     public static TvAppState homeLoaded(TvAppState state, List<HomeRow> rows) {
-        List<HomeRow> safeRows = List.copyOf(rows == null ? List.of() : rows);
+        List<HomeRow> safeRows = AndroidCollections.listCopy(rows);
         FocusedItem focus = firstFocusable(safeRows);
         return state.with(
                 TvRoute.HOME,
@@ -155,9 +156,9 @@ public final class TvWorkflow {
         return switch (state.route()) {
             case PLAYER -> state.with(TvRoute.DETAILS, TvStatus.READY, state.pendingAddress(), state.server(), state.publicUsers(), state.authenticated(), state.homeRows(), state.focus(), state.selectedItem(), null, "");
             case DETAILS -> state.with(TvRoute.HOME, TvStatus.READY, state.pendingAddress(), state.server(), state.publicUsers(), state.authenticated(), state.homeRows(), state.focus(), null, null, "");
-            case HOME -> state.with(TvRoute.SERVER_ENTRY, TvStatus.IDLE, null, null, List.of(), null, List.of(), null, null, null, "");
-            case LOGIN -> state.with(TvRoute.SERVER_ENTRY, TvStatus.IDLE, state.pendingAddress(), null, List.of(), null, List.of(), null, null, null, "");
-            case ERROR -> state.with(TvRoute.SERVER_ENTRY, TvStatus.IDLE, null, null, List.of(), null, List.of(), null, null, null, "");
+            case HOME -> state.with(TvRoute.SERVER_ENTRY, TvStatus.IDLE, null, null, AndroidCollections.emptyList(), null, AndroidCollections.emptyList(), null, null, null, "");
+            case LOGIN -> state.with(TvRoute.SERVER_ENTRY, TvStatus.IDLE, state.pendingAddress(), null, AndroidCollections.emptyList(), null, AndroidCollections.emptyList(), null, null, null, "");
+            case ERROR -> state.with(TvRoute.SERVER_ENTRY, TvStatus.IDLE, null, null, AndroidCollections.emptyList(), null, AndroidCollections.emptyList(), null, null, null, "");
             case SERVER_ENTRY -> state;
         };
     }
@@ -168,7 +169,7 @@ public final class TvWorkflow {
                 state.status(),
                 state.pendingAddress(),
                 state.server(),
-                users == null ? List.of() : users,
+                AndroidCollections.listCopy(users),
                 state.authenticated(),
                 state.homeRows(),
                 state.focus(),

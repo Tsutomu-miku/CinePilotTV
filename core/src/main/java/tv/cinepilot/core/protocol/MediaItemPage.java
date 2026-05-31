@@ -1,6 +1,7 @@
 package tv.cinepilot.core.protocol;
 
 import java.util.List;
+import tv.cinepilot.core.AndroidCollections;
 
 public record MediaItemPage(
         List<MediaItemSummary> items,
@@ -8,7 +9,7 @@ public record MediaItemPage(
         int startIndex
 ) {
     public MediaItemPage {
-        items = List.copyOf(items == null ? List.of() : items);
+        items = AndroidCollections.listCopy(items);
         if (totalRecordCount < 0) {
             throw new IllegalArgumentException("totalRecordCount must be zero or greater");
         }
@@ -17,4 +18,3 @@ public record MediaItemPage(
         }
     }
 }
-
