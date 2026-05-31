@@ -354,6 +354,21 @@ public final class ProtocolCoreTest {
         assertTrue(hlsUrl.contains("Container=ts"), "hls container");
         assertTrue(hlsUrl.contains("StartTimeTicks=450000000"), "hls start ticks");
         assertTrue(hlsUrl.contains("VideoCodec=h264%2Chevc"), "hls video codec");
+
+        ProtocolRequest staticStream = MediaBrowserRequests.staticVideoStream(
+                session,
+                ServerFlavor.JELLYFIN,
+                "movie 1",
+                "source 1",
+                "play-session-1"
+        );
+        assertEquals(HttpMethod.GET, staticStream.method(), "static stream method");
+        assertEquals("/Videos/movie%201/stream", staticStream.path(), "static stream path");
+        String staticStreamUrl = staticStream.url(address);
+        assertTrue(staticStreamUrl.contains("Static=true"), "static stream flag");
+        assertTrue(staticStreamUrl.contains("MediaSourceId=source%201"), "static stream media source");
+        assertTrue(staticStreamUrl.contains("DeviceId=device-1"), "static stream device");
+        assertTrue(staticStreamUrl.contains("PlaySessionId=play-session-1"), "static stream play session");
     }
 
     private static void buildsPlaybackCheckInRequests() {
@@ -492,6 +507,27 @@ public final class ProtocolCoreTest {
         assertTrue(fallback.request().url(address).contains("SubtitleMethod=Hls"), "fallback subtitle method query");
         assertEquals(2, fallback.audioStreamIndex(), "explicit audio preference wins");
         assertEquals(5, fallback.subtitleStreamIndex(), "explicit subtitle preference wins");
+
+        MediaSourceInfo directPlayWithoutUrl = MediaSourceInfo.builder("source-static")
+                .supportsDirectPlay(true)
+                .supportsTranscoding(true)
+                .mediaStreams(List.of(
+                        new MediaStreamInfo(0, MediaStreamType.VIDEO, "h264", "", "1080p", true, false, false, null),
+                        new MediaStreamInfo(1, MediaStreamType.AUDIO, "aac", "jpn", "Japanese", true, false, false, null)
+                ))
+                .build();
+        PlayableMedia staticSelection = PlaybackSourceSelector.select(
+                address,
+                session,
+                ServerFlavor.JELLYFIN,
+                new PlaybackInfo("item-4", "play-session-4", List.of(directPlayWithoutUrl)),
+                PlaybackSelectionPreferences.defaults()
+        ).orElseThrow();
+        assertEquals(PlayMethod.DIRECT_PLAY, staticSelection.playMethod(), "direct play without server url uses static stream");
+        assertTrue(!staticSelection.hasReadyUrl(), "static stream waits for request url");
+        assertEquals("/Videos/item-4/stream", staticSelection.request().path(), "static stream request path");
+        assertTrue(staticSelection.request().url(address).contains("Static=true"), "static stream request flag");
+        assertEquals(1, staticSelection.audioStreamIndex(), "static stream keeps default audio");
 
         Optional<PlayableMedia> noPlayable = PlaybackSourceSelector.select(
                 address,

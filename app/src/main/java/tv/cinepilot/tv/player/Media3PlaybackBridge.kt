@@ -3,10 +3,12 @@ package tv.cinepilot.tv.player
 import androidx.media3.common.PlaybackParameters
 import androidx.media3.common.PlaybackException
 import androidx.media3.common.Player
+import java.util.concurrent.Executor
 import tv.cinepilot.core.protocol.PlaybackSessionController
 
 class Media3PlaybackBridge(
     private val controller: PlaybackSessionController,
+    private val checkInExecutor: Executor,
     private val onPlaybackError: (PlaybackException) -> Unit = {},
     private val clock: () -> Long = { System.currentTimeMillis() },
 ) : Player.Listener {
@@ -18,7 +20,7 @@ class Media3PlaybackBridge(
     override fun onPlaybackStateChanged(playbackState: Int) {
         if (playbackState == Player.STATE_READY && !started) {
             started = true
-            controller.start(clock(), lastPositionBeforeSeek)
+            checkIn { controller.start(clock(), lastPositionBeforeSeek) }
         }
         if (playbackState == Player.STATE_ENDED) {
             stop(lastPositionBeforeSeek)
@@ -30,9 +32,9 @@ class Media3PlaybackBridge(
             return
         }
         if (isPlaying) {
-            controller.unpause(clock(), lastPositionBeforeSeek)
+            checkIn { controller.unpause(clock(), lastPositionBeforeSeek) }
         } else {
-            controller.pause(clock(), lastPositionBeforeSeek)
+            checkIn { controller.pause(clock(), lastPositionBeforeSeek) }
         }
     }
 
@@ -43,7 +45,7 @@ class Media3PlaybackBridge(
     ) {
         lastPositionBeforeSeek = newPosition.positionMs
         if (started && !stopped && reason == Player.DISCONTINUITY_REASON_SEEK) {
-            controller.seek(clock(), newPosition.positionMs)
+            checkIn { controller.seek(clock(), newPosition.positionMs) }
         }
     }
 
@@ -54,7 +56,7 @@ class Media3PlaybackBridge(
         }
         playbackRate = nextPlaybackRate
         if (started && !stopped) {
-            controller.playbackRateChanged(clock(), lastPositionBeforeSeek, nextPlaybackRate)
+            checkIn { controller.playbackRateChanged(clock(), lastPositionBeforeSeek, nextPlaybackRate) }
         }
     }
 
@@ -65,7 +67,7 @@ class Media3PlaybackBridge(
     fun tick(positionMillis: Long) {
         lastPositionBeforeSeek = positionMillis
         if (started && !stopped) {
-            controller.progressIfDue(clock(), positionMillis)
+            checkIn { controller.progressIfDue(clock(), positionMillis) }
         }
     }
 
@@ -73,7 +75,13 @@ class Media3PlaybackBridge(
         lastPositionBeforeSeek = positionMillis
         if (started && !stopped) {
             stopped = true
-            controller.stop(positionMillis)
+            checkIn { controller.stop(positionMillis) }
+        }
+    }
+
+    private fun checkIn(action: () -> Unit) {
+        checkInExecutor.execute {
+            runCatching(action)
         }
     }
 }

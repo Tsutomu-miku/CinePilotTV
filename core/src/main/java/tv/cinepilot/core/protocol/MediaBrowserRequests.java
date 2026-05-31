@@ -204,6 +204,29 @@ public final class MediaBrowserRequests {
         return builder.build();
     }
 
+    public static ProtocolRequest staticVideoStream(
+            AuthSession session,
+            ServerFlavor flavor,
+            String itemId,
+            String mediaSourceId,
+            String playSessionId
+    ) {
+        require(itemId, "itemId");
+        require(mediaSourceId, "mediaSourceId");
+        String encodedItemId = ProtocolRequest.encodePathSegment(itemId);
+        ProtocolRequest.Builder builder = authenticated(
+                ProtocolRequest.get("/Videos/" + encodedItemId + "/stream"),
+                session,
+                flavor
+        ).query("Static", "true")
+                .query("MediaSourceId", mediaSourceId)
+                .query("DeviceId", session.client().deviceId());
+        if (playSessionId != null && !playSessionId.isBlank()) {
+            builder.query("PlaySessionId", playSessionId);
+        }
+        return builder.build();
+    }
+
     public static ProtocolRequest playbackStarted(AuthSession session, ServerFlavor flavor, PlaybackReport report) {
         return playbackReportRequest(session, flavor, PlaybackEndpoint.STARTED, report.toPayload());
     }

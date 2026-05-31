@@ -351,6 +351,11 @@ if ! grep -q 'runCatching { bridge?.stop' "$ROOT_DIR/app/src/main/java/tv/cinepi
   exit 1
 fi
 
+if ! grep -q 'checkInExecutor' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/player/Media3PlayerHost.kt"; then
+  echo "Media3PlayerHost must send playback check-ins away from the Android main thread" >&2
+  exit 1
+fi
+
 if ! grep -q 'postDelayed' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/player/Media3PlayerHost.kt"; then
   echo "Media3PlayerHost must periodically tick playback progress" >&2
   exit 1
@@ -423,6 +428,11 @@ fi
 
 if ! grep -q 'candidateSources' "$ROOT_DIR/core/src/main/java/tv/cinepilot/core/protocol/PlaybackSourceSelector.java"; then
   echo "PlaybackSourceSelector must honor explicit media source preferences" >&2
+  exit 1
+fi
+
+if ! grep -q 'staticVideoStream' "$ROOT_DIR/core/src/main/java/tv/cinepilot/core/protocol/PlaybackSourceSelector.java"; then
+  echo "PlaybackSourceSelector must use static direct streams before HLS fallback when direct play has no URL" >&2
   exit 1
 fi
 

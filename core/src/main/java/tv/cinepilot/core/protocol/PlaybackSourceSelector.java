@@ -35,6 +35,20 @@ public final class PlaybackSourceSelector {
             return directPlay;
         }
 
+        Optional<PlayableMedia> staticDirectPlay = sources.stream()
+                .filter(MediaSourceInfo::supportsDirectPlay)
+                .findFirst()
+                .map(source -> playableFromStaticStreamRequest(
+                        session,
+                        flavor,
+                        playbackInfo,
+                        source,
+                        safePreferences
+                ));
+        if (staticDirectPlay.isPresent()) {
+            return staticDirectPlay;
+        }
+
         Optional<PlayableMedia> directStream = sources.stream()
                 .filter(MediaSourceInfo::supportsDirectStream)
                 .filter(source -> hasValue(source.directStreamUrl()))
@@ -100,6 +114,31 @@ public final class PlaybackSourceSelector {
                 method,
                 resolveUrl(serverAddress, url),
                 null,
+                selectedAudioStreamIndex(source, preferences),
+                selectedSubtitleStreamIndex(source, preferences)
+        );
+    }
+
+    private static PlayableMedia playableFromStaticStreamRequest(
+            AuthSession session,
+            ServerFlavor flavor,
+            PlaybackInfo playbackInfo,
+            MediaSourceInfo source,
+            PlaybackSelectionPreferences preferences
+    ) {
+        return new PlayableMedia(
+                playbackInfo.itemId(),
+                source.id(),
+                playbackInfo.playSessionId(),
+                PlayMethod.DIRECT_PLAY,
+                null,
+                MediaBrowserRequests.staticVideoStream(
+                        session,
+                        flavor,
+                        playbackInfo.itemId(),
+                        source.id(),
+                        playbackInfo.playSessionId()
+                ),
                 selectedAudioStreamIndex(source, preferences),
                 selectedSubtitleStreamIndex(source, preferences)
         );

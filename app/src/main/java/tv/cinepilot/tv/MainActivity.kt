@@ -70,7 +70,7 @@ class MainActivity : ComponentActivity() {
 
     override fun onDestroy() {
         stopQuickConnectPolling()
-        playerHost.release()
+        playerHost.shutdown()
         imageExecutor.shutdownNow()
         executor.shutdownNow()
         super.onDestroy()

@@ -23,6 +23,7 @@
 - `GET /Users/{UserId}/Items/{ItemId}`：媒体详情。
 - `GET /Items/{Id}/Images/{ImageType}`：媒体图片，用于详情页海报。
 - `GET /Items/{Id}/PlaybackInfo`：获取播放候选、`PlaySessionId` 和 `MediaSources`。
+- `GET /Videos/{Id}/stream?Static=true`：当服务端声明可 direct play 但未返回 `DirectStreamUrl` 时，使用静态原始视频流作为首选播放地址。
 - `GET /Videos/{Id}/master.m3u8`：生成 HLS 播放 URL，用于 direct stream / transcode 场景。
 - `POST /Sessions/Playing`：开始播放上报。
 - `POST /Sessions/Playing/Progress`：播放进度与暂停、seek、轨道变化等事件上报。
@@ -42,7 +43,7 @@
 - Quick Connect 登录：`initiateQuickConnect` -> `quickConnectState` -> `authenticateWithQuickConnect` -> `SavedSession`。
 - 会话持久化：`SessionScope` -> `InMemorySessionRepository` / `FileSessionRepository`。
 - 播放信息：`playbackInfo` -> `PlaybackInfo`；播放前音轨 / 字幕选择复用该响应里的 `MediaStreams[].Index`。
-- 播放源选择：`PlaybackInfo` -> `PlayableMedia`。
+- 播放源选择：`PlaybackInfo` -> `PlayableMedia`；优先使用服务端给出的 direct play URL，其次对可 direct play 但缺少 URL 的媒体构造静态 `/Videos/{Id}/stream` 请求，再回退到 direct stream / HLS transcode。
 - 媒体库浏览：`userViews` / `items` / `resumeItems` / `nextUpItems` / `latestItems` / `item` / `primaryImageUrl` -> 媒体条目模型和图片 URL。
 - 服务器侧搜索：`ItemQuery.search` -> `/Users/{UserId}/Items?SearchTerm=...`。
 - TV 首页组合：`HomeRowsLoader` -> `HomeRow` 列表。
@@ -69,6 +70,7 @@
 - Emby `GET /Items/{Id}/PlaybackInfo` 参考页说明 playback info 返回播放候选、`PlaySessionId`、`MediaSources`、`DirectStreamUrl`、`TranscodingUrl` 和字幕 delivery 信息：<https://dev.emby.media/reference/RestAPI/MediaInfoService/getItemsByIdPlaybackinfo.html>
 - Emby HLS 文档说明 `/Videos/{Id}/master.m3u8` 是 HLS 入口，必需参数包括 path 里的 `Id`、`MediaSourceId` 和 `DeviceId`：<https://dev.emby.media/doc/restapi/Http-Live-Streaming.html>
 - Emby `GET /Videos/{Id}/master.m3u8` 参考页说明 start time 使用 ticks，并列出音轨、字幕、分辨率、码率、codec 等参数：<https://dev.emby.media/reference/RestAPI/DynamicHlsService/getVideosByIdMasterM3u8.html>
+- Emby `GET /Videos/{Id}/stream` 参考页说明静态视频流 endpoint 可用于直接播放原始媒体，并支持 `MediaSourceId`、`Static` 等查询参数：<https://dev.emby.media/reference/RestAPI/VideosService/getVideosByIdStream.html>
 - Emby TV shows reference 暴露 `GET /Shows/NextUp`，用于获取下一集候选：<https://dev.emby.media/reference/RestAPI/TvShowsService.html>
 - Jellyfin SDK `TvShowsApi.getNextUp` 暴露 `userId`、`limit`、`parentId`、`enableUserData` 等参数：<https://javadoc.io/static/org.jellyfin.sdk/jellyfin-api/1.6.2/jellyfin-api/org.jellyfin.sdk.api.operations/-tv-shows-api/index.html>
 - Jellyfin TypeScript SDK 暴露 `getPlaybackInfo`、`getPostedPlaybackInfo` 和 `openLiveStream`，其中 POST 版支持 max bitrate、start ticks、音轨、字幕、direct play / direct stream / transcoding 等参数：<https://typescript-sdk.jellyfin.org/functions/generated-client.MediaInfoApiFp.html>

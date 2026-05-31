@@ -75,6 +75,7 @@ Android TV 设备或模拟器上需要验证：
 - Jellyfin 列表条目缺少 `IsPlayable` 时，非 folder 的 Movie / Episode / Video 仍会作为可播放项进入详情，而不是被误当作目录。
 - 地址格式错误、DNS 失败、连接拒绝、超时、HTTPS/证书失败和常见 HTTP 错误会显示中文操作建议。
 - 播放 URL 携带 token 后，Media3 能访问受保护流。
+- Jellyfin `PlaybackInfo` 声明可 direct play 但没有返回 `DirectStreamUrl` 时，播放准备应使用静态 `/Videos/{Id}/stream?Static=true` 请求，避免不必要地进入 HLS 转码路径。
 - 详情页有 Primary 图片时会加载海报；图片加载使用独立线程池和短超时，失败不能影响按钮焦点或播放入口。
 - 详情页能展示服务器返回的简介、类型、时长和季集信息。
 - 播放准备页的诊断信息不包含 token，且能显示 server、item、media source、play method。
@@ -85,5 +86,6 @@ Android TV 设备或模拟器上需要验证：
 - HLS 播放准备在用户选择字幕时会带上 `SubtitleMethod=Hls`。
 - 搜索无结果或服务器返回空媒体行时，界面会显示“没有可显示的媒体”。
 - 播放开始、暂停、seek、停止会触发 Jellyfin / Emby 播放上报。
+- Media3 播放状态回调发生在主线程时，播放上报必须切到后台线程发送，不能因 `NetworkOnMainThreadException` 退出应用。
 - token 失效时只影响对应服务器并回到登录。
 - 多服务器 session 不串用。

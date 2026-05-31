@@ -9,6 +9,7 @@ import androidx.media3.common.MediaItem
 import androidx.media3.common.PlaybackException
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.ui.PlayerView
+import java.util.concurrent.Executors
 import tv.cinepilot.core.protocol.MediaBrowserClient
 import tv.cinepilot.core.protocol.PlaybackUrlAuthorizer
 import tv.cinepilot.core.protocol.PlaybackSessionController
@@ -22,6 +23,7 @@ class Media3PlayerHost(
     private var player: ExoPlayer? = null
     private var bridge: Media3PlaybackBridge? = null
     private var progressTicker: Runnable? = null
+    private val checkInExecutor = Executors.newSingleThreadExecutor()
 
     fun createPlayerView(state: TvAppState, onPlaybackError: (PlaybackException) -> Unit = {}): View {
         val playable = state.playableMedia()
@@ -39,6 +41,7 @@ class Media3PlayerHost(
         release()
         val playbackBridge = Media3PlaybackBridge(
             PlaybackSessionController(mediaBrowserClient, authenticated, playable),
+            checkInExecutor,
             onPlaybackError,
         )
         val nextPlayer = ExoPlayer.Builder(context).build().apply {
@@ -66,6 +69,11 @@ class Media3PlayerHost(
         player?.release()
         player = null
         bridge = null
+    }
+
+    fun shutdown() {
+        release()
+        checkInExecutor.shutdownNow()
     }
 
     private fun startProgressTicks(nextPlayer: ExoPlayer, playbackBridge: Media3PlaybackBridge) {
