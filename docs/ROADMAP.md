@@ -75,8 +75,8 @@
 
 - P0-13 获取播放信息，并保存 media source id 与 play session id。进度：playback info 请求规格、领域模型、响应 mapper 和 client 编排已完成。
 - P0-14 生成 Media3 可播放 media item，包括 direct stream / transcode URL。进度：播放源选择器已完成，Media3 接线未开始。
-- P0-15 调度 started / progress / stopped 播放 check-in。进度：check-in 请求规格已完成，调度器未开始。
-- P0-16 把播放暂停、seek、音轨、字幕和播放速度变化同步到协议层。进度：事件载荷已建模，播放器事件桥接未开始。
+- P0-15 调度 started / progress / stopped 播放 check-in。进度：check-in 请求规格和 10 秒进度调度器已完成，网络发送接线未开始。
+- P0-16 把播放暂停、seek、音轨、字幕和播放速度变化同步到协议层。进度：立即上报事件调度已建模，Media3 事件桥接未开始。
 
 退出标准：
 

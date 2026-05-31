@@ -8,6 +8,7 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.time.Duration;
 
 public final class ProtocolCoreTest {
     public static void main(String[] args) {
@@ -29,6 +30,7 @@ public final class ProtocolCoreTest {
         clientRunsDiscoveryLoginAndPlaybackFlow();
         mapsAndFetchesMediaItems();
         persistsSavedSessionsToFile();
+        schedulesPlaybackCheckIns();
         System.out.println("ProtocolCoreTest passed");
     }
 
@@ -650,6 +652,65 @@ public final class ProtocolCoreTest {
         } catch (IOException exception) {
             throw new AssertionError("Temp session repository setup failed", exception);
         }
+    }
+
+    private static void schedulesPlaybackCheckIns() {
+        PlaybackCheckInScheduler scheduler = new PlaybackCheckInScheduler(Duration.ofSeconds(10));
+        PlaybackReport startedReport = playbackReportAt(0, false, null);
+        PlaybackCheckIn started = scheduler.start(1_000L, startedReport);
+        assertEquals(PlaybackEndpoint.STARTED, started.endpoint(), "start check-in endpoint");
+        assertEquals(startedReport, started.report(), "start report");
+        assertTrue(scheduler.started(), "scheduler started");
+
+        assertTrue(
+                scheduler.progressIfDue(10_999L, playbackReportAt(9_999, false, null)).isEmpty(),
+                "progress is not due before interval"
+        );
+        PlaybackCheckIn timedProgress = scheduler.progressIfDue(
+                11_000L,
+                playbackReportAt(10_000, false, null)
+        ).orElseThrow();
+        assertEquals(PlaybackEndpoint.PROGRESS, timedProgress.endpoint(), "timed progress endpoint");
+        assertEquals(PlaybackEvent.TIME_UPDATE, timedProgress.event(), "timed progress event");
+
+        PlaybackCheckIn pause = scheduler.immediate(
+                12_000L,
+                PlaybackEvent.PAUSE,
+                playbackReportAt(11_000, true, null)
+        );
+        assertEquals(PlaybackEndpoint.PROGRESS, pause.endpoint(), "pause progress endpoint");
+        assertEquals(PlaybackEvent.PAUSE, pause.event(), "pause event");
+        assertTrue(pause.report().paused(), "pause report state");
+
+        assertTrue(
+                scheduler.progressIfDue(21_999L, playbackReportAt(20_999, true, null)).isEmpty(),
+                "immediate event resets progress interval"
+        );
+        PlaybackCheckIn seek = scheduler.immediate(
+                22_000L,
+                PlaybackEvent.SEEK,
+                playbackReportAt(60_000, false, null)
+        );
+        assertEquals(PlaybackEvent.SEEK, seek.event(), "seek event");
+
+        PlaybackCheckIn stopped = scheduler.stop(playbackReportAt(61_000, false, null));
+        assertEquals(PlaybackEndpoint.STOPPED, stopped.endpoint(), "stop endpoint");
+        assertTrue(scheduler.stopped(), "scheduler stopped");
+    }
+
+    private static PlaybackReport playbackReportAt(long positionMillis, boolean paused, Float rate) {
+        return new PlaybackReport(
+                "item-1",
+                "source-1",
+                "play-session-1",
+                PlayMethod.DIRECT_PLAY,
+                true,
+                paused,
+                MediaTicks.fromMilliseconds(positionMillis),
+                1,
+                null,
+                rate
+        );
     }
 
     private static final class FakeTransport implements HttpTransport {
