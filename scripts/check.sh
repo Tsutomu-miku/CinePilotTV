@@ -49,6 +49,11 @@ if [[ ! -x "$ROOT_DIR/scripts/install-debug-apk.sh" ]]; then
   exit 1
 fi
 
+if ! grep -q 'ANDROID_SERIAL' "$ROOT_DIR/scripts/install-debug-apk.sh"; then
+  echo "APK install script must support selecting a target device" >&2
+  exit 1
+fi
+
 if [[ ! -s "$ROOT_DIR/.github/workflows/android-apk.yml" ]]; then
   echo "Missing Android APK GitHub Actions workflow" >&2
   exit 1
