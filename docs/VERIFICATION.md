@@ -22,7 +22,7 @@
 
 ## Android 构建检查
 
-当前机器没有全局 `ANDROID_HOME`，但仓库存在本地 `local.properties` 指向临时 SDK，因此可以完成 Android debug 构建。本线程尚未完成模拟器启动或真实设备播放验证。
+当前机器没有全局 `ANDROID_HOME`，但仓库存在本地 `local.properties` 指向临时 SDK，因此可以完成 Android debug 构建。本线程已经用 Xiaomi 24129PN74C 真机完成 Jellyfin 登录恢复、浏览、详情、全屏播放、遥控器播放控制 smoke 和 Back 返回详情验证。
 
 GitHub Actions：
 
@@ -45,8 +45,12 @@ GitHub Actions：
 - `adb devices` 已识别 Xiaomi 2211133C 真机；`./scripts/install-debug-apk.sh` 可以完成构建，但安装阶段被设备系统以 `INSTALL_FAILED_USER_RESTRICTED` 拒绝。需要在设备开发者选项中开启“通过 USB 安装”和“USB 调试（安全设置）”，并在安装确认弹窗中允许。
 - Xiaomi 2211133C 手动安装成功，包名 `tv.cinepilot.tv` 同时暴露 `LAUNCHER` 和 `LEANBACK_LAUNCHER`；该设备禁止 adb `input tap/text/keyevent` 注入，因此补充 debug-only QA 登录入口用于继续真机验证。
 - 新连接的 Xiaomi 24129PN74C 支持 adb input 注入，可用于常规 UI 登录 / 浏览 / 播放路径验证。
-- 测试 Jellyfin `http://192.168.31.82:49156` 从开发机可达，`/System/Info/Public` 返回 Jellyfin Server 10.10.7，测试账号认证成功；真机 app 登录 / 浏览 / 播放仍需在支持输入注入的新设备上完成验证。
-- 登录成功后执行系统关闭 / force-stop，再从普通 launcher 入口启动，应自动恢复最近账号并进入首页，不要求重新输入服务器和账号。
+- 测试 Jellyfin `http://192.168.31.82:49156` 从开发机可达，`/System/Info/Public` 返回 Jellyfin Server 10.10.7，测试账号认证成功；真机 app 已完成登录恢复、首页浏览、继续观看进入详情和 Media3 播放验证。
+- 登录成功后执行系统关闭 / force-stop，再从普通 launcher 入口启动，已验证自动恢复最近账号并进入首页，不要求重新输入服务器和账号。
+- 详情页已验证显示中文元信息，例如“单集”“第 1 季 / 第 2 集”“约 25 分钟”，不再暴露 `EPISODE` 这类协议枚举。
+- 播放器已验证为黑底全屏 `PlayerView`；UI dump 只包含 Media3 `PlayerView` / `SurfaceView` / `exo_*` 控件树，没有第二套 app 级播放按钮。
+- 真机通过 `adb shell input keyevent 85/90/89` smoke 测试播放 / 暂停、快进、快退硬件媒体键；系统 Back 可释放播放器并返回详情，logcat 未见 fatal、`NetworkOnMainThreadException` 或播放错误。
+- 真机按 Back 后已验证弹出“退出播放？”对话框，显示“继续播放”和“退出播放”，播放器没有被替换成普通确认页。
 
 具备 Android SDK 后，应运行：
 
@@ -70,12 +74,14 @@ Android TV 设备或模拟器上需要验证：
 - 可用 D-pad 完成服务器输入、登录、首页浏览和详情打开。
 - 首页应呈现暗色 TV 媒体架，媒体条目以横向海报卡片展示；详情页应呈现左海报、右信息与操作区，而不是调试面板式的竖排按钮列表。
 - 详情页元信息必须使用中文用户语言，例如“单集”“约 24 分钟”“第 1 季 / 第 5 集”，不能直接展示 `EPISODE` 这类协议枚举。
+- 详情页标题过长时，第一行元信息和播放按钮不能被遮挡；技术信息应作为次级信息展示，包括分辨率、编码、大小、声道、HDR / Dolby 和字幕概览。
 - 首页首屏应优先露出媒体内容；搜索输入放在独立搜索页，避免占用 TV 浏览页的主要视野。
 - 搜索、刷新、退出、播放、返回、字幕和低码率播放等关键操作应显示图标，帮助遥控器用户快速识别动作。
 - Jellyfin 服务器启用 Quick Connect 时，可在登录页用授权码完成登录；授权后 TV 端会自动进入首页。
 - 点击播放后 Media3 player 能打开可播放 URL。
 - 详情页点击播放、继续播放、从头播放或低码率播放后，应在准备播放信息加载完成后直接进入播放器，不再要求用户停在中间确认页再点一次。
-- 播放器页面必须是黑底全屏播放 surface，遥控器焦点默认交给 Media3 PlayerView；停止和诊断动作通过底部半透明控制层访问，而不是把播放器塞进普通滚动页。
+- 播放器页面必须是黑底全屏播放 surface，遥控器焦点默认交给 Media3 PlayerView；页面不能叠加第二套 app 级播放按钮，播放 / 暂停、seek、进度条和控制显隐交给 Media3 原生控制层与遥控器媒体键，退出播放使用系统 Back。
+- 播放器按 Back 时必须在播放器上方显示退出确认对话框，只有再次确认才释放播放器并回到详情；取消确认应回到播放，不能把播放器页面替换成普通确认页。
 - 当 Media3 因编码、转码、网络或 URL 问题播放失败时，界面会释放播放器并显示中文恢复建议，而不是停留在不可诊断的播放器页。
 - Jellyfin / Emby 返回 HLS 转码播放候选时，APK 包含 `media3-exoplayer-hls`，打开播放器不会因缺少 `HlsMediaSource.Factory` 崩溃。
 - HTTP 本地服务器地址如 `http://host:8096` 可以连接。
@@ -90,10 +96,12 @@ Android TV 设备或模拟器上需要验证：
 - 诊断页可以导出不含 token 的 `cinepilot-diagnostics.txt` 到 app 私有文件目录。
 - 详情页展示可读的恢复播放时间，不显示原始协议 ticks。
 - 详情页的音轨 / 字幕入口能列出 playback info 中的多个 media sources、audio streams 和 subtitle streams，并把选择的 media source id / stream index 用于播放准备。
+- 详情页必须能看见字幕能力，字幕选择必须能进入并选择具体 subtitle stream。
 - 详情页的低码率播放会把最大码率、声道数、起播 ticks 等偏好传入 playback info，并在 HLS URL 构造时继续使用分辨率 / 码率偏好。
 - HLS 播放准备在用户选择字幕时会带上 `SubtitleMethod=Hls`。
 - 搜索无结果或服务器返回空媒体行时，界面会显示“没有可显示的媒体”。
 - 播放开始、暂停、seek、停止会触发 Jellyfin / Emby 播放上报。
+- 硬件媒体键的播放 / 暂停、快退、快进应调用 Media3 控制，保证遥控器按键和播放器原生控制行为一致。
 - Media3 播放状态回调发生在主线程时，播放上报必须切到后台线程发送，不能因 `NetworkOnMainThreadException` 退出应用。
 - token 失效时只影响对应服务器并回到登录。
 - 多服务器 session 不串用。

@@ -4,7 +4,9 @@ import android.content.Context
 import android.net.Uri
 import android.os.Handler
 import android.os.Looper
+import android.view.KeyEvent
 import android.view.View
+import androidx.media3.common.C
 import androidx.media3.common.MediaItem
 import androidx.media3.common.PlaybackException
 import androidx.media3.exoplayer.ExoPlayer
@@ -57,6 +59,25 @@ class Media3PlayerHost(
             this.player = nextPlayer
             useController = true
             keepScreenOn = true
+            setOnKeyListener { _, keyCode, event -> handleRemoteKey(keyCode, event) }
+        }
+    }
+
+    fun seekBack() {
+        seekBy(-10_000L)
+    }
+
+    fun seekForward() {
+        seekBy(30_000L)
+    }
+
+    fun togglePlayPause() {
+        player?.let { currentPlayer ->
+            if (currentPlayer.isPlaying) {
+                currentPlayer.pause()
+            } else {
+                currentPlayer.play()
+            }
         }
     }
 
@@ -74,6 +95,48 @@ class Media3PlayerHost(
     fun shutdown() {
         release()
         checkInExecutor.shutdownNow()
+    }
+
+    private fun handleRemoteKey(keyCode: Int, event: KeyEvent): Boolean {
+        if (event.action != KeyEvent.ACTION_DOWN) {
+            return false
+        }
+        return when (keyCode) {
+            KeyEvent.KEYCODE_MEDIA_REWIND -> {
+                seekBack()
+                true
+            }
+            KeyEvent.KEYCODE_MEDIA_FAST_FORWARD -> {
+                seekForward()
+                true
+            }
+            KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE -> {
+                togglePlayPause()
+                true
+            }
+            KeyEvent.KEYCODE_MEDIA_PLAY -> {
+                player?.play()
+                true
+            }
+            KeyEvent.KEYCODE_MEDIA_PAUSE -> {
+                player?.pause()
+                true
+            }
+            else -> false
+        }
+    }
+
+    private fun seekBy(deltaMillis: Long) {
+        player?.let { currentPlayer ->
+            val duration = currentPlayer.duration
+            val unclampedPosition = currentPlayer.currentPosition + deltaMillis
+            val targetPosition = if (duration != C.TIME_UNSET && duration > 0) {
+                unclampedPosition.coerceIn(0L, duration)
+            } else {
+                unclampedPosition.coerceAtLeast(0L)
+            }
+            currentPlayer.seekTo(targetPosition)
+        }
     }
 
     private fun startProgressTicks(nextPlayer: ExoPlayer, playbackBridge: Media3PlaybackBridge) {

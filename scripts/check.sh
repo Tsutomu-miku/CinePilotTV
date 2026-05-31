@@ -441,8 +441,40 @@ if ! grep -q 'FrameLayout.LayoutParams.MATCH_PARENT' "$ROOT_DIR/app/src/main/jav
   exit 1
 fi
 
+if grep -q 'iconAction\|action(' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/ui/PlayerScreen.kt"; then
+  echo "PlayerScreen must not add a second app-level playback control layer" >&2
+  exit 1
+fi
+
+for host_action in seekBack seekForward togglePlayPause handleRemoteKey KEYCODE_MEDIA_PLAY_PAUSE KEYCODE_MEDIA_REWIND KEYCODE_MEDIA_FAST_FORWARD; do
+  if ! grep -q "$host_action" "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/player/Media3PlayerHost.kt"; then
+    echo "Media3PlayerHost must wire remote playback control: $host_action" >&2
+    exit 1
+  fi
+done
+
 if grep -q 'screen("播放器")' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/MainActivity.kt"; then
   echo "Player route must not be embedded inside the scrolling document screen" >&2
+  exit 1
+fi
+
+if ! grep -q 'showExitPlaybackConfirmation' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/MainActivity.kt"; then
+  echo "MainActivity must confirm before exiting playback from Back" >&2
+  exit 1
+fi
+
+if ! grep -q '退出播放？' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/MainActivity.kt"; then
+  echo "Playback exit confirmation must use a Chinese prompt" >&2
+  exit 1
+fi
+
+if ! grep -q 'AlertDialog.Builder' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/MainActivity.kt"; then
+  echo "Playback exit confirmation must keep the player visible in a dialog" >&2
+  exit 1
+fi
+
+if grep -q 'screen("退出播放？")' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/MainActivity.kt"; then
+  echo "Playback exit confirmation must not replace the player screen" >&2
   exit 1
 fi
 

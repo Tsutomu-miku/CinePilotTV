@@ -32,7 +32,7 @@ Jellyfin 登录页可以发起 Quick Connect：Activity 展示服务器返回的
 
 `Media3PlayerHost` 负责把 `TvAppState.playableMedia` 转换为 Media3 `MediaItem`，创建 `ExoPlayer` 和 `PlayerView`，并在 Activity 销毁或用户停止播放时释放播放器。Android app 必须同时依赖 `media3-exoplayer` 和 `media3-exoplayer-hls`，因为 Jellyfin / Emby 的转码候选通常是 HLS master playlist。
 
-进入播放器页后，Activity 应主动把焦点交给 `PlayerView`，让遥控器播放控制优先落在 Media3。播放器页面必须使用黑底全屏播放器 surface，停止和诊断动作放在底部半透明控制层，不能把播放器嵌入普通滚动文档页。
+进入播放器页后，Activity 应主动把焦点交给 `PlayerView`，让遥控器播放控制优先落在 Media3。播放器页面必须使用黑底全屏播放器 surface，不叠加第二套 app 级播放按钮；播放 / 暂停、seek、进度条和控制显隐交给 Media3 原生控制层与遥控器媒体键，退出播放使用系统 Back。
 
 `Media3PlaybackBridge` 监听 Media3 player 状态并调用 `PlaybackSessionController`，把 ready、pause、unpause、seek、ended 和 release 转换为服务器播放上报。Media3 `onPlayerError` 必须回到 Android 错误页，用中文提示播放失败和可尝试的低码率 / 轨道切换 / 转码设置方向；错误页和诊断都不能展示 raw playback URL 或 token。
 

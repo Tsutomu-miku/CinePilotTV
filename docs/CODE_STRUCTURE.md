@@ -7,7 +7,7 @@ app/
   src/main/java/tv/cinepilot/tv/
     MainActivity.kt              Android TV 启动 Activity、页面流程和事件转发
     CinePilotViewModel.kt        Android lifecycle 持有 runtime 和 workflow controller
-    player/Media3PlayerHost.kt   Media3 ExoPlayer / PlayerView 宿主
+    player/Media3PlayerHost.kt   Media3 ExoPlayer / PlayerView 宿主和遥控器媒体键控制
     player/Media3PlaybackBridge.kt Media3 事件到播放上报控制器的桥接
     runtime/CinePilotRuntime.kt  Android app runtime composition root
     ui/TvDesign.kt               TV 色彩、间距、圆角、字号和固定尺寸 design tokens

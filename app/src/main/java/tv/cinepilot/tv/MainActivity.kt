@@ -1,5 +1,6 @@
 package tv.cinepilot.tv
 
+import android.app.AlertDialog
 import android.content.Intent
 import android.content.pm.ApplicationInfo
 import android.graphics.Color
@@ -120,12 +121,25 @@ class MainActivity : ComponentActivity() {
                 showHome(viewModel.workflowController.state())
             }
             TvRoute.PLAYER -> {
+                showExitPlaybackConfirmation()
+            }
+        }
+    }
+
+    private fun showExitPlaybackConfirmation() {
+        AlertDialog.Builder(this)
+            .setTitle("退出播放？")
+            .setMessage("当前播放会停止，并回到详情页。")
+            .setNegativeButton("继续播放") { dialog, _ ->
+                dialog.dismiss()
+            }
+            .setPositiveButton("退出播放") { _, _ ->
                 playerHost.release()
                 viewModel.workflowController.back()
                 viewModel.workflowController.state().selectedItem()?.let(::showDetails)
                     ?: showHome(viewModel.workflowController.state())
             }
-        }
+            .show()
     }
 
     private fun showServerEntry() {
@@ -589,16 +603,6 @@ class MainActivity : ComponentActivity() {
         }
         setContentView(playerScreen(
             playerView = playerView,
-            title = state.selectedItem()?.name().orEmpty(),
-            onStop = {
-                playerHost.release()
-                viewModel.workflowController.back()
-                viewModel.workflowController.state().selectedItem()?.let(::showDetails)
-            },
-            onDiagnostics = {
-                playerHost.release()
-                showDiagnostics(state, returnToPlayer = true)
-            },
         ))
         playerView.post { playerView.requestFocus() }
     }

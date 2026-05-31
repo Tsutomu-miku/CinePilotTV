@@ -42,6 +42,9 @@ CinePilot TV 是一个客厅优先的 Android TV 播放器，服务于使用 Jel
 - 用户必须能浏览媒体库、继续观看、最新媒体、电影、剧集、季、集和可播放文件夹。
 - UI 在排序、筛选、焦点移动和页面恢复时必须保留媒体项身份。
 - 图片加载失败不能让某一行或某个媒体项变得不可访问。
+- 详情页标题过长时不得遮挡第一行元信息；标题应换行、截断或压缩到安全区域内。
+- 详情页应次级展示播放相关技术信息，包括分辨率、容器 / 编码、大小、声道、HDR / Dolby Vision / Dolby Atmos 等能力，以及可用字幕概览。
+- 字幕必须支持选择；选择字幕后，播放准备和实际播放必须使用对应字幕 stream index，并在需要 HLS 字幕交付时携带协议参数。
 
 ### 播放
 
@@ -58,10 +61,10 @@ CinePilot TV 是一个客厅优先的 Android TV 播放器，服务于使用 Jel
 - 焦点必须可见、稳定，且不能困在不可播放的行里。
 - 文本输入应尽量减少遥控器打字，优先使用 public users、已保存服务器和 Quick Connect。
 - 启动后的首屏必须是服务器选择页，或上一次已认证用户的首页。
+- 播放器内按 Back 退出播放前必须二次确认，避免误操作导致播放中断。
 
 ## 外部 API 备注
 
 - Jellyfin 认证通常返回 access token，后续 API 调用需要带上该 token。服务器启用时，Jellyfin Quick Connect 是更适合电视端的登录方式。
 - Emby 文档包含 `/Users/AuthenticateByName`、通过 `X-Emby-Token` 复用 token、通过 `/Sessions/Logout` 登出，以及用 `/System/Info` 的 server id 约束已保存 token。
 - Emby 文档包含 `/Sessions/Playing`、`/Sessions/Playing/Progress`、`/Sessions/Playing/Stopped` 这些播放 check-in；CinePilot 会把这些视为共享媒体浏览协议语义，除非某个服务器专用适配器证明需要不同处理。
-

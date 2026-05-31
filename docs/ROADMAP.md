@@ -45,8 +45,8 @@
 状态：进行中。
 
 - P0-6 本机具备 Android SDK 后启用 Gradle Android 构建。进度：`:core` 与 `:app` 已接入 Gradle 多模块工程，当前环境通过本地临时 SDK 验证 `:app:assembleDebug`。
-- P0-7 添加可启动的 TV Activity，并建立 D-pad 安全的导航脚手架。进度：TV workflow 状态 / 导航 reducer、Android runtime composition root、原生 UI、显式焦点样式和遥控器 Back 导航接线已完成；真实设备焦点 QA 未完成。
-- P0-8 添加 Media3 播放器宿主生命周期和占位播放状态接线。进度：`Media3PlayerHost` 生命周期、release、播放 URL 授权、progress ticker、播放错误回传和 release 上报容错已完成；真实设备播放 QA 未完成。
+- P0-7 添加可启动的 TV Activity，并建立 D-pad 安全的导航脚手架。进度：TV workflow 状态 / 导航 reducer、Android runtime composition root、原生 UI、显式焦点样式、遥控器 Back 导航和播放器遥控器媒体键已完成；真机已验证首页、详情、播放器、Back 返回详情和 force-stop 后恢复。
+- P0-8 添加 Media3 播放器宿主生命周期和占位播放状态接线。进度：`Media3PlayerHost` 生命周期、release、播放 URL 授权、progress ticker、播放错误回传、release 上报容错、硬件媒体键播放 / 暂停 / 快退 / 快进已完成；真机已验证 Jellyfin 播放启动、全屏播放器、Back 返回详情和无 fatal 播放错误。
 
 退出标准：
 
@@ -82,10 +82,10 @@
 
 状态：进行中。
 
-- P0-17 用 Android TV UI 渲染服务器输入、登录、首页、详情和播放器入口。进度：原生 View 最小流程已完成，启动自动恢复、服务器 URL 输入、public users 选择、密码遮蔽、显式焦点样式、服务器连接、登录、会话恢复、首页加载、搜索、文件夹 / 剧集层级浏览、详情加载、海报、简介 / 类型 / 时长 / 季集展示、可读恢复播放时间、继续播放、从头播放、低码率播放、播放前媒体源 / 音轨 / 字幕选择、连接 / HTTP / 地址错误中文提示、上下文错误恢复、Back 导航和播放准备均走已接线流程，尚未做最终 TV 视觉打磨。
+- P0-17 用 Android TV UI 渲染服务器输入、登录、首页、详情和播放器入口。进度：原生 View 流程已完成，启动自动恢复、服务器 URL 输入、public users 选择、密码遮蔽、显式焦点样式、服务器连接、登录、会话恢复、首页加载、搜索、文件夹 / 剧集层级浏览、详情加载、海报、中文元信息、简介 / 类型 / 时长 / 季集展示、可读恢复播放时间、继续播放、从头播放、低码率播放、播放前媒体源 / 音轨 / 字幕选择、连接 / HTTP / 地址错误中文提示、上下文错误恢复、Back 导航、全屏播放器和遥控器播放控制均走已接线流程；仍需继续做 TV 视觉细节打磨。
 - P0-18 将 `TvWorkflow` 接入 Activity / ViewModel，保证焦点按 item id 恢复。进度：`TvWorkflow`、`HomeRowsLoader`、核心 `TvWorkflowController`、Android runtime 暴露、`CinePilotViewModel` 接线和首页 item id 焦点恢复已完成。
-- P0-19 将 `PlayableMedia` 接入 Media3 player host。进度：`Media3PlayerHost` 已接入最小播放器视图，为播放 URL 追加 `api_key`，并在播放失败时回到可恢复错误页；真实设备播放验证未完成。
-- P0-20 将 Media3 播放事件桥接到 `PlaybackSessionController`。进度：`Media3PlaybackBridge` 已接入 player host，ready / pause / unpause / seek / ended / release / playback speed / playback error 均有桥接路径；真实设备验证未完成。
+- P0-19 将 `PlayableMedia` 接入 Media3 player host。进度：`Media3PlayerHost` 已接入全屏播放器视图，为播放 URL 追加 `api_key`，并在播放失败时回到可恢复错误页；真机已验证 Jellyfin 媒体可播放、停止后返回详情。
+- P0-20 将 Media3 播放事件桥接到 `PlaybackSessionController`。进度：`Media3PlaybackBridge` 已接入 player host，ready / pause / unpause / seek / ended / release / playback speed / playback error 均有桥接路径；本地 HTTP 集成测试覆盖上报，真机已验证播放、硬件媒体键 smoke 和停止返回不崩溃。
 
 退出标准：
 
@@ -104,8 +104,11 @@
 - Jellyfin Quick Connect 已具备最小登录入口和授权状态自动轮询，后续可补更细的等待状态。
 - public-user 登录界面已具备最小入口和 passwordless 一键确认，后续可补头像。
 - 继续观看、下一集、最新媒体行、剧集 / 季 / 集浏览、分页和稳定默认排序已具备最小入口。
-- 播放前媒体源、字幕和音轨选择已具备最小入口；播放中切换仍等待稳定的 Media3 track 到 Jellyfin / Emby `MediaStream.Index` 映射。
+- 详情页技术信息展示：分辨率、容器 / 编码、文件大小、声道、HDR、Dolby Vision、Dolby Atmos 和字幕概览需要从 playback info / media stream metadata 中整理成次级信息，避免主信息拥挤。
+- 详情页长标题排版：标题过长时必须保护首行元信息和播放按钮，不得遮挡或挤压到不可读。
+- 播放前媒体源、字幕和音轨选择已具备最小入口；字幕选择必须作为正式能力继续打磨，播放中切换仍等待稳定的 Media3 track 到 Jellyfin / Emby `MediaStream.Index` 映射。
 - 恢复播放弹窗和下一集行为；详情页已提供继续播放、从头播放和低码率播放的最小入口。
+- 播放器防误触：Back 退出播放前需要二次确认，确认层也不能形成第二套播放控制。
 - 无法连接服务器、不支持媒体、token 过期和上下文错误恢复已具备最小入口。
 - Media3 播放失败会释放播放器并显示中文恢复建议，后续可细分更多 codec / DRM / 网络错误类型。
 - 设备端诊断信息已具备最小快照和不含 token 的文件导出。
