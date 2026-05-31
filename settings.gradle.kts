@@ -15,5 +15,4 @@ dependencyResolutionManagement {
 }
 
 rootProject.name = "CinePilotTV"
-include(":app")
-
+include(":app", ":core")

@@ -6,6 +6,8 @@
 
 `core` 负责媒体浏览协议身份、endpoint 构造、播放上报语义和纯产品规则。
 
+Gradle 工程必须保持 `:app` 依赖 `:core`。Android UI 和播放器层只能通过 `:core` 的公开类型使用协议能力，不能复制请求构造或响应解析逻辑。
+
 后续的 `platform` 适配器会负责 HTTP transport、token 持久化、图片加载和 Android 专用存储。
 
 UI 界面应该调用应用控制器或 store。界面组件不能直接构造 Jellyfin / Emby URL、认证请求头或播放上报载荷。

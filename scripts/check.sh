@@ -23,6 +23,21 @@ for doc in "${required_docs[@]}"; do
   fi
 done
 
+if ! grep -q 'include(":app", ":core")' "$ROOT_DIR/settings.gradle.kts"; then
+  echo "settings.gradle.kts must include both :app and :core" >&2
+  exit 1
+fi
+
+if ! grep -q 'implementation(project(":core"))' "$ROOT_DIR/app/build.gradle.kts"; then
+  echo "app/build.gradle.kts must depend on project(\":core\")" >&2
+  exit 1
+fi
+
+if [[ ! -s "$ROOT_DIR/core/build.gradle.kts" ]]; then
+  echo "Missing core Gradle module build file" >&2
+  exit 1
+fi
+
 rm -rf "$BUILD_DIR"
 mkdir -p "$MAIN_CLASSES" "$TEST_CLASSES"
 

@@ -7,6 +7,7 @@ app/
   src/main/java/tv/cinepilot/tv/
     MainActivity.kt              Android TV 启动 Activity
 core/
+  build.gradle.kts              JVM/Java Gradle module
   src/main/java/tv/cinepilot/core/
     protocol/                    服务器、认证、endpoint 和播放协议规则
       PlaybackInfoOptions.java   playback info 查询参数
@@ -30,7 +31,7 @@ scripts/                         健康检查和本地自动化
 
 ## 放置规则
 
-- 纯服务器语义和播放语义放在 `core`。
+- 纯服务器语义和播放语义放在 `core`，并通过 Gradle `:core` module 暴露给 Android app。
 - Android 生命周期、焦点和 Media3 集成放在 `app`。
 - HTTP client 和持久化放在后续 platform adapter 包下。
 - UI 代码不能依赖协议包里的实现细节。
