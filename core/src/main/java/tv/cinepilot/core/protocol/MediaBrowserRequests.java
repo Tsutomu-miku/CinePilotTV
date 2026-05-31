@@ -1,0 +1,131 @@
+package tv.cinepilot.core.protocol;
+
+import java.util.LinkedHashMap;
+import java.util.Map;
+
+public final class MediaBrowserRequests {
+    private MediaBrowserRequests() {
+    }
+
+    public static ProtocolRequest publicSystemInfo() {
+        return ProtocolRequest.get("/System/Info/Public")
+                .header("Accept", "application/json")
+                .build();
+    }
+
+    public static ProtocolRequest systemInfo(AuthSession session, ServerFlavor flavor) {
+        return authenticated(ProtocolRequest.get("/System/Info"), session, flavor).build();
+    }
+
+    public static ProtocolRequest publicUsers(ClientIdentity client, ServerFlavor flavor) {
+        return ProtocolRequest.get("/Users/Public")
+                .header("Accept", "application/json")
+                .header("X-Emby-Authorization", clientAuthorization(client, flavor))
+                .build();
+    }
+
+    public static ProtocolRequest authenticateByName(
+            ClientIdentity client,
+            ServerFlavor flavor,
+            String username,
+            String password
+    ) {
+        require(username, "username");
+        Map<String, Object> body = new LinkedHashMap<>();
+        body.put("Username", username);
+        body.put("Pw", password == null ? "" : password);
+        return ProtocolRequest.post("/Users/AuthenticateByName")
+                .header("X-Emby-Authorization", clientAuthorization(client, flavor))
+                .jsonBody(JsonPayload.object(body))
+                .build();
+    }
+
+    public static ProtocolRequest logout(AuthSession session, ServerFlavor flavor) {
+        return authenticated(ProtocolRequest.post("/Sessions/Logout"), session, flavor).build();
+    }
+
+    public static ProtocolRequest userViews(AuthSession session, ServerFlavor flavor) {
+        String userId = ProtocolRequest.encodePathSegment(session.userId());
+        return authenticated(ProtocolRequest.get("/Users/" + userId + "/Views"), session, flavor)
+                .query("EnableImages", "true")
+                .query("EnableUserData", "true")
+                .build();
+    }
+
+    public static ProtocolRequest items(AuthSession session, ServerFlavor flavor, ItemQuery query) {
+        String userId = ProtocolRequest.encodePathSegment(session.userId());
+        ProtocolRequest.Builder builder = authenticated(
+                ProtocolRequest.get("/Users/" + userId + "/Items"),
+                session,
+                flavor
+        );
+        for (Map.Entry<String, String> entry : query.values().entrySet()) {
+            builder.query(entry.getKey(), entry.getValue());
+        }
+        return builder.build();
+    }
+
+    public static ProtocolRequest resumeItems(AuthSession session, ServerFlavor flavor, int limit) {
+        String userId = ProtocolRequest.encodePathSegment(session.userId());
+        return authenticated(ProtocolRequest.get("/Users/" + userId + "/Items/Resume"), session, flavor)
+                .query("MediaTypes", "Video")
+                .query("Limit", Integer.toString(limit))
+                .query("EnableImages", "true")
+                .query("EnableUserData", "true")
+                .query("ImageTypeLimit", "1")
+                .query("Fields", "PrimaryImageAspectRatio,MediaSources,MediaStreams,Overview,ParentId,Genres,ProductionYear")
+                .build();
+    }
+
+    public static ProtocolRequest latestItems(AuthSession session, ServerFlavor flavor, String parentId, int limit) {
+        String userId = ProtocolRequest.encodePathSegment(session.userId());
+        return authenticated(ProtocolRequest.get("/Users/" + userId + "/Items/Latest"), session, flavor)
+                .query("ParentId", parentId)
+                .query("Limit", Integer.toString(limit))
+                .query("EnableImages", "true")
+                .query("EnableUserData", "true")
+                .query("ImageTypeLimit", "1")
+                .query("Fields", "PrimaryImageAspectRatio,MediaSources,MediaStreams,Overview,ParentId,Genres,ProductionYear")
+                .build();
+    }
+
+    public static ProtocolRequest item(AuthSession session, ServerFlavor flavor, String itemId) {
+        require(itemId, "itemId");
+        String userId = ProtocolRequest.encodePathSegment(session.userId());
+        String encodedItemId = ProtocolRequest.encodePathSegment(itemId);
+        return authenticated(ProtocolRequest.get("/Users/" + userId + "/Items/" + encodedItemId), session, flavor)
+                .query("Fields", "PrimaryImageAspectRatio,MediaSources,MediaStreams,Overview,ParentId,Genres,ProductionYear,Chapters")
+                .build();
+    }
+
+    static String clientAuthorization(ClientIdentity client, ServerFlavor flavor) {
+        String scheme = flavor == ServerFlavor.EMBY ? "Emby" : "MediaBrowser";
+        return scheme + " " +
+                "Client=\"" + escape(client.clientName()) + "\", " +
+                "Device=\"" + escape(client.deviceName()) + "\", " +
+                "DeviceId=\"" + escape(client.deviceId()) + "\", " +
+                "Version=\"" + escape(client.version()) + "\"";
+    }
+
+    private static ProtocolRequest.Builder authenticated(
+            ProtocolRequest.Builder builder,
+            AuthSession session,
+            ServerFlavor flavor
+    ) {
+        return builder
+                .header("Accept", "application/json")
+                .header("X-Emby-Authorization", session.authorizationValue(flavor))
+                .header(session.legacyTokenHeaderName(), session.accessToken());
+    }
+
+    private static String escape(String value) {
+        return value.replace("\\", "\\\\").replace("\"", "\\\"");
+    }
+
+    private static void require(String value, String name) {
+        if (value == null || value.isBlank()) {
+            throw new IllegalArgumentException(name + " is required");
+        }
+    }
+}
+
