@@ -712,6 +712,11 @@ if ! grep -q 'sourcePreferences' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/Ma
   exit 1
 fi
 
+if ! grep -q 'trackPreferences(item, source.id()' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/MainActivity.kt"; then
+  echo "MainActivity must bind audio and subtitle choices to their media source" >&2
+  exit 1
+fi
+
 if ! grep -q 'subtitleMethod("Hls")' "$ROOT_DIR/core/src/main/java/tv/cinepilot/core/protocol/PlaybackSourceSelector.java"; then
   echo "PlaybackSourceSelector must request HLS subtitle delivery when a subtitle is selected" >&2
   exit 1

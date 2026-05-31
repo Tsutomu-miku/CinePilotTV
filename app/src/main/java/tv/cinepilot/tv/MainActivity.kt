@@ -497,44 +497,44 @@ class MainActivity : ComponentActivity() {
         if (playbackInfo.itemId() == item.id()) {
             selectedPlaybackInfo = playbackInfo
         }
-        val streams = playbackInfo.mediaSources()
-            .flatMap { source -> source.mediaStreams() }
-            .distinctBy { stream -> "${stream.type()}:${stream.index()}" }
-        val audioStreams = streams.filter { stream -> stream.type() == MediaStreamType.AUDIO }
-        val subtitleStreams = streams.filter { stream -> stream.type() == MediaStreamType.SUBTITLE }
         setContentView(screen("音轨 / 字幕") {
             addView(action("按服务器默认播放") {
                 preparePlaybackWith(null)
             })
-            if (playbackInfo.mediaSources().size > 1) {
-                addView(section("媒体源"))
-                playbackInfo.mediaSources().forEach { source ->
-                    addView(action(sourceLabel(source)) {
-                        preparePlaybackWith(sourcePreferences(item, source.id()))
-                    })
+            playbackInfo.mediaSources().forEachIndexed { index, source ->
+                val audioStreams = source.mediaStreams().filter { stream -> stream.type() == MediaStreamType.AUDIO }
+                val subtitleStreams = source.mediaStreams().filter { stream -> stream.type() == MediaStreamType.SUBTITLE }
+                val sourceTitle = if (playbackInfo.mediaSources().size > 1) {
+                    "媒体源 ${index + 1}"
+                } else {
+                    "媒体源"
                 }
-            }
-            addView(section("音轨"))
-            if (audioStreams.isEmpty()) {
-                addView(label("服务器未返回可选音轨"))
-            } else {
-                audioStreams.forEach { stream ->
-                    addView(action("音轨 ${stream.index()}：${streamLabel(stream)}") {
-                        preparePlaybackWith(trackPreferences(item, stream.index(), null))
-                    })
+                addView(section(sourceTitle))
+                addView(action(sourceLabel(source)) {
+                    preparePlaybackWith(sourcePreferences(item, source.id()))
+                })
+                addView(section("音轨"))
+                if (audioStreams.isEmpty()) {
+                    addView(label("服务器未返回可选音轨"))
+                } else {
+                    audioStreams.forEach { stream ->
+                        addView(action("音轨 ${stream.index()}：${streamLabel(stream)}") {
+                            preparePlaybackWith(trackPreferences(item, source.id(), stream.index(), null))
+                        })
+                    }
                 }
-            }
-            addView(section("字幕"))
-            addView(action("关闭字幕播放") {
-                preparePlaybackWith(trackPreferences(item, null, -1))
-            })
-            if (subtitleStreams.isEmpty()) {
-                addView(label("服务器未返回可选字幕"))
-            } else {
-                subtitleStreams.forEach { stream ->
-                    addView(action("字幕 ${stream.index()}：${streamLabel(stream)}") {
-                        preparePlaybackWith(trackPreferences(item, null, stream.index()))
-                    })
+                addView(section("字幕"))
+                addView(action("关闭字幕播放") {
+                    preparePlaybackWith(trackPreferences(item, source.id(), null, -1))
+                })
+                if (subtitleStreams.isEmpty()) {
+                    addView(label("服务器未返回可选字幕"))
+                } else {
+                    subtitleStreams.forEach { stream ->
+                        addView(action("字幕 ${stream.index()}：${streamLabel(stream)}") {
+                            preparePlaybackWith(trackPreferences(item, source.id(), null, stream.index()))
+                        })
+                    }
                 }
             }
             addView(action("返回详情") { showDetails(item) })
@@ -716,11 +716,13 @@ class MainActivity : ComponentActivity() {
 
     private fun trackPreferences(
         item: MediaItemSummary,
+        mediaSourceId: String,
         audioStreamIndex: Int?,
         subtitleStreamIndex: Int?,
     ): PlaybackSelectionPreferences {
         val startTimeTicks = if (item.hasResumePosition()) item.userData().playbackPositionTicks() else 0L
         return PlaybackSelectionPreferences(startTimeTicks, audioStreamIndex, subtitleStreamIndex, null, 0, 0, 0)
+            .withMediaSourceId(mediaSourceId)
     }
 
     private fun sourcePreferences(item: MediaItemSummary, mediaSourceId: String): PlaybackSelectionPreferences {

@@ -106,7 +106,7 @@ Android TV 设备或模拟器上需要验证：
 - 诊断页可以导出不含 token 的 `cinepilot-diagnostics.txt` 到 app 私有文件目录。
 - 诊断页可以通过系统分享发送不含 token 的文本诊断快照，方便从电视设备导出排障信息。
 - 详情页展示可读的恢复播放时间，不显示原始协议 ticks。
-- 详情页的音轨 / 字幕入口能列出 playback info 中的多个 media sources、audio streams 和 subtitle streams，并把选择的 media source id / stream index 用于播放准备。
+- 详情页的音轨 / 字幕入口能按 media source 分组列出 playback info 中的 media sources、audio streams 和 subtitle streams，并把选择所属的 media source id / stream index 一起用于播放准备，避免多版本影片选错源。
 - 详情页必须能看见字幕能力，字幕选择必须能进入并选择具体 subtitle stream。
 - 详情页的低码率播放会把最大码率、声道数、起播 ticks 等偏好传入 playback info，并在 HLS URL 构造时继续使用分辨率 / 码率偏好。
 - HLS 播放准备在用户选择字幕时会带上 `SubtitleMethod=Hls`。
