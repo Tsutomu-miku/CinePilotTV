@@ -130,17 +130,17 @@ if ! grep -q 'TvRoute.PLAYER' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/MainA
   exit 1
 fi
 
-if ! grep -q 'TYPE_TEXT_VARIATION_PASSWORD' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/MainActivity.kt"; then
-  echo "MainActivity must mask the password input" >&2
+if ! grep -q 'TYPE_TEXT_VARIATION_PASSWORD' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/auth/AuthScreens.kt"; then
+  echo "Auth screens must mask the password input" >&2
   exit 1
 fi
 
-if ! grep -q 'TYPE_TEXT_VARIATION_URI' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/MainActivity.kt"; then
-  echo "MainActivity must optimize server URL input" >&2
+if ! grep -q 'TYPE_TEXT_VARIATION_URI' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/auth/AuthScreens.kt"; then
+  echo "Auth screens must optimize server URL input" >&2
   exit 1
 fi
 
-if ! grep -q 'http://192.168.1.10:8096' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/MainActivity.kt"; then
+if ! grep -q 'http://192.168.1.10:8096' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/auth/AuthScreens.kt"; then
   echo "Server entry placeholder should match common local Jellyfin/Emby HTTP addresses" >&2
   exit 1
 fi
@@ -150,9 +150,21 @@ if ! grep -q 'candidate = "http://"' "$ROOT_DIR/core/src/main/java/tv/cinepilot/
   exit 1
 fi
 
-for ui_text in "连接服务器" "登录" "首页" "播放" "继续" "清除已保存登录" "退出登录"; do
-  if ! grep -q "$ui_text" "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/MainActivity.kt"; then
-    echo "MainActivity is missing TV UI text: $ui_text" >&2
+for auth_text in "连接服务器" "登录" "继续" "清除已保存登录"; do
+  if ! grep -q "$auth_text" "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/auth/AuthScreens.kt"; then
+    echo "Auth screens are missing TV UI text: $auth_text" >&2
+    exit 1
+  fi
+done
+
+if ! grep -q "首页" "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/ui/HomeScreen.kt"; then
+  echo "Home screen is missing TV UI text: 首页" >&2
+  exit 1
+fi
+
+for playback_text in "播放" "退出登录"; do
+  if ! grep -R -q "$playback_text" "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv"; then
+    echo "TV UI is missing text: $playback_text" >&2
     exit 1
   fi
 done
@@ -197,7 +209,7 @@ if ! grep -q 'RecentAccountStore' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/M
   exit 1
 fi
 
-if ! grep -F -q '服务器 ${server.displayName()}' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/MainActivity.kt"; then
+if ! grep -F -q '服务器 ${server.displayName()}' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/auth/AuthScreens.kt"; then
   echo "Server entry must expose recently connected servers" >&2
   exit 1
 fi
@@ -757,18 +769,23 @@ if ! grep -q 'builder.mediaSourceId' "$ROOT_DIR/core/src/main/java/tv/cinepilot/
   exit 1
 fi
 
-if ! grep -q '选择用户' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/MainActivity.kt"; then
-  echo "MainActivity must expose public users on the login screen" >&2
+if [[ ! -s "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/auth/AuthScreens.kt" ]]; then
+  echo "Missing dedicated auth screens module" >&2
   exit 1
 fi
 
-if ! grep -q '免密码登录' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/MainActivity.kt"; then
-  echo "MainActivity must expose passwordless public-user login" >&2
+if ! grep -q '选择用户' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/auth/AuthScreens.kt"; then
+  echo "Auth screens must expose public users on the login screen" >&2
   exit 1
 fi
 
-if ! grep -q 'Quick Connect' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/MainActivity.kt"; then
-  echo "MainActivity must expose Jellyfin Quick Connect login" >&2
+if ! grep -q '免密码登录' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/auth/AuthScreens.kt"; then
+  echo "Auth screens must expose passwordless public-user login" >&2
+  exit 1
+fi
+
+if ! grep -q 'Quick Connect' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/auth/AuthScreens.kt"; then
+  echo "Auth screens must expose Jellyfin Quick Connect login" >&2
   exit 1
 fi
 

@@ -9,7 +9,6 @@ import android.os.Looper
 import android.text.InputType
 import android.view.View
 import android.view.inputmethod.EditorInfo
-import android.widget.EditText
 import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.TextView
@@ -23,7 +22,6 @@ import tv.cinepilot.core.protocol.MediaItemSummary
 import tv.cinepilot.core.protocol.MediaStreamType
 import tv.cinepilot.core.protocol.PlaybackInfo
 import tv.cinepilot.core.protocol.PlaybackSelectionPreferences
-import tv.cinepilot.core.protocol.PublicUserSummary
 import tv.cinepilot.core.protocol.QuickConnectSession
 import tv.cinepilot.core.protocol.ServerFlavor
 import tv.cinepilot.core.tv.HomeRow
@@ -31,6 +29,9 @@ import tv.cinepilot.core.tv.TvAppState
 import tv.cinepilot.core.tv.TvDiagnostics
 import tv.cinepilot.core.tv.TvRoute
 import tv.cinepilot.core.tv.TvWorkflowController
+import tv.cinepilot.tv.auth.loginScreen
+import tv.cinepilot.tv.auth.quickConnectScreen
+import tv.cinepilot.tv.auth.serverEntryScreen
 import tv.cinepilot.tv.player.Media3PlayerHost
 import tv.cinepilot.tv.runtime.PrimaryImageLoader
 import tv.cinepilot.tv.runtime.QuickConnectPoller
@@ -167,38 +168,26 @@ class MainActivity : ComponentActivity() {
 
     private fun showServerEntry() {
         quickConnectPoller.stop()
-        val serverInput = input("http://192.168.1.10:8096", InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_URI)
         val recentAccounts = recentAccountStore.accounts()
         val recentServers = recentAccountStore.servers()
             .filterNot { server -> recentAccounts.any { account -> account.serverAddress == server.serverAddress } }
-        setContentView(screen("CinePilot TV") {
-            recentAccounts.forEach { account ->
-                addView(action("继续 ${account.displayName()}") {
-                    runTask("正在恢复上次登录...", {
-                        viewModel.workflowController.submitServer(account.serverAddress)
-                        viewModel.workflowController.restoreSession(account.userId)
-                    }) {
-                        showHome(viewModel.workflowController.state())
-                    }
-                })
-            }
-            recentServers.forEach { server ->
-                addView(action("服务器 ${server.displayName()}") {
-                    connectToServer(server.serverAddress)
-                })
-            }
-            if (recentAccounts.isNotEmpty()) {
-                addView(action("清除已保存登录") {
-                    clearSavedAccounts()
-                    showServerEntry()
-                })
-            }
-            addView(label("服务器地址"))
-            addView(serverInput)
-            addView(action("连接服务器") {
-                connectToServer(serverInput.text.toString())
-            })
-        })
+        setContentView(serverEntryScreen(
+            recentAccounts = recentAccounts,
+            recentServers = recentServers,
+            onContinueAccount = { account ->
+                runTask("正在恢复上次登录...", {
+                    viewModel.workflowController.submitServer(account.serverAddress)
+                    viewModel.workflowController.restoreSession(account.userId)
+                }) {
+                    showHome(viewModel.workflowController.state())
+                }
+            },
+            onOpenServer = ::connectToServer,
+            onClearAccounts = {
+                clearSavedAccounts()
+                showServerEntry()
+            },
+        ))
     }
 
     private fun connectToServer(serverAddress: String) {
@@ -233,41 +222,15 @@ class MainActivity : ComponentActivity() {
 
     private fun showLogin() {
         quickConnectPoller.stop()
-        val usernameInput = input("用户名", InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_NORMAL)
-        val passwordInput = input("密码", InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_PASSWORD)
-        setContentView(screen("登录 ${viewModel.workflowController.state().server()?.serverName() ?: ""}") {
-            if (viewModel.workflowController.state().publicUsers().isNotEmpty()) {
-                addView(section("选择用户"))
-                viewModel.workflowController.state().publicUsers().forEach { user ->
-                    addView(publicUserAction(user, usernameInput, passwordInput))
-                }
-            }
-            addView(label("用户名"))
-            addView(usernameInput)
-            addView(label("密码"))
-            addView(passwordInput)
-            addView(action("登录") {
-                loginWithCredentials(usernameInput.text.toString(), passwordInput.text.toString())
-            })
-            if (viewModel.workflowController.state().server()?.flavor() == ServerFlavor.JELLYFIN) {
-                addView(action("Quick Connect") { startQuickConnectLogin() })
-            }
-            addView(action("返回服务器输入") { showServerEntry() })
-        })
-    }
-
-    private fun publicUserAction(user: PublicUserSummary, usernameInput: EditText, passwordInput: EditText): View {
-        val userName = user.name().ifBlank { user.id() }
-        if (!user.passwordRequired()) {
-            return action("免密码登录 $userName") {
-                usernameInput.setText(userName)
-                loginWithCredentials(userName, "")
-            }
-        }
-        return action(userName) {
-            usernameInput.setText(userName)
-            passwordInput.requestFocus()
-        }
+        val state = viewModel.workflowController.state()
+        setContentView(loginScreen(
+            serverName = state.server()?.serverName().orEmpty(),
+            publicUsers = state.publicUsers(),
+            quickConnectAvailable = state.server()?.flavor() == ServerFlavor.JELLYFIN,
+            onLogin = ::loginWithCredentials,
+            onQuickConnect = ::startQuickConnectLogin,
+            onBackToServer = ::showServerEntry,
+        ))
     }
 
     private fun loginWithCredentials(username: String, password: String) {
@@ -323,15 +286,13 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun showQuickConnect(quickConnect: QuickConnectSession) {
-        setContentView(screen("Quick Connect") {
-            addView(label("授权码：${quickConnect.code()}"))
-            addView(label("请在 Jellyfin 中输入授权码，授权后会自动登录"))
-            quickConnectStatus = label("正在等待授权，电视会每 2 秒自动检查一次").also { status ->
-                addView(status)
-            }
-            addView(action("立即检查授权") { checkQuickConnectNow() })
-            addView(action("返回登录") { showLogin() })
-        })
+        val quickConnectViews = quickConnectScreen(
+            quickConnect = quickConnect,
+            onCheckNow = ::checkQuickConnectNow,
+            onBackToLogin = ::showLogin,
+        )
+        quickConnectStatus = quickConnectViews.status
+        setContentView(quickConnectViews.root)
     }
 
     private fun updateQuickConnectWaiting(attempts: Int) {
