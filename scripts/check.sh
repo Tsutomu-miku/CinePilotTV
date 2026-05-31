@@ -629,13 +629,13 @@ if ! grep -q 'staticVideoStream' "$ROOT_DIR/core/src/main/java/tv/cinepilot/core
   exit 1
 fi
 
-if ! grep -q '打开播放器' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/MainActivity.kt"; then
-  echo "MainActivity must expose a player launch action" >&2
+if ! grep -q '打开播放器' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/playback/PlaybackScreens.kt"; then
+  echo "Playback screens must expose a player launch action" >&2
   exit 1
 fi
 
-if ! grep -q '播放地址已准备' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/MainActivity.kt"; then
-  echo "MainActivity must avoid showing raw playback URLs on the player-ready screen" >&2
+if ! grep -q '播放地址已准备' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/playback/PlaybackScreens.kt"; then
+  echo "Playback screens must avoid showing raw playback URLs on the player-ready screen" >&2
   exit 1
 fi
 
@@ -644,18 +644,18 @@ if ! grep -q 'showPlayer(viewModel.workflowController.state())' "$ROOT_DIR/app/s
   exit 1
 fi
 
-if ! grep -q '诊断信息' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/MainActivity.kt"; then
-  echo "MainActivity must expose diagnostics" >&2
+if ! grep -q '诊断信息' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/playback/PlaybackScreens.kt"; then
+  echo "Playback screens must expose diagnostics" >&2
   exit 1
 fi
 
-if ! grep -q '导出诊断' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/MainActivity.kt"; then
-  echo "MainActivity must export diagnostics" >&2
+if ! grep -q '导出诊断' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/playback/PlaybackScreens.kt"; then
+  echo "Playback screens must export diagnostics" >&2
   exit 1
 fi
 
-if ! grep -q '分享诊断' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/MainActivity.kt"; then
-  echo "MainActivity must share diagnostics through the system chooser" >&2
+if ! grep -q '分享诊断' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/playback/PlaybackScreens.kt"; then
+  echo "Playback screens must expose diagnostics sharing" >&2
   exit 1
 fi
 
@@ -700,7 +700,17 @@ if ! grep -q '低码率播放' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/Main
 fi
 
 if ! grep -q '播放速度' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/MainActivity.kt"; then
-  echo "MainActivity must expose playback speed selection" >&2
+  echo "MainActivity must route playback speed selection" >&2
+  exit 1
+fi
+
+if [[ ! -s "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/playback/PlaybackScreens.kt" ]]; then
+  echo "Missing dedicated playback screens module" >&2
+  exit 1
+fi
+
+if ! grep -q '播放速度' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/playback/PlaybackScreens.kt"; then
+  echo "Playback screens must expose playback speed selection" >&2
   exit 1
 fi
 
@@ -709,8 +719,8 @@ if ! grep -q 'setPlaybackSpeed' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/pla
   exit 1
 fi
 
-if ! grep -q '音轨 / 字幕' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/MainActivity.kt"; then
-  echo "MainActivity must expose audio and subtitle selection" >&2
+if ! grep -q '音轨 / 字幕' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/playback/PlaybackScreens.kt"; then
+  echo "Playback screens must expose audio and subtitle selection" >&2
   exit 1
 fi
 
@@ -734,8 +744,8 @@ if ! grep -q 'sourcePreferences' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/Ma
   exit 1
 fi
 
-if ! grep -q 'trackPreferences(item, source.id()' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/MainActivity.kt"; then
-  echo "MainActivity must bind audio and subtitle choices to their media source" >&2
+if ! grep -q 'onSubtitle(source.id(), stream.index())' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/playback/PlaybackScreens.kt"; then
+  echo "Playback screens must bind audio and subtitle choices to their media source" >&2
   exit 1
 fi
 

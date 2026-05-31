@@ -19,7 +19,6 @@ import androidx.lifecycle.ViewModelProvider
 import java.util.concurrent.Executors
 import tv.cinepilot.core.protocol.MediaBrowserException
 import tv.cinepilot.core.protocol.MediaItemSummary
-import tv.cinepilot.core.protocol.MediaStreamType
 import tv.cinepilot.core.protocol.PlaybackInfo
 import tv.cinepilot.core.protocol.PlaybackSelectionPreferences
 import tv.cinepilot.core.protocol.QuickConnectSession
@@ -33,6 +32,11 @@ import tv.cinepilot.tv.auth.loginScreen
 import tv.cinepilot.tv.auth.quickConnectScreen
 import tv.cinepilot.tv.auth.serverEntryScreen
 import tv.cinepilot.tv.player.Media3PlayerHost
+import tv.cinepilot.tv.playback.diagnosticsExportedScreen
+import tv.cinepilot.tv.playback.diagnosticsScreen
+import tv.cinepilot.tv.playback.playbackOptionsScreen
+import tv.cinepilot.tv.playback.playbackSpeedScreen
+import tv.cinepilot.tv.playback.playerReadyScreen
 import tv.cinepilot.tv.runtime.PrimaryImageLoader
 import tv.cinepilot.tv.runtime.QuickConnectPoller
 import tv.cinepilot.tv.runtime.RecentAccountStore
@@ -56,9 +60,6 @@ import tv.cinepilot.tv.ui.TvIcon
 import tv.cinepilot.tv.ui.TvSize
 import tv.cinepilot.tv.ui.episodeLabel
 import tv.cinepilot.tv.ui.formatPlaybackPosition
-import tv.cinepilot.tv.ui.playbackSpeedOptions
-import tv.cinepilot.tv.ui.sourceLabel
-import tv.cinepilot.tv.ui.streamLabel
 import tv.cinepilot.tv.ui.tvErrorMessage
 
 class MainActivity : ComponentActivity() {
@@ -491,110 +492,75 @@ class MainActivity : ComponentActivity() {
         if (playbackInfo.itemId() == item.id()) {
             selectedPlaybackInfo = playbackInfo
         }
-        setContentView(screen("音轨 / 字幕") {
-            addView(action("按服务器默认播放") {
-                preparePlaybackWith(null)
-            })
-            playbackInfo.mediaSources().forEachIndexed { index, source ->
-                val audioStreams = source.mediaStreams().filter { stream -> stream.type() == MediaStreamType.AUDIO }
-                val subtitleStreams = source.mediaStreams().filter { stream -> stream.type() == MediaStreamType.SUBTITLE }
-                val sourceTitle = if (playbackInfo.mediaSources().size > 1) {
-                    "媒体源 ${index + 1}"
-                } else {
-                    "媒体源"
-                }
-                addView(section(sourceTitle))
-                addView(action(sourceLabel(source)) {
-                    preparePlaybackWith(sourcePreferences(item, source.id()))
-                })
-                addView(section("音轨"))
-                if (audioStreams.isEmpty()) {
-                    addView(label("服务器未返回可选音轨"))
-                } else {
-                    audioStreams.forEach { stream ->
-                        addView(action("音轨 ${stream.index()}：${streamLabel(stream)}") {
-                            preparePlaybackWith(trackPreferences(item, source.id(), stream.index(), null))
-                        })
-                    }
-                }
-                addView(section("字幕"))
-                addView(action("关闭字幕播放") {
-                    preparePlaybackWith(trackPreferences(item, source.id(), null, -1))
-                })
-                if (subtitleStreams.isEmpty()) {
-                    addView(label("服务器未返回可选字幕"))
-                } else {
-                    subtitleStreams.forEach { stream ->
-                        addView(action("字幕 ${stream.index()}：${streamLabel(stream)}") {
-                            preparePlaybackWith(trackPreferences(item, source.id(), null, stream.index()))
-                        })
-                    }
-                }
-            }
-            addView(action("返回详情") { showDetails(item) })
-        })
+        setContentView(playbackOptionsScreen(
+            item = item,
+            playbackInfo = playbackInfo,
+            onDefault = { preparePlaybackWith(null) },
+            onSource = { sourceId -> preparePlaybackWith(sourcePreferences(item, sourceId)) },
+            onAudio = { sourceId, audioStreamIndex ->
+                preparePlaybackWith(trackPreferences(item, sourceId, audioStreamIndex, null))
+            },
+            onDisableSubtitles = { sourceId ->
+                preparePlaybackWith(trackPreferences(item, sourceId, null, -1))
+            },
+            onSubtitle = { sourceId, subtitleStreamIndex ->
+                preparePlaybackWith(trackPreferences(item, sourceId, null, subtitleStreamIndex))
+            },
+            onBackDetails = { showDetails(item) },
+        ))
     }
 
     private fun showPlaybackSpeedOptions(item: MediaItemSummary) {
-        setContentView(screen("播放速度") {
-            playbackSpeedOptions().forEach { option ->
-                addView(action(option.label) {
-                    preparePlaybackWith(speedPreferences(item, option.rate))
-                })
-            }
-            addView(action("返回详情") { showDetails(item) })
-        })
+        setContentView(playbackSpeedScreen(
+            onSpeed = { rate -> preparePlaybackWith(speedPreferences(item, rate)) },
+            onBackDetails = { showDetails(item) },
+        ))
     }
 
     private fun showPlayerReady(state: TvAppState) {
-        val playable = state.playableMedia()
-        setContentView(screen("准备播放") {
-            addView(label("播放方式：${playable?.playMethod() ?: ""}"))
-            addView(label("媒体源：${playable?.mediaSourceId() ?: ""}"))
-            addView(label("播放地址已准备"))
-            addView(iconAction("打开播放器", TvIcon.PLAY) { showPlayer(state) })
-            addView(action("诊断信息") { showDiagnostics(state) })
-            addView(iconAction("返回详情", TvIcon.BACK) {
+        setContentView(playerReadyScreen(
+            state = state,
+            onOpenPlayer = { showPlayer(state) },
+            onDiagnostics = { showDiagnostics(state) },
+            onBackDetails = {
                 viewModel.workflowController.back()
                 viewModel.workflowController.state().selectedItem()?.let(::showDetails)
-            })
-        })
+            },
+        ))
     }
 
     private fun showDiagnostics(state: TvAppState, returnToPlayer: Boolean = false) {
         val diagnostics = TvDiagnostics.describe(state)
-        setContentView(screen("诊断信息") {
-            addView(label(diagnostics))
-            addView(action("导出诊断") {
+        setContentView(diagnosticsScreen(
+            diagnostics = diagnostics,
+            returnToPlayer = returnToPlayer,
+            onExport = {
                 val file = filesDir.resolve("cinepilot-diagnostics.txt")
                 file.writeText(diagnostics)
                 showDiagnosticsExported(state, file.absolutePath, returnToPlayer)
-            })
-            addView(action("分享诊断") {
-                shareDiagnostics(diagnostics)
-            })
-            if (returnToPlayer) {
-                addView(iconAction("返回播放器", TvIcon.BACK) { showPlayer(state) })
-            } else {
-                addView(iconAction("返回播放准备", TvIcon.BACK) { showPlayerReady(state) })
-            }
-        })
+            },
+            onShare = { shareDiagnostics(diagnostics) },
+            onBackDiagnosticsTarget = { showDiagnosticsTarget(state, returnToPlayer) },
+        ))
     }
 
     private fun showDiagnosticsExported(state: TvAppState, path: String, returnToPlayer: Boolean = false) {
         val diagnostics = TvDiagnostics.describe(state)
-        setContentView(screen("诊断信息") {
-            addView(label("诊断已导出：$path"))
-            addView(action("分享诊断") {
-                shareDiagnostics(diagnostics)
-            })
-            addView(iconAction("返回诊断信息", TvIcon.BACK) { showDiagnostics(state, returnToPlayer) })
-            if (returnToPlayer) {
-                addView(iconAction("返回播放器", TvIcon.BACK) { showPlayer(state) })
-            } else {
-                addView(iconAction("返回播放准备", TvIcon.BACK) { showPlayerReady(state) })
-            }
-        })
+        setContentView(diagnosticsExportedScreen(
+            path = path,
+            returnToPlayer = returnToPlayer,
+            onShare = { shareDiagnostics(diagnostics) },
+            onBackDiagnostics = { showDiagnostics(state, returnToPlayer) },
+            onBackDiagnosticsTarget = { showDiagnosticsTarget(state, returnToPlayer) },
+        ))
+    }
+
+    private fun showDiagnosticsTarget(state: TvAppState, returnToPlayer: Boolean) {
+        if (returnToPlayer) {
+            showPlayer(state)
+        } else {
+            showPlayerReady(state)
+        }
     }
 
     private fun shareDiagnostics(diagnostics: String) {
