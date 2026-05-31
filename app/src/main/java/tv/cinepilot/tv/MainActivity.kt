@@ -16,12 +16,12 @@ import tv.cinepilot.core.protocol.MediaItemSummary
 import tv.cinepilot.core.tv.TvAppState
 import tv.cinepilot.core.tv.TvRoute
 import tv.cinepilot.tv.auth.AuthRouteController
+import tv.cinepilot.tv.error.errorRouteScreen
 import tv.cinepilot.tv.home.homeRouteScreen
 import tv.cinepilot.tv.home.searchScreen
 import tv.cinepilot.tv.player.Media3PlayerHost
 import tv.cinepilot.tv.playback.PlaybackRouteController
 import tv.cinepilot.tv.runtime.PrimaryImageLoader
-import tv.cinepilot.tv.ui.action
 import tv.cinepilot.tv.ui.label
 import tv.cinepilot.tv.ui.screen
 import tv.cinepilot.tv.ui.tvErrorMessage
@@ -205,35 +205,23 @@ class MainActivity : ComponentActivity() {
             viewModel.workflowController.fail(error.message ?: error::class.java.simpleName)
         }
         val state = viewModel.workflowController.state()
-        setContentView(screen("出错了") {
-            val message = if (authenticationExpired) {
-                "会话已过期，请重新登录"
-            } else {
-                tvErrorMessage(error)
-            }
-            addView(label(message))
-            if (state.selectedItem() != null && !authenticationExpired) {
-                addView(action("返回详情") { state.selectedItem()?.let(playbackRoutes::showDetails) })
-            }
-            if (state.playableMedia() != null && !authenticationExpired) {
-                addView(action("低码率重试") {
-                    playbackRoutes.retryLowBitrateFromError(state)
-                })
-                addView(action("切换音轨 / 字幕") {
-                    playbackRoutes.showPlaybackOptionsFromError(state)
-                })
-                addView(action("诊断信息") {
-                    playbackRoutes.showDiagnosticsFromError(state) { showError(error) }
-                })
-            }
-            if (state.homeRows().isNotEmpty() && !authenticationExpired) {
-                addView(action("返回首页") { showHome(state) })
-            }
-            if (state.server() != null) {
-                addView(action("重新登录") { authRoutes.showLogin() })
-            }
-            addView(action("返回服务器输入") { authRoutes.showServerEntry() })
-        })
+        val message = if (authenticationExpired) {
+            "会话已过期，请重新登录"
+        } else {
+            tvErrorMessage(error)
+        }
+        setContentView(errorRouteScreen(
+            state = state,
+            message = message,
+            authenticationExpired = authenticationExpired,
+            onReturnDetails = { state.selectedItem()?.let(playbackRoutes::showDetails) },
+            onRetryLowBitrate = { playbackRoutes.retryLowBitrateFromError(state) },
+            onPlaybackOptions = { playbackRoutes.showPlaybackOptionsFromError(state) },
+            onDiagnostics = { playbackRoutes.showDiagnosticsFromError(state) { showError(error) } },
+            onHome = { showHome(state) },
+            onLogin = authRoutes::showLogin,
+            onServerEntry = authRoutes::showServerEntry,
+        ))
     }
 
     private fun runTask(message: String, task: () -> Unit, onSuccess: () -> Unit) {

@@ -476,6 +476,16 @@ if [[ ! -s "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/ui/TvErrorMessages.kt" ]
   exit 1
 fi
 
+if [[ ! -s "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/error/ErrorRouteScreen.kt" ]]; then
+  echo "Missing dedicated error recovery route screen" >&2
+  exit 1
+fi
+
+if ! grep -q 'errorRouteScreen' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/MainActivity.kt"; then
+  echo "MainActivity must delegate error recovery UI to ErrorRouteScreen" >&2
+  exit 1
+fi
+
 if ! grep -q '会话已过期，请重新登录' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/ui/TvErrorMessages.kt"; then
   echo "TV error messages must explain expired sessions in Chinese" >&2
   exit 1
@@ -486,7 +496,7 @@ if ! grep -q 'workflowController.fail' "$ROOT_DIR/app/src/main/java/tv/cinepilot
   exit 1
 fi
 
-if ! grep -q '返回详情' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/MainActivity.kt"; then
+if ! grep -q '返回详情' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/error/ErrorRouteScreen.kt"; then
   echo "MainActivity must let users recover from detail-scoped errors" >&2
   exit 1
 fi
@@ -755,7 +765,7 @@ if ! grep -q 'retryLowBitrateFromError' "$PLAYBACK_ROUTE_CONTROLLER"; then
   exit 1
 fi
 
-if ! grep -q '低码率重试' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/MainActivity.kt"; then
+if ! grep -q '低码率重试' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/error/ErrorRouteScreen.kt"; then
   echo "Error recovery page must expose low bitrate retry" >&2
   exit 1
 fi
@@ -765,7 +775,7 @@ if ! grep -q 'showPlaybackOptionsFromError' "$PLAYBACK_ROUTE_CONTROLLER"; then
   exit 1
 fi
 
-if ! grep -q '切换音轨 / 字幕' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/MainActivity.kt"; then
+if ! grep -q '切换音轨 / 字幕' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/error/ErrorRouteScreen.kt"; then
   echo "Error recovery page must expose audio and subtitle switching" >&2
   exit 1
 fi

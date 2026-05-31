@@ -110,6 +110,8 @@ Android 错误页必须把地址格式、DNS、连接拒绝、超时、HTTPS/证
 
 非 401 错误应调用 `TvWorkflowController.fail(message)` 保留当前上下文。错误页需要根据 `TvAppState` 提供恢复入口：有 selected item 时可回详情，有 home rows 时可回首页，有 server 时可重新登录，始终可回服务器输入。
 
+错误恢复页 UI 由 `error/ErrorRouteScreen.kt` 组装。`MainActivity` 只负责判断 401 过期、写入 workflow error state 和传入恢复回调，不能继续内联错误页按钮与布局。
+
 `TvWorkflowController` 对可预期的内容边界使用稳定错误消息：空目录使用 `NO_CHILD_ITEM_MESSAGE`，无法从 playback info 选择播放源时使用 `NO_PLAYABLE_SOURCE_MESSAGE`。Android UI 负责把这些消息翻译成中文用户提示。
 
 TV 首页必须提供退出登录入口，调用 `TvWorkflowController.logout()` 让服务器 logout endpoint 和本地 scoped session 撤销走同一条路径，并从 Android 最近登录列表移除当前服务器 / 用户。
