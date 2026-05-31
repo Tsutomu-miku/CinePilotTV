@@ -79,6 +79,11 @@ public final class TvWorkflowController {
         return state;
     }
 
+    public TvAppState focusItem(String rowId, String itemId) {
+        state = TvWorkflow.focusItem(state, rowId, itemId);
+        return state;
+    }
+
     public TvAppState openFirstChild(String parentId) {
         if (state.authenticated() == null) {
             throw new IllegalStateException("authenticated session is required before opening a child item");

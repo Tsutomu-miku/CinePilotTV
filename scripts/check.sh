@@ -81,8 +81,18 @@ if ! grep -q 'restoreSession' "$ROOT_DIR/core/src/main/java/tv/cinepilot/core/tv
   exit 1
 fi
 
+if ! grep -q 'focusItem' "$ROOT_DIR/core/src/main/java/tv/cinepilot/core/tv/TvWorkflowController.java"; then
+  echo "TvWorkflowController must expose TV focus updates" >&2
+  exit 1
+fi
+
 if ! grep -q 'restoreSession' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/MainActivity.kt"; then
   echo "MainActivity must wire saved session restore" >&2
+  exit 1
+fi
+
+if ! grep -q 'requestFocus' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/MainActivity.kt"; then
+  echo "MainActivity must restore focused home item" >&2
   exit 1
 fi
 

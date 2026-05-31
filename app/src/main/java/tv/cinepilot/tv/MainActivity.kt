@@ -93,6 +93,7 @@ class MainActivity : Activity() {
     }
 
     private fun showHome(state: TvAppState) {
+        var focusedButton: View? = null
         setContentView(screen("首页") {
             if (state.homeRows().isEmpty()) {
                 addView(label("没有可显示的媒体"))
@@ -100,7 +101,11 @@ class MainActivity : Activity() {
             state.homeRows().forEach { row ->
                 addView(section(row.title()))
                 row.items().forEach { item ->
-                    addView(itemButton(row, item))
+                    val button = itemButton(row, item)
+                    if (state.focus()?.rowId() == row.id() && state.focus()?.itemId() == item.id()) {
+                        focusedButton = button
+                    }
+                    addView(button)
                 }
             }
             addView(action("重新加载首页") {
@@ -111,6 +116,7 @@ class MainActivity : Activity() {
                 }
             })
         })
+        focusedButton?.post { focusedButton?.requestFocus() }
     }
 
     private fun showDetails(item: MediaItemSummary) {
@@ -171,6 +177,7 @@ class MainActivity : Activity() {
 
     private fun itemButton(row: HomeRow, item: MediaItemSummary): View {
         return action(item.name().ifBlank { item.id() }) {
+            runtime.workflowController.focusItem(row.id(), item.id())
             runTask("正在打开详情...", {
                 runtime.workflowController.openItem(item.id())
             }) {

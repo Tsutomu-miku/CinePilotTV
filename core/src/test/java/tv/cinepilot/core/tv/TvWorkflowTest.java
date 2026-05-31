@@ -191,8 +191,12 @@ public final class TvWorkflowTest {
         assertEquals(TvRoute.HOME, state.route(), "controller logs in and loads home");
         assertEquals(new FocusedItem("views", "movies"), state.focus(), "controller home focus");
 
+        state = controller.focusItem("latest:movies", "movie-1");
+        assertEquals(new FocusedItem("latest:movies", "movie-1"), state.focus(), "controller records item focus");
+
         state = controller.openItem("movie-1");
         assertEquals(TvRoute.DETAILS, state.route(), "controller opens item details");
+        assertEquals(new FocusedItem("latest:movies", "movie-1"), state.focus(), "controller keeps focus through details");
         assertEquals("movie-1", state.selectedItem().id(), "controller selected item");
 
         state = controller.preparePlayback(PlaybackSelectionPreferences.defaults());
