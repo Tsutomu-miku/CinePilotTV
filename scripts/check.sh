@@ -241,6 +241,11 @@ if ! grep -q '打开播放器' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/Main
   exit 1
 fi
 
+if ! grep -q '播放地址已准备' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/MainActivity.kt"; then
+  echo "MainActivity must avoid showing raw playback URLs on the player-ready screen" >&2
+  exit 1
+fi
+
 if ! grep -q '诊断信息' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/MainActivity.kt"; then
   echo "MainActivity must expose diagnostics" >&2
   exit 1

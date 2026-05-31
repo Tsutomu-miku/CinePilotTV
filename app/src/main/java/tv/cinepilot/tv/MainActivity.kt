@@ -226,7 +226,7 @@ class MainActivity : Activity() {
         setContentView(screen("准备播放") {
             addView(label("播放方式：${playable?.playMethod() ?: ""}"))
             addView(label("媒体源：${playable?.mediaSourceId() ?: ""}"))
-            addView(label(playable?.url() ?: playable?.request()?.path() ?: ""))
+            addView(label("播放地址已准备"))
             addView(action("打开播放器") { showPlayer(state) })
             addView(action("诊断信息") { showDiagnostics(state) })
             addView(action("返回详情") {

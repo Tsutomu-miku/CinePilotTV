@@ -20,6 +20,8 @@ Android 遥控器 Back 键必须和页面按钮使用同一套 workflow 语义�
 
 `TvDiagnostics` 生成不含 token 的联调快照，供 TV UI 展示 server、user、item、media source、play method 和焦点信息。
 
+播放准备页只展示播放方式、媒体源和“播放地址已准备”这类安全摘要，不直接展示 raw playback URL。需要排障时走 `TvDiagnostics`，且诊断输出不能包含 token。
+
 `Media3PlayerHost` 负责把 `TvAppState.playableMedia` 转换为 Media3 `MediaItem`，创建 `ExoPlayer` 和 `PlayerView`，并在 Activity 销毁或用户停止播放时释放播放器。
 
 `Media3PlaybackBridge` 监听 Media3 player 状态并调用 `PlaybackSessionController`，把 ready、pause、unpause、seek、ended 和 release 转换为服务器播放上报。
