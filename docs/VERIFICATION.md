@@ -57,6 +57,7 @@ Android TV 设备或模拟器上需要验证：
 - HTTP 本地服务器地址如 `http://host:8096` 可以连接。
 - 播放 URL 携带 token 后，Media3 能访问受保护流。
 - 播放准备页的诊断信息不包含 token，且能显示 server、item、media source、play method。
+- 详情页的低码率播放会把最大码率、声道数、起播 ticks 等偏好传入 playback info，并在 HLS URL 构造时继续使用分辨率 / 码率偏好。
 - 播放开始、暂停、seek、停止会触发 Jellyfin / Emby 播放上报。
 - token 失效时只影响对应服务器并回到登录。
 - 多服务器 session 不串用。

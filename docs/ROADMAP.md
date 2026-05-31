@@ -73,8 +73,8 @@
 
 状态：进行中。
 
-- P0-13 获取播放信息，并保存 media source id 与 play session id。进度：playback info 请求规格、领域模型、响应 mapper、client 编排、resume start ticks 和从头播放 start ticks 已完成。
-- P0-14 生成 Media3 可播放 media item，包括 direct stream / transcode URL。进度：播放源选择器、默认音轨 / 字幕 index 保留、无可播放源错误提示、Media3 URL 接线和播放 URL token 授权已完成。
+- P0-13 获取播放信息，并保存 media source id 与 play session id。进度：playback info 请求规格、领域模型、响应 mapper、client 编排、resume / 从头播放 start ticks、最大码率、音轨、字幕和声道偏好转发已完成。
+- P0-14 生成 Media3 可播放 media item，包括 direct stream / transcode URL。进度：播放源选择器、默认音轨 / 字幕 index 保留、低码率 HLS 偏好、无可播放源错误提示、Media3 URL 接线和播放 URL token 授权已完成。
 - P0-15 调度 started / progress / stopped 播放 check-in。进度：check-in 请求规格、10 秒进度调度器、client 网络发送接线、本地 HTTP 集成测试和 Media3 宿主周期 tick 接线已完成。
 - P0-16 把播放暂停、seek、音轨、字幕和播放速度变化同步到协议层。进度：立即上报事件调度、client 发送、默认音轨 / 字幕 index、`PlaybackSessionController`、Media3 ready / pause / unpause / seek / ended / release / playback speed 桥接已完成；播放中音轨和字幕变化仍需在能可靠映射 Jellyfin / Emby `MediaStream.Index` 后接入。
 
@@ -82,7 +82,7 @@
 
 状态：进行中。
 
-- P0-17 用 Android TV UI 渲染服务器输入、登录、首页、详情和播放器入口。进度：原生 View 最小流程已完成，启动自动恢复、服务器 URL 输入、public users 选择、密码遮蔽、显式焦点样式、服务器连接、登录、会话恢复、首页加载、文件夹 / 剧集层级浏览、详情加载、继续播放、从头播放、上下文错误恢复、Back 导航和播放准备均走已接线流程，尚未做最终 TV 视觉打磨。
+- P0-17 用 Android TV UI 渲染服务器输入、登录、首页、详情和播放器入口。进度：原生 View 最小流程已完成，启动自动恢复、服务器 URL 输入、public users 选择、密码遮蔽、显式焦点样式、服务器连接、登录、会话恢复、首页加载、文件夹 / 剧集层级浏览、详情加载、继续播放、从头播放、低码率播放、上下文错误恢复、Back 导航和播放准备均走已接线流程，尚未做最终 TV 视觉打磨。
 - P0-18 将 `TvWorkflow` 接入 Activity / ViewModel，保证焦点按 item id 恢复。进度：`TvWorkflow`、`HomeRowsLoader`、核心 `TvWorkflowController`、Android runtime 暴露和首页 item id 焦点恢复已完成，正式 ViewModel 接线未开始。
 - P0-19 将 `PlayableMedia` 接入 Media3 player host。进度：`Media3PlayerHost` 已接入最小播放器视图，并为播放 URL 追加 `api_key`；真实设备播放验证未完成。
 - P0-20 将 Media3 播放事件桥接到 `PlaybackSessionController`。进度：`Media3PlaybackBridge` 已接入 player host，真实设备验证未完成。
@@ -105,7 +105,7 @@
 - public-user 登录界面已具备最小入口，后续可补头像和 passwordless 一键确认。
 - 继续观看、最新媒体行、剧集 / 季 / 集浏览、分页和稳定默认排序已具备最小入口。
 - 字幕和音轨选择。
-- 恢复播放弹窗和下一集行为；详情页已提供继续播放和从头播放的最小入口。
+- 恢复播放弹窗和下一集行为；详情页已提供继续播放、从头播放和低码率播放的最小入口。
 - 无法连接服务器、不支持媒体等错误状态继续完善；token 过期和上下文错误恢复已具备最小入口。
 - 设备端诊断信息已具备最小快照，后续可扩展为导出日志。
 

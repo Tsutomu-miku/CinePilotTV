@@ -33,6 +33,7 @@ public final class TvWorkflowTest {
         controllerLoadsPublicUsersForTvLogin();
         controllerRunsServerLoginBrowseAndPlaybackUseCase();
         controllerStartsPlaybackFromBeginningWhenRequested();
+        controllerForwardsPlaybackPreferencesToPlaybackInfo();
         controllerLogoutRevokesSavedSession();
         controllerRestoresSavedSessionAndLoadsHome();
         controllerBrowsesFolderRowsAndReturnsToParent();
@@ -268,6 +269,35 @@ public final class TvWorkflowTest {
 
         String playbackInfoUrl = transport.requests.get(7).url(MediaServerAddress.parse("https://media.example.com/jellyfin"));
         assertTrue(playbackInfoUrl.contains("StartTimeTicks=0"), "explicit playback preferences start from beginning");
+    }
+
+    private static void controllerForwardsPlaybackPreferencesToPlaybackInfo() {
+        FakeTransport transport = new FakeTransport();
+        transport.enqueue(200, "{\"Id\":\"server-1\",\"ServerName\":\"Jellyfin\"}");
+        transport.enqueue(200, "{\"AccessToken\":\"token-1\",\"ServerId\":\"server-1\",\"User\":{\"Id\":\"user-1\"}}");
+        enqueueHomeResponses(transport);
+        transport.enqueue(200, "{\"Id\":\"movie-1\",\"Name\":\"Arrival\",\"Type\":\"Movie\",\"IsPlayable\":true,\"UserData\":{\"PlaybackPositionTicks\":120000000}}");
+        transport.enqueue(200, """
+                {"PlaySessionId":"play-session-1","MediaSources":[
+                  {"Id":"source-1","DirectStreamUrl":"/Videos/movie-1/stream.mkv?MediaSourceId=source-1","SupportsDirectStream":true}
+                ]}
+                """);
+
+        ClientIdentity client = new ClientIdentity("CinePilot TV", "Living Room TV", "device-1", "0.1.0");
+        MediaBrowserClient mediaClient = new MediaBrowserClient(transport, new InMemorySessionRepository(), client);
+        TvWorkflowController controller = new TvWorkflowController(mediaClient, new HomeRowsLoader(mediaClient, 12));
+
+        controller.submitServer("https://media.example.com/jellyfin");
+        controller.login("demo", "secret");
+        controller.openItem("movie-1");
+        controller.preparePlayback(new PlaybackSelectionPreferences(0L, 2, 5, 2, 1280, 720, 4_000_000));
+
+        String playbackInfoUrl = transport.requests.get(7).url(MediaServerAddress.parse("https://media.example.com/jellyfin"));
+        assertTrue(playbackInfoUrl.contains("StartTimeTicks=0"), "controller forwards preferred start ticks");
+        assertTrue(playbackInfoUrl.contains("MaxStreamingBitrate=4000000"), "controller forwards max bitrate");
+        assertTrue(playbackInfoUrl.contains("AudioStreamIndex=2"), "controller forwards audio stream");
+        assertTrue(playbackInfoUrl.contains("SubtitleStreamIndex=5"), "controller forwards subtitle stream");
+        assertTrue(playbackInfoUrl.contains("MaxAudioChannels=2"), "controller forwards audio channel limit");
     }
 
     private static void controllerLogoutRevokesSavedSession() {

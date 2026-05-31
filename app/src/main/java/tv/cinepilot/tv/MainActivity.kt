@@ -229,6 +229,7 @@ class MainActivity : Activity() {
                 } else {
                     addView(playbackAction("播放", null))
                 }
+                addView(playbackAction("低码率播放", lowBitratePreferences(item)))
             } else {
                 addView(openFolderAction(item))
             }
@@ -319,6 +320,11 @@ class MainActivity : Activity() {
                 showPlayerReady(runtime.workflowController.state())
             }
         }
+    }
+
+    private fun lowBitratePreferences(item: MediaItemSummary): PlaybackSelectionPreferences {
+        val startTimeTicks = if (item.hasResumePosition()) item.userData().playbackPositionTicks() else 0L
+        return PlaybackSelectionPreferences.lowBitrate(startTimeTicks)
     }
 
     private fun showLoading(message: String) {

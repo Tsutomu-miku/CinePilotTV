@@ -176,9 +176,7 @@ public final class TvWorkflowController {
         PlaybackInfo playbackInfo = client.playbackInfo(
                 state.authenticated(),
                 state.selectedItem().id(),
-                new PlaybackInfoOptions.Builder()
-                        .startTimeTicks(playbackStartTimeTicks(preferences))
-                        .build()
+                playbackInfoOptions(safePreferences, preferences == null)
         );
         PlayableMedia playable = client.playableMedia(
                 state.authenticated(),
@@ -189,11 +187,27 @@ public final class TvWorkflowController {
         return state;
     }
 
-    private long playbackStartTimeTicks(PlaybackSelectionPreferences preferences) {
-        if (preferences != null) {
-            return preferences.startTimeTicks();
+    private PlaybackInfoOptions playbackInfoOptions(
+            PlaybackSelectionPreferences preferences,
+            boolean useResumePosition
+    ) {
+        PlaybackInfoOptions.Builder builder = new PlaybackInfoOptions.Builder()
+                .startTimeTicks(useResumePosition
+                        ? state.selectedItem().userData().playbackPositionTicks()
+                        : preferences.startTimeTicks());
+        if (preferences.maxBitRate() > 0) {
+            builder.maxStreamingBitrate(preferences.maxBitRate());
         }
-        return state.selectedItem().userData().playbackPositionTicks();
+        if (preferences.audioStreamIndex() != null) {
+            builder.audioStreamIndex(preferences.audioStreamIndex());
+        }
+        if (preferences.subtitleStreamIndex() != null) {
+            builder.subtitleStreamIndex(preferences.subtitleStreamIndex());
+        }
+        if (preferences.maxAudioChannels() != null) {
+            builder.maxAudioChannels(preferences.maxAudioChannels());
+        }
+        return builder.build();
     }
 
     public TvAppState back() {
