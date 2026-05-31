@@ -50,6 +50,17 @@ public final class TvWorkflowController {
         return loadHome();
     }
 
+    public TvAppState restoreSession(String userId) {
+        if (state.server() == null) {
+            throw new IllegalStateException("server must be discovered before restoring a session");
+        }
+        AuthenticatedServer authenticated = client.restore(state.server(), userId)
+                .map(session -> new AuthenticatedServer(state.server(), session))
+                .orElseThrow(() -> new IllegalStateException("saved session was not found"));
+        state = TvWorkflow.loginSucceeded(state, authenticated);
+        return loadHome();
+    }
+
     public TvAppState loadHome() {
         if (state.authenticated() == null) {
             throw new IllegalStateException("authenticated session is required before loading home");
@@ -110,4 +121,3 @@ public final class TvWorkflowController {
         return state;
     }
 }
-

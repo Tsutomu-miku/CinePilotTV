@@ -64,7 +64,7 @@ if ! grep -q 'workflowController' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/M
   exit 1
 fi
 
-for ui_text in "连接服务器" "登录" "首页" "播放"; do
+for ui_text in "连接服务器" "登录" "首页" "播放" "继续" "清除上次登录"; do
   if ! grep -q "$ui_text" "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/MainActivity.kt"; then
     echo "MainActivity is missing TV UI text: $ui_text" >&2
     exit 1
@@ -73,6 +73,16 @@ done
 
 if ! grep -q 'TvWorkflowController' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/runtime/CinePilotRuntime.kt"; then
   echo "CinePilotRuntime must expose TvWorkflowController" >&2
+  exit 1
+fi
+
+if ! grep -q 'restoreSession' "$ROOT_DIR/core/src/main/java/tv/cinepilot/core/tv/TvWorkflowController.java"; then
+  echo "TvWorkflowController must expose saved session restore" >&2
+  exit 1
+fi
+
+if ! grep -q 'restoreSession' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/MainActivity.kt"; then
+  echo "MainActivity must wire saved session restore" >&2
   exit 1
 fi
 

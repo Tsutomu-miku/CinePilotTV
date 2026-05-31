@@ -60,7 +60,7 @@
 
 - P0-9 通过直接 URL 实现服务器发现。进度：请求规格、系统信息响应 mapper、HTTP transport 和 client 编排已完成。
 - P0-10 实现 Jellyfin 与 Emby 的用户名 / 密码认证。进度：请求规格、登录响应 mapper、HTTP transport 和 client 编排已完成。
-- P0-11 按服务器和用户作用域持久化会话。进度：内存 repository、文件 repository 和 client 保存 / 恢复 / logout 撤销流程已完成；Android 集成路径未接线。
+- P0-11 按服务器和用户作用域持久化会话。进度：内存 repository、文件 repository、client 保存 / 恢复 / logout 撤销流程和 Android 上次登录恢复入口已完成；token 仍只通过 `SessionScope` 查找。
 - P0-12 通过协议适配器获取首页分区和媒体详情。进度：views、items、resume、latest、detail 请求规格、响应模型、client 编排、TV 首页 row 组合和本地 HTTP 集成测试已完成。
 
 退出标准：
@@ -82,7 +82,7 @@
 
 状态：未开始。
 
-- P0-17 用 Android TV UI 渲染服务器输入、登录、首页、详情和播放器入口。进度：原生 View 最小流程已完成，服务器连接、登录、首页加载、详情加载和播放准备均走后台任务，尚未做最终 TV 视觉打磨。
+- P0-17 用 Android TV UI 渲染服务器输入、登录、首页、详情和播放器入口。进度：原生 View 最小流程已完成，服务器连接、登录、会话恢复、首页加载、详情加载和播放准备均走后台任务，尚未做最终 TV 视觉打磨。
 - P0-18 将 `TvWorkflow` 接入 Activity / ViewModel，保证焦点按 item id 恢复。进度：`TvWorkflow`、`HomeRowsLoader`、核心 `TvWorkflowController` 和 Android runtime 暴露已完成，Android ViewModel 接线未开始。
 - P0-19 将 `PlayableMedia` 接入 Media3 player host。进度：`Media3PlayerHost` 已接入最小播放器视图，并为播放 URL 追加 `api_key`；真实设备播放验证未完成。
 - P0-20 将 Media3 播放事件桥接到 `PlaybackSessionController`。进度：`Media3PlaybackBridge` 已接入 player host，真实设备验证未完成。

@@ -23,6 +23,7 @@ class MainActivity : Activity() {
     private lateinit var runtime: CinePilotRuntime
     private lateinit var playerHost: Media3PlayerHost
     private val executor = Executors.newSingleThreadExecutor()
+    private val lastAccountStore by lazy { getSharedPreferences("cinepilot_last_account", MODE_PRIVATE) }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -39,7 +40,22 @@ class MainActivity : Activity() {
 
     private fun showServerEntry() {
         val serverInput = input("https://your-server.example.com")
+        val lastAccount = savedLastAccount()
         setContentView(screen("CinePilot TV") {
+            lastAccount?.let { account ->
+                addView(action("继续 ${account.displayName()}") {
+                    runTask("正在恢复上次登录...", {
+                        runtime.workflowController.submitServer(account.serverAddress)
+                        runtime.workflowController.restoreSession(account.userId)
+                    }) {
+                        showHome(runtime.workflowController.state())
+                    }
+                })
+                addView(action("清除上次登录") {
+                    clearLastAccount()
+                    showServerEntry()
+                })
+            }
             addView(label("服务器地址"))
             addView(serverInput)
             addView(action("连接服务器") {
@@ -67,6 +83,7 @@ class MainActivity : Activity() {
                         passwordInput.text.toString(),
                     )
                 }) {
+                    rememberLastAccount()
                     showHome(runtime.workflowController.state())
                 }
             })
@@ -241,6 +258,43 @@ class MainActivity : Activity() {
             textSize = 24f
             setTextColor(Color.rgb(45, 212, 191))
             setPadding(0, 28, 0, 8)
+        }
+    }
+
+    private fun rememberLastAccount() {
+        val authenticated = runtime.workflowController.state().authenticated() ?: return
+        lastAccountStore.edit()
+            .putString("server_address", authenticated.server().address().value())
+            .putString("server_name", authenticated.server().serverName())
+            .putString("user_id", authenticated.session().userId())
+            .apply()
+    }
+
+    private fun savedLastAccount(): LastAccount? {
+        val serverAddress = lastAccountStore.getString("server_address", null)?.takeIf { it.isNotBlank() }
+        val userId = lastAccountStore.getString("user_id", null)?.takeIf { it.isNotBlank() }
+        if (serverAddress == null || userId == null) {
+            return null
+        }
+        return LastAccount(
+            serverAddress,
+            lastAccountStore.getString("server_name", null).orEmpty(),
+            userId,
+        )
+    }
+
+    private fun clearLastAccount() {
+        lastAccountStore.edit().clear().apply()
+    }
+
+    private data class LastAccount(
+        val serverAddress: String,
+        val serverName: String,
+        val userId: String,
+    ) {
+        fun displayName(): String {
+            val serverLabel = serverName.ifBlank { serverAddress }
+            return "$serverLabel / $userId"
         }
     }
 }

@@ -52,6 +52,8 @@ TV 状态流由 `core.tv.TvWorkflow` 建模。Android UI 应渲染 `TvAppState`�
 
 `TvWorkflowController` 是 Android ViewModel 应调用的核心用例入口，负责服务器发现、登录、首页加载、详情打开和播放准备。它保持 `TvAppState`，并把协议 client 的结果转换为 workflow 状态。
 
+`TvWorkflowController.restoreSession(userId)` 要求先完成服务器发现，再按已发现服务器、userId、客户端身份和设备身份恢复会话。Android UI 可以记住上次服务器地址和 userId 来提供“继续”入口，但不能自行保存或拼接 token。
+
 ## 播放层
 
 播放层将负责 Media3 player 设置、media source 创建、轨道选择、字幕处理和播放 check-in 调度。它把领域播放事件报告给协议层，不关心界面如何渲染。
@@ -69,6 +71,8 @@ TV 状态流由 `core.tv.TvWorkflow` 建模。Android UI 应渲染 `TvAppState`�
 会话状态按服务器和用户身份划分作用域。持久化记录必须包含足够身份信息，避免用户修改 URL 或切换多服务器后把 token 发给错误服务器。
 
 当前 `InMemorySessionRepository` 用于领域验证和早期集成，`FileSessionRepository` 提供 JVM 可用的落盘实现。Android 可用版本可以复用文件实现或包一层平台存储路径，但必须保持相同 `SessionScope` 规则。
+
+Android Activity 只用 SharedPreferences 保存上次登录提示信息：服务器地址、服务器显示名和 userId。真正的访问 token 仍由 `FileSessionRepository` 存在 app 私有文件中，并在恢复时经过 `MediaBrowserClient.restore` 读取。
 
 ## 验证策略
 

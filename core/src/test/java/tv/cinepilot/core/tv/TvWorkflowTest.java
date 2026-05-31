@@ -16,8 +16,10 @@ import tv.cinepilot.core.protocol.PlayableMedia;
 import tv.cinepilot.core.protocol.PlaybackSelectionPreferences;
 import tv.cinepilot.core.protocol.ProtocolRequest;
 import tv.cinepilot.core.protocol.ProtocolResponse;
+import tv.cinepilot.core.protocol.SavedSession;
 import tv.cinepilot.core.protocol.ServerFlavor;
 import tv.cinepilot.core.protocol.ServerIdentity;
+import tv.cinepilot.core.protocol.SessionScope;
 import tv.cinepilot.core.protocol.UserItemData;
 import java.io.IOException;
 import java.util.ArrayList;
@@ -28,6 +30,7 @@ public final class TvWorkflowTest {
         rejectsFocusForMissingItems();
         loadsHomeRowsFromMediaBrowserClient();
         controllerRunsServerLoginBrowseAndPlaybackUseCase();
+        controllerRestoresSavedSessionAndLoadsHome();
         describesDiagnosticsWithoutToken();
         System.out.println("TvWorkflowTest passed");
     }
@@ -202,6 +205,35 @@ public final class TvWorkflowTest {
         assertEquals("/Users/user-1/Items/movie-1", transport.requests.get(6).path(), "controller item detail request");
         assertEquals("/Items/movie-1/PlaybackInfo", transport.requests.get(7).path(), "controller playback info request");
         assertTrue(transport.requests.get(7).url(MediaServerAddress.parse("https://media.example.com/jellyfin")).contains("StartTimeTicks=120000000"), "controller resume ticks");
+    }
+
+    private static void controllerRestoresSavedSessionAndLoadsHome() {
+        FakeTransport transport = new FakeTransport();
+        transport.enqueue(200, "{\"Id\":\"server-1\",\"ServerName\":\"Jellyfin\"}");
+        enqueueHomeResponses(transport);
+
+        ClientIdentity client = new ClientIdentity("CinePilot TV", "Living Room TV", "device-1", "0.1.0");
+        InMemorySessionRepository repository = new InMemorySessionRepository();
+        ServerIdentity server = new ServerIdentity(
+                MediaServerAddress.parse("https://media.example.com/jellyfin"),
+                "server-1",
+                ServerFlavor.JELLYFIN,
+                "Jellyfin"
+        );
+        AuthSession session = new AuthSession("server-1", "user-1", "token-1", client);
+        repository.save(new SavedSession(SessionScope.from(server, session), session.accessToken()));
+
+        MediaBrowserClient mediaClient = new MediaBrowserClient(transport, repository, client);
+        TvWorkflowController controller = new TvWorkflowController(mediaClient, new HomeRowsLoader(mediaClient, 12));
+
+        controller.submitServer("https://media.example.com/jellyfin");
+        TvAppState state = controller.restoreSession("user-1");
+
+        assertEquals(TvRoute.HOME, state.route(), "restore routes home");
+        assertEquals("user-1", state.authenticated().session().userId(), "restore keeps user scope");
+        assertEquals("token-1", state.authenticated().session().accessToken(), "restore uses saved token");
+        assertEquals("/System/Info/Public", transport.requests.get(0).path(), "restore discovers server first");
+        assertEquals("/Users/user-1/Views", transport.requests.get(1).path(), "restore loads home after token lookup");
     }
 
     private static void describesDiagnosticsWithoutToken() {
