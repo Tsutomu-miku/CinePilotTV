@@ -171,6 +171,11 @@ if ! grep -q 'canPageForwardInBrowse' "$ROOT_DIR/core/src/main/java/tv/cinepilot
   exit 1
 fi
 
+if ! grep -q 'sortBy("SortName")' "$ROOT_DIR/core/src/main/java/tv/cinepilot/core/protocol/ItemQuery.java"; then
+  echo "ItemQuery browse must use a stable default sort" >&2
+  exit 1
+fi
+
 if ! grep -q '打开子项目' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/MainActivity.kt"; then
   echo "MainActivity must expose a child browse action in Chinese" >&2
   exit 1

@@ -20,6 +20,8 @@ public final class ItemQuery {
                 .enableUserData(true)
                 .imageTypeLimit(1)
                 .enableImageTypes("Primary,Backdrop,Thumb")
+                .sortBy("SortName")
+                .sortOrder("Ascending")
                 .fields("PrimaryImageAspectRatio,MediaSources,MediaStreams,Overview,ParentId,Genres,ProductionYear");
     }
 
@@ -101,4 +103,3 @@ public final class ItemQuery {
         }
     }
 }
-

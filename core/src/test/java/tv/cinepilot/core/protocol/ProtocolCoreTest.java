@@ -175,6 +175,8 @@ public final class ProtocolCoreTest {
         assertTrue(url.contains("ParentId=movies%20root"), "query encodes parent id");
         assertTrue(url.contains("IncludeItemTypes=Movie%2CSeries"), "query encodes include types");
         assertTrue(url.contains("EnableUserData=true"), "query includes user data");
+        assertTrue(url.contains("SortBy=SortName"), "query includes stable sort field");
+        assertTrue(url.contains("SortOrder=Ascending"), "query includes stable sort order");
 
         ProtocolRequest detail = MediaBrowserRequests.item(session, ServerFlavor.JELLYFIN, "item/with/slash");
         assertEquals("/Users/user%201/Items/item%2Fwith%2Fslash", detail.path(), "item detail path encodes item id");
@@ -662,6 +664,7 @@ public final class ProtocolCoreTest {
         assertEquals("/Users/user-1/Views", transport.requests.get(0).path(), "views request path");
         assertEquals("/Users/user-1/Items", transport.requests.get(1).path(), "items request path");
         assertTrue(transport.requests.get(1).url(authenticated.server().address()).contains("ParentId=library-1"), "items parent query");
+        assertTrue(transport.requests.get(1).url(authenticated.server().address()).contains("SortBy=SortName"), "items stable sort");
         assertEquals("/Users/user-1/Items/movie-1", transport.requests.get(2).path(), "detail request path");
     }
 
