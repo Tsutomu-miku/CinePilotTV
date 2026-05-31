@@ -14,6 +14,7 @@ required_docs=(
   "$ROOT_DIR/docs/ARCHITECTURE.md"
   "$ROOT_DIR/docs/CODE_STRUCTURE.md"
   "$ROOT_DIR/docs/PROTOCOL_NOTES.md"
+  "$ROOT_DIR/docs/VERIFICATION.md"
 )
 
 for doc in "${required_docs[@]}"; do

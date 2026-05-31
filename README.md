@@ -14,6 +14,7 @@ CinePilot TV 是一个面向 Android TV 的原生播放器，用来连接兼容 
 - [架构说明](docs/ARCHITECTURE.md)
 - [代码结构](docs/CODE_STRUCTURE.md)
 - [协议资料](docs/PROTOCOL_NOTES.md)
+- [验证说明](docs/VERIFICATION.md)
 
 ## 快速开始
 
@@ -24,6 +25,7 @@ CinePilot TV 是一个面向 Android TV 的原生播放器，用来连接兼容 
 ## 脚本
 
 - `./scripts/check.sh` 使用 `javac` 编译 JVM 协议核心、运行协议测试，并确认项目指导文档存在。
+- Android SDK 可用后，需要额外运行 `./gradlew :core:test :app:assembleDebug`。
 
 ## 仓库结构
 
