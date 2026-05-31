@@ -691,6 +691,16 @@ if ! grep -q '分享诊断' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/playbac
   exit 1
 fi
 
+if ! grep -q 'errorMessage=' "$ROOT_DIR/core/src/main/java/tv/cinepilot/core/tv/TvDiagnostics.java"; then
+  echo "TV diagnostics must include the recoverable error message" >&2
+  exit 1
+fi
+
+if grep -q 'accessToken\|Token=' "$ROOT_DIR/core/src/main/java/tv/cinepilot/core/tv/TvDiagnostics.java"; then
+  echo "TV diagnostics must not expose access tokens" >&2
+  exit 1
+fi
+
 if ! grep -q 'showDiagnosticsFromError' "$PLAYBACK_ROUTE_CONTROLLER"; then
   echo "Playback route controller must expose diagnostics from playback errors" >&2
   exit 1

@@ -675,10 +675,12 @@ public final class TvWorkflowTest {
                 ),
                 playable
         );
+        state = TvWorkflow.fail(state, "解码失败，请尝试低码率播放");
         String diagnostics = TvDiagnostics.describe(state);
         assertTrue(diagnostics.contains("serverId=server-1"), "diagnostics includes server");
         assertTrue(diagnostics.contains("itemId=movie-1"), "diagnostics includes item");
         assertTrue(diagnostics.contains("playMethod=DIRECT_PLAY"), "diagnostics includes play method");
+        assertTrue(diagnostics.contains("errorMessage=解码失败，请尝试低码率播放"), "diagnostics includes error message");
         assertTrue(!diagnostics.contains("token-1"), "diagnostics does not include token");
     }
 

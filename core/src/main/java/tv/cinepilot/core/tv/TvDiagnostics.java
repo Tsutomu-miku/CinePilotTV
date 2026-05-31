@@ -12,6 +12,9 @@ public final class TvDiagnostics {
         StringBuilder builder = new StringBuilder();
         builder.append("route=").append(state.route()).append('\n');
         builder.append("status=").append(state.status()).append('\n');
+        if (!state.errorMessage().isBlank()) {
+            builder.append("errorMessage=").append(state.errorMessage()).append('\n');
+        }
 
         AuthenticatedServer authenticated = state.authenticated();
         if (authenticated != null) {
@@ -45,4 +48,3 @@ public final class TvDiagnostics {
         return builder.toString();
     }
 }
-

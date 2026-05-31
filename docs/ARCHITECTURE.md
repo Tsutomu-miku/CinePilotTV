@@ -26,7 +26,7 @@ Jellyfin 登录页可以发起 Quick Connect：Activity 展示服务器返回的
 
 关键操作按钮应配套开源 Material Icons 风格矢量图标资源，例如搜索、刷新、退出、播放、返回、字幕和低码率播放。图标资源放在 Android `drawable`，由 `tv/ui/TvUi.kt` 的 `TvIcon` 统一引用，避免页面里散落资源 id。
 
-`TvDiagnostics` 生成不含 token 的联调快照，供 TV UI 展示 server、user、item、media source、play method 和焦点信息。
+`TvDiagnostics` 生成不含 token 的联调快照，供 TV UI 展示 server、user、item、media source、play method、错误消息和焦点信息。
 
 播放准备页只展示播放方式、媒体源和“播放地址已准备”这类安全摘要，不直接展示 raw playback URL。需要排障时走 `TvDiagnostics`，且诊断输出不能包含 token。Android 诊断导出只能写入 app 私有文件，避免无意把 token 或播放 URL 暴露给其它应用。
 
