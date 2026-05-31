@@ -244,8 +244,10 @@ class MainActivity : Activity() {
     }
 
     private fun showPlayer(state: TvAppState) {
+        var playerView: View? = null
         setContentView(screen("播放器") {
-            addView(playerHost.createPlayerView(state), LinearLayout.LayoutParams(
+            playerView = playerHost.createPlayerView(state)
+            addView(playerView, LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT,
                 720,
             ))
@@ -255,6 +257,7 @@ class MainActivity : Activity() {
                 runtime.workflowController.state().selectedItem()?.let(::showDetails)
             })
         })
+        playerView?.post { playerView?.requestFocus() }
     }
 
     private fun itemButton(row: HomeRow, item: MediaItemSummary): View {

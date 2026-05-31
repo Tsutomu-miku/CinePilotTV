@@ -226,6 +226,11 @@ if ! grep -q 'Media3PlayerHost' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/Mai
   exit 1
 fi
 
+if ! grep -q 'playerView?.requestFocus' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/MainActivity.kt"; then
+  echo "MainActivity must focus the Media3 player view" >&2
+  exit 1
+fi
+
 if ! grep -q 'usesCleartextTraffic="true"' "$ROOT_DIR/app/src/main/AndroidManifest.xml"; then
   echo "AndroidManifest must allow cleartext traffic for local Jellyfin/Emby HTTP servers" >&2
   exit 1
