@@ -880,6 +880,11 @@ if ! grep -q 'detailTrackControls' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/
   exit 1
 fi
 
+if ! grep -q 'consumeDown = trackControls == null' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/ui/DetailsScreen.kt"; then
+  echo "Details playback actions must allow D-pad down into inline track controls" >&2
+  exit 1
+fi
+
 if ! grep -q 'radioChoice' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/details/DetailTrackControls.kt"; then
   echo "Details track controls must use single-choice radio controls" >&2
   exit 1
