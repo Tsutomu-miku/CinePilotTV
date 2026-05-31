@@ -65,4 +65,5 @@
 - direct play / direct stream / transcode 的基础选择规则已在 `PlaybackSourceSelector` 建模；真实服务器联调后需要继续用兼容矩阵校准。
 - Android 入口尚未接入 session repository 存储路径。
 - Media3 设备能力到 `DeviceProfile` / codec 参数的映射需要在 Android 层可运行后补齐。
+- `TvWorkflow` 已定义服务器输入、登录、首页、详情和播放器路由状态，但 Android UI 尚未渲染这些状态。
 - Quick Connect 只先写入需求和路线图，尚未进入 P0 请求规格。

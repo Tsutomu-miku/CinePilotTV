@@ -45,7 +45,7 @@
 状态：未开始。
 
 - P0-6 本机具备 Android SDK 后启用 Gradle Android 构建。进度：`:core` 已接入 Gradle 多模块工程，完整 Android 构建仍等待 Android SDK。
-- P0-7 添加可启动的 TV Activity，并建立 D-pad 安全的导航脚手架。
+- P0-7 添加可启动的 TV Activity，并建立 D-pad 安全的导航脚手架。进度：TV workflow 状态 / 导航 reducer 已完成，Android UI 渲染未开始。
 - P0-8 添加 Media3 播放器宿主生命周期和占位播放状态接线。
 
 退出标准：
@@ -77,6 +77,21 @@
 - P0-14 生成 Media3 可播放 media item，包括 direct stream / transcode URL。进度：播放源选择器已完成，Media3 接线未开始。
 - P0-15 调度 started / progress / stopped 播放 check-in。进度：check-in 请求规格、10 秒进度调度器和 client 网络发送接线已完成。
 - P0-16 把播放暂停、seek、音轨、字幕和播放速度变化同步到协议层。进度：立即上报事件调度和 client 发送已建模，Media3 事件桥接未开始。
+
+### 批次 5：P0 TV UI 与 Media3 集成
+
+状态：未开始。
+
+- P0-17 用 Android TV UI 渲染服务器输入、登录、首页、详情和播放器入口。
+- P0-18 将 `TvWorkflow` 接入 Activity / ViewModel，保证焦点按 item id 恢复。
+- P0-19 将 `PlayableMedia` 接入 Media3 player host。
+- P0-20 将 Media3 播放事件桥接到 `PlaybackCheckInScheduler` 和 `MediaBrowserClient.sendPlaybackCheckIn`。
+
+退出标准：
+
+- Android 构建在具备 Android SDK 的机器上通过。
+- TV UI 可以用 D-pad 完成服务器输入、登录、浏览、详情、播放入口。
+- 播放开始、暂停、seek、停止能触发协议上报。
 
 退出标准：
 
