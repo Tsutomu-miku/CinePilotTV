@@ -4,6 +4,7 @@ import java.util.LinkedHashMap;
 import java.util.Map;
 
 public final class ItemQuery {
+    private static final String ITEM_FIELDS = "PrimaryImageAspectRatio,MediaSources,MediaStreams,Overview,ParentId,Genres,ProductionYear,SeriesId";
     private final Map<String, String> values;
 
     private ItemQuery(Map<String, String> values) {
@@ -22,14 +23,14 @@ public final class ItemQuery {
                 .enableImageTypes("Primary,Backdrop,Thumb")
                 .sortBy("SortName")
                 .sortOrder("Ascending")
-                .fields("PrimaryImageAspectRatio,MediaSources,MediaStreams,Overview,ParentId,Genres,ProductionYear");
+                .fields(ITEM_FIELDS);
     }
 
     public static Builder resume() {
         return browse()
                 .recursive(true)
                 .mediaTypes("Video")
-                .fields("PrimaryImageAspectRatio,MediaSources,MediaStreams,Overview,ParentId,Genres,ProductionYear");
+                .fields(ITEM_FIELDS);
     }
 
     public static Builder search(String term) {

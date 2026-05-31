@@ -162,6 +162,14 @@ public final class MediaBrowserClient {
         return MediaBrowserResponseMapper.itemPage(response.body());
     }
 
+    public MediaItemPage nextUpItems(AuthenticatedServer authenticated, String seriesId, int limit) {
+        ProtocolResponse response = send(
+                authenticated.server().address(),
+                MediaBrowserRequests.nextUpItems(authenticated.session(), authenticated.server().flavor(), limit, seriesId)
+        );
+        return MediaBrowserResponseMapper.itemPage(response.body());
+    }
+
     public MediaItemSummary item(AuthenticatedServer authenticated, String itemId) {
         ProtocolResponse response = send(
                 authenticated.server().address(),

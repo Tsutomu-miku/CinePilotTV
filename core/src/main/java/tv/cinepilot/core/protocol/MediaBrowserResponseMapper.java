@@ -154,6 +154,7 @@ public final class MediaBrowserResponseMapper {
                 optionalInt(item, "IndexNumber"),
                 optionalInt(item, "ParentIndexNumber"),
                 valueOrEmpty(JsonValue.string(item, "SeriesName")),
+                valueOrEmpty(JsonValue.string(item, "SeriesId")),
                 valueOrEmpty(JsonValue.string(item, "Overview")),
                 stringList(item, "Genres"),
                 userData(JsonValue.childObject(item, "UserData")),

@@ -465,6 +465,9 @@ class MainActivity : ComponentActivity() {
         }
         actions.add(playbackAction("低码率播放", TvIcon.SPEED, lowBitratePreferences(item)))
         actions.add(iconAction("音轨 / 字幕", TvIcon.SUBTITLES) { loadPlaybackOptions(item) })
+        if (item.seriesId().isNotBlank()) {
+            actions.add(iconAction("本剧下一集", TvIcon.PLAY) { openSeriesNextUp() })
+        }
         return actions
     }
 
@@ -654,6 +657,21 @@ class MainActivity : ComponentActivity() {
             } else {
                 showHome(state)
             }
+        }
+    }
+
+    private fun openSeriesNextUp() {
+        var playbackInfo: PlaybackInfo? = null
+        runTask("正在打开本剧下一集...", {
+            val nextItem = viewModel.workflowController.nextUpForSelectedSeries()
+            viewModel.workflowController.openItem(nextItem.id())
+            playbackInfo = runCatching {
+                viewModel.workflowController.loadPlaybackChoices(null)
+            }.getOrNull()
+        }) {
+            viewModel.workflowController.state().selectedItem()?.let { selectedItem ->
+                showDetails(selectedItem, playbackInfo)
+            } ?: showHome(viewModel.workflowController.state())
         }
     }
 

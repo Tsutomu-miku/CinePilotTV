@@ -15,6 +15,7 @@ public record MediaItemSummary(
         Integer indexNumber,
         Integer parentIndexNumber,
         String seriesName,
+        String seriesId,
         String overview,
         List<String> genres,
         UserItemData userData,
@@ -34,6 +35,9 @@ public record MediaItemSummary(
         if (userData == null) {
             userData = UserItemData.empty();
         }
+        if (seriesId == null) {
+            seriesId = "";
+        }
         if (overview == null) {
             overview = "";
         }
@@ -43,6 +47,43 @@ public record MediaItemSummary(
 
     public boolean hasResumePosition() {
         return userData.playbackPositionTicks() > 0;
+    }
+
+    public MediaItemSummary(
+            String id,
+            String parentId,
+            String name,
+            MediaItemType type,
+            boolean folder,
+            boolean playable,
+            Long runTimeTicks,
+            Integer productionYear,
+            Integer indexNumber,
+            Integer parentIndexNumber,
+            String seriesName,
+            String overview,
+            List<String> genres,
+            UserItemData userData,
+            Map<String, String> imageTags
+    ) {
+        this(
+                id,
+                parentId,
+                name,
+                type,
+                folder,
+                playable,
+                runTimeTicks,
+                productionYear,
+                indexNumber,
+                parentIndexNumber,
+                seriesName,
+                "",
+                overview,
+                genres,
+                userData,
+                imageTags
+        );
     }
 
     private static void require(String value, String name) {

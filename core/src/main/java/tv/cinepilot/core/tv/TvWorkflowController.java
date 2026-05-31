@@ -254,6 +254,21 @@ public final class TvWorkflowController {
         );
     }
 
+    public MediaItemSummary nextUpForSelectedSeries() {
+        if (state.authenticated() == null || state.selectedItem() == null) {
+            throw new IllegalStateException("authenticated selected item is required before loading next up");
+        }
+        String seriesId = state.selectedItem().seriesId();
+        if (seriesId == null || seriesId.isBlank()) {
+            throw new IllegalStateException(NO_CHILD_ITEM_MESSAGE);
+        }
+        return client.nextUpItems(state.authenticated(), seriesId, 1)
+                .items()
+                .stream()
+                .findFirst()
+                .orElseThrow(() -> new IllegalStateException(NO_CHILD_ITEM_MESSAGE));
+    }
+
     private PlaybackInfoOptions playbackInfoOptions(
             PlaybackSelectionPreferences preferences,
             boolean useResumePosition

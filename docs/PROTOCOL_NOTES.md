@@ -18,7 +18,7 @@
 - `GET /Users/{UserId}/Views`：用户可见媒体库。
 - `GET /Users/{UserId}/Items`：媒体库浏览。
 - `GET /Users/{UserId}/Items/Resume`：继续观看候选。
-- `GET /Shows/NextUp`：剧集下一集候选。
+- `GET /Shows/NextUp`：剧集下一集候选；首页使用全局下一集，详情页在条目带 `SeriesId` 时追加 `SeriesId` 查询获取本剧下一集。
 - `GET /Users/{UserId}/Items/Latest`：最新媒体候选。
 - `GET /Users/{UserId}/Items/{ItemId}`：媒体详情。
 - `GET /Items/{Id}/Images/{ImageType}`：媒体图片，用于详情页海报。
@@ -81,5 +81,5 @@
 - direct play / direct stream / transcode 的基础选择规则已在 `PlaybackSourceSelector` 建模；真实服务器联调后需要继续用兼容矩阵校准。
 - Android 入口已通过 `CinePilotRuntime` 接入 `FileSessionRepository`，文件位于 app 私有目录下的 `sessions.properties`。
 - Media3 设备能力到 `DeviceProfile` / codec 参数的映射需要在 Android 层可运行后补齐。
-- `MainActivity` 已渲染服务器输入、登录、首页、详情、播放准备和播放器路由；后续真实 TV 设备上继续校准焦点和 Media3 播放行为。
+- `MainActivity` 已渲染服务器输入、登录、首页、详情、播放准备和播放器路由；详情页可从服务器 next-up 直接打开本剧下一集；后续真实 TV 设备上继续校准焦点和 Media3 播放行为。
 - Quick Connect 已进入 P0 请求规格和 TV 登录流程；播放前音轨 / 字幕选择已使用 playback info 中的协议 stream index。

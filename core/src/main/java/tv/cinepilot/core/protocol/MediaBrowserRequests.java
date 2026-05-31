@@ -4,6 +4,8 @@ import java.util.LinkedHashMap;
 import java.util.Map;
 
 public final class MediaBrowserRequests {
+    private static final String ITEM_FIELDS = "PrimaryImageAspectRatio,MediaSources,MediaStreams,Overview,ParentId,Genres,ProductionYear,SeriesId";
+
     private MediaBrowserRequests() {
     }
 
@@ -107,7 +109,7 @@ public final class MediaBrowserRequests {
                 .query("EnableImages", "true")
                 .query("EnableUserData", "true")
                 .query("ImageTypeLimit", "1")
-                .query("Fields", "PrimaryImageAspectRatio,MediaSources,MediaStreams,Overview,ParentId,Genres,ProductionYear")
+                .query("Fields", ITEM_FIELDS)
                 .build();
     }
 
@@ -119,19 +121,26 @@ public final class MediaBrowserRequests {
                 .query("EnableImages", "true")
                 .query("EnableUserData", "true")
                 .query("ImageTypeLimit", "1")
-                .query("Fields", "PrimaryImageAspectRatio,MediaSources,MediaStreams,Overview,ParentId,Genres,ProductionYear")
+                .query("Fields", ITEM_FIELDS)
                 .build();
     }
 
     public static ProtocolRequest nextUpItems(AuthSession session, ServerFlavor flavor, int limit) {
-        return authenticated(ProtocolRequest.get("/Shows/NextUp"), session, flavor)
+        return nextUpItems(session, flavor, limit, "");
+    }
+
+    public static ProtocolRequest nextUpItems(AuthSession session, ServerFlavor flavor, int limit, String seriesId) {
+        ProtocolRequest.Builder builder = authenticated(ProtocolRequest.get("/Shows/NextUp"), session, flavor)
                 .query("UserId", session.userId())
                 .query("Limit", Integer.toString(limit))
                 .query("EnableImages", "true")
                 .query("EnableUserData", "true")
                 .query("ImageTypeLimit", "1")
-                .query("Fields", "PrimaryImageAspectRatio,MediaSources,MediaStreams,Overview,ParentId,Genres,ProductionYear")
-                .build();
+                .query("Fields", ITEM_FIELDS);
+        if (seriesId != null && !seriesId.isBlank()) {
+            builder.query("SeriesId", seriesId);
+        }
+        return builder.build();
     }
 
     public static ProtocolRequest item(AuthSession session, ServerFlavor flavor, String itemId) {
@@ -139,7 +148,7 @@ public final class MediaBrowserRequests {
         String userId = ProtocolRequest.encodePathSegment(session.userId());
         String encodedItemId = ProtocolRequest.encodePathSegment(itemId);
         return authenticated(ProtocolRequest.get("/Users/" + userId + "/Items/" + encodedItemId), session, flavor)
-                .query("Fields", "PrimaryImageAspectRatio,MediaSources,MediaStreams,Overview,ParentId,Genres,ProductionYear,Chapters")
+                .query("Fields", ITEM_FIELDS + ",Chapters")
                 .build();
     }
 

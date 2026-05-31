@@ -627,6 +627,21 @@ if ! grep -q '音轨 / 字幕' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/Main
   exit 1
 fi
 
+if ! grep -q '本剧下一集' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/MainActivity.kt"; then
+  echo "MainActivity must expose a series next-up action when SeriesId is available" >&2
+  exit 1
+fi
+
+if ! grep -R -q 'SeriesId' "$ROOT_DIR/core/src/main/java/tv/cinepilot/core/protocol"; then
+  echo "Core protocol must preserve SeriesId for next-up episode actions" >&2
+  exit 1
+fi
+
+if ! grep -q 'nextUpForSelectedSeries' "$ROOT_DIR/core/src/main/java/tv/cinepilot/core/tv/TvWorkflowController.java"; then
+  echo "TvWorkflowController must load next up for the selected series" >&2
+  exit 1
+fi
+
 if ! grep -q 'sourcePreferences' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/MainActivity.kt"; then
   echo "MainActivity must expose media source selection" >&2
   exit 1

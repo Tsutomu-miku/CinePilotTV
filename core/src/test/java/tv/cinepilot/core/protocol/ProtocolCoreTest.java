@@ -217,6 +217,10 @@ public final class ProtocolCoreTest {
         assertTrue(nextUp.url(address).contains("Limit=12"), "next up limit");
         assertTrue(nextUp.url(address).contains("EnableUserData=true"), "next up user data");
 
+        ProtocolRequest seriesNextUp = MediaBrowserRequests.nextUpItems(session, ServerFlavor.JELLYFIN, 1, "series 1");
+        assertEquals("/Shows/NextUp", seriesNextUp.path(), "series next up path");
+        assertTrue(seriesNextUp.url(address).contains("SeriesId=series%201"), "series next up query");
+
         ProtocolRequest image = MediaBrowserRequests.itemImage(
                 session,
                 ServerFlavor.JELLYFIN,
@@ -606,13 +610,14 @@ public final class ProtocolCoreTest {
         MediaItemPage latestItems = MediaBrowserResponseMapper.itemPage("""
                 [
                   {"Id":"latest-1","Name":"Latest Movie","Type":"Movie","IsPlayable":true},
-                  {"Id":"latest-2","Name":"Latest Episode","Type":"Episode","IsPlayable":true}
+                  {"Id":"latest-2","Name":"Latest Episode","Type":"Episode","IsPlayable":true,"SeriesId":"series-1"}
                 ]
                 """);
         assertEquals(2, latestItems.items().size(), "latest array item count maps");
         assertEquals(2, latestItems.totalRecordCount(), "latest array total count maps");
         assertEquals("latest-1", latestItems.items().get(0).id(), "latest array item maps");
         assertTrue(latestItems.items().get(0).playable(), "movie without IsPlayable defaults to playable");
+        assertEquals("series-1", latestItems.items().get(1).seriesId(), "series id maps");
 
         MediaItemPage explicitUnplayable = MediaBrowserResponseMapper.itemPage("""
                 {"Items":[

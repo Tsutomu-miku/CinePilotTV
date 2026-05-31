@@ -38,6 +38,7 @@ public final class TvWorkflowTest {
         controllerStartsPlaybackFromBeginningWhenRequested();
         controllerForwardsPlaybackPreferencesToPlaybackInfo();
         controllerLoadsPlaybackChoicesForTrackSelection();
+        controllerLoadsNextUpForSelectedSeries();
         controllerLogoutRevokesSavedSession();
         controllerRestoresSavedSessionAndLoadsHome();
         controllerBrowsesFolderRowsAndReturnsToParent();
@@ -377,6 +378,37 @@ public final class TvWorkflowTest {
         assertEquals(MediaStreamType.SUBTITLE, choices.mediaSources().get(0).mediaStreams().get(3).type(), "subtitle stream type maps");
         String playbackInfoUrl = transport.requests.get(8).url(MediaServerAddress.parse("https://media.example.com/jellyfin"));
         assertTrue(playbackInfoUrl.contains("StartTimeTicks=120000000"), "choices use resume ticks by default");
+    }
+
+    private static void controllerLoadsNextUpForSelectedSeries() {
+        FakeTransport transport = new FakeTransport();
+        transport.enqueue(200, "{\"Id\":\"server-1\",\"ServerName\":\"Jellyfin\"}");
+        transport.enqueue(200, "{\"AccessToken\":\"token-1\",\"ServerId\":\"server-1\",\"User\":{\"Id\":\"user-1\"}}");
+        enqueueHomeResponses(transport);
+        transport.enqueue(200, """
+                {"Id":"episode-1","Name":"Episode 1","Type":"Episode","IsPlayable":true,"SeriesId":"series-1"}
+                """);
+        transport.enqueue(200, """
+                {"Items":[
+                  {"Id":"episode-2","Name":"Episode 2","Type":"Episode","IsPlayable":true,"SeriesId":"series-1"}
+                ],"TotalRecordCount":1,"StartIndex":0}
+                """);
+
+        ClientIdentity client = new ClientIdentity("CinePilot TV", "Living Room TV", "device-1", "0.1.0");
+        MediaBrowserClient mediaClient = new MediaBrowserClient(transport, new InMemorySessionRepository(), client);
+        TvWorkflowController controller = new TvWorkflowController(mediaClient, new HomeRowsLoader(mediaClient, 12));
+
+        controller.submitServer("https://media.example.com/jellyfin");
+        controller.login("demo", "secret");
+        controller.openItem("episode-1");
+        MediaItemSummary nextUp = controller.nextUpForSelectedSeries();
+
+        assertEquals("episode-2", nextUp.id(), "controller loads next up episode for selected series");
+        ProtocolRequest nextUpRequest = transport.requests.get(transport.requests.size() - 1);
+        String nextUpUrl = nextUpRequest.url(MediaServerAddress.parse("https://media.example.com/jellyfin"));
+        assertEquals("/Shows/NextUp", nextUpRequest.path(), "selected series next up path");
+        assertTrue(nextUpUrl.contains("SeriesId=series-1"), "selected series id query");
+        assertTrue(nextUpUrl.contains("Limit=1"), "selected series limit");
     }
 
     private static void controllerLogoutRevokesSavedSession() {
