@@ -24,6 +24,7 @@
 GitHub Actions：
 
 - `.github/workflows/android-apk.yml` 会在 push、pull request 和手动触发时构建 `:core:test` 与 `:app:assembleDebug`。
+- workflow 会把 `ANDROID_HOME` / `ANDROID_SDK_ROOT` 写入环境，并生成 CI 专用 `local.properties`，确保 Android Gradle Plugin 能找到 SDK。
 - workflow 上传 `cinepilot-tv-debug-apk` artifact，内容是 `app/build/outputs/apk/debug/*.apk`，可下载安装到 Android TV 设备或模拟器。
 - `./scripts/check.sh` 会检查 workflow 是否仍然构建 debug APK 并上传 artifact。
 

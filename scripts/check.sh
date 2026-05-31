@@ -69,6 +69,16 @@ if ! grep -q 'cinepilot-tv-debug-apk' "$ROOT_DIR/.github/workflows/android-apk.y
   exit 1
 fi
 
+if ! grep -q 'sdk.dir=' "$ROOT_DIR/.github/workflows/android-apk.yml"; then
+  echo "Android APK workflow must write local.properties with the CI SDK path" >&2
+  exit 1
+fi
+
+if ! grep -q -- '--sdk_root="$ANDROID_HOME"' "$ROOT_DIR/.github/workflows/android-apk.yml"; then
+  echo "Android APK workflow must install SDK packages into ANDROID_HOME" >&2
+  exit 1
+fi
+
 if [[ ! -s "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/runtime/CinePilotRuntime.kt" ]]; then
   echo "Missing Android app runtime entry" >&2
   exit 1
