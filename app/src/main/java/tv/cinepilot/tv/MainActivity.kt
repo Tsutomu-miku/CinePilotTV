@@ -33,7 +33,7 @@ class MainActivity : Activity() {
         super.onCreate(savedInstanceState)
         runtime = CinePilotRuntime.create(this)
         playerHost = Media3PlayerHost(this, runtime.mediaBrowserClient)
-        showServerEntry()
+        restoreRecentAccountOnLaunch()
     }
 
     override fun onDestroy() {
@@ -106,6 +106,24 @@ class MainActivity : Activity() {
                 }
             })
         })
+    }
+
+    private fun restoreRecentAccountOnLaunch() {
+        val account = savedAccounts().firstOrNull()
+        if (account == null) {
+            showServerEntry()
+            return
+        }
+        showLoading("正在恢复上次登录...")
+        executor.execute {
+            try {
+                runtime.workflowController.submitServer(account.serverAddress)
+                runtime.workflowController.restoreSession(account.userId)
+                runOnUiThread { showHome(runtime.workflowController.state()) }
+            } catch (error: Throwable) {
+                runOnUiThread { showServerEntry() }
+            }
+        }
     }
 
     private fun showLogin() {

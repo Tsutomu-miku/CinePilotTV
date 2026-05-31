@@ -76,6 +76,8 @@ Android 首页按钮获得选择意图时，应先调用 `TvWorkflowController.f
 
 `TvWorkflowController.restoreSession(userId)` 要求先完成服务器发现，再按已发现服务器、userId、客户端身份和设备身份恢复会话。Android UI 可以记住最近服务器地址和 userId 列表来提供多个“继续”入口，但不能自行保存或拼接 token。
 
+启动时 Android UI 应优先尝试恢复最近账号；恢复成功直接进入首页，恢复失败则回到服务器选择页，保证首屏不是不可操作的错误状态。
+
 `TvWorkflowController.loadPublicUsers()` 只用于减少 TV 端用户名输入。public users 来自 `/Users/Public`，选择用户后 Android UI 只能预填用户名，仍必须通过 `login(username, password)` 完成正式认证并获取 token。
 
 当服务器返回 401 时，Android UI 应调用 `TvWorkflowController.forgetAuthenticatedSession()` 撤销当前 authenticated scope，并提示用户重新登录。这个撤销只删除当前服务器、用户和设备身份对应的 saved session，不影响其他服务器或其他用户。

@@ -106,6 +106,11 @@ if ! grep -q 'recent_accounts' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/Main
   exit 1
 fi
 
+if ! grep -q 'restoreRecentAccountOnLaunch' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/MainActivity.kt"; then
+  echo "MainActivity must auto-restore the most recent saved account on launch" >&2
+  exit 1
+fi
+
 if ! grep -q 'restoreSession' "$ROOT_DIR/core/src/main/java/tv/cinepilot/core/tv/TvWorkflowController.java"; then
   echo "TvWorkflowController must expose saved session restore" >&2
   exit 1
