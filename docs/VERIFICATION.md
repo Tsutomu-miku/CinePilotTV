@@ -27,10 +27,10 @@
 ./gradlew :core:test :app:assembleDebug
 ```
 
-如果没有 Gradle wrapper，需要先用 Android Studio 或系统 Gradle 生成 wrapper，再运行：
+如果没有 Gradle wrapper，先运行：
 
 ```bash
-./gradlew wrapper
+./scripts/bootstrap-gradle-wrapper.sh
 ./gradlew :core:test :app:assembleDebug
 ```
 

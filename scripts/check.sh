@@ -39,6 +39,11 @@ if [[ ! -s "$ROOT_DIR/core/build.gradle.kts" ]]; then
   exit 1
 fi
 
+if [[ ! -x "$ROOT_DIR/scripts/bootstrap-gradle-wrapper.sh" ]]; then
+  echo "Missing executable Gradle wrapper bootstrap script" >&2
+  exit 1
+fi
+
 if [[ ! -s "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/runtime/CinePilotRuntime.kt" ]]; then
   echo "Missing Android app runtime entry" >&2
   exit 1

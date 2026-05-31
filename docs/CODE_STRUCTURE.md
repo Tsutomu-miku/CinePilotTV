@@ -37,6 +37,7 @@ docs/                            项目指导文档
   PROTOCOL_NOTES.md              Jellyfin / Emby 协议来源和约定
   VERIFICATION.md                本地检查、Android 构建和设备 QA 说明
 scripts/                         健康检查和本地自动化
+  bootstrap-gradle-wrapper.sh    生成 Gradle wrapper 的辅助脚本
 ```
 
 ## 放置规则
