@@ -941,6 +941,11 @@ if ! grep -q 'applyTrackSelection(item, speedPreferences(item, rate))' "$ROOT_DI
   exit 1
 fi
 
+if ! grep -q 'applyTrackSelection(item, lowBitratePreferences(item))' "$PLAYBACK_ROUTE_CONTROLLER"; then
+  echo "Low bitrate retry must preserve detail-page media source, audio, and subtitle choices" >&2
+  exit 1
+fi
+
 if ! grep -q 'setPlaybackSpeed' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/player/Media3PlayerHost.kt"; then
   echo "Media3PlayerHost must apply selected playback speed" >&2
   exit 1

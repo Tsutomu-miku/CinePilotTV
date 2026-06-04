@@ -130,7 +130,7 @@ class PlaybackRouteController(
 
     fun retryLowBitrateFromError(state: TvAppState) {
         state.selectedItem()?.let { item ->
-            preparePlaybackWith(lowBitratePreferences(item))
+            preparePlaybackWith(applyTrackSelection(item, lowBitratePreferences(item)))
         }
     }
 
