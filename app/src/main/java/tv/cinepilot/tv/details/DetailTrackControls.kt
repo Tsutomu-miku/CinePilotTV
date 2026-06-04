@@ -24,6 +24,24 @@ data class DetailTrackSelection(
     fun hasExplicitChoice(): Boolean {
         return mediaSourceId != null || audioSelected || subtitleSelected
     }
+
+    fun normalizedFor(playbackInfo: PlaybackInfo?): DetailTrackSelection {
+        val sources = playbackInfo?.mediaSources().orEmpty()
+        if (!hasExplicitChoice() || sources.isEmpty()) {
+            return this
+        }
+        val selectedSource = sources.firstOrNull { it.id() == mediaSourceId } ?: return DetailTrackSelection()
+        val audioValid = !audioSelected || selectedSource.hasStream(MediaStreamType.AUDIO, audioStreamIndex)
+        val subtitleValid = !subtitleSelected ||
+            subtitleStreamIndex == SUBTITLES_OFF_INDEX ||
+            selectedSource.hasStream(MediaStreamType.SUBTITLE, subtitleStreamIndex)
+        return copy(
+            audioSelected = audioSelected && audioValid,
+            audioStreamIndex = if (audioSelected && audioValid) audioStreamIndex else null,
+            subtitleSelected = subtitleSelected && subtitleValid,
+            subtitleStreamIndex = if (subtitleSelected && subtitleValid) subtitleStreamIndex else null,
+        )
+    }
 }
 
 fun ComponentActivity.detailTrackControls(
@@ -73,8 +91,8 @@ fun ComponentActivity.detailTrackControls(
             onStream = { stream ->
                 onSelection(selection.forSource(activeSource.id()).copy(subtitleSelected = true, subtitleStreamIndex = stream.index()))
             },
-            extraChoice = radioChoice("关闭字幕", selection.subtitleSelected && selection.subtitleStreamIndex == -1) {
-                onSelection(selection.forSource(activeSource.id()).copy(subtitleSelected = true, subtitleStreamIndex = -1))
+            extraChoice = radioChoice("关闭字幕", selection.subtitleSelected && selection.subtitleStreamIndex == SUBTITLES_OFF_INDEX) {
+                onSelection(selection.forSource(activeSource.id()).copy(subtitleSelected = true, subtitleStreamIndex = SUBTITLES_OFF_INDEX))
             },
         )
     }
@@ -125,3 +143,9 @@ private fun DetailTrackSelection.forSource(sourceId: String): DetailTrackSelecti
 private fun MediaSourceInfo.streamsOf(type: MediaStreamType): List<MediaStreamInfo> {
     return mediaStreams().filter { stream -> stream.type() == type }
 }
+
+private fun MediaSourceInfo.hasStream(type: MediaStreamType, streamIndex: Int?): Boolean {
+    return streamsOf(type).any { stream -> stream.index() == streamIndex }
+}
+
+private const val SUBTITLES_OFF_INDEX = -1

@@ -956,6 +956,21 @@ if ! grep -q 'detailTrackControls' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/
   exit 1
 fi
 
+if ! grep -q 'normalizedFor(playbackInfo' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/details/DetailTrackControls.kt"; then
+  echo "Detail track selection must normalize stale media source or stream indexes" >&2
+  exit 1
+fi
+
+if ! grep -q 'normalizedTrackSelectionFor' "$PLAYBACK_ROUTE_CONTROLLER"; then
+  echo "Playback route controller must render normalized detail track selections" >&2
+  exit 1
+fi
+
+if ! grep -q 'normalizedFor(selectedPlaybackInfo' "$PLAYBACK_ROUTE_CONTROLLER"; then
+  echo "Playback route controller must prepare playback with normalized track selections" >&2
+  exit 1
+fi
+
 if ! grep -q 'consumeUp = trackControls == null' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/ui/DetailsScreen.kt"; then
   echo "Details playback actions must allow D-pad up/down around inline track controls" >&2
   exit 1
@@ -991,7 +1006,7 @@ if ! grep -q 'applyTrackSelection' "$PLAYBACK_ROUTE_CONTROLLER"; then
   exit 1
 fi
 
-if ! grep -q 'subtitleStreamIndex = -1' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/details/DetailTrackControls.kt"; then
+if ! grep -q 'SUBTITLES_OFF_INDEX = -1' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/details/DetailTrackControls.kt"; then
   echo "Details track controls must support disabling subtitles" >&2
   exit 1
 fi

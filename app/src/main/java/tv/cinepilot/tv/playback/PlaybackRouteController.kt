@@ -38,11 +38,12 @@ class PlaybackRouteController(
             selectedPlaybackInfo = playbackInfo
         }
         val effectivePlaybackInfo = playbackInfo ?: selectedPlaybackInfo?.takeIf { it.itemId() == item.id() }
+        val effectiveTrackSelection = normalizedTrackSelectionFor(item, effectivePlaybackInfo)
         activity.setContentView(activity.detailsRouteScreen(
             item = item,
             playbackInfo = effectivePlaybackInfo,
             loadPosterImage = loadPosterImage,
-            trackSelection = trackSelectionFor(item),
+            trackSelection = effectiveTrackSelection,
             onPreparePlayback = { preferences ->
                 preparePlaybackWith(applyTrackSelection(item, preferences))
             },
@@ -207,6 +208,7 @@ class PlaybackRouteController(
         base: PlaybackSelectionPreferences?,
     ): PlaybackSelectionPreferences? {
         val selection = trackSelectionFor(item)
+            .normalizedFor(selectedPlaybackInfo?.takeIf { it.itemId() == item.id() })
         if (!selection.hasExplicitChoice()) {
             return base
         }
@@ -225,6 +227,15 @@ class PlaybackRouteController(
 
     private fun resumeStartTicks(item: MediaItemSummary): Long {
         return if (item.hasResumePosition()) item.userData().playbackPositionTicks() else 0L
+    }
+
+    private fun normalizedTrackSelectionFor(
+        item: MediaItemSummary,
+        playbackInfo: PlaybackInfo?,
+    ): DetailTrackSelection {
+        val selection = trackSelectionFor(item).normalizedFor(playbackInfo)
+        selectedTrackSelection = selection
+        return selection
     }
 
     companion object {
