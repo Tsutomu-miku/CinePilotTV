@@ -1082,6 +1082,19 @@ if ! grep -q '无法连接到服务器' "$ROOT_DIR/app/src/main/java/tv/cinepilo
   exit 1
 fi
 
+SUBTITLE_STYLE_SCREEN="$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/playback/SubtitleStyleScreen.kt"
+if ! grep -q 'enum class SubtitleStyleFocusGroup' "$SUBTITLE_STYLE_SCREEN"; then
+  echo "Subtitle style screen must track the last edited option group for D-pad focus restore" >&2
+  exit 1
+fi
+
+for subtitle_focus_group in SIZE COLOR BACKGROUND; do
+  if ! grep -q "SubtitleStyleFocusGroup.$subtitle_focus_group" "$SUBTITLE_STYLE_SCREEN"; then
+    echo "Subtitle style screen must restore focus for group: $subtitle_focus_group" >&2
+    exit 1
+  fi
+done
+
 if ! grep -q 'HTTPS 连接失败' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/ui/TvErrorMessages.kt"; then
   echo "TV error messages must explain HTTPS failures in Chinese" >&2
   exit 1

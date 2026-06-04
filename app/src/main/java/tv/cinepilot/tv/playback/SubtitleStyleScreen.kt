@@ -13,16 +13,21 @@ import tv.cinepilot.tv.ui.section
 
 fun ComponentActivity.showSubtitleStyleScreen(
     store: SubtitleStyleStore,
+    focusGroup: SubtitleStyleFocusGroup = SubtitleStyleFocusGroup.SIZE,
 ) {
-    fun refresh(update: (SubtitleStylePreferences) -> SubtitleStylePreferences) {
+    fun refresh(
+        nextFocusGroup: SubtitleStyleFocusGroup,
+        update: (SubtitleStylePreferences) -> SubtitleStylePreferences,
+    ) {
         store.save(update(store.current()))
-        showSubtitleStyleScreen(store)
+        showSubtitleStyleScreen(store, nextFocusGroup)
     }
     setContentView(subtitleStyleScreen(
         current = store.current(),
-        onSize = { size -> refresh { it.copy(size = size) } },
-        onColor = { color -> refresh { it.copy(color = color) } },
-        onBackground = { background -> refresh { it.copy(background = background) } },
+        focusGroup = focusGroup,
+        onSize = { size -> refresh(SubtitleStyleFocusGroup.SIZE) { it.copy(size = size) } },
+        onColor = { color -> refresh(SubtitleStyleFocusGroup.COLOR) { it.copy(color = color) } },
+        onBackground = { background -> refresh(SubtitleStyleFocusGroup.BACKGROUND) { it.copy(background = background) } },
         onReset = {
             store.save(SubtitleStylePreferences.defaults())
             showSubtitleStyleScreen(store)
@@ -32,6 +37,7 @@ fun ComponentActivity.showSubtitleStyleScreen(
 
 fun ComponentActivity.subtitleStyleScreen(
     current: SubtitleStylePreferences,
+    focusGroup: SubtitleStyleFocusGroup,
     onSize: (SubtitleTextSize) -> Unit,
     onColor: (SubtitleTextColor) -> Unit,
     onBackground: (SubtitleBackground) -> Unit,
@@ -39,14 +45,35 @@ fun ComponentActivity.subtitleStyleScreen(
 ): ScrollView {
     return screen("字幕样式") {
         addView(section("字号"))
-        addView(subtitleChoiceRow(SubtitleTextSize.entries, current.size, onSize, focusSelected = true))
+        addView(subtitleChoiceRow(
+            options = SubtitleTextSize.entries,
+            current = current.size,
+            onSelected = onSize,
+            focusSelected = focusGroup == SubtitleStyleFocusGroup.SIZE,
+        ))
         addView(section("颜色"))
-        addView(subtitleChoiceRow(SubtitleTextColor.entries, current.color, onColor))
+        addView(subtitleChoiceRow(
+            options = SubtitleTextColor.entries,
+            current = current.color,
+            onSelected = onColor,
+            focusSelected = focusGroup == SubtitleStyleFocusGroup.COLOR,
+        ))
         addView(section("背景"))
-        addView(subtitleChoiceRow(SubtitleBackground.entries, current.background, onBackground))
+        addView(subtitleChoiceRow(
+            options = SubtitleBackground.entries,
+            current = current.background,
+            onSelected = onBackground,
+            focusSelected = focusGroup == SubtitleStyleFocusGroup.BACKGROUND,
+        ))
         addView(label("当前：${current.size.label} / ${current.color.label} / ${current.background.label}"))
         addView(action("恢复默认字幕样式", onReset))
     }
+}
+
+enum class SubtitleStyleFocusGroup {
+    SIZE,
+    COLOR,
+    BACKGROUND,
 }
 
 private fun <T> ComponentActivity.subtitleChoiceRow(
