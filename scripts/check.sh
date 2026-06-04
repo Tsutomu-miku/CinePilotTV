@@ -168,6 +168,16 @@ if ! grep -q 'TYPE_TEXT_VARIATION_PASSWORD' "$ROOT_DIR/app/src/main/java/tv/cine
   exit 1
 fi
 
+if ! grep -q 'requestInitialFocus' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/auth/AuthScreens.kt"; then
+  echo "Auth screens must give D-pad focus to the first available login action" >&2
+  exit 1
+fi
+
+if ! grep -q 'initialFocusIfNeeded' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/auth/AuthScreens.kt"; then
+  echo "Auth screens must centralize first-focus assignment across saved accounts and public users" >&2
+  exit 1
+fi
+
 if ! grep -q 'TYPE_TEXT_VARIATION_URI' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/auth/AuthScreens.kt"; then
   echo "Auth screens must optimize server URL input" >&2
   exit 1
