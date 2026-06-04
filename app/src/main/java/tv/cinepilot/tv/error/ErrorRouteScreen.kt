@@ -1,5 +1,6 @@
 package tv.cinepilot.tv.error
 
+import android.view.View
 import android.widget.ScrollView
 import androidx.activity.ComponentActivity
 import tv.cinepilot.core.tv.TvAppState
@@ -7,6 +8,7 @@ import tv.cinepilot.tv.ui.TvIcon
 import tv.cinepilot.tv.ui.action
 import tv.cinepilot.tv.ui.iconAction
 import tv.cinepilot.tv.ui.label
+import tv.cinepilot.tv.ui.requestInitialFocus
 import tv.cinepilot.tv.ui.screen
 
 fun ComponentActivity.errorRouteScreen(
@@ -23,20 +25,23 @@ fun ComponentActivity.errorRouteScreen(
 ): ScrollView {
     return screen("出错了") {
         addView(label(message))
-        if (state.selectedItem() != null && !authenticationExpired) {
-            addView(iconAction("返回详情", TvIcon.BACK, onReturnDetails))
-        }
-        if (state.selectedItem() != null && !authenticationExpired) {
-            addView(iconAction("低码率重试", TvIcon.SPEED, onRetryLowBitrate))
-            addView(iconAction("切换音轨 / 字幕", TvIcon.SUBTITLES, onPlaybackOptions))
-            addView(action("诊断信息", onDiagnostics))
+        val canRecoverPlayback = state.selectedItem() != null && !authenticationExpired
+        val actions = mutableListOf<View>()
+        if (canRecoverPlayback) {
+            actions.add(iconAction("返回详情", TvIcon.BACK, onReturnDetails))
+            actions.add(iconAction("低码率重试", TvIcon.SPEED, onRetryLowBitrate))
+            actions.add(iconAction("切换音轨 / 字幕", TvIcon.SUBTITLES, onPlaybackOptions))
+            actions.add(action("诊断信息", onDiagnostics))
         }
         if (state.homeRows().isNotEmpty() && !authenticationExpired) {
-            addView(iconAction("返回首页", TvIcon.BACK, onHome))
+            actions.add(iconAction("返回首页", TvIcon.BACK, onHome))
         }
         if (state.server() != null) {
-            addView(action("重新登录", onLogin))
+            actions.add(action("重新登录", onLogin))
         }
-        addView(iconAction("返回服务器输入", TvIcon.BACK, onServerEntry))
+        actions.add(iconAction("返回服务器输入", TvIcon.BACK, onServerEntry))
+        actions.forEachIndexed { index, view ->
+            addView(if (index == 0) view.requestInitialFocus() else view)
+        }
     }
 }

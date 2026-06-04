@@ -861,6 +861,11 @@ if ! grep -q 'state.selectedItem() != null && !authenticationExpired' "$ROOT_DIR
   exit 1
 fi
 
+if ! grep -q 'requestInitialFocus' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/error/ErrorRouteScreen.kt"; then
+  echo "Error recovery page must give D-pad focus to the first available recovery action" >&2
+  exit 1
+fi
+
 if ! grep -q 'showPlaybackOptionsFromError' "$PLAYBACK_ROUTE_CONTROLLER"; then
   echo "Playback route controller must expose track selection from playback errors" >&2
   exit 1
