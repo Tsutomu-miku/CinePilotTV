@@ -26,7 +26,7 @@ fun ComponentActivity.errorRouteScreen(
         if (state.selectedItem() != null && !authenticationExpired) {
             addView(iconAction("返回详情", TvIcon.BACK, onReturnDetails))
         }
-        if (state.playableMedia() != null && !authenticationExpired) {
+        if (state.selectedItem() != null && !authenticationExpired) {
             addView(iconAction("低码率重试", TvIcon.SPEED, onRetryLowBitrate))
             addView(iconAction("切换音轨 / 字幕", TvIcon.SUBTITLES, onPlaybackOptions))
             addView(action("诊断信息", onDiagnostics))

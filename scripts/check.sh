@@ -856,6 +856,11 @@ if ! grep -q '低码率重试' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/erro
   exit 1
 fi
 
+if ! grep -q 'state.selectedItem() != null && !authenticationExpired' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/error/ErrorRouteScreen.kt"; then
+  echo "Error recovery page must expose playback recovery actions even before playable media is created" >&2
+  exit 1
+fi
+
 if ! grep -q 'showPlaybackOptionsFromError' "$PLAYBACK_ROUTE_CONTROLLER"; then
   echo "Playback route controller must expose track selection from playback errors" >&2
   exit 1
