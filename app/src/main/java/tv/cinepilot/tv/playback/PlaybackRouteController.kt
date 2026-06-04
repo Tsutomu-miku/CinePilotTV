@@ -1,6 +1,5 @@
 package tv.cinepilot.tv.playback
 
-import android.content.Intent
 import android.widget.ImageView
 import android.widget.Toast
 import androidx.activity.ComponentActivity
@@ -9,7 +8,6 @@ import tv.cinepilot.core.protocol.PlaybackInfo
 import tv.cinepilot.core.protocol.PlaybackSelectionPreferences
 import tv.cinepilot.core.tv.HomeRow
 import tv.cinepilot.core.tv.TvAppState
-import tv.cinepilot.core.tv.TvDiagnostics
 import tv.cinepilot.core.tv.TvRoute
 import tv.cinepilot.core.tv.TvWorkflowController
 import tv.cinepilot.tv.details.DetailTrackSelection
@@ -27,6 +25,7 @@ class PlaybackRouteController(
     private val showError: (Throwable) -> Unit,
     private val loadPosterImage: (ImageView, MediaItemSummary, Int, Int) -> Unit,
 ) {
+    private val diagnosticsController = PlaybackDiagnosticsController(activity)
     private var selectedPlaybackInfo: PlaybackInfo? = null
     private var selectedTrackItemId: String? = null
     private var selectedTrackSelection = DetailTrackSelection()
@@ -125,11 +124,7 @@ class PlaybackRouteController(
     }
 
     fun showDiagnosticsFromError(state: TvAppState, onBackError: () -> Unit) {
-        showDiagnostics(
-            state = state,
-            backLabel = "返回错误页",
-            onBackDiagnosticsTarget = onBackError,
-        )
+        diagnosticsController.showFromError(state, onBackError)
     }
 
     fun retryLowBitrateFromError(state: TvAppState) {
@@ -146,60 +141,6 @@ class PlaybackRouteController(
             }) {
                 showDetails(item, choices)
             }
-        }
-    }
-
-    private fun showDiagnostics(
-        state: TvAppState,
-        returnToPlayer: Boolean = false,
-        backLabel: String? = null,
-        onBackDiagnosticsTarget: () -> Unit,
-    ) {
-        val diagnostics = TvDiagnostics.describe(state)
-        activity.setContentView(activity.diagnosticsScreen(
-            diagnostics = diagnostics,
-            returnToPlayer = returnToPlayer,
-            backLabel = backLabel,
-            onExport = {
-                val file = activity.filesDir.resolve("cinepilot-diagnostics.txt")
-                file.writeText(diagnostics)
-                showDiagnosticsExported(state, file.absolutePath, returnToPlayer, backLabel, onBackDiagnosticsTarget)
-            },
-            onShare = { shareDiagnostics(diagnostics) },
-            onBackDiagnosticsTarget = onBackDiagnosticsTarget,
-        ))
-    }
-
-    private fun showDiagnosticsExported(
-        state: TvAppState,
-        path: String,
-        returnToPlayer: Boolean = false,
-        backLabel: String? = null,
-        onBackDiagnosticsTarget: () -> Unit,
-    ) {
-        val diagnostics = TvDiagnostics.describe(state)
-        activity.setContentView(activity.diagnosticsExportedScreen(
-            path = path,
-            returnToPlayer = returnToPlayer,
-            backLabel = backLabel,
-            onShare = { shareDiagnostics(diagnostics) },
-            onBackDiagnostics = {
-                showDiagnostics(state, returnToPlayer, backLabel, onBackDiagnosticsTarget)
-            },
-            onBackDiagnosticsTarget = onBackDiagnosticsTarget,
-        ))
-    }
-
-    private fun shareDiagnostics(diagnostics: String) {
-        val shareIntent = Intent(Intent.ACTION_SEND).apply {
-            type = "text/plain"
-            putExtra(Intent.EXTRA_SUBJECT, "CinePilot TV 诊断信息")
-            putExtra(Intent.EXTRA_TEXT, diagnostics)
-        }
-        runCatching {
-            activity.startActivity(Intent.createChooser(shareIntent, "分享诊断"))
-        }.onFailure {
-            Toast.makeText(activity, "没有可用的分享应用", Toast.LENGTH_SHORT).show()
         }
     }
 

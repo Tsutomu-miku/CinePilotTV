@@ -6,6 +6,7 @@ BUILD_DIR="$ROOT_DIR/build/check"
 MAIN_CLASSES="$BUILD_DIR/main"
 TEST_CLASSES="$BUILD_DIR/test"
 PLAYBACK_ROUTE_CONTROLLER="$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/playback/PlaybackRouteController.kt"
+PLAYBACK_DIAGNOSTICS_CONTROLLER="$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/playback/PlaybackDiagnosticsController.kt"
 AUTH_ROUTE_CONTROLLER="$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/auth/AuthRouteController.kt"
 
 required_docs=(
@@ -820,7 +821,17 @@ if ! grep -q 'showDiagnosticsFromError' "$PLAYBACK_ROUTE_CONTROLLER"; then
   exit 1
 fi
 
-if ! grep -q '返回错误页' "$PLAYBACK_ROUTE_CONTROLLER"; then
+if [[ ! -s "$PLAYBACK_DIAGNOSTICS_CONTROLLER" ]]; then
+  echo "Missing dedicated playback diagnostics route controller" >&2
+  exit 1
+fi
+
+if ! grep -q 'PlaybackDiagnosticsController(activity)' "$PLAYBACK_ROUTE_CONTROLLER"; then
+  echo "Playback route controller must delegate diagnostics route handling" >&2
+  exit 1
+fi
+
+if ! grep -q '返回错误页' "$PLAYBACK_DIAGNOSTICS_CONTROLLER"; then
   echo "Playback diagnostics must return to the error recovery page when opened from an error" >&2
   exit 1
 fi
@@ -850,13 +861,13 @@ if ! grep -q '切换音轨 / 字幕' "$ROOT_DIR/app/src/main/java/tv/cinepilot/t
   exit 1
 fi
 
-if ! grep -q 'Intent.ACTION_SEND' "$PLAYBACK_ROUTE_CONTROLLER"; then
+if ! grep -q 'Intent.ACTION_SEND' "$PLAYBACK_DIAGNOSTICS_CONTROLLER"; then
   echo "Diagnostics sharing must use a text share intent" >&2
   exit 1
 fi
 
-if ! grep -q 'cinepilot-diagnostics.txt' "$PLAYBACK_ROUTE_CONTROLLER"; then
-  echo "Playback route controller must use a stable diagnostics export file name" >&2
+if ! grep -q 'cinepilot-diagnostics.txt' "$PLAYBACK_DIAGNOSTICS_CONTROLLER"; then
+  echo "Playback diagnostics controller must use a stable diagnostics export file name" >&2
   exit 1
 fi
 
