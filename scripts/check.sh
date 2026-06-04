@@ -910,6 +910,16 @@ if ! grep -q '播放速度' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/playbac
   exit 1
 fi
 
+if ! grep -q 'playbackSpeedChoiceRow' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/playback/PlaybackScreens.kt"; then
+  echo "Playback speed screen must use a compact horizontal option row" >&2
+  exit 1
+fi
+
+if ! grep -q 'DEFAULT_PLAYBACK_RATE = 1.0f' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/playback/PlaybackScreens.kt"; then
+  echo "Playback speed screen must focus the normal 1.0x speed by default" >&2
+  exit 1
+fi
+
 if ! grep -q 'setPlaybackSpeed' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/player/Media3PlayerHost.kt"; then
   echo "Media3PlayerHost must apply selected playback speed" >&2
   exit 1

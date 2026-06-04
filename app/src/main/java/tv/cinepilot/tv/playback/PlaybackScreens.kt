@@ -1,11 +1,14 @@
 package tv.cinepilot.tv.playback
 
 import android.view.View
+import android.widget.HorizontalScrollView
+import android.widget.LinearLayout
 import android.widget.ScrollView
 import androidx.activity.ComponentActivity
 import tv.cinepilot.core.tv.TvAppState
 import tv.cinepilot.tv.ui.TvIcon
 import tv.cinepilot.tv.ui.action
+import tv.cinepilot.tv.ui.choiceAction
 import tv.cinepilot.tv.ui.iconAction
 import tv.cinepilot.tv.ui.label
 import tv.cinepilot.tv.ui.playbackSpeedOptions
@@ -16,10 +19,24 @@ fun ComponentActivity.playbackSpeedScreen(
     onSpeed: (Float) -> Unit,
 ): ScrollView {
     return screen("播放速度") {
-        playbackSpeedOptions().forEachIndexed { index, option ->
-            val optionAction = action(option.label) { onSpeed(option.rate) }
-            addView(if (index == 0) optionAction.requestInitialFocus() else optionAction)
+        addView(playbackSpeedChoiceRow(onSpeed))
+    }
+}
+
+private fun ComponentActivity.playbackSpeedChoiceRow(
+    onSpeed: (Float) -> Unit,
+): HorizontalScrollView {
+    val row = LinearLayout(this).apply {
+        orientation = LinearLayout.HORIZONTAL
+        playbackSpeedOptions().forEach { option ->
+            val selected = option.rate == DEFAULT_PLAYBACK_RATE
+            val optionAction = choiceAction(option.label, selected) { onSpeed(option.rate) }
+            addView(if (selected) optionAction.requestInitialFocus() else optionAction)
         }
+    }
+    return HorizontalScrollView(this).apply {
+        isHorizontalScrollBarEnabled = false
+        addView(row)
     }
 }
 
@@ -84,3 +101,5 @@ private fun ComponentActivity.diagnosticsBackAction(
     }
     return iconAction(label, TvIcon.BACK, onBackDiagnosticsTarget)
 }
+
+private const val DEFAULT_PLAYBACK_RATE = 1.0f
