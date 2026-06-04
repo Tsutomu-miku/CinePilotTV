@@ -1,8 +1,11 @@
 package tv.cinepilot.tv.player
 
+import androidx.media3.common.C
+import androidx.media3.common.Format
 import androidx.media3.common.PlaybackParameters
 import androidx.media3.common.PlaybackException
 import androidx.media3.common.Player
+import androidx.media3.common.Tracks
 import java.util.concurrent.Executor
 import tv.cinepilot.core.protocol.PlaybackSessionController
 
@@ -11,12 +14,17 @@ class Media3PlaybackBridge(
     private val checkInExecutor: Executor,
     private val onPlaybackError: (PlaybackException) -> Unit = {},
     private val onPlaybackEnded: () -> Unit = {},
+    private val trackResolver: Media3StreamIndexResolver = Media3StreamIndexResolver(emptyList()),
+    initialAudioStreamIndex: Int? = null,
+    initialSubtitleStreamIndex: Int? = null,
     private val clock: () -> Long = { System.currentTimeMillis() },
 ) : Player.Listener {
     private var started = false
     private var stopped = false
     private var lastPositionBeforeSeek = 0L
     private var playbackRate = 1f
+    private var audioStreamIndex = initialAudioStreamIndex
+    private var subtitleStreamIndex = initialSubtitleStreamIndex
 
     override fun onPlaybackStateChanged(playbackState: Int) {
         if (playbackState == Player.STATE_READY && !started) {
@@ -48,6 +56,32 @@ class Media3PlaybackBridge(
         lastPositionBeforeSeek = newPosition.positionMs
         if (started && !stopped && reason == Player.DISCONTINUITY_REASON_SEEK) {
             checkIn { controller.seek(clock(), newPosition.positionMs) }
+        }
+    }
+
+    override fun onTracksChanged(tracks: Tracks) {
+        if (!started || stopped) {
+            return
+        }
+        val nextAudio = selectedTrackIndex(tracks, C.TRACK_TYPE_AUDIO, trackResolver::audioStreamIndex)
+        if (nextAudio != null && nextAudio != audioStreamIndex) {
+            audioStreamIndex = nextAudio
+            checkIn { controller.audioTrackChanged(clock(), lastPositionBeforeSeek, nextAudio) }
+        }
+
+        val nextSubtitle = selectedTrackIndex(tracks, C.TRACK_TYPE_TEXT, trackResolver::subtitleStreamIndex)
+        val reportedSubtitle = nextSubtitle ?: if (
+            !hasSelectedTrack(tracks, C.TRACK_TYPE_TEXT) &&
+            subtitleStreamIndex != null &&
+            subtitleStreamIndex != -1
+        ) {
+            -1
+        } else {
+            null
+        }
+        if (reportedSubtitle != null && reportedSubtitle != subtitleStreamIndex) {
+            subtitleStreamIndex = reportedSubtitle
+            checkIn { controller.subtitleTrackChanged(clock(), lastPositionBeforeSeek, reportedSubtitle) }
         }
     }
 
@@ -85,5 +119,35 @@ class Media3PlaybackBridge(
         checkInExecutor.execute {
             runCatching(action)
         }
+    }
+
+    private fun selectedTrackIndex(
+        tracks: Tracks,
+        trackType: Int,
+        resolve: (Format) -> Int?,
+    ): Int? {
+        tracks.groups.forEach { group ->
+            if (group.type == trackType && group.isSelected) {
+                for (index in 0 until group.length) {
+                    if (group.isTrackSelected(index)) {
+                        return resolve(group.getTrackFormat(index))
+                    }
+                }
+            }
+        }
+        return null
+    }
+
+    private fun hasSelectedTrack(tracks: Tracks, trackType: Int): Boolean {
+        tracks.groups.forEach { group ->
+            if (group.type == trackType && group.isSelected) {
+                for (index in 0 until group.length) {
+                    if (group.isTrackSelected(index)) {
+                        return true
+                    }
+                }
+            }
+        }
+        return false
     }
 }

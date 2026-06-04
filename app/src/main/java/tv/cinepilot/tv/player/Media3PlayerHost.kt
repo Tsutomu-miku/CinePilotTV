@@ -56,10 +56,13 @@ class Media3PlayerHost(
 
         release()
         val playbackBridge = Media3PlaybackBridge(
-            PlaybackSessionController(mediaBrowserClient, authenticated, playable),
-            checkInExecutor,
-            onPlaybackError,
-            onPlaybackEnded,
+            controller = PlaybackSessionController(mediaBrowserClient, authenticated, playable),
+            checkInExecutor = checkInExecutor,
+            onPlaybackError = onPlaybackError,
+            onPlaybackEnded = onPlaybackEnded,
+            trackResolver = Media3StreamIndexResolver(playable.mediaStreams()),
+            initialAudioStreamIndex = playable.audioStreamIndex(),
+            initialSubtitleStreamIndex = playable.subtitleStreamIndex(),
         )
         val nextPlayer = ExoPlayer.Builder(context).build().apply {
             addListener(playbackBridge)

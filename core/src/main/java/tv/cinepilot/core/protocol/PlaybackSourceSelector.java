@@ -126,6 +126,7 @@ public final class PlaybackSourceSelector {
                 selectedSubtitleCodec(source, preferences),
                 selectedSubtitleLanguage(source, preferences),
                 selectedSubtitleDisplayTitle(source, preferences),
+                source.mediaStreams(),
                 preferences.startTimeTicks(),
                 preferences.playbackRate()
         );
@@ -158,6 +159,7 @@ public final class PlaybackSourceSelector {
                 selectedSubtitleCodec(source, preferences),
                 selectedSubtitleLanguage(source, preferences),
                 selectedSubtitleDisplayTitle(source, preferences),
+                source.mediaStreams(),
                 preferences.startTimeTicks(),
                 preferences.playbackRate()
         );
@@ -208,6 +210,7 @@ public final class PlaybackSourceSelector {
                 "",
                 "",
                 "",
+                source.mediaStreams(),
                 preferences.startTimeTicks(),
                 preferences.playbackRate()
         );

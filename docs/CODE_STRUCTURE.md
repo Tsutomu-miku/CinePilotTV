@@ -20,6 +20,7 @@ app/
     playback/SubtitleStyleScreen.kt 字幕样式设置页面和保存后刷新
     player/Media3PlayerHost.kt   Media3 ExoPlayer / PlayerView 宿主和遥控器媒体键控制
     player/Media3PlaybackBridge.kt Media3 事件到播放上报控制器的桥接
+    player/Media3StreamIndexResolver.kt Media3 selected track 到协议 MediaStream.Index 的谨慎映射
     runtime/CinePilotRuntime.kt  Android app runtime composition root
     runtime/PrimaryImageLoader.kt 海报图片异步加载和短超时网络读取
     runtime/QuickConnectPoller.kt Jellyfin Quick Connect 授权状态轮询

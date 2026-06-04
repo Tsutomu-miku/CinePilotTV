@@ -1,5 +1,8 @@
 package tv.cinepilot.core.protocol;
 
+import java.util.List;
+import tv.cinepilot.core.AndroidCollections;
+
 public record PlayableMedia(
         String itemId,
         String mediaSourceId,
@@ -13,6 +16,7 @@ public record PlayableMedia(
         String subtitleCodec,
         String subtitleLanguage,
         String subtitleDisplayTitle,
+        List<MediaStreamInfo> mediaStreams,
         long startTimeTicks,
         Float playbackRate
 ) {
@@ -41,6 +45,7 @@ public record PlayableMedia(
         if (subtitleDisplayTitle == null) {
             subtitleDisplayTitle = "";
         }
+        mediaStreams = AndroidCollections.listCopy(mediaStreams);
         if (playbackRate != null && playbackRate <= 0f) {
             playbackRate = null;
         }
@@ -69,8 +74,44 @@ public record PlayableMedia(
                 "",
                 "",
                 "",
+                AndroidCollections.emptyList(),
                 0L,
                 null
+        );
+    }
+
+    public PlayableMedia(
+            String itemId,
+            String mediaSourceId,
+            String playSessionId,
+            PlayMethod playMethod,
+            String url,
+            ProtocolRequest request,
+            Integer audioStreamIndex,
+            Integer subtitleStreamIndex,
+            String subtitleDeliveryUrl,
+            String subtitleCodec,
+            String subtitleLanguage,
+            String subtitleDisplayTitle,
+            long startTimeTicks,
+            Float playbackRate
+    ) {
+        this(
+                itemId,
+                mediaSourceId,
+                playSessionId,
+                playMethod,
+                url,
+                request,
+                audioStreamIndex,
+                subtitleStreamIndex,
+                subtitleDeliveryUrl,
+                subtitleCodec,
+                subtitleLanguage,
+                subtitleDisplayTitle,
+                AndroidCollections.emptyList(),
+                startTimeTicks,
+                playbackRate
         );
     }
 

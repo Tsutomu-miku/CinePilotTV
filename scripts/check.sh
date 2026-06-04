@@ -541,6 +541,26 @@ if ! grep -q 'onPlaybackParametersChanged' "$ROOT_DIR/app/src/main/java/tv/cinep
   exit 1
 fi
 
+if ! grep -q 'onTracksChanged' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/player/Media3PlaybackBridge.kt"; then
+  echo "Media3PlaybackBridge must observe playback-time track changes" >&2
+  exit 1
+fi
+
+if ! grep -q 'audioTrackChanged' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/player/Media3PlaybackBridge.kt"; then
+  echo "Media3PlaybackBridge must report uniquely mapped audio track changes" >&2
+  exit 1
+fi
+
+if ! grep -q 'subtitleTrackChanged' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/player/Media3PlaybackBridge.kt"; then
+  echo "Media3PlaybackBridge must report uniquely mapped subtitle track changes" >&2
+  exit 1
+fi
+
+if [[ ! -s "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/player/Media3StreamIndexResolver.kt" ]]; then
+  echo "Missing Media3 stream index resolver" >&2
+  exit 1
+fi
+
 if ! grep -q 'onPlayerError' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/player/Media3PlaybackBridge.kt"; then
   echo "Media3PlaybackBridge must report Media3 playback failures" >&2
   exit 1
@@ -553,6 +573,11 @@ fi
 
 if ! grep -q 'startTimeTicks' "$ROOT_DIR/core/src/main/java/tv/cinepilot/core/protocol/PlayableMedia.java"; then
   echo "PlayableMedia must preserve playback start ticks" >&2
+  exit 1
+fi
+
+if ! grep -q 'List<MediaStreamInfo> mediaStreams' "$ROOT_DIR/core/src/main/java/tv/cinepilot/core/protocol/PlayableMedia.java"; then
+  echo "PlayableMedia must preserve selected media source stream metadata" >&2
   exit 1
 fi
 

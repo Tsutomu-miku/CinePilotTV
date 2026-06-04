@@ -465,6 +465,7 @@ public final class ProtocolCoreTest {
         assertEquals("srt", selected.subtitleCodec(), "selector keeps subtitle codec");
         assertEquals("eng", selected.subtitleLanguage(), "selector keeps subtitle language");
         assertEquals("English SDH", selected.subtitleDisplayTitle(), "selector keeps subtitle label");
+        assertEquals(3, selected.mediaStreams().size(), "selector keeps selected source stream metadata");
 
         PlayableMedia chosenSource = PlaybackSourceSelector.select(
                 address,
@@ -555,6 +556,7 @@ public final class ProtocolCoreTest {
         assertEquals("/Videos/item-4/stream", staticSelection.request().path(), "static stream request path");
         assertTrue(staticSelection.request().url(address).contains("Static=true"), "static stream request flag");
         assertEquals(1, staticSelection.audioStreamIndex(), "static stream keeps default audio");
+        assertEquals(2, staticSelection.mediaStreams().size(), "static stream keeps stream metadata");
 
         Optional<PlayableMedia> noPlayable = PlaybackSourceSelector.select(
                 address,

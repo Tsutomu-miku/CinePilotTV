@@ -76,7 +76,7 @@
 - P0-13 获取播放信息，并保存 media source id 与 play session id。进度：playback info 请求规格、领域模型、source name / path / bitrate 响应 mapper、client 编排、resume / 从头播放 start ticks、最大码率、媒体源、音轨、字幕和声道偏好转发已完成。
 - P0-14 生成 Media3 可播放 media item，包括 direct stream / transcode URL。进度：播放源选择器、显式 media source id 固定选择、默认音轨 / 字幕 index 保留、低码率 HLS 偏好、HLS 字幕交付偏好、direct play / direct stream 外挂字幕 `DeliveryUrl` 附加、无可播放源错误提示、Media3 URL 接线和播放 URL token 授权已完成。
 - P0-15 调度 started / progress / stopped 播放 check-in。进度：check-in 请求规格、10 秒进度调度器、client 网络发送接线、本地 HTTP 集成测试和 Media3 宿主周期 tick 接线已完成。
-- P0-16 把播放暂停、seek、音轨、字幕和播放速度变化同步到协议层。进度：立即上报事件调度、client 发送、默认音轨 / 字幕 index、播放前音轨 / 字幕 / 播放速度选择、`PlaybackSessionController`、Media3 ready / pause / unpause / seek / ended / release / playback speed 桥接、字幕偏移字段上报已完成；播放中音轨和字幕变化仍需在能可靠映射 Jellyfin / Emby `MediaStream.Index` 后接入。
+- P0-16 把播放暂停、seek、音轨、字幕和播放速度变化同步到协议层。进度：立即上报事件调度、client 发送、默认音轨 / 字幕 index、播放前音轨 / 字幕 / 播放速度选择、`PlaybackSessionController`、Media3 ready / pause / unpause / seek / ended / release / playback speed 桥接、字幕偏移字段上报、播放中音轨 / 字幕变化的唯一映射上报已完成；无法唯一映射 Jellyfin / Emby `MediaStream.Index` 的 Media3 track 不会上报，避免错误同步。
 
 ### 批次 5：P0 TV UI 与 Media3 集成
 
@@ -106,7 +106,7 @@
 - 继续观看、下一集、最新媒体行、剧集 / 季 / 集浏览、分页和稳定默认排序已具备最小入口。
 - 详情页技术信息展示：已从 playback info / media stream metadata 整理分辨率、容器 / 编码、文件大小、码率、声道、HDR、Dolby Vision、Dolby Atmos、音轨数量、默认音轨、字幕数量、字幕语言、默认字幕、外挂字幕和强制字幕，作为播放按钮之后的次级信息展示；后续继续根据真机样式微调密度。
 - 详情页长标题排版：已把媒体标题从通用页面大标题移到详情内容区，最多三行截断，首行元信息和播放按钮在标题下方布局，避免遮挡；后续真机校准不同电视缩放比例。
-- 播放前媒体源、字幕和音轨选择已放在详情页内联单选框里；用户可以在同一媒体源下选择默认 / 指定音轨、服务器默认 / 关闭 / 指定字幕，确保 audio stream index 与 subtitle stream index 可以组合后一起进入播放准备。播放中可通过 Media3 原生控制层调整音轨 / 字幕；服务器上报里的精确 stream index 仍等待稳定的 Media3 track 到 Jellyfin / Emby `MediaStream.Index` 映射。
+- 播放前媒体源、字幕和音轨选择已放在详情页内联单选框里；用户可以在同一媒体源下选择默认 / 指定音轨、服务器默认 / 关闭 / 指定字幕，确保 audio stream index 与 subtitle stream index 可以组合后一起进入播放准备。播放中可通过 Media3 原生控制层调整音轨 / 字幕；当 selected track 的 label、language 和 codec 能唯一匹配当前媒体源 stream metadata 时，会把 Jellyfin / Emby `MediaStream.Index` 同步到播放上报，匹配不唯一时跳过。
 - 恢复播放弹窗和下一集行为；详情页已提供继续播放、从头播放、低码率播放，以及基于 `SeriesId` / `/Shows/NextUp` 的“本剧下一集”入口。
 - 播放器防误触：Back 退出播放前需要二次确认，确认层也不能形成第二套播放控制。
 - 无法连接服务器、不支持媒体、token 过期和上下文错误恢复已具备最小入口。

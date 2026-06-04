@@ -36,7 +36,7 @@ Jellyfin 登录页可以发起 Quick Connect：Activity 展示服务器返回的
 
 播放中音轨 / 字幕调整优先使用 Media3 原生控制层：`PlayerView` 显示字幕按钮，遥控器菜单键、设置键或字幕键只负责呼出 Media3 控制层，让用户进入原生 settings / subtitles 选择。App 不在播放器画面上叠加第二套音轨字幕面板。
 
-`Media3PlaybackBridge` 监听 Media3 player 状态并调用 `PlaybackSessionController`，把 ready、pause、unpause、seek、ended 和 release 转换为服务器播放上报。Media3 `onPlayerError` 必须回到 Android 错误页，用中文提示播放失败和可尝试的低码率 / 轨道切换 / 转码设置方向；错误页和诊断都不能展示 raw playback URL 或 token。
+`Media3PlaybackBridge` 监听 Media3 player 状态并调用 `PlaybackSessionController`，把 ready、pause、unpause、seek、ended、release 和可唯一映射的音轨 / 字幕变化转换为服务器播放上报。Media3 `onPlayerError` 必须回到 Android 错误页，用中文提示播放失败和可尝试的低码率 / 轨道切换 / 转码设置方向；错误页和诊断都不能展示 raw playback URL 或 token。
 
 Android manifest 允许 cleartext traffic，因为家庭 Jellyfin / Emby 服务器常见地址是 `http://host:8096`。Media3 播放 URL 由 `PlaybackUrlAuthorizer` 追加 `api_key`，避免播放器脱离 `HttpTransport` 后丢失认证。
 
@@ -142,7 +142,7 @@ HLS 播放请求在用户明确选择字幕时必须同时带上 `SubtitleStream
 
 释放播放器时应尽力发送 stopped check-in，但 stopped 上报失败不能阻止播放器释放或错误页展示；真实网络失败只应影响上报，不应让用户卡在播放器页。
 
-Media3 播放速度变化通过 `onPlaybackParametersChanged` 上报到 `PlaybackSessionController.playbackRateChanged`。音轨和字幕变化只有在能从 Media3 selected track 稳定映射回服务器 `MediaStream.Index` 时才应上报，避免把本地 track ordinal 错当协议 stream index。
+Media3 播放速度变化通过 `onPlaybackParametersChanged` 上报到 `PlaybackSessionController.playbackRateChanged`。`PlayableMedia` 必须携带当前媒体源的 `MediaStreamInfo` 列表，`Media3StreamIndexResolver` 只能用 label、language、codec 这些稳定 metadata 做唯一匹配；音轨和字幕变化只有在能从 Media3 selected track 稳定映射回服务器 `MediaStream.Index` 时才应上报，避免把本地 track ordinal 错当协议 stream index。字幕被关闭时沿用播放偏好语义上报 `SubtitleStreamIndex=-1`。
 
 ## 状态与持久化
 
