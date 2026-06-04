@@ -611,6 +611,11 @@ if [[ ! -x "$ROOT_DIR/scripts/qa-login.sh" ]]; then
   exit 1
 fi
 
+if ! grep -q 'build/android-sdk/platform-tools/adb' "$ROOT_DIR/scripts/qa-login.sh"; then
+  echo "QA login helper must use the bundled Android SDK adb when global adb is absent" >&2
+  exit 1
+fi
+
 if ! grep -q 'playerView.requestFocus' "$PLAYBACK_ROUTE_CONTROLLER"; then
   echo "Playback route controller must focus the Media3 player view" >&2
   exit 1

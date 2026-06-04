@@ -1,7 +1,16 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-ADB="${ADB:-$(command -v adb || true)}"
+ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+ADB="${ADB:-}"
+if [[ -z "$ADB" ]]; then
+  if [[ -x "$ROOT_DIR/build/android-sdk/platform-tools/adb" ]]; then
+    ADB="$ROOT_DIR/build/android-sdk/platform-tools/adb"
+  else
+    ADB="$(command -v adb || true)"
+  fi
+fi
+
 if [[ -z "$ADB" ]]; then
   echo "adb not found. Install Android platform-tools first." >&2
   exit 1
