@@ -3,9 +3,11 @@ package tv.cinepilot.tv.auth
 import android.content.Intent
 import android.content.pm.ApplicationInfo
 import android.os.Handler
+import android.widget.ImageView
 import android.widget.TextView
 import androidx.activity.ComponentActivity
 import java.util.concurrent.Executor
+import tv.cinepilot.core.protocol.PublicUserSummary
 import tv.cinepilot.core.protocol.QuickConnectSession
 import tv.cinepilot.core.protocol.ServerFlavor
 import tv.cinepilot.core.tv.TvAppState
@@ -22,6 +24,7 @@ class AuthRouteController(
     private val showLoading: (String) -> Unit,
     private val showHome: (TvAppState) -> Unit,
     private val showError: (Throwable) -> Unit,
+    private val loadPublicUserImage: (ImageView, PublicUserSummary, Int, Int) -> Unit,
 ) {
     private val recentAccountStore by lazy { RecentAccountStore(activity) }
     private var quickConnectStatus: TextView? = null
@@ -86,6 +89,7 @@ class AuthRouteController(
             serverName = state.server()?.serverName().orEmpty(),
             publicUsers = state.publicUsers(),
             quickConnectAvailable = state.server()?.flavor() == ServerFlavor.JELLYFIN,
+            loadPublicUserImage = loadPublicUserImage,
             onLogin = ::loginWithCredentials,
             onQuickConnect = ::startQuickConnectLogin,
             onBackToServer = ::showServerEntry,

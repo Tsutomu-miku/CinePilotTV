@@ -23,7 +23,7 @@ app/
     player/Media3PlaybackBridge.kt Media3 事件到播放上报控制器的桥接
     player/Media3StreamIndexResolver.kt Media3 selected track 到协议 MediaStream.Index 的谨慎映射
     runtime/CinePilotRuntime.kt  Android app runtime composition root
-    runtime/PrimaryImageLoader.kt 海报图片异步加载和短超时网络读取
+    runtime/PrimaryImageLoader.kt 海报与 public user 头像异步加载和短超时网络读取
     runtime/QuickConnectPoller.kt Jellyfin Quick Connect 自动轮询、立即检查和陈旧回调隔离
     runtime/RecentAccountStore.kt 最近登录账号列表和旧版本账号存储兼容
     ui/TvDesign.kt               TV 色彩、间距、圆角、字号和固定尺寸 design tokens
@@ -44,6 +44,7 @@ core/
     protocol/                    服务器、认证、endpoint 和播放协议规则
       PlaybackInfoOptions.java   playback info 查询参数
       HlsStreamOptions.java      HLS 播放 URL 参数
+      MediaImageRequests.java    媒体海报和 public user 头像图片 URL 请求规格
       PlaybackSourceSelector.java 播放源选择规则
       PlaybackInfo.java          playback info 领域模型
       MediaBrowserResponseMapper.java 核心 API 响应到领域模型的映射

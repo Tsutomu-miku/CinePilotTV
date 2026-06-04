@@ -13,6 +13,7 @@ import androidx.lifecycle.ViewModelProvider
 import java.util.concurrent.Executors
 import tv.cinepilot.core.protocol.MediaBrowserException
 import tv.cinepilot.core.protocol.MediaItemSummary
+import tv.cinepilot.core.protocol.PublicUserSummary
 import tv.cinepilot.core.tv.TvAppState
 import tv.cinepilot.core.tv.TvRoute
 import tv.cinepilot.tv.auth.AuthRouteController
@@ -53,6 +54,7 @@ class MainActivity : ComponentActivity() {
             showLoading = ::showLoading,
             showHome = ::showHome,
             showError = ::showError,
+            loadPublicUserImage = ::loadPublicUserImage,
         )
         playbackRoutes = PlaybackRouteController(
             activity = this,
@@ -194,6 +196,10 @@ class MainActivity : ComponentActivity() {
 
     private fun loadPrimaryImage(target: ImageView, item: MediaItemSummary, width: Int, height: Int) {
         primaryImageLoader.load(this, viewModel.workflowController.state().authenticated(), target, item, width, height)
+    }
+
+    private fun loadPublicUserImage(target: ImageView, user: PublicUserSummary, width: Int, height: Int) {
+        primaryImageLoader.loadPublicUser(this, viewModel.workflowController.state().server(), target, user, width, height)
     }
 
     private fun showLoading(message: String) {

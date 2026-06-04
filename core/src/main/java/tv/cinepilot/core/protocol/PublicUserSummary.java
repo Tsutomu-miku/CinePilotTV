@@ -3,12 +3,16 @@ package tv.cinepilot.core.protocol;
 public record PublicUserSummary(
         String id,
         String name,
-        boolean passwordRequired
+        boolean passwordRequired,
+        String primaryImageTag
 ) {
     public PublicUserSummary {
         require(id, "id");
         if (name == null) {
             name = "";
+        }
+        if (primaryImageTag == null) {
+            primaryImageTag = "";
         }
     }
 

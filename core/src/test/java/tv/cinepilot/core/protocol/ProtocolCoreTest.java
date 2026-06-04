@@ -224,7 +224,7 @@ public final class ProtocolCoreTest {
         assertEquals("/Shows/NextUp", seriesNextUp.path(), "series next up path");
         assertTrue(seriesNextUp.url(address).contains("SeriesId=series%201"), "series next up query");
 
-        ProtocolRequest image = MediaBrowserRequests.itemImage(
+        ProtocolRequest image = MediaImageRequests.item(
                 session,
                 ServerFlavor.JELLYFIN,
                 "movie 1",
@@ -655,13 +655,14 @@ public final class ProtocolCoreTest {
     private static void mapsAndLoadsPublicUsers() {
         List<PublicUserSummary> mapped = MediaBrowserResponseMapper.publicUsers("""
                 [
-                  {"Id":"user-1","Name":"Demo","HasPassword":true},
+                  {"Id":"user-1","Name":"Demo","HasPassword":true,"PrimaryImageTag":"avatar-tag"},
                   {"Id":"user-2","Name":"Kids","HasConfiguredPassword":false}
                 ]
                 """);
         assertEquals(2, mapped.size(), "public user count maps");
         assertEquals("Demo", mapped.get(0).name(), "public user name maps");
         assertTrue(mapped.get(0).passwordRequired(), "public user password flag maps");
+        assertEquals("avatar-tag", mapped.get(0).primaryImageTag(), "public user avatar tag maps");
         assertTrue(!mapped.get(1).passwordRequired(), "public user passwordless flag maps");
 
         QuickConnectSession quickConnect = MediaBrowserResponseMapper.quickConnectSession("""
@@ -672,7 +673,7 @@ public final class ProtocolCoreTest {
         assertTrue(quickConnect.authenticated(), "quick connect auth flag maps");
 
         FakeTransport transport = new FakeTransport();
-        transport.enqueue(200, "[{\"Id\":\"user-1\",\"Name\":\"Demo\",\"HasPassword\":true}]");
+        transport.enqueue(200, "[{\"Id\":\"user-1\",\"Name\":\"Demo\",\"HasPassword\":true,\"PrimaryImageTag\":\"avatar-tag\"}]");
         ClientIdentity client = new ClientIdentity("CinePilot TV", "Living Room TV", "device-1", "0.1.0");
         MediaBrowserClient mediaClient = new MediaBrowserClient(transport, new InMemorySessionRepository(), client);
         ServerIdentity server = new ServerIdentity(
@@ -690,6 +691,11 @@ public final class ProtocolCoreTest {
                 transport.requests.get(0).headers().get("X-Emby-Authorization").startsWith("MediaBrowser "),
                 "client public users auth header"
         );
+        String userImageUrl = mediaClient.publicUserImageUrl(server, users.get(0), 96, 96);
+        assertTrue(userImageUrl.startsWith("https://media.example.com/jellyfin/Users/user-1/Images/Primary?"), "public user image url");
+        assertTrue(userImageUrl.contains("tag=avatar-tag"), "public user image tag");
+        assertTrue(userImageUrl.contains("fillWidth=96"), "public user image width");
+        assertTrue(userImageUrl.contains("fillHeight=96"), "public user image height");
     }
 
     private static void clientRunsQuickConnectLoginFlow() {

@@ -40,7 +40,8 @@ public final class MediaBrowserResponseMapper {
                         valueOrEmpty(JsonValue.string(user, "Name")),
                         JsonValue.bool(user, "HasPassword")
                                 || JsonValue.bool(user, "HasConfiguredPassword")
-                                || JsonValue.bool(user, "HasConfiguredEasyPassword")
+                                || JsonValue.bool(user, "HasConfiguredEasyPassword"),
+                        valueOrEmpty(JsonValue.string(user, "PrimaryImageTag"))
                 ));
             }
         }

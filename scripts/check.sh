@@ -1091,6 +1091,26 @@ if ! grep -q '需要密码' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/auth/Au
   exit 1
 fi
 
+if ! grep -q 'primaryImageTag' "$ROOT_DIR/core/src/main/java/tv/cinepilot/core/protocol/PublicUserSummary.java"; then
+  echo "Public user summaries must preserve avatar image tags" >&2
+  exit 1
+fi
+
+if ! grep -q 'publicUserImageUrl' "$ROOT_DIR/core/src/main/java/tv/cinepilot/core/protocol/MediaBrowserClient.java"; then
+  echo "MediaBrowserClient must expose public user avatar URLs" >&2
+  exit 1
+fi
+
+if [[ ! -s "$ROOT_DIR/core/src/main/java/tv/cinepilot/core/protocol/MediaImageRequests.java" ]]; then
+  echo "Missing dedicated media image request module" >&2
+  exit 1
+fi
+
+if ! grep -q 'loadPublicUserImage' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/auth/AuthScreens.kt"; then
+  echo "Auth screens must render public user avatars when image tags are available" >&2
+  exit 1
+fi
+
 if ! grep -q 'Quick Connect' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/auth/AuthScreens.kt"; then
   echo "Auth screens must expose Jellyfin Quick Connect login" >&2
   exit 1

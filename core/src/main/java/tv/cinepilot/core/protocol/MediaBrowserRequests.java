@@ -152,36 +152,6 @@ public final class MediaBrowserRequests {
                 .build();
     }
 
-    public static ProtocolRequest itemImage(
-            AuthSession session,
-            ServerFlavor flavor,
-            String itemId,
-            String imageType,
-            String tag,
-            int width,
-            int height
-    ) {
-        require(itemId, "itemId");
-        require(imageType, "imageType");
-        String encodedItemId = ProtocolRequest.encodePathSegment(itemId);
-        ProtocolRequest.Builder builder = authenticated(
-                ProtocolRequest.get("/Items/" + encodedItemId + "/Images/" + ProtocolRequest.encodePathSegment(imageType)),
-                session,
-                flavor
-        );
-        if (tag != null && !tag.isBlank()) {
-            builder.query("tag", tag);
-        }
-        if (width > 0) {
-            builder.query("fillWidth", Integer.toString(width));
-        }
-        if (height > 0) {
-            builder.query("fillHeight", Integer.toString(height));
-        }
-        builder.query("quality", "90");
-        return builder.build();
-    }
-
     public static ProtocolRequest playbackInfo(
             AuthSession session,
             ServerFlavor flavor,
@@ -262,7 +232,7 @@ public final class MediaBrowserRequests {
                 "Version=\"" + escape(client.version()) + "\"";
     }
 
-    private static ProtocolRequest.Builder authenticated(
+    static ProtocolRequest.Builder authenticated(
             ProtocolRequest.Builder builder,
             AuthSession session,
             ServerFlavor flavor

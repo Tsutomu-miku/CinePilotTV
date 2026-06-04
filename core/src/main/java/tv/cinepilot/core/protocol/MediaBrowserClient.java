@@ -186,7 +186,7 @@ public final class MediaBrowserClient {
         if (tag == null || tag.isBlank()) {
             return "";
         }
-        String url = MediaBrowserRequests.itemImage(
+        String url = MediaImageRequests.item(
                 authenticated.session(),
                 authenticated.server().flavor(),
                 item.id(),
@@ -196,6 +196,27 @@ public final class MediaBrowserClient {
                 height
         ).url(authenticated.server().address());
         return PlaybackUrlAuthorizer.withAccessToken(url, authenticated.session());
+    }
+
+    public String publicUserImageUrl(ServerIdentity server, PublicUserSummary user, int width, int height) {
+        if (server == null) {
+            throw new IllegalArgumentException("server is required");
+        }
+        if (user == null) {
+            throw new IllegalArgumentException("user is required");
+        }
+        if (user.primaryImageTag().isBlank()) {
+            return "";
+        }
+        return MediaImageRequests.publicUser(
+                client,
+                server.flavor(),
+                user.id(),
+                "Primary",
+                user.primaryImageTag(),
+                width,
+                height
+        ).url(server.address());
     }
 
     public void sendPlaybackCheckIn(AuthenticatedServer authenticated, PlaybackCheckIn checkIn) {
