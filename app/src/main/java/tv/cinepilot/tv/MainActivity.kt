@@ -14,6 +14,7 @@ import java.util.concurrent.Executors
 import tv.cinepilot.core.protocol.MediaBrowserException
 import tv.cinepilot.core.protocol.MediaItemSummary
 import tv.cinepilot.core.protocol.PublicUserSummary
+import tv.cinepilot.core.tv.SearchFilter
 import tv.cinepilot.core.tv.TvAppState
 import tv.cinepilot.core.tv.TvRoute
 import tv.cinepilot.tv.auth.AuthRouteController
@@ -38,6 +39,7 @@ class MainActivity : ComponentActivity() {
     private val executor = Executors.newSingleThreadExecutor()
     private val mainHandler = Handler(Looper.getMainLooper())
     private var searchVisible = false
+    private var searchFilter = SearchFilter.ALL
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -136,7 +138,7 @@ class MainActivity : ComponentActivity() {
             canGoBack = viewModel.workflowController.canGoBackInBrowse(),
             canPageBackward = viewModel.workflowController.canPageBackwardInBrowse(),
             canPageForward = viewModel.workflowController.canPageForwardInBrowse(),
-            onSearch = ::showSearch,
+            onSearch = { showSearch() },
             onRefresh = ::refreshHome,
             onLogout = authRoutes::logoutFromHome,
             onBackInBrowse = { showHome(viewModel.workflowController.back()) },
@@ -149,9 +151,15 @@ class MainActivity : ComponentActivity() {
         focusedCard?.post { focusedCard?.requestFocus() }
     }
 
-    private fun showSearch() {
+    private fun showSearch(initialTerm: String = "") {
         searchVisible = true
         val searchViews = searchScreen(
+            initialTerm = initialTerm,
+            selectedFilter = searchFilter,
+            onFilter = { filter, currentTerm ->
+                searchFilter = filter
+                showSearch(currentTerm)
+            },
             onSubmit = ::submitSearch,
         )
         setContentView(searchViews.root)
@@ -182,13 +190,13 @@ class MainActivity : ComponentActivity() {
         }
     }
 
-    private fun submitSearch(term: String, searchInput: EditText) {
+    private fun submitSearch(term: String, filter: SearchFilter, searchInput: EditText) {
         if (term.isBlank()) {
             searchInput.requestFocus()
             return
         }
         runTask("正在搜索...", {
-            viewModel.workflowController.search(term)
+            viewModel.workflowController.search(term, filter)
         }) {
             showHome(viewModel.workflowController.state())
         }

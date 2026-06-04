@@ -160,17 +160,22 @@ public final class TvWorkflowController {
     }
 
     public TvAppState search(String term) {
+        return search(term, SearchFilter.ALL);
+    }
+
+    public TvAppState search(String term, SearchFilter filter) {
         if (state.authenticated() == null) {
             throw new IllegalStateException("authenticated session is required before searching");
         }
         if (term == null || term.isBlank()) {
             return state;
         }
+        SearchFilter safeFilter = SearchFilter.safe(filter);
         MediaItemPage page = client.items(
                 state.authenticated(),
-                ItemQuery.search(term.trim()).limit(BrowseSession.FOLDER_PAGE_SIZE).build()
+                ItemQuery.search(term.trim(), safeFilter.includeItemTypes()).limit(BrowseSession.FOLDER_PAGE_SIZE).build()
         );
-        state = browseSession.openSearch(state, term, page);
+        state = browseSession.openSearch(state, term, safeFilter, page);
         return state;
     }
 

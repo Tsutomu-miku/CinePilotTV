@@ -23,13 +23,17 @@ final class BrowseSession {
         return folderState(state, page);
     }
 
-    TvAppState openSearch(TvAppState state, String term, MediaItemPage page) {
+    TvAppState openSearch(TvAppState state, String term, SearchFilter filter, MediaItemPage page) {
         String query = term.trim();
+        SearchFilter safeFilter = SearchFilter.safe(filter);
         backStack.push(state);
         folderContext = null;
+        String title = safeFilter == SearchFilter.ALL
+                ? "搜索：" + query
+                : "搜索：" + query + " / " + safeFilter.label();
         return TvWorkflow.homeLoaded(
                 state,
-                AndroidCollections.singletonList(new HomeRow("search:" + query, "搜索：" + query, page.items()))
+                AndroidCollections.singletonList(new HomeRow("search:" + safeFilter.name() + ":" + query, title, page.items()))
         );
     }
 

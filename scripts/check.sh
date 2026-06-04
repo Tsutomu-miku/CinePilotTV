@@ -372,6 +372,21 @@ if ! grep -q 'SearchTerm' "$ROOT_DIR/core/src/main/java/tv/cinepilot/core/protoc
   exit 1
 fi
 
+if [[ ! -s "$ROOT_DIR/core/src/main/java/tv/cinepilot/core/tv/SearchFilter.java" ]]; then
+  echo "Missing TV search filter model" >&2
+  exit 1
+fi
+
+if ! grep -q 'SearchFilter.values' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/home/HomeRouteScreens.kt"; then
+  echo "Search screen must expose TV media type filters" >&2
+  exit 1
+fi
+
+if ! grep -q 'safeFilter.includeItemTypes' "$ROOT_DIR/core/src/main/java/tv/cinepilot/core/tv/TvWorkflowController.java"; then
+  echo "TvWorkflowController must forward search filters to server-side queries" >&2
+  exit 1
+fi
+
 if ! grep -q 'sortBy("SortName")' "$ROOT_DIR/core/src/main/java/tv/cinepilot/core/protocol/ItemQuery.java"; then
   echo "ItemQuery browse must use a stable default sort" >&2
   exit 1

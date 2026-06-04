@@ -60,6 +60,7 @@ core/
     tv/                          Android TV 状态、导航和焦点领域规则
       BrowseSession.java         首页临时浏览栈、搜索返回和文件夹分页上下文
       HomeRowsLoader.java        组合媒体库首页 rows
+      SearchFilter.java          TV 搜索页类型筛选到协议 IncludeItemTypes 的映射
       TvDiagnostics.java         不含 token 的 TV 联调诊断信息
       TvWorkflowController.java  TV 用例编排入口
   src/test/java/tv/cinepilot/core/

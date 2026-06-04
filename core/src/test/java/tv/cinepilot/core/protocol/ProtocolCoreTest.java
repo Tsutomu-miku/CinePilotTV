@@ -213,6 +213,12 @@ public final class ProtocolCoreTest {
         assertTrue(searchUrl.contains("SearchTerm=arrival%20movie"), "search query encodes term");
         assertTrue(searchUrl.contains("Recursive=true"), "search query is recursive");
         assertTrue(searchUrl.contains("IncludeItemTypes=Movie%2CEpisode%2CSeries%2CVideo"), "search query limits media types");
+        ProtocolRequest movieSearch = MediaBrowserRequests.items(
+                session,
+                ServerFlavor.JELLYFIN,
+                ItemQuery.search("arrival movie", "Movie").limit(25).build()
+        );
+        assertTrue(movieSearch.url(address).contains("IncludeItemTypes=Movie"), "search query supports media type filters");
 
         ProtocolRequest nextUp = MediaBrowserRequests.nextUpItems(session, ServerFlavor.JELLYFIN, 12);
         assertEquals("/Shows/NextUp", nextUp.path(), "next up path");

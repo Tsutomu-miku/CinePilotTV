@@ -9,10 +9,12 @@ import android.widget.LinearLayout
 import androidx.activity.ComponentActivity
 import tv.cinepilot.core.protocol.MediaItemSummary
 import tv.cinepilot.core.tv.HomeRow
+import tv.cinepilot.core.tv.SearchFilter
 import tv.cinepilot.core.tv.TvAppState
 import tv.cinepilot.tv.ui.HomeNavigation
 import tv.cinepilot.tv.ui.TvIcon
 import tv.cinepilot.tv.ui.actionStrip
+import tv.cinepilot.tv.ui.choiceAction
 import tv.cinepilot.tv.ui.compactIconAction
 import tv.cinepilot.tv.ui.dp
 import tv.cinepilot.tv.ui.homeScreen
@@ -52,11 +54,16 @@ fun ComponentActivity.homeRouteScreen(
 )
 
 fun ComponentActivity.searchScreen(
-    onSubmit: (String, EditText) -> Unit,
+    initialTerm: String,
+    selectedFilter: SearchFilter,
+    onFilter: (SearchFilter, String) -> Unit,
+    onSubmit: (String, SearchFilter, EditText) -> Unit,
 ): SearchViews {
     val searchInput = input("搜索媒体", InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_NORMAL)
+    searchInput.setText(initialTerm)
+    searchInput.setSelection(searchInput.text.length)
     fun submitSearch() {
-        onSubmit(searchInput.text.toString().trim(), searchInput)
+        onSubmit(searchInput.text.toString().trim(), selectedFilter, searchInput)
     }
     searchInput.imeOptions = EditorInfo.IME_ACTION_SEARCH
     searchInput.setOnEditorActionListener { _, actionId, _ ->
@@ -74,6 +81,11 @@ fun ComponentActivity.searchScreen(
         ).apply {
             bottomMargin = dp(16)
         })
+        addView(actionStrip(SearchFilter.values().map { filter ->
+            choiceAction(filter.label(), filter == selectedFilter) {
+                onFilter(filter, searchInput.text.toString())
+            }
+        }))
         addView(actionStrip(listOf(
             compactIconAction("搜索", TvIcon.SEARCH, ::submitSearch),
         )))

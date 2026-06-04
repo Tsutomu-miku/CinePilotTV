@@ -35,10 +35,14 @@ public final class ItemQuery {
     }
 
     public static Builder search(String term) {
+        return search(term, "Movie,Episode,Series,Video");
+    }
+
+    public static Builder search(String term, String includeItemTypes) {
         return browse()
                 .recursive(true)
                 .searchTerm(term)
-                .includeItemTypes("Movie,Episode,Series,Video");
+                .includeItemTypes(includeItemTypes);
     }
 
     public static final class Builder {

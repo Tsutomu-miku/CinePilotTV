@@ -589,14 +589,15 @@ public final class TvWorkflowTest {
 
         controller.submitServer("https://media.example.com/jellyfin");
         TvAppState home = controller.login("demo", "secret");
-        TvAppState search = controller.search(" arrival ");
+        TvAppState search = controller.search(" arrival ", SearchFilter.MOVIES);
 
         assertEquals(TvRoute.HOME, search.route(), "search stays on home route");
         assertEquals(1, search.homeRows().size(), "search uses one row");
-        assertEquals("搜索：arrival", search.homeRows().get(0).title(), "search title includes term");
+        assertEquals("搜索：arrival / 电影", search.homeRows().get(0).title(), "search title includes term and filter");
         assertEquals("movie-1", search.homeRows().get(0).items().get(0).id(), "search row item");
         assertTrue(controller.canGoBackInBrowse(), "search enables back stack");
         assertTrue(transport.requests.get(7).url(MediaServerAddress.parse("https://media.example.com/jellyfin")).contains("SearchTerm=arrival"), "search query passes term");
+        assertTrue(transport.requests.get(7).url(MediaServerAddress.parse("https://media.example.com/jellyfin")).contains("IncludeItemTypes=Movie"), "search query passes filter");
         assertTrue(transport.requests.get(7).url(MediaServerAddress.parse("https://media.example.com/jellyfin")).contains("Limit=50"), "search query limits page size");
 
         TvAppState restored = controller.back();

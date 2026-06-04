@@ -45,7 +45,7 @@
 - 播放信息：`playbackInfo` -> `PlaybackInfo`；播放前音轨 / 字幕选择复用该响应里的 `MediaStreams[].Index`。
 - 播放源选择：`PlaybackInfo` -> `PlayableMedia`；优先使用服务端给出的 direct play URL，其次对可 direct play 但缺少 URL 的媒体构造静态 `/Videos/{Id}/stream` 请求，再回退到 direct stream / HLS transcode。`PlayableMedia` 保留当前 media source 的 stream metadata，用于播放中 Media3 轨道变化到协议 `MediaStream.Index` 的唯一映射。
 - 媒体库浏览：`userViews` / `items` / `resumeItems` / `nextUpItems` / `latestItems` / `item` / `primaryImageUrl` -> 媒体条目模型和图片 URL。
-- 服务器侧搜索：`ItemQuery.search` -> `/Users/{UserId}/Items?SearchTerm=...`。
+- 服务器侧搜索：`ItemQuery.search` -> `/Users/{UserId}/Items?SearchTerm=...`；TV 搜索筛选通过 `SearchFilter.includeItemTypes` 写入 `IncludeItemTypes`，让服务器返回全部 / 电影 / 剧集 / 单集 / 视频对应结果。
 - TV 首页组合：`HomeRowsLoader` -> `HomeRow` 列表。
 - TV 用例编排：`TvWorkflowController` 将服务器发现、登录、首页、详情和播放准备串成 `TvAppState`。
 - 播放上报调度与发送：`PlaybackSessionController` -> `PlaybackCheckInScheduler` -> `PlaybackCheckIn` -> `MediaBrowserClient.sendPlaybackCheckIn`。
