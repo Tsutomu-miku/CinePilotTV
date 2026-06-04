@@ -57,6 +57,7 @@ fun ComponentActivity.searchScreen(
     initialTerm: String,
     selectedFilter: SearchFilter,
     onFilter: (SearchFilter, String) -> Unit,
+    onVoiceInput: (String) -> Unit,
     onSubmit: (String, SearchFilter, EditText) -> Unit,
 ): SearchViews {
     val searchInput = input("搜索媒体", InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_NORMAL)
@@ -88,6 +89,9 @@ fun ComponentActivity.searchScreen(
         }))
         addView(actionStrip(listOf(
             compactIconAction("搜索", TvIcon.SEARCH, ::submitSearch),
+            compactIconAction("语音", TvIcon.MIC) {
+                onVoiceInput(searchInput.text.toString())
+            },
         )))
     }
     return SearchViews(root, searchInput)

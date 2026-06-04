@@ -1,12 +1,17 @@
 package tv.cinepilot.tv
 
+import android.app.Activity
+import android.content.ActivityNotFoundException
 import android.content.Intent
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
+import android.speech.RecognizerIntent
 import android.view.View
 import android.widget.EditText
 import android.widget.ImageView
+import android.widget.Toast
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.ComponentActivity
 import androidx.activity.OnBackPressedCallback
 import androidx.lifecycle.ViewModelProvider
@@ -40,6 +45,19 @@ class MainActivity : ComponentActivity() {
     private val mainHandler = Handler(Looper.getMainLooper())
     private var searchVisible = false
     private var searchFilter = SearchFilter.ALL
+    private var pendingVoiceSearchTerm = ""
+    private val voiceSearchLauncher = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
+        val spokenTerm = result.data
+            ?.getStringArrayListExtra(RecognizerIntent.EXTRA_RESULTS)
+            ?.firstOrNull()
+            ?.trim()
+            .orEmpty()
+        if (result.resultCode == Activity.RESULT_OK && spokenTerm.isNotBlank()) {
+            submitSearchTerm(spokenTerm, searchFilter)
+        } else {
+            showSearch(pendingVoiceSearchTerm)
+        }
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -160,6 +178,7 @@ class MainActivity : ComponentActivity() {
                 searchFilter = filter
                 showSearch(currentTerm)
             },
+            onVoiceInput = ::startVoiceSearch,
             onSubmit = ::submitSearch,
         )
         setContentView(searchViews.root)
@@ -195,10 +214,28 @@ class MainActivity : ComponentActivity() {
             searchInput.requestFocus()
             return
         }
+        submitSearchTerm(term, filter)
+    }
+
+    private fun submitSearchTerm(term: String, filter: SearchFilter) {
         runTask("正在搜索...", {
             viewModel.workflowController.search(term, filter)
         }) {
             showHome(viewModel.workflowController.state())
+        }
+    }
+
+    private fun startVoiceSearch(currentTerm: String) {
+        pendingVoiceSearchTerm = currentTerm
+        val intent = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
+            putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
+            putExtra(RecognizerIntent.EXTRA_PROMPT, "说出要搜索的媒体")
+        }
+        try {
+            voiceSearchLauncher.launch(intent)
+        } catch (_: ActivityNotFoundException) {
+            Toast.makeText(this, "当前设备没有可用的语音输入", Toast.LENGTH_SHORT).show()
+            showSearch(currentTerm)
         }
     }
 

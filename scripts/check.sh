@@ -357,6 +357,21 @@ if ! grep -q 'IME_ACTION_SEARCH' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/ho
   exit 1
 fi
 
+if ! grep -q 'RecognizerIntent.ACTION_RECOGNIZE_SPEECH' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/MainActivity.kt"; then
+  echo "Search must support Android voice recognition input" >&2
+  exit 1
+fi
+
+if ! grep -q 'ActivityResultContracts.StartActivityForResult' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/MainActivity.kt"; then
+  echo "Voice search must use an Activity result callback" >&2
+  exit 1
+fi
+
+if ! grep -q '语音' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/home/HomeRouteScreens.kt"; then
+  echo "Search screen must expose a Chinese voice input action" >&2
+  exit 1
+fi
+
 if ! grep -R -q 'homeRows().all' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv"; then
   echo "Android TV UI must show an empty state for empty search results" >&2
   exit 1
@@ -470,7 +485,7 @@ for technical_label in 默认音轨 默认字幕 外挂字幕 强制字幕; do
   fi
 done
 
-for icon in search refresh logout play back subtitles speed; do
+for icon in search refresh logout play back subtitles speed mic; do
   if [[ ! -s "$ROOT_DIR/app/src/main/res/drawable/ic_${icon}.xml" ]]; then
     echo "Missing TV action icon: ic_${icon}.xml" >&2
     exit 1
