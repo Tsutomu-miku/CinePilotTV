@@ -1081,6 +1081,11 @@ if ! grep -q '免密码登录' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/auth
   exit 1
 fi
 
+if ! grep -q '需要密码' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/auth/AuthScreens.kt"; then
+  echo "Auth screens must label public users that still require a password" >&2
+  exit 1
+fi
+
 if ! grep -q 'Quick Connect' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/auth/AuthScreens.kt"; then
   echo "Auth screens must expose Jellyfin Quick Connect login" >&2
   exit 1

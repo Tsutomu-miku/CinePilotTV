@@ -111,12 +111,12 @@ private fun ComponentActivity.publicUserAction(
 ): View {
     val userName = user.name().ifBlank { user.id() }
     if (!user.passwordRequired()) {
-        return action("免密码登录 $userName") {
+        return action("$userName · 免密码登录") {
             setUsername(userName)
             onLogin(userName, "")
         }
     }
-    return action(userName) {
+    return action("$userName · 需要密码") {
         setUsername(userName)
         focusPassword()
     }
