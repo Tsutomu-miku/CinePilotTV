@@ -18,7 +18,7 @@ Android 遥控器 Back 键必须和页面按钮使用同一套 workflow 语义�
 
 登录页展示服务器公开用户时，带密码用户只预填用户名并把焦点交给密码框；免密码用户可以直接走空密码登录流程，避免在 TV 遥控器上多一步无意义输入。
 
-Jellyfin 登录页可以发起 Quick Connect：Activity 展示服务器返回的授权码，并由 `QuickConnectPoller` 定时调用 controller 完成状态检查；一旦授权成功，controller 用 Quick Connect secret 换取 token 并进入首页。轮询属于 Android UI 生命周期行为，必须只移除自己的轮询回调，不能清空 Activity 主线程 Handler 上的其它消息；Quick Connect endpoint 和 token 保存语义仍在 `core`。
+Jellyfin 登录页可以发起 Quick Connect：Activity 展示服务器返回的授权码，并由 `QuickConnectPoller` 定时调用 controller 完成状态检查；一旦授权成功，controller 用 Quick Connect secret 换取 token 并进入首页。轮询属于 Android UI 生命周期行为，必须只移除自己的轮询回调，不能清空 Activity 主线程 Handler 上的其它消息；手动“立即检查”和自动轮询必须走同一个 poller，以 in-flight 和 generation 防护避免重复请求或旧会话回调污染新登录；Quick Connect endpoint 和 token 保存语义仍在 `core`。
 
 服务器地址输入应使用 URI text variation，密码输入必须使用 password variation。登录界面可以保留原生 `EditText`，但不能明文显示密码。
 

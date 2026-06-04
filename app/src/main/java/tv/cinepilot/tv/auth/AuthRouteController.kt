@@ -186,24 +186,7 @@ class AuthRouteController(
 
     private fun checkQuickConnectNow() {
         quickConnectStatus?.text = "正在检查授权..."
-        executor.execute {
-            try {
-                workflowController.completeQuickConnect()
-                activity.runOnUiThread {
-                    quickConnectPoller.stop()
-                    rememberAccount()
-                    showHome(workflowController.state())
-                }
-            } catch (error: Throwable) {
-                activity.runOnUiThread {
-                    if (error.message == TvWorkflowController.QUICK_CONNECT_NOT_APPROVED_MESSAGE) {
-                        quickConnectStatus?.text = "还没有授权，请在 Jellyfin 中输入授权码后稍等"
-                    } else {
-                        showError(error)
-                    }
-                }
-            }
-        }
+        quickConnectPoller.checkNow()
     }
 
     private fun isDebuggable(): Boolean {

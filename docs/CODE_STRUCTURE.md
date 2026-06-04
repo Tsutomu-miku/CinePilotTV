@@ -23,7 +23,7 @@ app/
     player/Media3StreamIndexResolver.kt Media3 selected track 到协议 MediaStream.Index 的谨慎映射
     runtime/CinePilotRuntime.kt  Android app runtime composition root
     runtime/PrimaryImageLoader.kt 海报图片异步加载和短超时网络读取
-    runtime/QuickConnectPoller.kt Jellyfin Quick Connect 授权状态轮询
+    runtime/QuickConnectPoller.kt Jellyfin Quick Connect 自动轮询、立即检查和陈旧回调隔离
     runtime/RecentAccountStore.kt 最近登录账号列表和旧版本账号存储兼容
     ui/TvDesign.kt               TV 色彩、间距、圆角、字号和固定尺寸 design tokens
     ui/TvUi.kt                   TV 暗色主题、按钮、输入框、文字和布局 helper
@@ -74,7 +74,7 @@ scripts/                         健康检查和本地自动化
 
 - 纯服务器语义和播放语义放在 `core`，并通过 Gradle `:core` module 暴露给 Android app。
 - TV workflow、焦点身份和导航规则放在 `core/tv`，Android UI 只负责渲染和事件转发；临时浏览栈、搜索返回和文件夹分页上下文归 `BrowseSession`，不要回流到 Activity。
-- Android 生命周期、焦点、私有文件目录接线、Quick Connect 轮询和 Media3 集成放在 `app`。
+- Android 生命周期、焦点、私有文件目录接线、Quick Connect 轮询 / 手动检查协调和 Media3 集成放在 `app`。
 - Android 视觉样式和可复用 View helper 放在 `app/.../tv/ui`；服务器连接、登录、会话恢复和 Quick Connect route 编排放在 `app/.../tv/auth`；详情页组装放在 `app/.../tv/details`；错误恢复页面放在 `app/.../tv/error`；首页导航和搜索页面放在 `app/.../tv/home`；详情到播放器的 route 编排、播放准备、音轨字幕、速度和诊断页面放在 `app/.../tv/playback`；Activity 只保留生命周期、顶层路由和跨模块事件转发，尽量让单文件保持在 300 行左右。
 - HTTP 发送边界和 session repository 接口放在 `core/protocol`；当前默认实现是 `UrlConnectionHttpTransport` 和 `FileSessionRepository`，后续如引入更完整 platform adapter，也必须保留核心接口语义。
 - UI 代码不能依赖协议包里的实现细节。

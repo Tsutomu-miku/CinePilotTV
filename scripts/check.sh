@@ -1025,6 +1025,21 @@ if ! grep -q 'quickConnectPoller.start' "$AUTH_ROUTE_CONTROLLER"; then
   exit 1
 fi
 
+if ! grep -q 'quickConnectPoller.checkNow' "$AUTH_ROUTE_CONTROLLER"; then
+  echo "Auth route controller must route manual Quick Connect checks through QuickConnectPoller" >&2
+  exit 1
+fi
+
+if grep -q 'workflowController.completeQuickConnect' "$AUTH_ROUTE_CONTROLLER"; then
+  echo "Auth route controller must not bypass QuickConnectPoller for Quick Connect completion" >&2
+  exit 1
+fi
+
+if ! grep -q 'activeRequestGeneration' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/runtime/QuickConnectPoller.kt"; then
+  echo "QuickConnectPoller must guard against overlapping or stale authorization checks" >&2
+  exit 1
+fi
+
 if ! grep -q 'QUICK_CONNECT_NOT_APPROVED_MESSAGE' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/runtime/QuickConnectPoller.kt"; then
   echo "QuickConnectPoller must continue polling until authorization is approved" >&2
   exit 1
