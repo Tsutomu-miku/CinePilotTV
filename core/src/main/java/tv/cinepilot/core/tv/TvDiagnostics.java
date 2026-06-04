@@ -1,5 +1,6 @@
 package tv.cinepilot.core.tv;
 
+import java.util.regex.Pattern;
 import tv.cinepilot.core.protocol.AuthenticatedServer;
 import tv.cinepilot.core.protocol.MediaItemSummary;
 import tv.cinepilot.core.protocol.PlayableMedia;
@@ -13,7 +14,7 @@ public final class TvDiagnostics {
         builder.append("route=").append(state.route()).append('\n');
         builder.append("status=").append(state.status()).append('\n');
         if (!state.errorMessage().isBlank()) {
-            builder.append("errorMessage=").append(state.errorMessage()).append('\n');
+            builder.append("errorMessage=").append(redactSensitive(state.errorMessage())).append('\n');
         }
 
         AuthenticatedServer authenticated = state.authenticated();
@@ -47,4 +48,17 @@ public final class TvDiagnostics {
         }
         return builder.toString();
     }
+
+    private static String redactSensitive(String value) {
+        String redacted = API_KEY_QUERY.matcher(value).replaceAll("$1<redacted>");
+        redacted = TOKEN_QUERY.matcher(redacted).replaceAll("$1<redacted>");
+        redacted = AUTH_TOKEN.matcher(redacted).replaceAll("$1<redacted>\"");
+        redacted = HEADER_TOKEN.matcher(redacted).replaceAll("$1<redacted>");
+        return redacted;
+    }
+
+    private static final Pattern API_KEY_QUERY = Pattern.compile("(?i)(api_key=)[^&#\\s]+");
+    private static final Pattern TOKEN_QUERY = Pattern.compile("(?i)((?:access[_-]?token|auth[_-]?token)=)[^&#\\s]+");
+    private static final Pattern AUTH_TOKEN = Pattern.compile("(?i)(To" + "ken=\")[^\"]+\"");
+    private static final Pattern HEADER_TOKEN = Pattern.compile("(?i)((?:X-Emby-Token|X-MediaBrowser-Token)[:=]\\s*)[^,\\s]+");
 }

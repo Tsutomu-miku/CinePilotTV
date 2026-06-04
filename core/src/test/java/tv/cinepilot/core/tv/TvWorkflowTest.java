@@ -675,13 +675,22 @@ public final class TvWorkflowTest {
                 ),
                 playable
         );
-        state = TvWorkflow.fail(state, "解码失败，请尝试低码率播放");
+        state = TvWorkflow.fail(
+                state,
+                "解码失败，请尝试低码率播放 https://media.example.com/movie.mkv?api_key=token-1 " +
+                        "X-Emby-Token=token-2 MediaBrowser Token=\"token-3\""
+        );
         String diagnostics = TvDiagnostics.describe(state);
         assertTrue(diagnostics.contains("serverId=server-1"), "diagnostics includes server");
         assertTrue(diagnostics.contains("itemId=movie-1"), "diagnostics includes item");
         assertTrue(diagnostics.contains("playMethod=DIRECT_PLAY"), "diagnostics includes play method");
         assertTrue(diagnostics.contains("errorMessage=解码失败，请尝试低码率播放"), "diagnostics includes error message");
+        assertTrue(diagnostics.contains("api_key=<redacted>"), "diagnostics redacts playback URL token");
+        assertTrue(diagnostics.contains("X-Emby-Token=<redacted>"), "diagnostics redacts token header");
+        assertTrue(diagnostics.contains("Token=\"<redacted>\""), "diagnostics redacts authorization token");
         assertTrue(!diagnostics.contains("token-1"), "diagnostics does not include token");
+        assertTrue(!diagnostics.contains("token-2"), "diagnostics does not include header token");
+        assertTrue(!diagnostics.contains("token-3"), "diagnostics does not include authorization token");
     }
 
     private static void enqueueHomeResponses(FakeTransport transport) {

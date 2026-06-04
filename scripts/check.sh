@@ -805,6 +805,11 @@ if ! grep -q 'errorMessage=' "$ROOT_DIR/core/src/main/java/tv/cinepilot/core/tv/
   exit 1
 fi
 
+if ! grep -q 'redactSensitive' "$ROOT_DIR/core/src/main/java/tv/cinepilot/core/tv/TvDiagnostics.java"; then
+  echo "TV diagnostics must redact sensitive values from error messages" >&2
+  exit 1
+fi
+
 if grep -q 'accessToken\|Token=' "$ROOT_DIR/core/src/main/java/tv/cinepilot/core/tv/TvDiagnostics.java"; then
   echo "TV diagnostics must not expose access tokens" >&2
   exit 1
