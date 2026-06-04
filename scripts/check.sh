@@ -831,6 +831,26 @@ if ! grep -q '分享诊断' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/playbac
   exit 1
 fi
 
+if ! grep -q 'androidx.core.content.FileProvider' "$ROOT_DIR/app/src/main/AndroidManifest.xml"; then
+  echo "Android manifest must expose a FileProvider for diagnostics sharing" >&2
+  exit 1
+fi
+
+if [[ ! -s "$ROOT_DIR/app/src/main/res/xml/diagnostics_file_paths.xml" ]]; then
+  echo "Missing diagnostics FileProvider paths" >&2
+  exit 1
+fi
+
+if ! grep -q 'Intent.EXTRA_STREAM' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/playback/PlaybackDiagnosticsController.kt"; then
+  echo "Diagnostics sharing must attach the exported file" >&2
+  exit 1
+fi
+
+if ! grep -q 'FLAG_GRANT_READ_URI_PERMISSION' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/playback/PlaybackDiagnosticsController.kt"; then
+  echo "Diagnostics file sharing must grant temporary read permission" >&2
+  exit 1
+fi
+
 if ! grep -q 'errorMessage=' "$ROOT_DIR/core/src/main/java/tv/cinepilot/core/tv/TvDiagnostics.java"; then
   echo "TV diagnostics must include the recoverable error message" >&2
   exit 1

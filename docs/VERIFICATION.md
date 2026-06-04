@@ -125,7 +125,7 @@ Android TV 设备或模拟器上需要验证：
 - 详情页能展示服务器返回的简介、类型、时长和季集信息。
 - 播放失败后的诊断信息不包含 token，且能显示 server、item、media source、play method。
 - 诊断页可以导出不含 token 的 `cinepilot-diagnostics.txt` 到 app 私有文件目录。
-- 诊断页可以通过系统分享发送不含 token 的文本诊断快照，方便从电视设备导出排障信息。
+- 诊断页可以通过系统分享发送不含 token 的 `cinepilot-diagnostics.txt` 文件；分享 intent 使用 `FileProvider` 的 `content://` URI、临时只读权限，并附带文本诊断快照作为 fallback。
 - 详情页展示可读的恢复播放时间，不显示原始协议 ticks。
 - 继续播放进入 direct play / direct stream 时，Media3 应从恢复位置起播；进入 HLS 转码时，播放上报应把服务器 start ticks 计入 PositionTicks，避免恢复播放后把进度误报成片头。
 - 详情页的音轨 / 字幕内联单选框能按 media source 分组列出 playback info 中的 media sources、audio streams 和 subtitle streams，并把选择所属的 media source id / stream index 一起用于播放准备，避免多版本影片选错源；如果 playback info 重新加载后旧 media source 或 stream index 已不存在，界面和播放准备都必须回退到服务器默认选择。

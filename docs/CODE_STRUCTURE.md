@@ -38,6 +38,7 @@ app/
     ui/PlaybackText.kt           播放选项、音轨字幕和剧集上下文展示文案
     ui/TvErrorMessages.kt        网络、认证和播放器错误到中文提示的格式化
   src/main/res/drawable/ic_*.xml 开源 Material Icons 风格矢量图标资源
+  src/main/res/xml/diagnostics_file_paths.xml 诊断文件分享的 FileProvider 私有路径配置
 core/
   build.gradle.kts              JVM/Java Gradle module
   src/main/java/tv/cinepilot/core/

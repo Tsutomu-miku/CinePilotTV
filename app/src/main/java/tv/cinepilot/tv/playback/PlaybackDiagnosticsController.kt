@@ -1,8 +1,11 @@
 package tv.cinepilot.tv.playback
 
+import android.content.ClipData
 import android.content.Intent
 import android.widget.Toast
 import androidx.activity.ComponentActivity
+import androidx.core.content.FileProvider
+import java.io.File
 import tv.cinepilot.core.tv.TvAppState
 import tv.cinepilot.core.tv.TvDiagnostics
 
@@ -29,11 +32,10 @@ class PlaybackDiagnosticsController(
             returnToPlayer = returnToPlayer,
             backLabel = backLabel,
             onExport = {
-                val file = activity.filesDir.resolve(DIAGNOSTICS_FILE_NAME)
-                file.writeText(diagnostics)
+                val file = writeDiagnostics(diagnostics)
                 showExported(state, file.absolutePath, returnToPlayer, backLabel, onBackDiagnosticsTarget)
             },
-            onShare = { share(diagnostics) },
+            onShare = { share(writeDiagnostics(diagnostics), diagnostics) },
             onBackDiagnosticsTarget = onBackDiagnosticsTarget,
         ))
     }
@@ -50,7 +52,7 @@ class PlaybackDiagnosticsController(
             path = path,
             returnToPlayer = returnToPlayer,
             backLabel = backLabel,
-            onShare = { share(diagnostics) },
+            onShare = { share(writeDiagnostics(diagnostics), diagnostics) },
             onBackDiagnostics = {
                 show(state, returnToPlayer, backLabel, onBackDiagnosticsTarget)
             },
@@ -58,11 +60,15 @@ class PlaybackDiagnosticsController(
         ))
     }
 
-    private fun share(diagnostics: String) {
+    private fun share(file: File, diagnostics: String) {
+        val uri = FileProvider.getUriForFile(activity, "${activity.packageName}.fileprovider", file)
         val shareIntent = Intent(Intent.ACTION_SEND).apply {
             type = "text/plain"
             putExtra(Intent.EXTRA_SUBJECT, "CinePilot TV 诊断信息")
             putExtra(Intent.EXTRA_TEXT, diagnostics)
+            putExtra(Intent.EXTRA_STREAM, uri)
+            clipData = ClipData.newUri(activity.contentResolver, DIAGNOSTICS_FILE_NAME, uri)
+            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
         }
         runCatching {
             activity.startActivity(Intent.createChooser(shareIntent, "分享诊断"))
@@ -71,7 +77,15 @@ class PlaybackDiagnosticsController(
         }
     }
 
+    private fun writeDiagnostics(diagnostics: String): File {
+        val directory = activity.filesDir.resolve(DIAGNOSTICS_DIR_NAME).apply { mkdirs() }
+        return directory.resolve(DIAGNOSTICS_FILE_NAME).apply {
+            writeText(diagnostics)
+        }
+    }
+
     private companion object {
+        private const val DIAGNOSTICS_DIR_NAME = "diagnostics"
         private const val DIAGNOSTICS_FILE_NAME = "cinepilot-diagnostics.txt"
     }
 }
