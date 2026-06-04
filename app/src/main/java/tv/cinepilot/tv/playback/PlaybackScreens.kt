@@ -5,7 +5,6 @@ import android.widget.HorizontalScrollView
 import android.widget.LinearLayout
 import android.widget.ScrollView
 import androidx.activity.ComponentActivity
-import tv.cinepilot.core.tv.TvAppState
 import tv.cinepilot.tv.ui.TvIcon
 import tv.cinepilot.tv.ui.action
 import tv.cinepilot.tv.ui.choiceAction
@@ -37,21 +36,6 @@ private fun ComponentActivity.playbackSpeedChoiceRow(
     return HorizontalScrollView(this).apply {
         isHorizontalScrollBarEnabled = false
         addView(row)
-    }
-}
-
-fun ComponentActivity.playerReadyScreen(
-    state: TvAppState,
-    onOpenPlayer: () -> Unit,
-    onDiagnostics: () -> Unit,
-): ScrollView {
-    val playable = state.playableMedia()
-    return screen("准备播放") {
-        addView(label("播放方式：${playable?.playMethod() ?: ""}"))
-        addView(label("媒体源：${playable?.mediaSourceId() ?: ""}"))
-        addView(label("播放地址已准备"))
-        addView(iconAction("打开播放器", TvIcon.PLAY, onOpenPlayer).requestInitialFocus())
-        addView(action("诊断信息", onDiagnostics))
     }
 }
 
@@ -97,7 +81,7 @@ private fun ComponentActivity.diagnosticsBackAction(
     } else if (returnToPlayer) {
         "返回播放器"
     } else {
-        "返回播放准备"
+        "返回错误页"
     }
     return iconAction(label, TvIcon.BACK, onBackDiagnosticsTarget)
 }

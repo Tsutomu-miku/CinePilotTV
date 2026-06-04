@@ -771,13 +771,18 @@ if ! grep -q 'staticVideoStream' "$ROOT_DIR/core/src/main/java/tv/cinepilot/core
   exit 1
 fi
 
-if ! grep -q '打开播放器' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/playback/PlaybackScreens.kt"; then
-  echo "Playback screens must expose a player launch action" >&2
+if grep -q 'playerReadyScreen' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/playback/PlaybackScreens.kt"; then
+  echo "Playback screens must not restore the removed player-ready confirmation page" >&2
   exit 1
 fi
 
-if ! grep -q '播放地址已准备' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/playback/PlaybackScreens.kt"; then
-  echo "Playback screens must avoid showing raw playback URLs on the player-ready screen" >&2
+if grep -q '打开播放器' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/playback/PlaybackScreens.kt"; then
+  echo "Playback screens must not require a second click after playback is prepared" >&2
+  exit 1
+fi
+
+if grep -q '返回播放准备' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/playback/PlaybackScreens.kt"; then
+  echo "Playback diagnostics must not point back to the removed player-ready screen" >&2
   exit 1
 fi
 

@@ -118,7 +118,7 @@ Android TV 设备或模拟器上需要验证：
 - Jellyfin `PlaybackInfo` 声明可 direct play 但没有返回 `DirectStreamUrl` 时，播放准备应使用静态 `/Videos/{Id}/stream?Static=true` 请求，避免不必要地进入 HLS 转码路径。
 - 详情页有 Primary 图片时会加载海报；图片加载使用独立线程池和短超时，失败不能影响按钮焦点或播放入口。
 - 详情页能展示服务器返回的简介、类型、时长和季集信息。
-- 播放准备页的诊断信息不包含 token，且能显示 server、item、media source、play method。
+- 播放失败后的诊断信息不包含 token，且能显示 server、item、media source、play method。
 - 诊断页可以导出不含 token 的 `cinepilot-diagnostics.txt` 到 app 私有文件目录。
 - 诊断页可以通过系统分享发送不含 token 的文本诊断快照，方便从电视设备导出排障信息。
 - 详情页展示可读的恢复播放时间，不显示原始协议 ticks。
