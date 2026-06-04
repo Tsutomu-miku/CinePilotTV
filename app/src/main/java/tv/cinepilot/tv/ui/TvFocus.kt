@@ -8,6 +8,7 @@ import android.view.View
 import android.widget.Button
 import android.widget.LinearLayout
 import android.widget.RadioButton
+import android.widget.ScrollView
 import android.widget.TextView
 import androidx.activity.ComponentActivity
 import java.util.WeakHashMap
@@ -91,6 +92,25 @@ fun <T : View> T.keepFocusOnVerticalDpad(
     return this
 }
 
+fun <T : View> T.scrollOnVerticalDpad(
+    scrollView: ScrollView,
+    scrollUp: Boolean = true,
+    scrollDown: Boolean = true,
+): T {
+    setOnKeyListener { _, keyCode, event ->
+        if (event.action != KeyEvent.ACTION_DOWN) {
+            false
+        } else if (scrollUp && keyCode == KeyEvent.KEYCODE_DPAD_UP) {
+            scrollView.dpadScrollBy(-1)
+        } else if (scrollDown && keyCode == KeyEvent.KEYCODE_DPAD_DOWN) {
+            scrollView.dpadScrollBy(1)
+        } else {
+            false
+        }
+    }
+    return this
+}
+
 fun ComponentActivity.setFocusableColors(
     view: TextView,
     focusedColor: Int,
@@ -144,5 +164,21 @@ private fun ComponentActivity.animateFocusBackground(
     }
 }
 
+private fun ScrollView.dpadScrollBy(direction: Int): Boolean {
+    val child = getChildAt(0)
+    val maxScroll = ((child?.height ?: 0) - height).coerceAtLeast(0)
+    if (maxScroll == 0) {
+        return true
+    }
+    val delta = (height * DPAD_SCROLL_FRACTION).toInt().coerceAtLeast(DPAD_SCROLL_MIN_PX)
+    val target = (scrollY + delta * direction).coerceIn(0, maxScroll)
+    if (target != scrollY) {
+        smoothScrollTo(0, target)
+    }
+    return true
+}
+
 private val focusAnimators = WeakHashMap<View, ValueAnimator>()
 private const val FOCUS_ANIMATION_MS = 160L
+private const val DPAD_SCROLL_FRACTION = 0.42f
+private const val DPAD_SCROLL_MIN_PX = 80

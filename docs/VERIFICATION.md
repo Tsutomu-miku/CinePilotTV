@@ -43,6 +43,7 @@ GitHub Actions：
 
 最近验证记录（2026-05-31）：
 
+- 2026-06-04 本轮开始不提供测试机器环境，因此后续提交只做本地 `:app:assembleDebug`、`./scripts/check.sh` 和静态差异检查；ADB / TV / 手机验证待测试设备恢复后统一执行。
 - `./scripts/check.sh` 通过。
 - `./scripts/install-debug-apk.sh` 可以完成 `:app:assembleDebug`。
 - `adb devices` 已识别 Xiaomi 2211133C 真机；`./scripts/install-debug-apk.sh` 可以完成构建，但安装阶段被设备系统以 `INSTALL_FAILED_USER_RESTRICTED` 拒绝。需要在设备开发者选项中开启“通过 USB 安装”和“USB 调试（安全设置）”，并在安装确认弹窗中允许。

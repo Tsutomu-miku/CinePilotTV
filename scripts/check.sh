@@ -996,13 +996,18 @@ if ! grep -q 'normalizedFor(selectedPlaybackInfo' "$PLAYBACK_ROUTE_CONTROLLER"; 
   exit 1
 fi
 
-if ! grep -q 'consumeUp = trackControls == null' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/ui/DetailsScreen.kt"; then
-  echo "Details playback actions must allow D-pad up/down around inline track controls" >&2
+if ! grep -q 'scrollOnVerticalDpad(root' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/ui/DetailsScreen.kt"; then
+  echo "Details playback actions must scroll the page instead of trapping D-pad focus" >&2
   exit 1
 fi
 
-if ! grep -q 'consumeDown = trackControls == null' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/ui/DetailsScreen.kt"; then
-  echo "Details playback actions must allow D-pad up/down around inline track controls" >&2
+if ! grep -q 'shouldScrollDown = trackControls == null' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/ui/DetailsScreen.kt"; then
+  echo "Details playback actions must keep D-pad down available for inline track controls" >&2
+  exit 1
+fi
+
+if ! grep -q 'smoothScrollTo' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/ui/TvFocus.kt"; then
+  echo "TV focus helpers must support D-pad driven page scrolling" >&2
   exit 1
 fi
 
