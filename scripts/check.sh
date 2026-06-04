@@ -37,6 +37,11 @@ if ! grep -q 'implementation(project(":core"))' "$ROOT_DIR/app/build.gradle.kts"
   exit 1
 fi
 
+if ! grep -q 'buildConfig = true' "$ROOT_DIR/app/build.gradle.kts"; then
+  echo "Android app must generate BuildConfig for runtime client identity" >&2
+  exit 1
+fi
+
 if ! grep -q 'androidx.media3:media3-exoplayer-hls' "$ROOT_DIR/gradle/libs.versions.toml"; then
   echo "Version catalog must include Media3 HLS playback support" >&2
   exit 1
@@ -198,6 +203,11 @@ done
 
 if ! grep -q 'TvWorkflowController' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/runtime/CinePilotRuntime.kt"; then
   echo "CinePilotRuntime must expose TvWorkflowController" >&2
+  exit 1
+fi
+
+if ! grep -q 'BuildConfig.VERSION_NAME' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/runtime/CinePilotRuntime.kt"; then
+  echo "CinePilotRuntime must use the APK version name for session scope" >&2
   exit 1
 fi
 

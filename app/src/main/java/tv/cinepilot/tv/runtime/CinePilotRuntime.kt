@@ -3,6 +3,7 @@ package tv.cinepilot.tv.runtime
 import android.content.Context
 import android.provider.Settings
 import java.nio.file.Path
+import tv.cinepilot.tv.BuildConfig
 import tv.cinepilot.core.protocol.ClientIdentity
 import tv.cinepilot.core.protocol.FileSessionRepository
 import tv.cinepilot.core.protocol.MediaBrowserClient
@@ -24,7 +25,7 @@ class CinePilotRuntime private constructor(
                 "CinePilot TV",
                 android.os.Build.MODEL ?: "Android TV",
                 stableDeviceId(appContext),
-                "0.1.0",
+                BuildConfig.VERSION_NAME,
             )
             val sessionFile: Path = appContext.filesDir.toPath().resolve("sessions.properties")
             val mediaBrowserClient = MediaBrowserClient(

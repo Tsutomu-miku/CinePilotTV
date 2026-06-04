@@ -96,7 +96,7 @@ Android 首页按钮获得选择意图时，应先调用 `TvWorkflowController.f
 
 `CinePilotViewModel` 是 Android 层持有 `CinePilotRuntime` 的入口。`MainActivity` 只能从 ViewModel 取得 `TvWorkflowController` 和 `MediaBrowserClient`，避免 Activity 重建时重新创建业务状态和 session repository。
 
-`TvWorkflowController.restoreSession(userId)` 要求先完成服务器发现，再按已发现服务器、userId、客户端身份和设备身份恢复会话。Android UI 可以记住最近服务器地址和 userId 列表来提供多个“继续”入口，但不能自行保存或拼接 token。
+`TvWorkflowController.restoreSession(userId)` 要求先完成服务器发现，再按已发现服务器、userId、客户端身份和设备身份恢复会话。Android UI 可以记住最近服务器地址和 userId 列表来提供多个“继续”入口，但不能自行保存或拼接 token。Android runtime 的 `ClientIdentity.version` 必须来自 APK `BuildConfig.VERSION_NAME`，不能写死在运行时代码里。
 
 启动时 Android UI 应优先尝试恢复最近账号；恢复成功直接进入首页，恢复失败则回到服务器选择页，保证首屏不是不可操作的错误状态。服务器发现成功后也应保存最近服务器地址，即使用户还没有完成登录，也能在下次打开服务器输入页时一键回到该服务器登录流程。
 
@@ -146,7 +146,7 @@ Media3 播放速度变化通过 `onPlaybackParametersChanged` 上报到 `Playbac
 
 ## 状态与持久化
 
-会话状态按服务器和用户身份划分作用域。持久化记录必须包含足够身份信息，避免用户修改 URL 或切换多服务器后把 token 发给错误服务器。
+会话状态按服务器和用户身份划分作用域。持久化记录必须包含 server id、服务器 URL、user id、client name、device id 和 app version，避免用户修改 URL、切换多服务器或安装不同版本后把 token 发给错误上下文。
 
 当前 `InMemorySessionRepository` 用于领域验证和早期集成，`FileSessionRepository` 提供 JVM 可用的落盘实现。Android 可用版本可以复用文件实现或包一层平台存储路径，但必须保持相同 `SessionScope` 规则。
 

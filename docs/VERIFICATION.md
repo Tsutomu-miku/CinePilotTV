@@ -17,6 +17,7 @@
 - Gradle 多模块结构包含 `:app` 和 `:core`。
 - Android app 依赖 `:core`。
 - Android ViewModel、runtime、TV workflow controller、最小 TV UI、Media3 player host 和 Media3 playback bridge 入口存在。
+- Android runtime 的 client identity 使用 APK `BuildConfig.VERSION_NAME`，会话 scope 与真实安装包版本一致。
 - Android manifest 允许 HTTP 明文流量，同时提供普通桌面 `LAUNCHER` 和 TV `LEANBACK_LAUNCHER` 入口，并把 leanback / touchscreen 声明为非必需 feature；Media3 player host 会授权播放 URL。
 - Media3 播放错误会回到中文错误页，播放器释放时 stopped 上报失败不会阻止错误恢复。
 - debug APK 提供受 `FLAG_DEBUGGABLE` 限制的 QA 登录 intent，配套 `./scripts/qa-login.sh`，用于禁止 adb input 注入的设备；该脚本与安装脚本一样优先使用仓库本地 `build/android-sdk/platform-tools/adb`，避免开发机缺少全局 adb 时无法运行。
