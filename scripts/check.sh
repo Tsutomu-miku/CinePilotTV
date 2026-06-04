@@ -920,6 +920,11 @@ if ! grep -q 'DEFAULT_PLAYBACK_RATE = 1.0f' "$ROOT_DIR/app/src/main/java/tv/cine
   exit 1
 fi
 
+if ! grep -q 'applyTrackSelection(item, speedPreferences(item, rate))' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/playback/PlaybackRouteController.kt"; then
+  echo "Playback speed selection must preserve detail-page media source, audio, and subtitle choices" >&2
+  exit 1
+fi
+
 if ! grep -q 'setPlaybackSpeed' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/player/Media3PlayerHost.kt"; then
   echo "Media3PlayerHost must apply selected playback speed" >&2
   exit 1

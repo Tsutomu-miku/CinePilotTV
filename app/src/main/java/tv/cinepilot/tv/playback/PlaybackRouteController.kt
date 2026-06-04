@@ -115,7 +115,7 @@ class PlaybackRouteController(
     private fun showPlaybackSpeedOptions(item: MediaItemSummary) {
         auxiliaryBackAction = { showDetails(item) }
         activity.setContentView(activity.playbackSpeedScreen(
-            onSpeed = { rate -> preparePlaybackWith(speedPreferences(item, rate)) },
+            onSpeed = { rate -> preparePlaybackWith(applyTrackSelection(item, speedPreferences(item, rate))) },
         ))
     }
 
