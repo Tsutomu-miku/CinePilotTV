@@ -22,7 +22,7 @@ Jellyfin 登录页可以发起 Quick Connect：Activity 展示服务器返回的
 
 服务器地址输入应使用 URI text variation，密码输入必须使用 password variation。登录界面可以保留原生 `EditText`，但不能明文显示密码。
 
-按钮、输入框和媒体卡片必须有显式 focus color / focus border，不能只依赖平台默认样式；这样在深色 TV 背景上 D-pad 当前焦点始终可见。
+按钮、输入框和媒体卡片必须有显式 focus color / focus border，不能只依赖平台默认样式；这样在深色 TV 背景上 D-pad 当前焦点始终可见。滚动详情页应通过 `TvFocus` 的统一垂直 D-pad 滚动兜底处理播放按钮、媒体源、音轨和字幕单选项，避免页面里散落按钮级防丢焦逻辑。
 
 关键操作按钮应配套开源 Material Icons 风格矢量图标资源，例如搜索、刷新、退出、播放、返回、字幕、低码率播放、诊断导出和诊断分享。图标资源放在 Android `drawable`，由 `tv/ui/TvUi.kt` 的 `TvIcon` 统一引用，避免页面里散落资源 id。
 

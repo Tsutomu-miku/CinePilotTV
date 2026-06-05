@@ -21,7 +21,6 @@ fun ComponentActivity.detailsScreen(
     folderAction: View,
     loadPoster: (LinearLayout, MediaItemSummary) -> Unit,
 ): View {
-    val scrollTargets = mutableListOf<Pair<View, Boolean>>()
     val root = screen("详情") {
         addView(LinearLayout(this@detailsScreen).apply {
             orientation = LinearLayout.HORIZONTAL
@@ -37,15 +36,10 @@ fun ComponentActivity.detailsScreen(
                     }
                     addView(verticalSpace(8))
                     if (item.playable()) {
-                        val shouldScrollDown = trackControls == null
-                        playbackActions.forEach { actionView ->
-                            scrollTargets.add(actionView to shouldScrollDown)
-                        }
                         addView(actionStrip(playbackActions))
                         playbackActions.firstOrNull()?.requestInitialFocus()
                         trackControls?.let(::addView)
                     } else {
-                        scrollTargets.add(folderAction to true)
                         addView(folderAction)
                         folderAction.requestInitialFocus()
                     }
@@ -62,10 +56,7 @@ fun ComponentActivity.detailsScreen(
             )
         })
     }
-    scrollTargets.forEach { (target, scrollDown) ->
-        target.scrollOnVerticalDpad(root, scrollUp = true, scrollDown = scrollDown)
-    }
-    return root
+    return root.bindVerticalDpadScrollFallback()
 }
 
 private fun ComponentActivity.detailTitle(title: String): TextView {

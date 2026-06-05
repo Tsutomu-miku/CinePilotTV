@@ -5,6 +5,7 @@ import android.animation.ValueAnimator
 import android.content.res.ColorStateList
 import android.view.KeyEvent
 import android.view.View
+import android.view.ViewGroup
 import android.widget.Button
 import android.widget.LinearLayout
 import android.widget.RadioButton
@@ -111,6 +112,13 @@ fun <T : View> T.scrollOnVerticalDpad(
     return this
 }
 
+fun <T : ScrollView> T.bindVerticalDpadScrollFallback(): T {
+    post {
+        getChildAt(0)?.bindVerticalDpadScrollFallback(this)
+    }
+    return this
+}
+
 fun ComponentActivity.setFocusableColors(
     view: TextView,
     focusedColor: Int,
@@ -176,6 +184,46 @@ private fun ScrollView.dpadScrollBy(direction: Int): Boolean {
         smoothScrollTo(0, target)
     }
     return true
+}
+
+private fun View.bindVerticalDpadScrollFallback(scrollView: ScrollView) {
+    if (isFocusable) {
+        setOnKeyListener { focusedView, keyCode, event ->
+            val focusDirection = keyCode.toFocusDirection() ?: return@setOnKeyListener false
+            if (event.action != KeyEvent.ACTION_DOWN) {
+                return@setOnKeyListener false
+            }
+            val nextFocus = focusedView.focusSearch(focusDirection)
+            if (nextFocus != null && nextFocus != focusedView && scrollView.containsDescendant(nextFocus)) {
+                return@setOnKeyListener false
+            }
+            scrollView.dpadScrollBy(if (focusDirection == View.FOCUS_UP) -1 else 1)
+        }
+    }
+    if (this is ViewGroup) {
+        for (index in 0 until childCount) {
+            getChildAt(index).bindVerticalDpadScrollFallback(scrollView)
+        }
+    }
+}
+
+private fun Int.toFocusDirection(): Int? {
+    return when (this) {
+        KeyEvent.KEYCODE_DPAD_UP -> View.FOCUS_UP
+        KeyEvent.KEYCODE_DPAD_DOWN -> View.FOCUS_DOWN
+        else -> null
+    }
+}
+
+private fun ViewGroup.containsDescendant(target: View): Boolean {
+    var current: View? = target
+    while (current != null) {
+        if (current == this) {
+            return true
+        }
+        current = current.parent as? View
+    }
+    return false
 }
 
 private val focusAnimators = WeakHashMap<View, ValueAnimator>()

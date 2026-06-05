@@ -1239,13 +1239,18 @@ if ! grep -q 'normalizedFor(selectedPlaybackInfo' "$PLAYBACK_ROUTE_CONTROLLER"; 
   exit 1
 fi
 
-if ! grep -q 'scrollOnVerticalDpad(root' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/ui/DetailsScreen.kt"; then
-  echo "Details playback actions must scroll the page instead of trapping D-pad focus" >&2
+if ! grep -q 'bindVerticalDpadScrollFallback()' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/ui/DetailsScreen.kt"; then
+  echo "Details screen must bind all focusable controls to vertical D-pad scroll fallback" >&2
   exit 1
 fi
 
-if ! grep -q 'shouldScrollDown = trackControls == null' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/ui/DetailsScreen.kt"; then
-  echo "Details playback actions must keep D-pad down available for inline track controls" >&2
+if grep -q 'scrollTargets' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/ui/DetailsScreen.kt"; then
+  echo "Details screen must not keep button-level D-pad scroll target lists" >&2
+  exit 1
+fi
+
+if ! grep -q 'bindVerticalDpadScrollFallback' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/ui/TvFocus.kt"; then
+  echo "TV focus helpers must expose reusable vertical D-pad scroll fallback" >&2
   exit 1
 fi
 
