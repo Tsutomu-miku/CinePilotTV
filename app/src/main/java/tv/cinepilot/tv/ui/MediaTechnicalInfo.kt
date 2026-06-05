@@ -179,33 +179,46 @@ private fun subtitleLabels(subtitles: List<MediaStreamInfo>): List<String> {
     if (subtitles.isEmpty()) {
         return listOf("无字幕")
     }
-    val labels = mutableListOf("字幕 ${subtitles.size} 条")
     val languages = subtitles.mapNotNull { stream ->
         stream.language().takeIf { it.isNotBlank() }?.let(::languageLabel)
     }.distinct().take(3)
-    if (languages.isNotEmpty()) {
-        labels.add("字幕语言：${languages.joinToString(" / ")}")
-    }
+    val labels = mutableListOf(
+        if (languages.isEmpty()) {
+            "字幕 ${subtitles.size} 条"
+        } else {
+            "字幕 ${subtitles.size} 条：${languages.joinToString(" / ")}"
+        },
+    )
+    val formatParts = mutableListOf<String>()
     val subtitleFormats = subtitles.mapNotNull { stream ->
         codecLabel(stream.codec()).takeIf { it.isNotBlank() }
     }.distinct().take(4)
     if (subtitleFormats.isNotEmpty()) {
-        labels.add("字幕格式：${subtitleFormats.joinToString(" / ")}")
+        formatParts.add("字幕格式 ${subtitleFormats.joinToString(" / ")}")
     }
     val externalCount = subtitles.count { it.external() }
     if (externalCount > 0) {
-        labels.add("外挂字幕 $externalCount 条")
+        formatParts.add("外挂字幕 $externalCount 条")
     }
-    if (subtitles.any(::isImageSubtitle)) {
-        labels.add("图形字幕可能触发转码")
+    if (formatParts.isNotEmpty()) {
+        labels.add(formatParts.joinToString(" / "))
+    }
+    subtitleHintLabel(subtitles)?.let(labels::add)
+    return labels
+}
+
+private fun subtitleHintLabel(subtitles: List<MediaStreamInfo>): String? {
+    val hints = mutableListOf<String>()
+    subtitles.firstOrNull { it.defaultStream() }?.language()?.takeIf { it.isNotBlank() }?.let { language ->
+        hints.add("默认字幕 ${languageLabel(language)}")
     }
     if (subtitles.any { it.forced() }) {
-        labels.add("含强制字幕")
+        hints.add("含强制字幕")
     }
-    subtitles.firstOrNull { it.defaultStream() }?.language()?.takeIf { it.isNotBlank() }?.let { language ->
-        labels.add("默认字幕：${languageLabel(language)}")
+    if (subtitles.any(::isImageSubtitle)) {
+        hints.add("图形字幕可能触发转码")
     }
-    return labels
+    return hints.takeIf { it.isNotEmpty() }?.joinToString(" / ")
 }
 
 private fun isImageSubtitle(stream: MediaStreamInfo): Boolean {

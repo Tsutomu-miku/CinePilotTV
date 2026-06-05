@@ -529,6 +529,16 @@ for compatibility_label in 兼容性 高码率 字幕格式 图形字幕 高清�
   fi
 done
 
+if ! grep -q 'subtitleHintLabel' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/ui/MediaTechnicalInfo.kt"; then
+  echo "Media technical info formatter must group subtitle default/forced/risk hints" >&2
+  exit 1
+fi
+
+if grep -q '默认字幕：' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/ui/MediaTechnicalInfo.kt"; then
+  echo "Media technical info formatter must not split default subtitles into a separate verbose pill" >&2
+  exit 1
+fi
+
 for icon in search refresh logout play back subtitles speed mic account info; do
   if [[ ! -s "$ROOT_DIR/app/src/main/res/drawable/ic_${icon}.xml" ]]; then
     echo "Missing TV action icon: ic_${icon}.xml" >&2
