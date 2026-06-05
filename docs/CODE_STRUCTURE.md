@@ -30,7 +30,7 @@ app/
     runtime/QuickConnectPoller.kt Jellyfin Quick Connect 自动轮询、立即检查和陈旧回调隔离
     runtime/RecentAccountStore.kt 最近登录账号列表和旧版本账号存储兼容
     ui/TvDesign.kt               TV 色彩、间距、圆角、字号和固定尺寸 design tokens
-    ui/TvUi.kt                   TV 暗色主题、按钮、输入框、文字和布局 helper
+    ui/TvUi.kt                   TV 暗色主题、按钮、动作组、输入框、文字和布局 helper
     ui/TvFocus.kt                TV 焦点态、初始焦点和密集选择按钮 helper
     ui/TvFlowLayout.kt           详情页 tags 自动换行布局
     ui/MediaShelf.kt             首页横向媒体架和海报卡片

@@ -202,6 +202,23 @@ fun ComponentActivity.actionStrip(actions: List<View>): HorizontalScrollView {
     }
 }
 
+fun ComponentActivity.actionColumn(actions: List<View>): LinearLayout {
+    return LinearLayout(this).apply {
+        orientation = LinearLayout.VERTICAL
+        actions.forEach { actionView ->
+            addView(
+                actionView,
+                LinearLayout.LayoutParams(
+                    LinearLayout.LayoutParams.WRAP_CONTENT,
+                    dp(TvSize.ControlHeight),
+                ).apply {
+                    bottomMargin = dp(TvSpacing.ControlGap)
+                },
+            )
+        }
+    }
+}
+
 fun ComponentActivity.metadataPills(values: List<String>): TvFlowLayout {
     return TvFlowLayout(this).apply {
         values.filter { it.isNotBlank() }.forEach { value ->

@@ -978,6 +978,11 @@ if ! grep -q 'primaryIconAction("分享诊断", TvIcon.SHARE' "$ROOT_DIR/app/src
   exit 1
 fi
 
+if ! grep -q 'actionColumn' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/playback/PlaybackScreens.kt"; then
+  echo "Playback diagnostics actions must use the shared vertical action group" >&2
+  exit 1
+fi
+
 if ! grep -q 'androidx.core.content.FileProvider' "$ROOT_DIR/app/src/main/AndroidManifest.xml"; then
   echo "Android manifest must expose a FileProvider for diagnostics sharing" >&2
   exit 1
@@ -1118,6 +1123,12 @@ fi
 
 if ! grep -q 'TvIcon.INFO' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/error/ErrorRouteScreen.kt"; then
   echo "Error diagnostics action must use an info icon" >&2
+  exit 1
+fi
+
+if ! grep -q 'actionColumn' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/error/ErrorRouteScreen.kt" ||
+  ! grep -q 'fun ComponentActivity.actionColumn' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/ui/TvUi.kt"; then
+  echo "Error recovery actions must use the shared vertical action group" >&2
   exit 1
 fi
 

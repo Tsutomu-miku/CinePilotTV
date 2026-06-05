@@ -5,6 +5,7 @@ import android.widget.ScrollView
 import androidx.activity.ComponentActivity
 import tv.cinepilot.core.tv.TvAppState
 import tv.cinepilot.tv.ui.TvIcon
+import tv.cinepilot.tv.ui.actionColumn
 import tv.cinepilot.tv.ui.iconAction
 import tv.cinepilot.tv.ui.label
 import tv.cinepilot.tv.ui.primaryIconAction
@@ -40,9 +41,9 @@ fun ComponentActivity.errorRouteScreen(
             actions.add(primaryOrSecondaryAction(actions, "重新登录", TvIcon.ACCOUNT, onLogin))
         }
         actions.add(primaryOrSecondaryAction(actions, "返回服务器输入", TvIcon.BACK, onServerEntry))
-        actions.forEachIndexed { index, view ->
-            addView(if (index == 0) view.requestInitialFocus() else view)
-        }
+        addView(actionColumn(actions.mapIndexed { index, view ->
+            if (index == 0) view.requestInitialFocus() else view
+        }))
     }
 }
 
