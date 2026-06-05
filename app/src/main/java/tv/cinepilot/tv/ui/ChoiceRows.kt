@@ -27,3 +27,17 @@ fun ComponentActivity.settingChoiceRow(choices: List<View>): HorizontalScrollVie
         }
     }
 }
+
+fun ComponentActivity.settingChoiceGroup(choices: List<View>): TvFlowLayout {
+    return TvFlowLayout(this).apply {
+        choices.forEach(::addView)
+        background = rounded(TvColors.Surface, dp(TvRadius.Card), dp(1), TvColors.PosterBorder)
+        setPadding(dp(10), dp(8), dp(2), dp(0))
+        layoutParams = LinearLayout.LayoutParams(
+            LinearLayout.LayoutParams.MATCH_PARENT,
+            LinearLayout.LayoutParams.WRAP_CONTENT,
+        ).apply {
+            bottomMargin = dp(6)
+        }
+    }
+}

@@ -1282,6 +1282,12 @@ if ! grep -q 'radioChoice' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/details/
   exit 1
 fi
 
+if ! grep -q 'settingChoiceGroup' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/details/DetailTrackControls.kt" ||
+  ! grep -q 'fun ComponentActivity.settingChoiceGroup' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/ui/ChoiceRows.kt"; then
+  echo "Details track controls must use the shared wrapping setting group" >&2
+  exit 1
+fi
+
 if ! grep -q '本剧下一集' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/details/DetailsRouteScreen.kt"; then
   echo "Details screen must expose a series next-up action when SeriesId is available" >&2
   exit 1

@@ -7,10 +7,10 @@ import tv.cinepilot.core.protocol.MediaSourceInfo
 import tv.cinepilot.core.protocol.MediaStreamInfo
 import tv.cinepilot.core.protocol.MediaStreamType
 import tv.cinepilot.core.protocol.PlaybackInfo
-import tv.cinepilot.tv.ui.TvFlowLayout
 import tv.cinepilot.tv.ui.label
 import tv.cinepilot.tv.ui.radioChoice
 import tv.cinepilot.tv.ui.section
+import tv.cinepilot.tv.ui.settingChoiceGroup
 import tv.cinepilot.tv.ui.sourceLabel
 import tv.cinepilot.tv.ui.streamLabel
 
@@ -125,21 +125,18 @@ private fun LinearLayout.addTrackGroup(
         addView(activity.label(emptyText))
         return
     }
-    addView(TvFlowLayout(activity).apply {
-        addView(activity.radioChoice(defaultText, defaultSelected, onDefault))
-        extraChoice?.let(::addView)
-        streams.forEach { stream ->
-            addView(activity.radioChoice(streamLabel(stream), optionSelected(stream)) {
-                onStream(stream)
-            })
-        }
-    })
+    val choices = mutableListOf<View>(activity.radioChoice(defaultText, defaultSelected, onDefault))
+    extraChoice?.let(choices::add)
+    streams.forEach { stream ->
+        choices.add(activity.radioChoice(streamLabel(stream), optionSelected(stream)) {
+            onStream(stream)
+        })
+    }
+    addView(activity.settingChoiceGroup(choices))
 }
 
-private fun <T> ComponentActivity.choiceGroup(values: List<T>, build: (T) -> View): TvFlowLayout {
-    return TvFlowLayout(this).apply {
-        values.forEach { value -> addView(build(value)) }
-    }
+private fun <T> ComponentActivity.choiceGroup(values: List<T>, build: (T) -> View): View {
+    return settingChoiceGroup(values.map(build))
 }
 
 private fun DetailTrackSelection.forSource(sourceId: String): DetailTrackSelection {
