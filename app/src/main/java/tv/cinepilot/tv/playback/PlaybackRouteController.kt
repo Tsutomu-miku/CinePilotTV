@@ -224,6 +224,11 @@ class PlaybackRouteController(
             base?.maxBitRate() ?: 0,
             selection.mediaSourceId ?: base?.mediaSourceId(),
             base?.playbackRate(),
+            if (selection.subtitleSelected) {
+                selection.burnSubtitleWhenTranscoding
+            } else {
+                base?.alwaysBurnInSubtitleWhenTranscoding()
+            },
         )
     }
 

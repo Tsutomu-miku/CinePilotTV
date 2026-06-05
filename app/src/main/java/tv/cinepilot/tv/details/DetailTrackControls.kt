@@ -20,6 +20,7 @@ data class DetailTrackSelection(
     val audioStreamIndex: Int? = null,
     val subtitleSelected: Boolean = false,
     val subtitleStreamIndex: Int? = null,
+    val burnSubtitleWhenTranscoding: Boolean = false,
 ) {
     fun hasExplicitChoice(): Boolean {
         return mediaSourceId != null || audioSelected || subtitleSelected
@@ -40,6 +41,7 @@ data class DetailTrackSelection(
             audioStreamIndex = if (audioSelected && audioValid) audioStreamIndex else null,
             subtitleSelected = subtitleSelected && subtitleValid,
             subtitleStreamIndex = if (subtitleSelected && subtitleValid) subtitleStreamIndex else null,
+            burnSubtitleWhenTranscoding = subtitleSelected && subtitleValid && burnSubtitleWhenTranscoding,
         )
     }
 }
@@ -89,10 +91,18 @@ fun ComponentActivity.detailTrackControls(
                 onSelection(selection.forSource(activeSource.id()).copy(subtitleSelected = false, subtitleStreamIndex = null))
             },
             onStream = { stream ->
-                onSelection(selection.forSource(activeSource.id()).copy(subtitleSelected = true, subtitleStreamIndex = stream.index()))
+                onSelection(selection.forSource(activeSource.id()).copy(
+                    subtitleSelected = true,
+                    subtitleStreamIndex = stream.index(),
+                    burnSubtitleWhenTranscoding = stream.requiresBurnInWhenTranscoding(),
+                ))
             },
             extraChoice = radioChoice("关闭字幕", selection.subtitleSelected && selection.subtitleStreamIndex == SUBTITLES_OFF_INDEX) {
-                onSelection(selection.forSource(activeSource.id()).copy(subtitleSelected = true, subtitleStreamIndex = SUBTITLES_OFF_INDEX))
+                onSelection(selection.forSource(activeSource.id()).copy(
+                    subtitleSelected = true,
+                    subtitleStreamIndex = SUBTITLES_OFF_INDEX,
+                    burnSubtitleWhenTranscoding = false,
+                ))
             },
         )
     }
@@ -146,6 +156,14 @@ private fun MediaSourceInfo.streamsOf(type: MediaStreamType): List<MediaStreamIn
 
 private fun MediaSourceInfo.hasStream(type: MediaStreamType, streamIndex: Int?): Boolean {
     return streamsOf(type).any { stream -> stream.index() == streamIndex }
+}
+
+private fun MediaStreamInfo.requiresBurnInWhenTranscoding(): Boolean {
+    val value = listOf(codec(), displayTitle()).joinToString(" ").lowercase()
+    return value.contains("pgs") ||
+        value.contains("dvdsub") ||
+        value.contains("dvd_subtitle") ||
+        value.contains("vobsub")
 }
 
 private const val SUBTITLES_OFF_INDEX = -1

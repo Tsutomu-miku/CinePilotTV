@@ -337,13 +337,18 @@ public final class TvWorkflowTest {
         controller.openItem("movie-1");
         controller.preparePlayback(new PlaybackSelectionPreferences(0L, 2, 5, 2, 1280, 720, 4_000_000)
                 .withMediaSourceId("source-2")
-                .withPlaybackRate(1.5f));
+                .withPlaybackRate(1.5f)
+                .withAlwaysBurnInSubtitleWhenTranscoding(true));
 
         String playbackInfoUrl = transport.requests.get(8).url(MediaServerAddress.parse("https://media.example.com/jellyfin"));
         assertTrue(playbackInfoUrl.contains("StartTimeTicks=0"), "controller forwards preferred start ticks");
         assertTrue(playbackInfoUrl.contains("MaxStreamingBitrate=4000000"), "controller forwards max bitrate");
         assertTrue(playbackInfoUrl.contains("AudioStreamIndex=2"), "controller forwards audio stream");
         assertTrue(playbackInfoUrl.contains("SubtitleStreamIndex=5"), "controller forwards subtitle stream");
+        assertTrue(
+                playbackInfoUrl.contains("AlwaysBurnInSubtitleWhenTranscoding=true"),
+                "controller forwards subtitle burn-in preference"
+        );
         assertTrue(playbackInfoUrl.contains("MaxAudioChannels=2"), "controller forwards audio channel limit");
         assertTrue(playbackInfoUrl.contains("MediaSourceId=source-2"), "controller forwards media source preference");
         assertEquals("source-2", controller.state().playableMedia().mediaSourceId(), "controller keeps selected media source");

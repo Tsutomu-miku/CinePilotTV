@@ -289,6 +289,9 @@ public final class TvWorkflowController {
         if (preferences.mediaSourceId() != null) {
             builder.mediaSourceId(preferences.mediaSourceId());
         }
+        if (Boolean.TRUE.equals(preferences.alwaysBurnInSubtitleWhenTranscoding())) {
+            builder.alwaysBurnInSubtitleWhenTranscoding(true);
+        }
         if (deviceProfile != null) {
             builder.deviceProfile(deviceProfile);
         }

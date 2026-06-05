@@ -106,7 +106,7 @@
 - 继续观看、下一集、最新媒体行、剧集 / 季 / 集浏览、分页和稳定默认排序已具备最小入口。
 - 详情页技术信息展示：已从 playback info / media stream metadata 整理分辨率、容器 / 编码、文件大小、码率、声道、HDR、Dolby Vision、Dolby Atmos、音轨数量、默认音轨、字幕数量、字幕语言、字幕格式、默认字幕、外挂字幕、强制字幕，以及 HEVC / AV1 / 杜比视界、高码率、高清音频和图形字幕的兼容性 / 转码风险提示，作为播放按钮之后的次级信息展示；后续继续根据真机样式微调密度。
 - 详情页长标题排版：已把媒体标题从通用页面大标题移到详情内容区，最多三行截断，首行元信息和播放按钮在标题下方布局，避免遮挡；后续真机校准不同电视缩放比例。
-- 播放前媒体源、字幕和音轨选择已放在详情页内联单选框里；用户可以在同一媒体源下选择默认 / 指定音轨、服务器默认 / 关闭 / 指定字幕，确保 audio stream index 与 subtitle stream index 可以组合后一起进入播放准备。播放中可通过 Media3 原生控制层调整音轨 / 字幕；当 selected track 的 label、language 和 codec 能唯一匹配当前媒体源 stream metadata 时，会把 Jellyfin / Emby `MediaStream.Index` 同步到播放上报，匹配不唯一时跳过。
+- 播放前媒体源、字幕和音轨选择已放在详情页内联单选框里；用户可以在同一媒体源下选择默认 / 指定音轨、服务器默认 / 关闭 / 指定字幕，确保 audio stream index 与 subtitle stream index 可以组合后一起进入播放准备；选中 PGS、DVD subtitle 或 VobSub 图形字幕时会在转码播放准备中请求服务器烧录字幕。播放中可通过 Media3 原生控制层调整音轨 / 字幕；当 selected track 的 label、language 和 codec 能唯一匹配当前媒体源 stream metadata 时，会把 Jellyfin / Emby `MediaStream.Index` 同步到播放上报，匹配不唯一时跳过。
 - 恢复播放弹窗和下一集行为；详情页已提供继续播放、从头播放、低码率播放，以及基于 `SeriesId` / `/Shows/NextUp` 的“本剧下一集”入口。
 - 播放器防误触：Back 退出播放前需要二次确认，确认层也不能形成第二套播放控制。
 - 无法连接服务器、不支持媒体、token 过期和上下文错误恢复已具备最小入口。

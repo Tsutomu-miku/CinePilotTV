@@ -132,7 +132,7 @@ TV 首页必须提供退出登录入口，调用 `TvWorkflowController.logout()`
 
 播放源选择还负责保留服务器默认 media stream index：显式用户偏好优先；没有偏好时，音轨使用服务器标记的默认音轨，缺失默认标记时退到第一个音轨；字幕只使用服务器标记的默认字幕，不自动选择任意字幕。
 
-HLS 播放请求在用户明确选择字幕时必须同时带上 `SubtitleStreamIndex` 和 `SubtitleMethod=Hls`，让服务器把字幕按 HLS 方式交付给 Media3；direct play / direct stream 如果 playback info 返回选中字幕的 `DeliveryUrl`，Android 播放层要把它作为 Media3 `SubtitleConfiguration` 附加到同一个 `MediaItem`；用户关闭字幕时可以传 `SubtitleStreamIndex=-1`，但不能强行指定字幕交付方式。
+HLS 播放请求在用户明确选择字幕时必须同时带上 `SubtitleStreamIndex` 和 `SubtitleMethod=Hls`，让服务器把字幕按 HLS 方式交付给 Media3；direct play / direct stream 如果 playback info 返回选中字幕的 `DeliveryUrl`，Android 播放层要把它作为 Media3 `SubtitleConfiguration` 附加到同一个 `MediaItem`；用户关闭字幕时可以传 `SubtitleStreamIndex=-1`，但不能强行指定字幕交付方式。详情页选中的字幕如果是 PGS、DVD subtitle 或 VobSub 这类图形字幕，播放准备会把 `AlwaysBurnInSubtitleWhenTranscoding=true` 写入 playback info 请求，让服务器在转码时烧录字幕，避免 Media3 收到无法独立渲染的图形字幕轨。
 
 播放 check-in 调度由 `PlaybackCheckInScheduler` 建模：开始播放立即发 started，常规进度约每 10 秒发 progress，暂停、seek、轨道变化等事件立即发 progress，停止播放发 stopped。调度器只产生领域事件；`MediaBrowserClient.sendPlaybackCheckIn` 负责把事件转换成协议请求并通过 transport 发送。
 

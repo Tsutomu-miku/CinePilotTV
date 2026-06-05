@@ -136,6 +136,7 @@ Android TV 设备或模拟器上需要验证：
 - 详情页必须提供“字幕样式”入口；字号、颜色和背景选择会保存到本机，并在下一次创建 Media3 播放器时应用到字幕渲染。字幕样式页应使用横向选项组，不应以全宽竖排大按钮呈现每个选项；调整颜色或背景后，焦点应停留在刚操作的选项组，不能跳回字号行。
 - 详情页的低码率播放会把最大码率、声道数、起播 ticks 等偏好传入 playback info，并在 HLS URL 构造时继续使用分辨率 / 码率偏好。
 - HLS 播放准备在用户选择字幕时会带上 `SubtitleMethod=Hls`。
+- 详情页选择 PGS、DVD subtitle 或 VobSub 图形字幕时，播放准备会把 `AlwaysBurnInSubtitleWhenTranscoding=true` 带入 playback info 请求，提示服务器转码时烧录字幕。
 - direct play / direct stream 播放准备在用户选择外挂字幕且服务器返回 `DeliveryUrl` 时，会把字幕 URL 附加到 Media3 `MediaItem.SubtitleConfiguration`。
 - 搜索无结果或服务器返回空媒体行时，界面会显示“没有可显示的媒体”。
 - 播放开始、暂停、seek、停止会触发 Jellyfin / Emby 播放上报。

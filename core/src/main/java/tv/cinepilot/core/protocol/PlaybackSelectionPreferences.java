@@ -9,7 +9,8 @@ public record PlaybackSelectionPreferences(
         int maxHeight,
         int maxBitRate,
         String mediaSourceId,
-        Float playbackRate
+        Float playbackRate,
+        Boolean alwaysBurnInSubtitleWhenTranscoding
 ) {
     public PlaybackSelectionPreferences {
         if (startTimeTicks < 0) {
@@ -33,7 +34,7 @@ public record PlaybackSelectionPreferences(
             int maxBitRate,
             String mediaSourceId
     ) {
-        this(startTimeTicks, audioStreamIndex, subtitleStreamIndex, maxAudioChannels, maxWidth, maxHeight, maxBitRate, mediaSourceId, null);
+        this(startTimeTicks, audioStreamIndex, subtitleStreamIndex, maxAudioChannels, maxWidth, maxHeight, maxBitRate, mediaSourceId, null, null);
     }
 
     public PlaybackSelectionPreferences(
@@ -49,11 +50,11 @@ public record PlaybackSelectionPreferences(
     }
 
     public static PlaybackSelectionPreferences defaults() {
-        return new PlaybackSelectionPreferences(0L, null, null, null, 0, 0, 0, null, null);
+        return new PlaybackSelectionPreferences(0L, null, null, null, 0, 0, 0, null, null, null);
     }
 
     public static PlaybackSelectionPreferences lowBitrate(long startTimeTicks) {
-        return new PlaybackSelectionPreferences(startTimeTicks, null, null, 2, 1280, 720, 4_000_000, null, null);
+        return new PlaybackSelectionPreferences(startTimeTicks, null, null, 2, 1280, 720, 4_000_000, null, null, null);
     }
 
     public PlaybackSelectionPreferences withStartTimeTicks(long value) {
@@ -66,7 +67,8 @@ public record PlaybackSelectionPreferences(
                 maxHeight,
                 maxBitRate,
                 mediaSourceId,
-                playbackRate
+                playbackRate,
+                alwaysBurnInSubtitleWhenTranscoding
         );
     }
 
@@ -80,7 +82,8 @@ public record PlaybackSelectionPreferences(
                 maxHeight,
                 maxBitRate,
                 value,
-                playbackRate
+                playbackRate,
+                alwaysBurnInSubtitleWhenTranscoding
         );
     }
 
@@ -94,6 +97,22 @@ public record PlaybackSelectionPreferences(
                 maxHeight,
                 maxBitRate,
                 mediaSourceId,
+                value,
+                alwaysBurnInSubtitleWhenTranscoding
+        );
+    }
+
+    public PlaybackSelectionPreferences withAlwaysBurnInSubtitleWhenTranscoding(boolean value) {
+        return new PlaybackSelectionPreferences(
+                startTimeTicks,
+                audioStreamIndex,
+                subtitleStreamIndex,
+                maxAudioChannels,
+                maxWidth,
+                maxHeight,
+                maxBitRate,
+                mediaSourceId,
+                playbackRate,
                 value
         );
     }

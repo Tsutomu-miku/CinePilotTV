@@ -330,6 +330,7 @@ public final class ProtocolCoreTest {
                 .enableDirectPlay(true)
                 .enableDirectStream(true)
                 .enableTranscoding(true)
+                .alwaysBurnInSubtitleWhenTranscoding(true)
                 .build();
         ProtocolRequest playbackInfo = MediaBrowserRequests.playbackInfo(
                 session,
@@ -344,6 +345,7 @@ public final class ProtocolCoreTest {
         assertTrue(playbackInfoUrl.contains("MaxStreamingBitrate=80000000"), "playback info bitrate");
         assertTrue(playbackInfoUrl.contains("StartTimeTicks=300000000"), "playback info start ticks");
         assertTrue(playbackInfoUrl.contains("EnableDirectPlay=true"), "playback info direct play");
+        assertTrue(playbackInfoUrl.contains("AlwaysBurnInSubtitleWhenTranscoding=true"), "playback info subtitle burn-in");
 
         HlsStreamOptions streamOptions = HlsStreamOptions.builder("movie 1", "source 1")
                 .playSessionId("play-session-1")
@@ -403,6 +405,7 @@ public final class ProtocolCoreTest {
                 new PlaybackInfoOptions.Builder()
                         .startTimeTicks(123L)
                         .maxAudioChannels(6)
+                        .alwaysBurnInSubtitleWhenTranscoding(true)
                         .deviceProfile(deviceProfile)
                         .build()
         );
@@ -416,6 +419,10 @@ public final class ProtocolCoreTest {
         );
         assertTrue(playbackInfo.bodyJson().contains("\"UserId\":\"user 1\""), "profile body user id");
         assertTrue(playbackInfo.bodyJson().contains("\"StartTimeTicks\":123"), "profile body start ticks");
+        assertTrue(
+                playbackInfo.bodyJson().contains("\"AlwaysBurnInSubtitleWhenTranscoding\":true"),
+                "profile body subtitle burn-in"
+        );
         assertTrue(playbackInfo.bodyJson().contains("\"DeviceProfile\""), "profile body has device profile");
         assertTrue(playbackInfo.bodyJson().contains("\"VideoCodec\":\"h264,hevc,av1\""), "profile body video codecs");
         assertTrue(playbackInfo.bodyJson().contains("\"AudioCodec\":\"aac,eac3\""), "profile body audio codecs");

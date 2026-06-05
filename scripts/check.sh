@@ -1151,6 +1151,21 @@ if ! grep -q 'subtitleMethod("Hls")' "$ROOT_DIR/core/src/main/java/tv/cinepilot/
   exit 1
 fi
 
+if ! grep -q 'AlwaysBurnInSubtitleWhenTranscoding' "$ROOT_DIR/core/src/main/java/tv/cinepilot/core/protocol/PlaybackInfoOptions.java"; then
+  echo "Playback info options must support subtitle burn-in for image subtitles" >&2
+  exit 1
+fi
+
+if ! grep -q 'alwaysBurnInSubtitleWhenTranscoding' "$ROOT_DIR/core/src/main/java/tv/cinepilot/core/tv/TvWorkflowController.java"; then
+  echo "TvWorkflowController must forward subtitle burn-in preferences" >&2
+  exit 1
+fi
+
+if ! grep -q 'burnSubtitleWhenTranscoding' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/details/DetailTrackControls.kt"; then
+  echo "Details track controls must mark image subtitles for burn-in while transcoding" >&2
+  exit 1
+fi
+
 if ! grep -q 'subtitleDeliveryUrl' "$ROOT_DIR/core/src/main/java/tv/cinepilot/core/protocol/PlayableMedia.java"; then
   echo "PlayableMedia must preserve selected external subtitle delivery URLs" >&2
   exit 1
