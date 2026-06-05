@@ -366,6 +366,12 @@ if ! grep -R -q 'setOnFocusChangeListener' "$ROOT_DIR/app/src/main/java/tv/cinep
   exit 1
 fi
 
+if ! grep -q 'animateMediaCardFocus' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/ui/MediaShelf.kt" ||
+  ! grep -q 'ValueAnimator' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/ui/MediaShelf.kt"; then
+  echo "Home media cards must animate focus ring and title state transitions" >&2
+  exit 1
+fi
+
 if ! grep -q 'openFirstChild' "$ROOT_DIR/core/src/main/java/tv/cinepilot/core/tv/TvWorkflowController.java"; then
   echo "TvWorkflowController must support opening the first child of a folder" >&2
   exit 1

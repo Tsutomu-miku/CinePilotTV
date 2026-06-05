@@ -1,5 +1,7 @@
 package tv.cinepilot.tv.ui
 
+import android.animation.ArgbEvaluator
+import android.animation.ValueAnimator
 import android.graphics.Color
 import android.graphics.Typeface
 import android.text.TextUtils
@@ -14,6 +16,7 @@ import android.widget.TextView
 import androidx.activity.ComponentActivity
 import tv.cinepilot.core.protocol.MediaItemSummary
 import tv.cinepilot.core.tv.HomeRow
+import java.util.WeakHashMap
 
 fun ComponentActivity.mediaShelf(
     row: HomeRow,
@@ -75,7 +78,7 @@ private fun ComponentActivity.mediaCard(
         setTextColor(TvColors.TextPrimary)
         maxLines = 2
         ellipsize = TextUtils.TruncateAt.END
-        background = rounded(Color.argb(210, 8, 13, 24), dp(TvRadius.Card))
+        background = rounded(CARD_TITLE_NORMAL, dp(TvRadius.Card))
         setPadding(dp(12), dp(10), dp(12), dp(10))
     }
     card.addView(
@@ -96,16 +99,7 @@ private fun ComponentActivity.mediaCard(
             .setDuration(120L)
             .start()
         title.setTextColor(if (hasFocus) TvColors.FocusText else TvColors.TextPrimary)
-        title.background = rounded(
-            if (hasFocus) TvColors.AccentStrong else Color.argb(210, 8, 13, 24),
-            dp(TvRadius.Card),
-        )
-        (focusedView as FrameLayout).foreground = rounded(
-            Color.TRANSPARENT,
-            dp(TvRadius.Card),
-            if (hasFocus) dp(4) else 0,
-            TvColors.FocusRing,
-        )
+        animateMediaCardFocus(focusedView as FrameLayout, title, hasFocus)
     }
     loadImage(poster, item, 200, 300)
     card.layoutParams = LinearLayout.LayoutParams(dp(TvSize.PosterWidth), dp(TvSize.PosterHeight)).apply {
@@ -114,3 +108,49 @@ private fun ComponentActivity.mediaCard(
     }
     return card
 }
+
+private fun ComponentActivity.animateMediaCardFocus(card: FrameLayout, title: TextView, hasFocus: Boolean) {
+    mediaTitleAnimators[title]?.cancel()
+    mediaTitleAnimators[title] = ValueAnimator.ofObject(
+        ArgbEvaluator(),
+        if (hasFocus) CARD_TITLE_NORMAL else TvColors.AccentStrong,
+        if (hasFocus) TvColors.AccentStrong else CARD_TITLE_NORMAL,
+    ).apply {
+        duration = MEDIA_CARD_FOCUS_ANIMATION_MS
+        addUpdateListener { animator ->
+            title.background = rounded(animator.animatedValue as Int, dp(TvRadius.Card))
+        }
+        start()
+    }
+
+    mediaRingAnimators[card]?.cancel()
+    mediaRingAnimators[card] = ValueAnimator.ofFloat(if (hasFocus) 0f else 1f, if (hasFocus) 1f else 0f).apply {
+        duration = MEDIA_CARD_FOCUS_ANIMATION_MS
+        addUpdateListener { animator ->
+            val progress = animator.animatedValue as Float
+            val strokeWidth = (dp(4) * progress).toInt()
+            card.foreground = rounded(
+                Color.TRANSPARENT,
+                dp(TvRadius.Card),
+                strokeWidth,
+                focusRingWithAlpha(progress),
+            )
+        }
+        start()
+    }
+}
+
+private fun focusRingWithAlpha(progress: Float): Int {
+    val alpha = (255 * progress).toInt().coerceIn(0, 255)
+    return Color.argb(
+        alpha,
+        Color.red(TvColors.FocusRing),
+        Color.green(TvColors.FocusRing),
+        Color.blue(TvColors.FocusRing),
+    )
+}
+
+private val mediaTitleAnimators = WeakHashMap<TextView, ValueAnimator>()
+private val mediaRingAnimators = WeakHashMap<FrameLayout, ValueAnimator>()
+private val CARD_TITLE_NORMAL = Color.argb(210, 8, 13, 24)
+private const val MEDIA_CARD_FOCUS_ANIMATION_MS = 160L
