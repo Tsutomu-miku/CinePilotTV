@@ -1046,6 +1046,12 @@ if ! grep -q '继续播放' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/details
   exit 1
 fi
 
+if ! grep -q 'primaryIconAction' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/ui/TvUi.kt" ||
+  ! grep -q 'primaryPlaybackAction' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/details/DetailsRouteScreen.kt"; then
+  echo "Details screen must render the first playback action as a primary TV action" >&2
+  exit 1
+fi
+
 if ! grep -q '从头播放' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/details/DetailsRouteScreen.kt"; then
   echo "Details screen must expose start-over playback for resumable items" >&2
   exit 1

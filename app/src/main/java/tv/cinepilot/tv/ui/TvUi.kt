@@ -91,8 +91,28 @@ fun ComponentActivity.action(text: String, onClick: () -> Unit): Button {
     }
 }
 
+fun ComponentActivity.primaryAction(text: String, onClick: () -> Unit): Button {
+    return action(text, onClick).apply {
+        setFocusableColors(
+            view = this,
+            focusedColor = TvColors.Focus,
+            normalColor = TvColors.Resume,
+            focusedTextColor = TvColors.FocusText,
+            normalTextColor = TvColors.TextPrimary,
+        )
+        setPadding(dp(18), 0, dp(18), 0)
+    }
+}
+
 fun ComponentActivity.iconAction(text: String, icon: TvIcon, onClick: () -> Unit): Button {
     return action(text, onClick).apply {
+        setCompoundDrawablesRelativeWithIntrinsicBounds(icon.drawableRes, 0, 0, 0)
+        compoundDrawablePadding = dp(10)
+    }
+}
+
+fun ComponentActivity.primaryIconAction(text: String, icon: TvIcon, onClick: () -> Unit): Button {
+    return primaryAction(text, onClick).apply {
         setCompoundDrawablesRelativeWithIntrinsicBounds(icon.drawableRes, 0, 0, 0)
         compoundDrawablePadding = dp(10)
     }

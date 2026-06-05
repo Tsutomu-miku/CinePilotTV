@@ -17,6 +17,7 @@ import tv.cinepilot.tv.ui.episodeLabel
 import tv.cinepilot.tv.ui.formatPlaybackPosition
 import tv.cinepilot.tv.ui.iconAction
 import tv.cinepilot.tv.ui.mediaTechnicalPills
+import tv.cinepilot.tv.ui.primaryIconAction
 import tv.cinepilot.tv.ui.rounded
 
 fun ComponentActivity.detailsRouteScreen(
@@ -58,10 +59,10 @@ private fun ComponentActivity.playbackActions(
 ): List<View> {
     val actions = mutableListOf<View>()
     if (item.hasResumePosition()) {
-        actions.add(playbackAction("继续播放", TvIcon.PLAY, null, onPreparePlayback))
+        actions.add(primaryPlaybackAction("继续播放", TvIcon.PLAY, null, onPreparePlayback))
         actions.add(playbackAction("从头播放", TvIcon.PLAY, PlaybackSelectionPreferences.defaults(), onPreparePlayback))
     } else {
-        actions.add(playbackAction("播放", TvIcon.PLAY, null, onPreparePlayback))
+        actions.add(primaryPlaybackAction("播放", TvIcon.PLAY, null, onPreparePlayback))
     }
     actions.add(playbackAction("低码率播放", TvIcon.SPEED, lowBitratePreferences(item), onPreparePlayback))
     actions.add(iconAction("字幕样式", TvIcon.SUBTITLES, onSubtitleStyle))
@@ -70,6 +71,17 @@ private fun ComponentActivity.playbackActions(
         actions.add(iconAction("本剧下一集", TvIcon.PLAY, onSeriesNextUp))
     }
     return actions
+}
+
+private fun ComponentActivity.primaryPlaybackAction(
+    text: String,
+    icon: TvIcon,
+    preferences: PlaybackSelectionPreferences?,
+    onPreparePlayback: (PlaybackSelectionPreferences?) -> Unit,
+): View {
+    return primaryIconAction(text, icon) {
+        onPreparePlayback(preferences)
+    }
 }
 
 private fun ComponentActivity.playbackAction(
