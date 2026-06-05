@@ -2,6 +2,7 @@ package tv.cinepilot.tv.auth
 
 import android.animation.ArgbEvaluator
 import android.animation.ValueAnimator
+import android.graphics.Typeface
 import android.text.InputType
 import android.text.TextUtils
 import android.view.Gravity
@@ -105,7 +106,8 @@ fun ComponentActivity.quickConnectScreen(
 ): QuickConnectViews {
     var statusView: TextView? = null
     val root = screen("Quick Connect") {
-        addView(label("授权码：${quickConnect.code()}"))
+        addView(label("授权码"))
+        addView(quickConnectCode(quickConnect.code()))
         addView(label("请在 Jellyfin 中输入授权码，授权后会自动登录"))
         statusView = label("正在等待授权，电视会每 2 秒自动检查一次").also(::addView)
         addView(primaryIconAction("立即检查授权", TvIcon.REFRESH, onCheckNow).requestInitialFocus())
@@ -118,6 +120,25 @@ data class QuickConnectViews(
     val root: View,
     val status: TextView,
 )
+
+private fun ComponentActivity.quickConnectCode(code: String): TextView {
+    return TextView(this).apply {
+        text = code
+        textSize = QUICK_CONNECT_CODE_TEXT_SIZE
+        typeface = Typeface.MONOSPACE
+        gravity = Gravity.CENTER
+        includeFontPadding = false
+        setTextColor(TvColors.AccentStrong)
+        background = rounded(TvColors.SurfaceRaised, dp(TvRadius.Control), dp(2), TvColors.FocusRing)
+        setPadding(dp(22), dp(16), dp(22), dp(16))
+        layoutParams = LinearLayout.LayoutParams(
+            LinearLayout.LayoutParams.WRAP_CONTENT,
+            LinearLayout.LayoutParams.WRAP_CONTENT,
+        ).apply {
+            bottomMargin = dp(TvSpacing.ControlGap)
+        }
+    }
+}
 
 private fun ComponentActivity.publicUserAction(
     user: PublicUserSummary,
@@ -211,3 +232,4 @@ private fun <T : View> initialFocusIfNeeded(view: T, alreadySet: Boolean): T {
 private val publicUserFocusAnimators = WeakHashMap<LinearLayout, ValueAnimator>()
 private val publicUserFocusColorEvaluator = ArgbEvaluator()
 private const val PUBLIC_USER_FOCUS_ANIMATION_MS = 160L
+private const val QUICK_CONNECT_CODE_TEXT_SIZE = 36f

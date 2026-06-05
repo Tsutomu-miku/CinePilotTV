@@ -226,6 +226,12 @@ if ! grep -q 'primaryIconAction("立即检查授权", TvIcon.REFRESH' "$ROOT_DIR
   exit 1
 fi
 
+if ! grep -q 'quickConnectCode' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/auth/AuthScreens.kt" ||
+  ! grep -q 'Typeface.MONOSPACE' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/auth/AuthScreens.kt"; then
+  echo "Quick Connect authorization code must render as a dedicated monospace code block" >&2
+  exit 1
+fi
+
 if ! grep -q 'iconAction("返回服务器输入", TvIcon.BACK' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/auth/AuthScreens.kt"; then
   echo "Auth back-to-server action must use the shared back icon" >&2
   exit 1
