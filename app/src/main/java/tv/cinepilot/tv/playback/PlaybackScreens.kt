@@ -1,9 +1,7 @@
 package tv.cinepilot.tv.playback
 
 import android.view.View
-import android.view.ViewGroup
 import android.widget.HorizontalScrollView
-import android.widget.LinearLayout
 import android.widget.ScrollView
 import androidx.activity.ComponentActivity
 import tv.cinepilot.tv.ui.TvIcon
@@ -14,6 +12,7 @@ import tv.cinepilot.tv.ui.primaryIconAction
 import tv.cinepilot.tv.ui.radioChoice
 import tv.cinepilot.tv.ui.requestInitialFocus
 import tv.cinepilot.tv.ui.screen
+import tv.cinepilot.tv.ui.settingChoiceRow
 
 fun ComponentActivity.playbackSpeedScreen(
     onSpeed: (Float) -> Unit,
@@ -26,20 +25,11 @@ fun ComponentActivity.playbackSpeedScreen(
 private fun ComponentActivity.playbackSpeedChoiceRow(
     onSpeed: (Float) -> Unit,
 ): HorizontalScrollView {
-    val row = LinearLayout(this).apply {
-        orientation = LinearLayout.HORIZONTAL
-        playbackSpeedOptions().forEach { option ->
-            val selected = option.rate == DEFAULT_PLAYBACK_RATE
-            val optionAction = radioChoice(option.label, selected) { onSpeed(option.rate) }
-            addView(if (selected) optionAction.requestInitialFocus() else optionAction)
-        }
-    }
-    return HorizontalScrollView(this).apply {
-        isHorizontalScrollBarEnabled = false
-        isFocusable = false
-        descendantFocusability = ViewGroup.FOCUS_AFTER_DESCENDANTS
-        addView(row)
-    }
+    return settingChoiceRow(playbackSpeedOptions().map { option ->
+        val selected = option.rate == DEFAULT_PLAYBACK_RATE
+        val optionAction = radioChoice(option.label, selected) { onSpeed(option.rate) }
+        if (selected) optionAction.requestInitialFocus() else optionAction
+    })
 }
 
 fun ComponentActivity.diagnosticsScreen(

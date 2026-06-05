@@ -1202,6 +1202,11 @@ if ! grep -q 'radioChoice' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/playback
   exit 1
 fi
 
+if ! grep -q 'settingChoiceRow' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/playback/PlaybackScreens.kt"; then
+  echo "Playback speed screen must use the shared compact setting row" >&2
+  exit 1
+fi
+
 if grep -q 'choiceAction' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/playback/PlaybackScreens.kt"; then
   echo "Playback speed screen must not use large selected-prefix buttons" >&2
   exit 1
@@ -1474,6 +1479,12 @@ done
 
 if ! grep -q 'radioChoice' "$SUBTITLE_STYLE_SCREEN"; then
   echo "Subtitle style screen must use compact radio choices" >&2
+  exit 1
+fi
+
+if ! grep -q 'settingChoiceRow' "$SUBTITLE_STYLE_SCREEN" ||
+  [[ ! -s "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/ui/ChoiceRows.kt" ]]; then
+  echo "Subtitle style screen must use the shared compact setting row" >&2
   exit 1
 fi
 
