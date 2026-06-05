@@ -24,6 +24,7 @@ import tv.cinepilot.core.tv.TvAppState
 import tv.cinepilot.core.tv.TvRoute
 import tv.cinepilot.tv.auth.AuthRouteController
 import tv.cinepilot.tv.error.errorRouteScreen
+import tv.cinepilot.tv.home.activeSearchTerm
 import tv.cinepilot.tv.home.homeRouteScreen
 import tv.cinepilot.tv.home.searchScreen
 import tv.cinepilot.tv.player.Media3PlayerHost
@@ -171,7 +172,7 @@ class MainActivity : ComponentActivity() {
             canGoBack = viewModel.workflowController.canGoBackInBrowse(),
             canPageBackward = viewModel.workflowController.canPageBackwardInBrowse(),
             canPageForward = viewModel.workflowController.canPageForwardInBrowse(),
-            onSearch = { showSearch() },
+            onSearch = { showSearch(state.activeSearchTerm()) },
             onRefresh = ::refreshHome,
             onSwitchAccount = ::showAccountSwitcher,
             onLogout = authRoutes::logoutFromHome,

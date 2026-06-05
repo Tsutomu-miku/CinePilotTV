@@ -16,8 +16,10 @@ fun ComponentActivity.homeScreen(
 ): View {
     val homeRows = state.homeRows()
     val hasNoMedia = homeRows.isEmpty() || homeRows.all { it.items().isEmpty() }
+    val isSearchResults = homeRows.any { it.id().startsWith("search:") }
+    val isEmptySearch = hasNoMedia && isSearchResults
 
-    return screen("首页") {
+    return screen(if (isSearchResults) "搜索结果" else "首页") {
         addView(actionStrip(listOf(
             compactIconAction("搜索媒体", TvIcon.SEARCH, navigation.onSearch),
             compactIconAction("刷新", TvIcon.REFRESH, navigation.onRefresh),
@@ -26,8 +28,8 @@ fun ComponentActivity.homeScreen(
         )))
 
         if (hasNoMedia) {
-            addView(emptyState("没有可显示的媒体"))
-            addView(homeEmptyActions(navigation))
+            addView(emptyState(if (isEmptySearch) "没有找到匹配的媒体" else "没有可显示的媒体"))
+            addView(if (isEmptySearch) searchEmptyActions(navigation) else homeEmptyActions(navigation))
         }
 
         homeRows.forEach { row ->
@@ -58,6 +60,17 @@ fun ComponentActivity.homeScreen(
             addView(actionStrip(browseActions))
         }
     }
+}
+
+private fun ComponentActivity.searchEmptyActions(navigation: HomeNavigation): View {
+    val actions = mutableListOf<View>(
+        iconAction("重新搜索", TvIcon.SEARCH, navigation.onSearch).requestInitialFocus(),
+    )
+    if (navigation.canGoBack) {
+        actions.add(iconAction("返回首页", TvIcon.BACK, navigation.onBackInBrowse))
+    }
+    actions.add(iconAction("切换账号", TvIcon.ACCOUNT, navigation.onSwitchAccount))
+    return actionStrip(actions)
 }
 
 private fun ComponentActivity.homeEmptyActions(navigation: HomeNavigation): View {

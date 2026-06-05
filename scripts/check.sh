@@ -200,7 +200,7 @@ for auth_text in "连接服务器" "登录" "继续" "清除已保存登录"; do
   fi
 done
 
-for home_text in "首页" "切换账号"; do
+for home_text in "首页" "搜索结果" "切换账号"; do
   if ! grep -q "$home_text" "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/ui/HomeScreen.kt"; then
     echo "Home screen is missing TV UI text: $home_text" >&2
     exit 1
@@ -214,6 +214,18 @@ fi
 
 if ! grep -q 'requestInitialFocus' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/ui/HomeScreen.kt"; then
   echo "Home empty state must give D-pad focus to the primary recovery action" >&2
+  exit 1
+fi
+
+if ! grep -q 'searchEmptyActions' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/ui/HomeScreen.kt" ||
+  ! grep -q '重新搜索' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/ui/HomeScreen.kt"; then
+  echo "Search empty state must expose a direct re-search action" >&2
+  exit 1
+fi
+
+if [[ ! -s "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/home/SearchContext.kt" ]] ||
+  ! grep -q 'activeSearchTerm' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/MainActivity.kt"; then
+  echo "Search result recovery must preserve the current search term" >&2
   exit 1
 fi
 
