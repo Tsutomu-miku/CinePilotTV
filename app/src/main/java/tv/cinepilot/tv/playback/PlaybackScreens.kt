@@ -1,16 +1,17 @@
 package tv.cinepilot.tv.playback
 
 import android.view.View
+import android.view.ViewGroup
 import android.widget.HorizontalScrollView
 import android.widget.LinearLayout
 import android.widget.ScrollView
 import androidx.activity.ComponentActivity
 import tv.cinepilot.tv.ui.TvIcon
 import tv.cinepilot.tv.ui.action
-import tv.cinepilot.tv.ui.choiceAction
 import tv.cinepilot.tv.ui.iconAction
 import tv.cinepilot.tv.ui.label
 import tv.cinepilot.tv.ui.playbackSpeedOptions
+import tv.cinepilot.tv.ui.radioChoice
 import tv.cinepilot.tv.ui.requestInitialFocus
 import tv.cinepilot.tv.ui.screen
 
@@ -29,12 +30,14 @@ private fun ComponentActivity.playbackSpeedChoiceRow(
         orientation = LinearLayout.HORIZONTAL
         playbackSpeedOptions().forEach { option ->
             val selected = option.rate == DEFAULT_PLAYBACK_RATE
-            val optionAction = choiceAction(option.label, selected) { onSpeed(option.rate) }
+            val optionAction = radioChoice(option.label, selected) { onSpeed(option.rate) }
             addView(if (selected) optionAction.requestInitialFocus() else optionAction)
         }
     }
     return HorizontalScrollView(this).apply {
         isHorizontalScrollBarEnabled = false
+        isFocusable = false
+        descendantFocusability = ViewGroup.FOCUS_AFTER_DESCENDANTS
         addView(row)
     }
 }

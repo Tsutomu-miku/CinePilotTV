@@ -1134,6 +1134,16 @@ if ! grep -q 'playbackSpeedChoiceRow' "$ROOT_DIR/app/src/main/java/tv/cinepilot/
   exit 1
 fi
 
+if ! grep -q 'radioChoice' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/playback/PlaybackScreens.kt"; then
+  echo "Playback speed screen must use compact radio choices" >&2
+  exit 1
+fi
+
+if grep -q 'choiceAction' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/playback/PlaybackScreens.kt"; then
+  echo "Playback speed screen must not use large selected-prefix buttons" >&2
+  exit 1
+fi
+
 if ! grep -q 'DEFAULT_PLAYBACK_RATE = 1.0f' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/playback/PlaybackScreens.kt"; then
   echo "Playback speed screen must focus the normal 1.0x speed by default" >&2
   exit 1
