@@ -74,6 +74,7 @@ class SearchRouteController(
     }
 
     private fun submitSearchTerm(term: String, filter: SearchFilter) {
+        visible = false
         runTask("正在搜索...", {
             workflowController.search(term, filter)
         }) {

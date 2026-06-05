@@ -428,6 +428,11 @@ if ! grep -q 'ActivityResultContracts.StartActivityForResult' "$ROOT_DIR/app/src
   exit 1
 fi
 
+if ! grep -q 'visible = false' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/home/SearchRouteController.kt"; then
+  echo "Search route controller must clear visible state before leaving the search page" >&2
+  exit 1
+fi
+
 if ! grep -q '语音' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/home/HomeRouteScreens.kt"; then
   echo "Search screen must expose a Chinese voice input action" >&2
   exit 1
@@ -436,6 +441,11 @@ fi
 if ! grep -q 'hasNoMedia' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/ui/HomeScreen.kt" ||
   ! grep -q '没有可显示的媒体' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/ui/HomeScreen.kt"; then
   echo "Android TV UI must show an empty state for empty search results" >&2
+  exit 1
+fi
+
+if ! grep -q '没有找到匹配的媒体' "$ROOT_DIR/docs/VERIFICATION.md"; then
+  echo "Verification docs must distinguish empty search results from an empty home" >&2
   exit 1
 fi
 
