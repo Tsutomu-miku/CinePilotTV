@@ -261,6 +261,18 @@ if ! grep -q 'connectTimeout = 3_000' "$ROOT_DIR/app/src/main/java/tv/cinepilot/
   exit 1
 fi
 
+if ! grep -q 'PosterWidth = 118' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/ui/TvDesign.kt" ||
+  ! grep -q 'PosterHeight = 177' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/ui/TvDesign.kt" ||
+  ! grep -q 'CardGap = 10' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/ui/TvDesign.kt"; then
+  echo "Home media shelf must keep compact TV poster density" >&2
+  exit 1
+fi
+
+if ! grep -q 'loadImage(poster, item, 200, 300)' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/ui/MediaShelf.kt"; then
+  echo "Home media shelf image requests must match compact poster density" >&2
+  exit 1
+fi
+
 if [[ ! -s "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/runtime/RecentAccountStore.kt" ]]; then
   echo "Missing dedicated recent account store" >&2
   exit 1

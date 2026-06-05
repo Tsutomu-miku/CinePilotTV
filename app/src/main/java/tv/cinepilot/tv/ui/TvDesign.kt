@@ -28,7 +28,7 @@ object TvSpacing {
     const val SectionTop = 16
     const val SectionBottom = 8
     const val ControlGap = 10
-    const val CardGap = 12
+    const val CardGap = 10
     const val FocusInset = 0
     const val PlayerOverlayX = 40
 }
@@ -51,8 +51,8 @@ object TvType {
 object TvSize {
     const val ControlHeight = 48
     const val InputHeight = 48
-    const val PosterWidth = 130
-    const val PosterHeight = 195
+    const val PosterWidth = 118
+    const val PosterHeight = 177
     const val DetailPosterWidth = 160
     const val DetailPosterHeight = 240
     const val PlayerTopOverlay = 72

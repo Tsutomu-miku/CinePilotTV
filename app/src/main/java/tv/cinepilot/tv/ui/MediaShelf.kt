@@ -102,7 +102,7 @@ private fun ComponentActivity.mediaCard(
             TvColors.FocusRing,
         )
     }
-    loadImage(poster, item, 220, 330)
+    loadImage(poster, item, 200, 300)
     card.layoutParams = LinearLayout.LayoutParams(dp(TvSize.PosterWidth), dp(TvSize.PosterHeight)).apply {
         rightMargin = dp(TvSpacing.CardGap)
         bottomMargin = dp(TvSpacing.CardGap)
