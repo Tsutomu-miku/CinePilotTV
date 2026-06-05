@@ -200,10 +200,12 @@ for auth_text in "连接服务器" "登录" "继续" "清除已保存登录"; do
   fi
 done
 
-if ! grep -q "首页" "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/ui/HomeScreen.kt"; then
-  echo "Home screen is missing TV UI text: 首页" >&2
-  exit 1
-fi
+for home_text in "首页" "切换账号"; do
+  if ! grep -q "$home_text" "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/ui/HomeScreen.kt"; then
+    echo "Home screen is missing TV UI text: $home_text" >&2
+    exit 1
+  fi
+done
 
 for playback_text in "播放" "退出登录"; do
   if ! grep -R -q "$playback_text" "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv"; then
@@ -492,7 +494,7 @@ for compatibility_label in 兼容性 高码率 字幕格式 图形字幕 高清�
   fi
 done
 
-for icon in search refresh logout play back subtitles speed mic; do
+for icon in search refresh logout play back subtitles speed mic account; do
   if [[ ! -s "$ROOT_DIR/app/src/main/res/drawable/ic_${icon}.xml" ]]; then
     echo "Missing TV action icon: ic_${icon}.xml" >&2
     exit 1
@@ -501,6 +503,16 @@ done
 
 if ! grep -q 'enum class TvIcon' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/ui/TvUi.kt"; then
   echo "TV UI helpers must centralize action icons" >&2
+  exit 1
+fi
+
+if ! grep -q 'ACCOUNT' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/ui/TvUi.kt"; then
+  echo "TV UI helpers must expose an account switch icon" >&2
+  exit 1
+fi
+
+if ! grep -q 'accountSwitcherReturnState' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/MainActivity.kt"; then
+  echo "Home account switcher must support returning to the current home state" >&2
   exit 1
 fi
 

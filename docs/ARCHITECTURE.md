@@ -114,7 +114,7 @@ Android 错误页必须把地址格式、DNS、连接拒绝、超时、HTTPS/证
 
 `TvWorkflowController` 对可预期的内容边界使用稳定错误消息：空目录使用 `NO_CHILD_ITEM_MESSAGE`，无法从 playback info 选择播放源时使用 `NO_PLAYABLE_SOURCE_MESSAGE`。Android UI 负责把这些消息翻译成中文用户提示。
 
-TV 首页必须提供退出登录入口，调用 `TvWorkflowController.logout()` 让服务器 logout endpoint 和本地 scoped session 撤销走同一条路径，并从 Android 最近登录列表移除当前服务器 / 用户。
+TV 首页必须提供切换账号和退出登录两个不同入口。切换账号只展示最近账号 / 服务器选择页，并保留当前首页作为 Back 返回目标；退出登录才调用 `TvWorkflowController.logout()`，让服务器 logout endpoint 和本地 scoped session 撤销走同一条路径，并从 Android 最近登录列表移除当前服务器 / 用户。
 
 ## 播放层
 

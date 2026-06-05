@@ -123,6 +123,7 @@ enum class TvIcon(@DrawableRes val drawableRes: Int) {
     SUBTITLES(R.drawable.ic_subtitles),
     SPEED(R.drawable.ic_speed),
     MIC(R.drawable.ic_mic),
+    ACCOUNT(R.drawable.ic_account),
 }
 
 fun ComponentActivity.label(text: String): TextView {

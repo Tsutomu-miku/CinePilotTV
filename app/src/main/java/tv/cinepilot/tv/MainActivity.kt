@@ -44,6 +44,7 @@ class MainActivity : ComponentActivity() {
     private val executor = Executors.newSingleThreadExecutor()
     private val mainHandler = Handler(Looper.getMainLooper())
     private var searchVisible = false
+    private var accountSwitcherReturnState: TvAppState? = null
     private var searchFilter = SearchFilter.ALL
     private var pendingVoiceSearchTerm = ""
     private val voiceSearchLauncher = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
@@ -120,8 +121,20 @@ class MainActivity : ComponentActivity() {
             showHome(viewModel.workflowController.state())
             return
         }
+        accountSwitcherReturnState?.let { returnState ->
+            if (viewModel.workflowController.state().route() == TvRoute.HOME) {
+                accountSwitcherReturnState = null
+                showHome(returnState)
+                return
+            }
+        }
         when (viewModel.workflowController.state().route()) {
-            TvRoute.SERVER_ENTRY -> finish()
+            TvRoute.SERVER_ENTRY -> {
+                accountSwitcherReturnState?.let { returnState ->
+                    accountSwitcherReturnState = null
+                    showHome(returnState)
+                } ?: finish()
+            }
             TvRoute.HOME -> {
                 val state = viewModel.workflowController.back()
                 if (state.route() == TvRoute.HOME) {
@@ -151,6 +164,7 @@ class MainActivity : ComponentActivity() {
     private fun showHome(state: TvAppState) {
         authRoutes.stopQuickConnectPolling()
         searchVisible = false
+        accountSwitcherReturnState = null
         var focusedCard: View? = null
         setContentView(homeRouteScreen(
             state = state,
@@ -159,6 +173,7 @@ class MainActivity : ComponentActivity() {
             canPageForward = viewModel.workflowController.canPageForwardInBrowse(),
             onSearch = { showSearch() },
             onRefresh = ::refreshHome,
+            onSwitchAccount = ::showAccountSwitcher,
             onLogout = authRoutes::logoutFromHome,
             onBackInBrowse = { showHome(viewModel.workflowController.back()) },
             onPreviousPage = ::previousBrowsePage,
@@ -172,6 +187,7 @@ class MainActivity : ComponentActivity() {
 
     private fun showSearch(initialTerm: String = "") {
         searchVisible = true
+        accountSwitcherReturnState = null
         val searchViews = searchScreen(
             initialTerm = initialTerm,
             selectedFilter = searchFilter,
@@ -184,6 +200,12 @@ class MainActivity : ComponentActivity() {
         )
         setContentView(searchViews.root)
         searchViews.input.post { searchViews.input.requestFocus() }
+    }
+
+    private fun showAccountSwitcher() {
+        searchVisible = false
+        accountSwitcherReturnState = viewModel.workflowController.state()
+        authRoutes.showServerEntry()
     }
 
     private fun refreshHome() {

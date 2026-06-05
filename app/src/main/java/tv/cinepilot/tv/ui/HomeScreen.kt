@@ -18,6 +18,7 @@ fun ComponentActivity.homeScreen(
         addView(actionStrip(listOf(
             compactIconAction("搜索媒体", TvIcon.SEARCH, navigation.onSearch),
             compactIconAction("刷新", TvIcon.REFRESH, navigation.onRefresh),
+            compactIconAction("切换账号", TvIcon.ACCOUNT, navigation.onSwitchAccount),
             compactIconAction("退出", TvIcon.LOGOUT, navigation.onLogout),
         )))
 
@@ -61,6 +62,7 @@ data class HomeNavigation(
     val canPageForward: Boolean,
     val onSearch: () -> Unit,
     val onRefresh: () -> Unit,
+    val onSwitchAccount: () -> Unit,
     val onLogout: () -> Unit,
     val onBackInBrowse: () -> Unit,
     val onPreviousPage: () -> Unit,
