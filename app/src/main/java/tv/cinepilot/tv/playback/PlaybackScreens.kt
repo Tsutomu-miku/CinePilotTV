@@ -7,10 +7,10 @@ import android.widget.LinearLayout
 import android.widget.ScrollView
 import androidx.activity.ComponentActivity
 import tv.cinepilot.tv.ui.TvIcon
-import tv.cinepilot.tv.ui.action
 import tv.cinepilot.tv.ui.iconAction
 import tv.cinepilot.tv.ui.label
 import tv.cinepilot.tv.ui.playbackSpeedOptions
+import tv.cinepilot.tv.ui.primaryIconAction
 import tv.cinepilot.tv.ui.radioChoice
 import tv.cinepilot.tv.ui.requestInitialFocus
 import tv.cinepilot.tv.ui.screen
@@ -52,8 +52,8 @@ fun ComponentActivity.diagnosticsScreen(
 ): ScrollView {
     return screen("诊断信息") {
         addView(label(diagnostics))
-        addView(action("导出诊断", onExport).requestInitialFocus())
-        addView(action("分享诊断", onShare))
+        addView(primaryIconAction("导出诊断", TvIcon.DOWNLOAD, onExport).requestInitialFocus())
+        addView(iconAction("分享诊断", TvIcon.SHARE, onShare))
         addView(diagnosticsBackAction(returnToPlayer, backLabel, onBackDiagnosticsTarget))
     }
 }
@@ -68,7 +68,7 @@ fun ComponentActivity.diagnosticsExportedScreen(
 ): ScrollView {
     return screen("诊断信息") {
         addView(label("诊断已导出：$path"))
-        addView(action("分享诊断", onShare).requestInitialFocus())
+        addView(primaryIconAction("分享诊断", TvIcon.SHARE, onShare).requestInitialFocus())
         addView(iconAction("返回诊断信息", TvIcon.BACK, onBackDiagnostics))
         addView(diagnosticsBackAction(returnToPlayer, backLabel, onBackDiagnosticsTarget))
     }
