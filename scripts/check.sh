@@ -485,6 +485,13 @@ for technical_label in 默认音轨 默认字幕 外挂字幕 强制字幕; do
   fi
 done
 
+for compatibility_label in 兼容性 高码率 字幕格式 图形字幕 高清音频; do
+  if ! grep -q "$compatibility_label" "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/ui/MediaTechnicalInfo.kt"; then
+    echo "Media technical info formatter must expose compatibility hint: $compatibility_label" >&2
+    exit 1
+  fi
+done
+
 for icon in search refresh logout play back subtitles speed mic; do
   if [[ ! -s "$ROOT_DIR/app/src/main/res/drawable/ic_${icon}.xml" ]]; then
     echo "Missing TV action icon: ic_${icon}.xml" >&2

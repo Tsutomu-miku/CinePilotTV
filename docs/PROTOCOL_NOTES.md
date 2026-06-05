@@ -82,6 +82,6 @@
 - Jellyfin 与 Emby 对 `/Users/{UserId}/Items/{ItemId}` 详情 endpoint 的差异需要在真实服务器或官方 OpenAPI 生成客户端上验证。
 - direct play / direct stream / transcode 的基础选择规则已在 `PlaybackSourceSelector` 建模；真实服务器联调后需要继续用兼容矩阵校准。
 - Android 入口已通过 `CinePilotRuntime` 接入 `FileSessionRepository`，文件位于 app 私有目录下的 `sessions.properties`。
-- Media3 设备能力到 `DeviceProfile` / codec 参数的映射需要在 Android 层可运行后补齐。
+- 当前详情页 codec 兼容性提示只从 playback info / media stream metadata 推导观看风险，例如 HEVC / AV1 / 杜比视界依赖设备或转码、高码率弱网风险、高清音频或图形字幕可能触发转码；它不是设备级 codec 能力判定。Media3 设备能力到 `DeviceProfile` / codec 参数的映射需要在 Android 层可运行后补齐。
 - `MainActivity` 已渲染服务器输入、登录、首页、详情、播放准备和播放器路由；详情页可从服务器 next-up 直接打开本剧下一集；后续真实 TV 设备上继续校准焦点和 Media3 播放行为。
 - Quick Connect 已进入 P0 请求规格和 TV 登录流程；播放前音轨 / 字幕选择已使用 playback info 中的协议 stream index。

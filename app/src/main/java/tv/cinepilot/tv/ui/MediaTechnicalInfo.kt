@@ -17,9 +17,11 @@ fun mediaTechnicalPills(playbackInfo: PlaybackInfo?): List<String> {
         codecLabel(stream.codec()).takeIf { it.isNotBlank() }?.let(pills::add)
         bitDepthLabel(stream)?.let(pills::add)
         videoRangeLabel(stream)?.let(pills::add)
+        videoCompatibilityLabel(stream)?.let(pills::add)
     }
     primaryAudio?.let { stream ->
         audioLabel(stream)?.let(pills::add)
+        audioCompatibilityLabel(stream)?.let(pills::add)
     }
     if (audioStreams.size > 1) {
         pills.add("音轨 ${audioStreams.size} 条")
@@ -33,6 +35,7 @@ fun mediaTechnicalPills(playbackInfo: PlaybackInfo?): List<String> {
     }
     if (source.bitRate() > 0) {
         pills.add(bitRateLabel(source.bitRate()))
+        highBitrateLabel(source.bitRate())?.let(pills::add)
     }
     pills.addAll(subtitleLabels(subtitles))
     return pills.distinct()
@@ -70,6 +73,11 @@ private fun codecLabel(codec: String): String {
         "dts", "dca" -> "DTS"
         "dtshd", "dts-hd" -> "DTS-HD"
         "flac" -> "FLAC"
+        "srt", "subrip" -> "SRT"
+        "ass", "ssa" -> "ASS"
+        "pgs", "pgssub", "hdmv_pgs_subtitle" -> "PGS"
+        "dvdsub", "dvd_subtitle" -> "DVD 字幕"
+        "vobsub" -> "VobSub"
         else -> codec.uppercase(Locale.ROOT)
     }
 }
@@ -90,6 +98,18 @@ private fun videoRangeLabel(stream: MediaStreamInfo): String? {
     }
 }
 
+private fun videoCompatibilityLabel(stream: MediaStreamInfo): String? {
+    val value = stream.searchableTechnicalText()
+    return when {
+        value.contains("dovi") || value.contains("dolby vision") -> "杜比视界兼容性依赖设备或转码"
+        value.contains("av1") -> "AV1 兼容性依赖设备或转码"
+        value.contains("hevc") || value.contains("h265") || value.contains("h.265") -> {
+            "HEVC 兼容性依赖设备或转码"
+        }
+        else -> null
+    }
+}
+
 private fun audioLabel(stream: MediaStreamInfo): String? {
     val codec = codecLabel(stream.codec()).takeIf { it.isNotBlank() }
     val channels = stream.channels()?.let(::channelsLabel)
@@ -102,6 +122,15 @@ private fun audioLabel(stream: MediaStreamInfo): String? {
         null
     }
     return listOfNotNull(codec, channels, atmos).takeIf { it.isNotEmpty() }?.joinToString(" / ")
+}
+
+private fun audioCompatibilityLabel(stream: MediaStreamInfo): String? {
+    val value = stream.searchableTechnicalText()
+    return when {
+        value.contains("truehd") || value.contains("dts-hd") || value.contains("dtshd") ||
+            value.contains("atmos") -> "高清音频可能触发转码"
+        else -> null
+    }
 }
 
 private fun defaultAudioLabel(stream: MediaStreamInfo): String? {
@@ -138,6 +167,14 @@ private fun bitRateLabel(bitRate: Long): String {
     }
 }
 
+private fun highBitrateLabel(bitRate: Long): String? {
+    return if (bitRate >= 50_000_000L) {
+        "高码率，弱网建议低码率播放"
+    } else {
+        null
+    }
+}
+
 private fun subtitleLabels(subtitles: List<MediaStreamInfo>): List<String> {
     if (subtitles.isEmpty()) {
         return listOf("无字幕")
@@ -149,9 +186,18 @@ private fun subtitleLabels(subtitles: List<MediaStreamInfo>): List<String> {
     if (languages.isNotEmpty()) {
         labels.add("字幕语言：${languages.joinToString(" / ")}")
     }
+    val subtitleFormats = subtitles.mapNotNull { stream ->
+        codecLabel(stream.codec()).takeIf { it.isNotBlank() }
+    }.distinct().take(4)
+    if (subtitleFormats.isNotEmpty()) {
+        labels.add("字幕格式：${subtitleFormats.joinToString(" / ")}")
+    }
     val externalCount = subtitles.count { it.external() }
     if (externalCount > 0) {
         labels.add("外挂字幕 $externalCount 条")
+    }
+    if (subtitles.any(::isImageSubtitle)) {
+        labels.add("图形字幕可能触发转码")
     }
     if (subtitles.any { it.forced() }) {
         labels.add("含强制字幕")
@@ -160,6 +206,18 @@ private fun subtitleLabels(subtitles: List<MediaStreamInfo>): List<String> {
         labels.add("默认字幕：${languageLabel(language)}")
     }
     return labels
+}
+
+private fun isImageSubtitle(stream: MediaStreamInfo): Boolean {
+    val value = stream.searchableTechnicalText()
+    return value.contains("pgs") || value.contains("dvdsub") ||
+        value.contains("dvd_subtitle") || value.contains("vobsub")
+}
+
+private fun MediaStreamInfo.searchableTechnicalText(): String {
+    return listOf(codec(), profile(), videoRange(), videoRangeType(), displayTitle())
+        .joinToString(" ")
+        .lowercase(Locale.ROOT)
 }
 
 private fun languageLabel(language: String): String {
