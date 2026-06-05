@@ -222,6 +222,12 @@ if ! grep -q 'requestInitialFocus' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/
   exit 1
 fi
 
+if ! grep -q 'fallbackFocusAssigned' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/ui/HomeScreen.kt" ||
+  ! grep -q 'restoredFocusAssigned' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/ui/HomeScreen.kt"; then
+  echo "Home screen must fall back to the first media card when saved focus is stale" >&2
+  exit 1
+fi
+
 if ! grep -q 'searchEmptyActions' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/ui/HomeScreen.kt" ||
   ! grep -q '重新搜索' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/ui/HomeScreen.kt"; then
   echo "Search empty state must expose a direct re-search action" >&2

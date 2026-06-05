@@ -18,6 +18,8 @@ fun ComponentActivity.homeScreen(
     val hasNoMedia = homeRows.isEmpty() || homeRows.all { it.items().isEmpty() }
     val isSearchResults = homeRows.any { it.id().startsWith("search:") }
     val isEmptySearch = hasNoMedia && isSearchResults
+    var fallbackFocusAssigned = false
+    var restoredFocusAssigned = false
 
     return screen(if (isSearchResults) "搜索结果" else "首页") {
         addView(actionStrip(listOf(
@@ -38,7 +40,12 @@ fun ComponentActivity.homeScreen(
                 addView(mediaShelf(
                     row,
                     onCard = { card, item ->
-                        if (state.focus()?.rowId() == row.id() && state.focus()?.itemId() == item.id()) {
+                        val isRestoredFocus = state.focus()?.rowId() == row.id() && state.focus()?.itemId() == item.id()
+                        if (isRestoredFocus) {
+                            restoredFocusAssigned = true
+                            onFocusedCard(card)
+                        } else if (!restoredFocusAssigned && !fallbackFocusAssigned) {
+                            fallbackFocusAssigned = true
                             onFocusedCard(card)
                         }
                     },
