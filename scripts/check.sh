@@ -1384,6 +1384,16 @@ for subtitle_focus_group in SIZE COLOR BACKGROUND; do
   fi
 done
 
+if ! grep -q 'radioChoice' "$SUBTITLE_STYLE_SCREEN"; then
+  echo "Subtitle style screen must use compact radio choices" >&2
+  exit 1
+fi
+
+if grep -q 'choiceAction\|已选' "$SUBTITLE_STYLE_SCREEN"; then
+  echo "Subtitle style screen must not use large selected-prefix buttons" >&2
+  exit 1
+fi
+
 if ! grep -q 'HTTPS 连接失败' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/ui/TvErrorMessages.kt"; then
   echo "TV error messages must explain HTTPS failures in Chinese" >&2
   exit 1

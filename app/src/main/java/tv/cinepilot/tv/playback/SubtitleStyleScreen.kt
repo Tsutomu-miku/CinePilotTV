@@ -3,10 +3,11 @@ package tv.cinepilot.tv.playback
 import android.widget.HorizontalScrollView
 import android.widget.LinearLayout
 import android.widget.ScrollView
+import android.view.ViewGroup
 import androidx.activity.ComponentActivity
 import tv.cinepilot.tv.ui.action
-import tv.cinepilot.tv.ui.choiceAction
 import tv.cinepilot.tv.ui.label
+import tv.cinepilot.tv.ui.radioChoice
 import tv.cinepilot.tv.ui.requestInitialFocus
 import tv.cinepilot.tv.ui.screen
 import tv.cinepilot.tv.ui.section
@@ -65,7 +66,7 @@ fun ComponentActivity.subtitleStyleScreen(
             onSelected = onBackground,
             focusSelected = focusGroup == SubtitleStyleFocusGroup.BACKGROUND,
         ))
-        addView(label("当前：${current.size.label} / ${current.color.label} / ${current.background.label}"))
+        addView(label("当前 ${current.size.label} / ${current.color.label} / ${current.background.label}"))
         addView(action("恢复默认字幕样式", onReset))
     }
 }
@@ -85,12 +86,14 @@ private fun <T> ComponentActivity.subtitleChoiceRow(
     val row = LinearLayout(this).apply {
         orientation = LinearLayout.HORIZONTAL
         options.forEach { option ->
-            val optionAction = choiceAction(option.label, option == current) { onSelected(option) }
+            val optionAction = radioChoice(option.label, option == current) { onSelected(option) }
             addView(if (focusSelected && option == current) optionAction.requestInitialFocus() else optionAction)
         }
     }
     return HorizontalScrollView(this).apply {
         isHorizontalScrollBarEnabled = false
+        isFocusable = false
+        descendantFocusability = ViewGroup.FOCUS_AFTER_DESCENDANTS
         addView(row)
     }
 }
