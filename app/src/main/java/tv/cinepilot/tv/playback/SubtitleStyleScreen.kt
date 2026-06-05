@@ -3,8 +3,8 @@ package tv.cinepilot.tv.playback
 import android.widget.HorizontalScrollView
 import android.widget.ScrollView
 import androidx.activity.ComponentActivity
-import tv.cinepilot.tv.ui.action
-import tv.cinepilot.tv.ui.label
+import tv.cinepilot.tv.ui.TvIcon
+import tv.cinepilot.tv.ui.iconAction
 import tv.cinepilot.tv.ui.radioChoice
 import tv.cinepilot.tv.ui.requestInitialFocus
 import tv.cinepilot.tv.ui.screen
@@ -65,8 +65,7 @@ fun ComponentActivity.subtitleStyleScreen(
             onSelected = onBackground,
             focusSelected = focusGroup == SubtitleStyleFocusGroup.BACKGROUND,
         ))
-        addView(label("当前 ${current.size.label} / ${current.color.label} / ${current.background.label}"))
-        addView(action("恢复默认字幕样式", onReset))
+        addView(iconAction("恢复默认", TvIcon.REFRESH, onReset))
     }
 }
 

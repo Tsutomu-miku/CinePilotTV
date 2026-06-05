@@ -143,7 +143,7 @@ Android TV 设备或模拟器上需要验证：
 - 继续播放进入 direct play / direct stream 时，Media3 应从恢复位置起播；进入 HLS 转码时，播放上报应把服务器 start ticks 计入 PositionTicks，避免恢复播放后把进度误报成片头。
 - 详情页的音轨 / 字幕内联单选框能按 media source 分组列出 playback info 中的 media sources、audio streams 和 subtitle streams，并把选择所属的 media source id / stream index 一起用于播放准备，避免多版本影片选错源；如果 playback info 重新加载后旧 media source 或 stream index 已不存在，界面和播放准备都必须回退到服务器默认选择。
 - 详情页必须能看见字幕能力，字幕选择必须能进入并选择具体 subtitle stream。
-- 详情页必须提供“字幕样式”入口；字号、颜色和背景选择会保存到本机，并在下一次创建 Media3 播放器时应用到字幕渲染。字幕样式页应使用统一设置行里的横向单选式紧凑选项组，不应以全宽竖排大按钮呈现每个选项，也不应用“已选”前缀增加按钮宽度；调整颜色或背景后，焦点应停留在刚操作的选项组，不能跳回字号行。
+- 详情页必须提供“字幕样式”入口；字号、颜色和背景选择会保存到本机，并在下一次创建 Media3 播放器时应用到字幕渲染。字幕样式页应使用统一设置行里的横向单选式紧凑选项组，不应以全宽竖排大按钮呈现每个选项，也不应用“已选”前缀增加按钮宽度；当前值由单选态表达，不应额外显示重复的“当前 ……”状态文本；恢复默认应使用图标动作。调整颜色或背景后，焦点应停留在刚操作的选项组，不能跳回字号行。
 - 详情页的低码率播放会把最大码率、声道数、起播 ticks 等偏好传入 playback info，并在 HLS URL 构造时继续使用分辨率 / 码率偏好。
 - HLS 播放准备在用户选择字幕时会带上 `SubtitleMethod=Hls`。
 - 详情页选择 PGS、DVD subtitle 或 VobSub 图形字幕时，播放准备会把 `AlwaysBurnInSubtitleWhenTranscoding=true` 带入 playback info 请求，提示服务器转码时烧录字幕。

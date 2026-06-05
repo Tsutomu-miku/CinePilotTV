@@ -1499,7 +1499,12 @@ if ! grep -q 'settingChoiceRow' "$SUBTITLE_STYLE_SCREEN" ||
   exit 1
 fi
 
-if grep -q 'choiceAction\|已选' "$SUBTITLE_STYLE_SCREEN"; then
+if ! grep -q 'iconAction("恢复默认", TvIcon.REFRESH' "$SUBTITLE_STYLE_SCREEN"; then
+  echo "Subtitle style reset must be a compact icon action" >&2
+  exit 1
+fi
+
+if grep -q 'choiceAction\|已选\|当前 ' "$SUBTITLE_STYLE_SCREEN"; then
   echo "Subtitle style screen must not use large selected-prefix buttons" >&2
   exit 1
 fi
