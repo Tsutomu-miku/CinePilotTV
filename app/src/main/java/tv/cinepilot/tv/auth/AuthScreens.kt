@@ -15,15 +15,17 @@ import tv.cinepilot.core.protocol.PublicUserSummary
 import tv.cinepilot.core.protocol.QuickConnectSession
 import tv.cinepilot.tv.runtime.RecentAccount
 import tv.cinepilot.tv.runtime.RecentServer
-import tv.cinepilot.tv.ui.action
 import tv.cinepilot.tv.ui.dp
+import tv.cinepilot.tv.ui.iconAction
 import tv.cinepilot.tv.ui.input
 import tv.cinepilot.tv.ui.label
+import tv.cinepilot.tv.ui.primaryIconAction
 import tv.cinepilot.tv.ui.requestInitialFocus
 import tv.cinepilot.tv.ui.rounded
 import tv.cinepilot.tv.ui.screen
 import tv.cinepilot.tv.ui.section
 import tv.cinepilot.tv.ui.TvColors
+import tv.cinepilot.tv.ui.TvIcon
 import tv.cinepilot.tv.ui.TvRadius
 import tv.cinepilot.tv.ui.TvSpacing
 import tv.cinepilot.tv.ui.TvType
@@ -40,21 +42,21 @@ fun ComponentActivity.serverEntryScreen(
     return screen("CinePilot TV") {
         var initialFocusSet = false
         recentAccounts.forEach { account ->
-            addView(initialFocusIfNeeded(action("继续 ${account.displayName()}") {
+            addView(initialFocusIfNeeded(iconAction("继续 ${account.displayName()}", TvIcon.ACCOUNT) {
                 onContinueAccount(account)
             }, initialFocusSet).also { initialFocusSet = true })
         }
         recentServers.forEach { server ->
-            addView(initialFocusIfNeeded(action("服务器 ${server.displayName()}") {
+            addView(initialFocusIfNeeded(iconAction("服务器 ${server.displayName()}", TvIcon.FORWARD) {
                 onOpenServer(server.serverAddress)
             }, initialFocusSet).also { initialFocusSet = true })
         }
         if (recentAccounts.isNotEmpty()) {
-            addView(action("清除已保存登录", onClearAccounts))
+            addView(iconAction("清除已保存登录", TvIcon.LOGOUT, onClearAccounts))
         }
         addView(label("服务器地址"))
         addView(initialFocusIfNeeded(serverInput, initialFocusSet))
-        addView(action("连接服务器") {
+        addView(primaryIconAction("连接服务器", TvIcon.FORWARD) {
             onOpenServer(serverInput.text.toString())
         })
     }
@@ -86,13 +88,13 @@ fun ComponentActivity.loginScreen(
         addView(initialFocusIfNeeded(usernameInput, initialFocusSet))
         addView(label("密码"))
         addView(passwordInput)
-        addView(action("登录") {
+        addView(primaryIconAction("登录", TvIcon.ACCOUNT) {
             onLogin(usernameInput.text.toString(), passwordInput.text.toString())
         })
         if (quickConnectAvailable) {
-            addView(action("Quick Connect", onQuickConnect))
+            addView(iconAction("Quick Connect", TvIcon.FORWARD, onQuickConnect))
         }
-        addView(action("返回服务器输入", onBackToServer))
+        addView(iconAction("返回服务器输入", TvIcon.BACK, onBackToServer))
     }
 }
 
@@ -106,8 +108,8 @@ fun ComponentActivity.quickConnectScreen(
         addView(label("授权码：${quickConnect.code()}"))
         addView(label("请在 Jellyfin 中输入授权码，授权后会自动登录"))
         statusView = label("正在等待授权，电视会每 2 秒自动检查一次").also(::addView)
-        addView(action("立即检查授权", onCheckNow).requestInitialFocus())
-        addView(action("返回登录", onBackToLogin))
+        addView(primaryIconAction("立即检查授权", TvIcon.REFRESH, onCheckNow).requestInitialFocus())
+        addView(iconAction("返回登录", TvIcon.BACK, onBackToLogin))
     }
     return QuickConnectViews(root, requireNotNull(statusView))
 }

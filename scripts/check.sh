@@ -211,6 +211,26 @@ for auth_text in "连接服务器" "登录" "继续" "清除已保存登录"; do
   fi
 done
 
+if ! grep -q 'primaryIconAction("连接服务器", TvIcon.FORWARD' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/auth/AuthScreens.kt"; then
+  echo "Server entry connect action must be a primary icon action" >&2
+  exit 1
+fi
+
+if ! grep -q 'primaryIconAction("登录", TvIcon.ACCOUNT' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/auth/AuthScreens.kt"; then
+  echo "Login action must be a primary account icon action" >&2
+  exit 1
+fi
+
+if ! grep -q 'primaryIconAction("立即检查授权", TvIcon.REFRESH' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/auth/AuthScreens.kt"; then
+  echo "Quick Connect manual check must be a primary refresh icon action" >&2
+  exit 1
+fi
+
+if ! grep -q 'iconAction("返回服务器输入", TvIcon.BACK' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/auth/AuthScreens.kt"; then
+  echo "Auth back-to-server action must use the shared back icon" >&2
+  exit 1
+fi
+
 for home_text in "首页" "搜索结果" "切换账号"; do
   if ! grep -q "$home_text" "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/ui/HomeScreen.kt"; then
     echo "Home screen is missing TV UI text: $home_text" >&2
