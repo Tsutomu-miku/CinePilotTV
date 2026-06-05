@@ -126,6 +126,7 @@ Android TV 设备或模拟器上需要验证：
 - 详情页能展示服务器返回的简介、类型、时长和季集信息。
 - 播放失败后的诊断信息不包含 token，且能显示 server、item、media source、play method。
 - 播放失败后的诊断信息应追加设备 codec 快照，至少包含 `codec.video.hevc`、`codec.video.av1`、`codec.video.dolbyVision`、`codec.audio.truehd` 和 `codec.audio.dtsHd`，用于判断是否可能是设备解码能力问题。
+- Android 运行时能从设备 codec 快照生成 playback `DeviceProfile`；具备 profile 时，`/Items/{Id}/PlaybackInfo` 应使用 POST body 传递 `DeviceProfile`，没有 profile 时仍保留 GET fallback。
 - 诊断页可以导出不含 token 的 `cinepilot-diagnostics.txt` 到 app 私有文件目录。
 - 诊断页可以通过系统分享发送不含 token 的 `cinepilot-diagnostics.txt` 文件；分享 intent 使用 `FileProvider` 的 `content://` URI、临时只读权限，并附带文本诊断快照作为 fallback。
 - 详情页展示可读的恢复播放时间，不显示原始协议 ticks。

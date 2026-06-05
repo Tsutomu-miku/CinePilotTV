@@ -8,6 +8,7 @@ import tv.cinepilot.core.protocol.MediaItemPage;
 import tv.cinepilot.core.protocol.MediaItemSummary;
 import tv.cinepilot.core.protocol.MediaServerAddress;
 import tv.cinepilot.core.protocol.PlayableMedia;
+import tv.cinepilot.core.protocol.PlaybackDeviceProfile;
 import tv.cinepilot.core.protocol.PlaybackInfo;
 import tv.cinepilot.core.protocol.PlaybackInfoOptions;
 import tv.cinepilot.core.protocol.PlaybackSelectionPreferences;
@@ -23,11 +24,20 @@ public final class TvWorkflowController {
 
     private final MediaBrowserClient client;
     private final HomeRowsLoader homeRowsLoader;
+    private final PlaybackDeviceProfile deviceProfile;
     private final BrowseSession browseSession = new BrowseSession();
     private QuickConnectSession pendingQuickConnect;
     private TvAppState state = TvAppState.initial();
 
     public TvWorkflowController(MediaBrowserClient client, HomeRowsLoader homeRowsLoader) {
+        this(client, homeRowsLoader, null);
+    }
+
+    public TvWorkflowController(
+            MediaBrowserClient client,
+            HomeRowsLoader homeRowsLoader,
+            PlaybackDeviceProfile deviceProfile
+    ) {
         if (client == null) {
             throw new IllegalArgumentException("client is required");
         }
@@ -36,6 +46,7 @@ public final class TvWorkflowController {
         }
         this.client = client;
         this.homeRowsLoader = homeRowsLoader;
+        this.deviceProfile = deviceProfile;
     }
 
     public TvAppState state() {
@@ -277,6 +288,9 @@ public final class TvWorkflowController {
         }
         if (preferences.mediaSourceId() != null) {
             builder.mediaSourceId(preferences.mediaSourceId());
+        }
+        if (deviceProfile != null) {
+            builder.deviceProfile(deviceProfile);
         }
         return builder.build();
     }

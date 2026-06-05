@@ -34,14 +34,16 @@ class CinePilotRuntime private constructor(
                 FileSessionRepository(sessionFile),
                 clientIdentity,
             )
+            val deviceCodecDiagnostics = DeviceCodecDiagnostics()
             return CinePilotRuntime(
                 clientIdentity = clientIdentity,
                 mediaBrowserClient = mediaBrowserClient,
                 workflowController = TvWorkflowController(
                     mediaBrowserClient,
                     HomeRowsLoader(mediaBrowserClient),
+                    deviceCodecDiagnostics.playbackDeviceProfile(),
                 ),
-                deviceCodecDiagnostics = DeviceCodecDiagnostics(),
+                deviceCodecDiagnostics = deviceCodecDiagnostics,
                 initialState = TvAppState.initial(),
             )
         }

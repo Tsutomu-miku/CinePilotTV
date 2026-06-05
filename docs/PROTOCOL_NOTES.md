@@ -22,7 +22,8 @@
 - `GET /Users/{UserId}/Items/Latest`：最新媒体候选。
 - `GET /Users/{UserId}/Items/{ItemId}`：媒体详情。
 - `GET /Items/{Id}/Images/{ImageType}`：媒体图片，用于详情页海报。
-- `GET /Items/{Id}/PlaybackInfo`：获取播放候选、`PlaySessionId` 和 `MediaSources`。
+- `GET /Items/{Id}/PlaybackInfo`：获取播放候选、`PlaySessionId` 和 `MediaSources`；没有设备 profile 时沿用该轻量路径。
+- `POST /Items/{Id}/PlaybackInfo`：当 Android 层能从 `MediaCodecList` 生成 `PlaybackDeviceProfile` 时，把 `DeviceProfile` 和播放偏好放入 body，让 Jellyfin / Emby 结合设备 codec 能力返回更合适的 direct play / direct stream / transcode 候选。
 - `GET /Videos/{Id}/stream?Static=true`：当服务端声明可 direct play 但未返回 `DirectStreamUrl` 时，使用静态原始视频流作为首选播放地址。
 - `GET /Videos/{Id}/master.m3u8`：生成 HLS 播放 URL，用于 direct stream / transcode 场景。
 - `POST /Sessions/Playing`：开始播放上报。
@@ -42,7 +43,7 @@
 - 用户名 / 密码登录：`authenticateByName` -> `AuthSession` -> `SavedSession`。
 - Quick Connect 登录：`initiateQuickConnect` -> `quickConnectState` -> `authenticateWithQuickConnect` -> `SavedSession`。
 - 会话持久化：`SessionScope` -> `InMemorySessionRepository` / `FileSessionRepository`。
-- 播放信息：`playbackInfo` -> `PlaybackInfo`；播放前音轨 / 字幕选择复用该响应里的 `MediaStreams[].Index`。
+- 播放信息：`playbackInfo` -> `PlaybackInfo`；播放前音轨 / 字幕选择复用该响应里的 `MediaStreams[].Index`。Android TV 运行时会把本机 `MediaCodecList` 能力整理成 `PlaybackDeviceProfile`，使播放信息请求在具备 profile 时走 POST body。
 - 播放源选择：`PlaybackInfo` -> `PlayableMedia`；优先使用服务端给出的 direct play URL，其次对可 direct play 但缺少 URL 的媒体构造静态 `/Videos/{Id}/stream` 请求，再回退到 direct stream / HLS transcode。`PlayableMedia` 保留当前 media source 的 stream metadata，用于播放中 Media3 轨道变化到协议 `MediaStream.Index` 的唯一映射。
 - 媒体库浏览：`userViews` / `items` / `resumeItems` / `nextUpItems` / `latestItems` / `item` / `primaryImageUrl` -> 媒体条目模型和图片 URL。
 - 服务器侧搜索：`ItemQuery.search` -> `/Users/{UserId}/Items?SearchTerm=...`；TV 搜索筛选通过 `SearchFilter.includeItemTypes` 写入 `IncludeItemTypes`，让服务器返回全部 / 电影 / 剧集 / 单集 / 视频对应结果。
@@ -82,6 +83,6 @@
 - Jellyfin 与 Emby 对 `/Users/{UserId}/Items/{ItemId}` 详情 endpoint 的差异需要在真实服务器或官方 OpenAPI 生成客户端上验证。
 - direct play / direct stream / transcode 的基础选择规则已在 `PlaybackSourceSelector` 建模；真实服务器联调后需要继续用兼容矩阵校准。
 - Android 入口已通过 `CinePilotRuntime` 接入 `FileSessionRepository`，文件位于 app 私有目录下的 `sessions.properties`。
-- 当前详情页 codec 兼容性提示只从 playback info / media stream metadata 推导观看风险，例如 HEVC / AV1 / 杜比视界依赖设备或转码、高码率弱网风险、高清音频或图形字幕可能触发转码；它不是设备级 codec 能力判定。Android 诊断已能通过 `MediaCodecList` 输出设备 codec 快照，后续还需要把这些能力校准为 Jellyfin / Emby `DeviceProfile` / codec 参数。
+- 当前详情页 codec 兼容性提示只从 playback info / media stream metadata 推导观看风险，例如 HEVC / AV1 / 杜比视界依赖设备或转码、高码率弱网风险、高清音频或图形字幕可能触发转码。Android 诊断已能通过 `MediaCodecList` 输出设备 codec 快照，并把基础 codec 列表转换为 Jellyfin / Emby `DeviceProfile` 参与 playback info 协商；后续仍需用真实设备矩阵校准 profile / level / HDR / container 条件。
 - `MainActivity` 已渲染服务器输入、登录、首页、详情、播放准备和播放器路由；详情页可从服务器 next-up 直接打开本剧下一集；后续真实 TV 设备上继续校准焦点和 Media3 播放行为。
 - Quick Connect 已进入 P0 请求规格和 TV 登录流程；播放前音轨 / 字幕选择已使用 playback info 中的协议 stream index。

@@ -14,6 +14,7 @@ import tv.cinepilot.core.protocol.MediaServerAddress;
 import tv.cinepilot.core.protocol.MediaStreamType;
 import tv.cinepilot.core.protocol.PlayMethod;
 import tv.cinepilot.core.protocol.PlayableMedia;
+import tv.cinepilot.core.protocol.PlaybackDeviceProfile;
 import tv.cinepilot.core.protocol.PlaybackInfo;
 import tv.cinepilot.core.protocol.PlaybackSelectionPreferences;
 import tv.cinepilot.core.protocol.ProtocolRequest;
@@ -37,6 +38,7 @@ public final class TvWorkflowTest {
         controllerRunsServerLoginBrowseAndPlaybackUseCase();
         controllerStartsPlaybackFromBeginningWhenRequested();
         controllerForwardsPlaybackPreferencesToPlaybackInfo();
+        controllerForwardsDeviceProfileToPlaybackInfo();
         controllerLoadsPlaybackChoicesForTrackSelection();
         controllerLoadsNextUpForSelectedSeries();
         controllerLogoutRevokesSavedSession();
@@ -347,6 +349,42 @@ public final class TvWorkflowTest {
         assertEquals("source-2", controller.state().playableMedia().mediaSourceId(), "controller keeps selected media source");
         assertEquals(0L, controller.state().playableMedia().startTimeTicks(), "controller keeps selected start ticks");
         assertEquals(Float.valueOf(1.5f), controller.state().playableMedia().playbackRate(), "controller keeps selected playback speed");
+    }
+
+    private static void controllerForwardsDeviceProfileToPlaybackInfo() {
+        FakeTransport transport = new FakeTransport();
+        transport.enqueue(200, "{\"Id\":\"server-1\",\"ServerName\":\"Jellyfin\"}");
+        transport.enqueue(200, "{\"AccessToken\":\"token-1\",\"ServerId\":\"server-1\",\"User\":{\"Id\":\"user-1\"}}");
+        enqueueHomeResponses(transport);
+        transport.enqueue(200, "{\"Id\":\"movie-1\",\"Name\":\"Arrival\",\"Type\":\"Movie\",\"IsPlayable\":true}");
+        transport.enqueue(200, """
+                {"PlaySessionId":"play-session-1","MediaSources":[
+                  {"Id":"source-1","DirectStreamUrl":"/Videos/movie-1/stream.mkv?MediaSourceId=source-1","SupportsDirectStream":true}
+                ]}
+                """);
+
+        ClientIdentity client = new ClientIdentity("CinePilot TV", "Living Room TV", "device-1", "0.1.0");
+        MediaBrowserClient mediaClient = new MediaBrowserClient(transport, new InMemorySessionRepository(), client);
+        PlaybackDeviceProfile profile = new PlaybackDeviceProfile(
+                "CinePilot TV Living Room",
+                List.of("h264", "hevc"),
+                List.of("aac", "eac3"),
+                List.of("srt")
+        );
+        TvWorkflowController controller = new TvWorkflowController(mediaClient, new HomeRowsLoader(mediaClient, 12), profile);
+
+        controller.submitServer("https://media.example.com/jellyfin");
+        controller.login("demo", "secret");
+        controller.openItem("movie-1");
+        controller.preparePlayback(null);
+
+        ProtocolRequest playbackInfo = transport.requests.get(8);
+        assertEquals("/Items/movie-1/PlaybackInfo", playbackInfo.path(), "profile playback info path");
+        assertEquals("POST", playbackInfo.method().name(), "profile playback info method");
+        assertTrue(playbackInfo.bodyJson().contains("\"DeviceProfile\""), "controller forwards device profile");
+        assertTrue(playbackInfo.bodyJson().contains("\"VideoCodec\":\"h264,hevc\""), "controller forwards video codecs");
+        assertTrue(playbackInfo.bodyJson().contains("\"AudioCodec\":\"aac,eac3\""), "controller forwards audio codecs");
+        assertTrue(playbackInfo.bodyJson().contains("\"StartTimeTicks\":0"), "controller keeps default start ticks in profile body");
     }
 
     private static void controllerLoadsPlaybackChoicesForTrackSelection() {

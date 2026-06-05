@@ -1,5 +1,8 @@
 package tv.cinepilot.core.protocol;
 
+import java.util.LinkedHashMap;
+import java.util.Map;
+
 public record PlaybackInfoOptions(
         Long maxStreamingBitrate,
         Long startTimeTicks,
@@ -13,7 +16,9 @@ public record PlaybackInfoOptions(
         Boolean enableDirectStream,
         Boolean enableTranscoding,
         Boolean allowVideoStreamCopy,
-        Boolean allowAudioStreamCopy
+        Boolean allowAudioStreamCopy,
+        Boolean alwaysBurnInSubtitleWhenTranscoding,
+        PlaybackDeviceProfile deviceProfile
 ) {
     public static PlaybackInfoOptions defaults() {
         return new Builder().build();
@@ -33,6 +38,34 @@ public record PlaybackInfoOptions(
         query(builder, "EnableTranscoding", enableTranscoding);
         query(builder, "AllowVideoStreamCopy", allowVideoStreamCopy);
         query(builder, "AllowAudioStreamCopy", allowAudioStreamCopy);
+        query(builder, "AlwaysBurnInSubtitleWhenTranscoding", alwaysBurnInSubtitleWhenTranscoding);
+    }
+
+    boolean requiresPostBody() {
+        return deviceProfile != null && deviceProfile.hasCodecHints();
+    }
+
+    String bodyJson(String userId) {
+        Map<String, Object> body = new LinkedHashMap<>();
+        body.put("UserId", userId);
+        body.put("MaxStreamingBitrate", maxStreamingBitrate);
+        body.put("StartTimeTicks", startTimeTicks);
+        body.put("AudioStreamIndex", audioStreamIndex);
+        body.put("SubtitleStreamIndex", subtitleStreamIndex);
+        body.put("MaxAudioChannels", maxAudioChannels);
+        body.put("MediaSourceId", mediaSourceId);
+        body.put("LiveStreamId", liveStreamId);
+        body.put("AutoOpenLiveStream", autoOpenLiveStream);
+        body.put("EnableDirectPlay", enableDirectPlay);
+        body.put("EnableDirectStream", enableDirectStream);
+        body.put("EnableTranscoding", enableTranscoding);
+        body.put("AllowVideoStreamCopy", allowVideoStreamCopy);
+        body.put("AllowAudioStreamCopy", allowAudioStreamCopy);
+        body.put("AlwaysBurnInSubtitleWhenTranscoding", alwaysBurnInSubtitleWhenTranscoding);
+        if (requiresPostBody()) {
+            body.put("DeviceProfile", deviceProfile.toPayload());
+        }
+        return JsonPayload.object(body);
     }
 
     private static void query(ProtocolRequest.Builder builder, String name, Object value) {
@@ -55,6 +88,8 @@ public record PlaybackInfoOptions(
         private Boolean enableTranscoding = true;
         private Boolean allowVideoStreamCopy = true;
         private Boolean allowAudioStreamCopy = true;
+        private Boolean alwaysBurnInSubtitleWhenTranscoding;
+        private PlaybackDeviceProfile deviceProfile;
 
         public Builder maxStreamingBitrate(long value) {
             maxStreamingBitrate = value;
@@ -121,6 +156,16 @@ public record PlaybackInfoOptions(
             return this;
         }
 
+        public Builder alwaysBurnInSubtitleWhenTranscoding(boolean value) {
+            alwaysBurnInSubtitleWhenTranscoding = value;
+            return this;
+        }
+
+        public Builder deviceProfile(PlaybackDeviceProfile value) {
+            deviceProfile = value;
+            return this;
+        }
+
         public PlaybackInfoOptions build() {
             return new PlaybackInfoOptions(
                     maxStreamingBitrate,
@@ -135,9 +180,10 @@ public record PlaybackInfoOptions(
                     enableDirectStream,
                     enableTranscoding,
                     allowVideoStreamCopy,
-                    allowAudioStreamCopy
+                    allowAudioStreamCopy,
+                    alwaysBurnInSubtitleWhenTranscoding,
+                    deviceProfile
             );
         }
     }
 }
-

@@ -45,6 +45,7 @@ core/
   src/main/java/tv/cinepilot/core/
     protocol/                    服务器、认证、endpoint 和播放协议规则
       PlaybackInfoOptions.java   playback info 查询参数
+      PlaybackDeviceProfile.java Jellyfin / Emby playback info `DeviceProfile` 的最小协议模型
       HlsStreamOptions.java      HLS 播放 URL 参数
       MediaImageRequests.java    媒体海报和 public user 头像图片 URL 请求规格
       PlaybackSourceSelector.java 播放源选择规则

@@ -896,6 +896,31 @@ if ! grep -q 'deviceCodecDiagnostics.describe' "$PLAYBACK_DIAGNOSTICS_CONTROLLER
   exit 1
 fi
 
+if [[ ! -s "$ROOT_DIR/core/src/main/java/tv/cinepilot/core/protocol/PlaybackDeviceProfile.java" ]]; then
+  echo "Missing protocol playback device profile model" >&2
+  exit 1
+fi
+
+if ! grep -q 'DeviceProfile' "$ROOT_DIR/core/src/main/java/tv/cinepilot/core/protocol/PlaybackInfoOptions.java"; then
+  echo "Playback info options must model DeviceProfile" >&2
+  exit 1
+fi
+
+if ! grep -q 'requiresPostBody' "$ROOT_DIR/core/src/main/java/tv/cinepilot/core/protocol/MediaBrowserRequests.java"; then
+  echo "Playback info requests must switch to POST when a DeviceProfile is present" >&2
+  exit 1
+fi
+
+if ! grep -q 'playbackDeviceProfile' "$DEVICE_CODEC_DIAGNOSTICS"; then
+  echo "Device codec diagnostics must expose a playback device profile" >&2
+  exit 1
+fi
+
+if ! grep -q 'deviceCodecDiagnostics.playbackDeviceProfile' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/runtime/CinePilotRuntime.kt"; then
+  echo "Android runtime must inject the device playback profile into the workflow controller" >&2
+  exit 1
+fi
+
 if ! grep -q 'errorMessage=' "$ROOT_DIR/core/src/main/java/tv/cinepilot/core/tv/TvDiagnostics.java"; then
   echo "TV diagnostics must include the recoverable error message" >&2
   exit 1

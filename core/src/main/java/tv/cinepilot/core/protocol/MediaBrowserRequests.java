@@ -160,12 +160,22 @@ public final class MediaBrowserRequests {
     ) {
         require(itemId, "itemId");
         String encodedItemId = ProtocolRequest.encodePathSegment(itemId);
-        ProtocolRequest.Builder builder = authenticated(
-                ProtocolRequest.get("/Items/" + encodedItemId + "/PlaybackInfo"),
-                session,
-                flavor
-        ).query("UserId", session.userId());
-        (options == null ? PlaybackInfoOptions.defaults() : options).applyTo(builder);
+        PlaybackInfoOptions safeOptions = options == null ? PlaybackInfoOptions.defaults() : options;
+        ProtocolRequest.Builder builder;
+        if (safeOptions.requiresPostBody()) {
+            builder = authenticated(
+                    ProtocolRequest.post("/Items/" + encodedItemId + "/PlaybackInfo"),
+                    session,
+                    flavor
+            ).jsonBody(safeOptions.bodyJson(session.userId()));
+        } else {
+            builder = authenticated(
+                    ProtocolRequest.get("/Items/" + encodedItemId + "/PlaybackInfo"),
+                    session,
+                    flavor
+            ).query("UserId", session.userId());
+            safeOptions.applyTo(builder);
+        }
         return builder.build();
     }
 

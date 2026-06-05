@@ -25,6 +25,7 @@ public final class ProtocolCoreTest {
         scopesSavedSessions();
         mediaBrowserClientForgetsOnlyAuthenticatedScope();
         buildsPlaybackInfoAndStreamRequests();
+        buildsPlaybackInfoPostWithDeviceProfile();
         buildsPlaybackCheckInRequests();
         selectsPlayableMediaSources();
         mapsServerAndPlaybackResponses();
@@ -382,6 +383,44 @@ public final class ProtocolCoreTest {
         assertTrue(staticStreamUrl.contains("MediaSourceId=source%201"), "static stream media source");
         assertTrue(staticStreamUrl.contains("DeviceId=device-1"), "static stream device");
         assertTrue(staticStreamUrl.contains("PlaySessionId=play-session-1"), "static stream play session");
+    }
+
+    private static void buildsPlaybackInfoPostWithDeviceProfile() {
+        ClientIdentity client = new ClientIdentity("CinePilot TV", "Living Room TV", "device-1", "0.1.0");
+        AuthSession session = new AuthSession("server-1", "user 1", "token-1", client);
+        MediaServerAddress address = MediaServerAddress.parse("https://media.example.com/jellyfin");
+        PlaybackDeviceProfile deviceProfile = new PlaybackDeviceProfile(
+                "CinePilot TV Living Room",
+                List.of("h264", "hevc", "av1"),
+                List.of("aac", "eac3"),
+                List.of("srt", "ass")
+        );
+
+        ProtocolRequest playbackInfo = MediaBrowserRequests.playbackInfo(
+                session,
+                ServerFlavor.JELLYFIN,
+                "movie 1",
+                new PlaybackInfoOptions.Builder()
+                        .startTimeTicks(123L)
+                        .maxAudioChannels(6)
+                        .deviceProfile(deviceProfile)
+                        .build()
+        );
+
+        assertEquals(HttpMethod.POST, playbackInfo.method(), "profile playback info uses post");
+        assertEquals("/Items/movie%201/PlaybackInfo", playbackInfo.path(), "profile playback info path");
+        assertEquals(
+                "https://media.example.com/jellyfin/Items/movie%201/PlaybackInfo",
+                playbackInfo.url(address),
+                "profile playback info url"
+        );
+        assertTrue(playbackInfo.bodyJson().contains("\"UserId\":\"user 1\""), "profile body user id");
+        assertTrue(playbackInfo.bodyJson().contains("\"StartTimeTicks\":123"), "profile body start ticks");
+        assertTrue(playbackInfo.bodyJson().contains("\"DeviceProfile\""), "profile body has device profile");
+        assertTrue(playbackInfo.bodyJson().contains("\"VideoCodec\":\"h264,hevc,av1\""), "profile body video codecs");
+        assertTrue(playbackInfo.bodyJson().contains("\"AudioCodec\":\"aac,eac3\""), "profile body audio codecs");
+        assertTrue(playbackInfo.bodyJson().contains("\"Protocol\":\"hls\""), "profile body hls transcode profile");
+        assertTrue(playbackInfo.bodyJson().contains("\"Method\":\"External\""), "profile body external subtitle profile");
     }
 
     private static void buildsPlaybackCheckInRequests() {
