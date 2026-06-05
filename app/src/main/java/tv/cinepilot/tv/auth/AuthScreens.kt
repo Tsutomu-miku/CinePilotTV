@@ -1,5 +1,7 @@
 package tv.cinepilot.tv.auth
 
+import android.animation.ArgbEvaluator
+import android.animation.ValueAnimator
 import android.text.InputType
 import android.text.TextUtils
 import android.view.Gravity
@@ -25,6 +27,7 @@ import tv.cinepilot.tv.ui.TvColors
 import tv.cinepilot.tv.ui.TvRadius
 import tv.cinepilot.tv.ui.TvSpacing
 import tv.cinepilot.tv.ui.TvType
+import java.util.WeakHashMap
 
 fun ComponentActivity.serverEntryScreen(
     recentAccounts: List<RecentAccount>,
@@ -157,16 +160,27 @@ private fun ComponentActivity.publicUserAction(
         }
     }
     card.setOnFocusChangeListener { focusedView, hasFocus ->
-        focusedView.background = rounded(
-            if (hasFocus) TvColors.Focus else TvColors.SurfaceControl,
-            dp(TvRadius.Control),
-            if (hasFocus) dp(3) else dp(1),
-            TvColors.FocusRing,
-        )
+        animatePublicUserFocus(focusedView as LinearLayout, hasFocus)
         setUserCardTextColor(card, hasFocus)
     }
     loadPublicUserImage(avatar, user, 96, 96)
     return card
+}
+
+private fun ComponentActivity.animatePublicUserFocus(card: LinearLayout, hasFocus: Boolean) {
+    publicUserFocusAnimators[card]?.cancel()
+    publicUserFocusAnimators[card] = ValueAnimator.ofFloat(if (hasFocus) 0f else 1f, if (hasFocus) 1f else 0f).apply {
+        duration = PUBLIC_USER_FOCUS_ANIMATION_MS
+        addUpdateListener { animator ->
+            val progress = animator.animatedValue as Float
+            val color = publicUserFocusColorEvaluator.evaluate(progress, TvColors.SurfaceControl, TvColors.Focus) as Int
+            val strokeWidth = (dp(1) + (dp(3) - dp(1)) * progress).toInt()
+            card.background = rounded(color, dp(TvRadius.Control), strokeWidth, TvColors.FocusRing)
+            card.translationZ = dp(4).toFloat() * progress
+            card.alpha = 0.96f + 0.04f * progress
+        }
+        start()
+    }
 }
 
 private fun ComponentActivity.userText(textValue: String, primary: Boolean): TextView {
@@ -191,3 +205,7 @@ private fun setUserCardTextColor(card: LinearLayout, focused: Boolean) {
 private fun <T : View> initialFocusIfNeeded(view: T, alreadySet: Boolean): T {
     return if (alreadySet) view else view.requestInitialFocus()
 }
+
+private val publicUserFocusAnimators = WeakHashMap<LinearLayout, ValueAnimator>()
+private val publicUserFocusColorEvaluator = ArgbEvaluator()
+private const val PUBLIC_USER_FOCUS_ANIMATION_MS = 160L

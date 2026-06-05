@@ -183,6 +183,12 @@ if ! grep -q 'initialFocusIfNeeded' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv
   exit 1
 fi
 
+if ! grep -q 'animatePublicUserFocus' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/auth/AuthScreens.kt" ||
+  ! grep -q 'ValueAnimator' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/auth/AuthScreens.kt"; then
+  echo "Auth public user rows must animate focus state transitions" >&2
+  exit 1
+fi
+
 if ! grep -q 'TYPE_TEXT_VARIATION_URI' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/auth/AuthScreens.kt"; then
   echo "Auth screens must optimize server URL input" >&2
   exit 1
