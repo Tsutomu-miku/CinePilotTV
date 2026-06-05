@@ -14,11 +14,11 @@ import tv.cinepilot.core.tv.TvAppState
 import tv.cinepilot.tv.ui.HomeNavigation
 import tv.cinepilot.tv.ui.TvIcon
 import tv.cinepilot.tv.ui.actionStrip
-import tv.cinepilot.tv.ui.choiceAction
 import tv.cinepilot.tv.ui.compactIconAction
 import tv.cinepilot.tv.ui.dp
 import tv.cinepilot.tv.ui.homeScreen
 import tv.cinepilot.tv.ui.input
+import tv.cinepilot.tv.ui.radioChoice
 import tv.cinepilot.tv.ui.screen
 
 fun ComponentActivity.homeRouteScreen(
@@ -85,7 +85,7 @@ fun ComponentActivity.searchScreen(
             bottomMargin = dp(16)
         })
         addView(actionStrip(SearchFilter.values().map { filter ->
-            choiceAction(filter.label(), filter == selectedFilter) {
+            radioChoice(filter.label(), filter == selectedFilter) {
                 onFilter(filter, searchInput.text.toString())
             }
         }))

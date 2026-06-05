@@ -393,6 +393,16 @@ if ! grep -q 'IME_ACTION_SEARCH' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/ho
   exit 1
 fi
 
+if ! grep -q 'radioChoice' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/home/HomeRouteScreens.kt"; then
+  echo "Search filters must use compact radio choices" >&2
+  exit 1
+fi
+
+if grep -q 'choiceAction' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/home/HomeRouteScreens.kt"; then
+  echo "Search filters must not use large selected-prefix buttons" >&2
+  exit 1
+fi
+
 if ! grep -q 'RecognizerIntent.ACTION_RECOGNIZE_SPEECH' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/MainActivity.kt"; then
   echo "Search must support Android voice recognition input" >&2
   exit 1
