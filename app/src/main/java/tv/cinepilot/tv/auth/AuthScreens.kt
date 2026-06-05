@@ -16,6 +16,7 @@ import tv.cinepilot.core.protocol.PublicUserSummary
 import tv.cinepilot.core.protocol.QuickConnectSession
 import tv.cinepilot.tv.runtime.RecentAccount
 import tv.cinepilot.tv.runtime.RecentServer
+import tv.cinepilot.tv.ui.actionColumn
 import tv.cinepilot.tv.ui.dp
 import tv.cinepilot.tv.ui.iconAction
 import tv.cinepilot.tv.ui.input
@@ -42,19 +43,29 @@ fun ComponentActivity.serverEntryScreen(
     val serverInput = input("http://192.168.1.10:8096", InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_URI)
     return screen("CinePilot TV") {
         var initialFocusSet = false
+        val accountActions = mutableListOf<View>()
         recentAccounts.forEach { account ->
-            addView(initialFocusIfNeeded(iconAction("继续 ${account.displayName()}", TvIcon.ACCOUNT) {
+            accountActions.add(initialFocusIfNeeded(iconAction("继续 ${account.displayName()}", TvIcon.ACCOUNT) {
                 onContinueAccount(account)
             }, initialFocusSet).also { initialFocusSet = true })
         }
+        if (recentAccounts.isNotEmpty()) {
+            accountActions.add(iconAction("清除已保存登录", TvIcon.LOGOUT, onClearAccounts))
+            addView(section("最近账号"))
+            addView(actionColumn(accountActions))
+        }
+
+        val serverActions = mutableListOf<View>()
         recentServers.forEach { server ->
-            addView(initialFocusIfNeeded(iconAction("服务器 ${server.displayName()}", TvIcon.FORWARD) {
+            serverActions.add(initialFocusIfNeeded(iconAction("服务器 ${server.displayName()}", TvIcon.FORWARD) {
                 onOpenServer(server.serverAddress)
             }, initialFocusSet).also { initialFocusSet = true })
         }
-        if (recentAccounts.isNotEmpty()) {
-            addView(iconAction("清除已保存登录", TvIcon.LOGOUT, onClearAccounts))
+        if (recentServers.isNotEmpty()) {
+            addView(section("最近服务器"))
+            addView(actionColumn(serverActions))
         }
+
         addView(label("服务器地址"))
         addView(initialFocusIfNeeded(serverInput, initialFocusSet))
         addView(primaryIconAction("连接服务器", TvIcon.FORWARD) {

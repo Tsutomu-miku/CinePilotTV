@@ -216,6 +216,14 @@ if ! grep -q 'primaryIconAction("连接服务器", TvIcon.FORWARD' "$ROOT_DIR/ap
   exit 1
 fi
 
+if ! grep -q 'section("最近账号")' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/auth/AuthScreens.kt" ||
+  ! grep -q 'section("最近服务器")' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/auth/AuthScreens.kt" ||
+  ! grep -q 'actionColumn(accountActions)' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/auth/AuthScreens.kt" ||
+  ! grep -q 'actionColumn(serverActions)' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/auth/AuthScreens.kt"; then
+  echo "Server entry must group recent accounts and servers into labeled action columns" >&2
+  exit 1
+fi
+
 if ! grep -q 'primaryIconAction("登录", TvIcon.ACCOUNT' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/auth/AuthScreens.kt"; then
   echo "Login action must be a primary account icon action" >&2
   exit 1
