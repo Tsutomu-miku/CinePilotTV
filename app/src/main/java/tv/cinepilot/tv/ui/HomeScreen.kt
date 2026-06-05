@@ -11,6 +11,7 @@ fun ComponentActivity.homeScreen(
     state: TvAppState,
     navigation: HomeNavigation,
     onOpen: (HomeRow, MediaItemSummary) -> Unit,
+    onFocusItem: (HomeRow, MediaItemSummary) -> Unit,
     loadImage: (ImageView, MediaItemSummary, Int, Int) -> Unit,
     onFocusedCard: (View) -> Unit,
 ): View {
@@ -49,6 +50,7 @@ fun ComponentActivity.homeScreen(
                             onFocusedCard(card)
                         }
                     },
+                    onFocus = onFocusItem,
                     onOpen = onOpen,
                     loadImage = loadImage,
                 ))

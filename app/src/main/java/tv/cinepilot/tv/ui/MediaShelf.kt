@@ -18,6 +18,7 @@ import tv.cinepilot.core.tv.HomeRow
 fun ComponentActivity.mediaShelf(
     row: HomeRow,
     onCard: (View, MediaItemSummary) -> Unit,
+    onFocus: (HomeRow, MediaItemSummary) -> Unit,
     onOpen: (HomeRow, MediaItemSummary) -> Unit,
     loadImage: (ImageView, MediaItemSummary, Int, Int) -> Unit,
 ): HorizontalScrollView {
@@ -28,7 +29,7 @@ fun ComponentActivity.mediaShelf(
         setPadding(dp(TvSpacing.FocusInset), dp(TvSpacing.FocusInset), dp(12), dp(6))
     }
     row.items().forEach { item ->
-        val card = mediaCard(row, item, onOpen, loadImage)
+        val card = mediaCard(row, item, onFocus, onOpen, loadImage)
         onCard(card, item)
         shelf.addView(card)
     }
@@ -45,6 +46,7 @@ fun ComponentActivity.mediaShelf(
 private fun ComponentActivity.mediaCard(
     row: HomeRow,
     item: MediaItemSummary,
+    onFocus: (HomeRow, MediaItemSummary) -> Unit,
     onOpen: (HomeRow, MediaItemSummary) -> Unit,
     loadImage: (ImageView, MediaItemSummary, Int, Int) -> Unit,
 ): FrameLayout {
@@ -85,6 +87,9 @@ private fun ComponentActivity.mediaCard(
         ),
     )
     card.setOnFocusChangeListener { focusedView, hasFocus ->
+        if (hasFocus) {
+            onFocus(row, item)
+        }
         focusedView.animate()
             .alpha(if (hasFocus) 1f else 0.96f)
             .translationZ(if (hasFocus) dp(8).toFloat() else 0f)

@@ -166,6 +166,7 @@ class MainActivity : ComponentActivity() {
             onPreviousPage = ::previousBrowsePage,
             onNextPage = ::nextBrowsePage,
             onOpen = playbackRoutes::openMediaItem,
+            onFocusItem = { row, item -> viewModel.workflowController.focusItem(row.id(), item.id()) },
             loadImage = ::loadPrimaryImage,
             onFocusedCard = { focusedCard = it },
         ))

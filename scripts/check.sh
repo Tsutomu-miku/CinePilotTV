@@ -228,6 +228,13 @@ if ! grep -q 'fallbackFocusAssigned' "$ROOT_DIR/app/src/main/java/tv/cinepilot/t
   exit 1
 fi
 
+if ! grep -q 'onFocusItem' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/ui/HomeScreen.kt" ||
+  ! grep -q 'onFocusItem' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/home/HomeRouteScreens.kt" ||
+  ! grep -q 'onFocusItem = { row, item -> viewModel.workflowController.focusItem' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/MainActivity.kt"; then
+  echo "Home media card focus must update workflow focus as D-pad moves" >&2
+  exit 1
+fi
+
 if ! grep -q 'searchEmptyActions' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/ui/HomeScreen.kt" ||
   ! grep -q '重新搜索' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/ui/HomeScreen.kt"; then
   echo "Search empty state must expose a direct re-search action" >&2
