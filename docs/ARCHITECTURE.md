@@ -24,7 +24,7 @@ Jellyfin 登录页可以发起 Quick Connect：Activity 展示服务器返回的
 
 按钮、输入框和媒体卡片必须有显式 focus color / focus border，不能只依赖平台默认样式；这样在深色 TV 背景上 D-pad 当前焦点始终可见。滚动详情页应通过 `TvFocus` 的统一垂直 D-pad 滚动兜底处理播放按钮、媒体源、音轨和字幕单选项，避免页面里散落按钮级防丢焦逻辑。
 
-关键操作按钮应配套开源 Material Icons 风格矢量图标资源，例如搜索、刷新、退出、播放、返回、字幕、低码率播放、诊断导出和诊断分享。图标资源放在 Android `drawable`，由 `tv/ui/TvUi.kt` 的 `TvIcon` 统一引用，避免页面里散落资源 id。
+关键操作按钮应配套开源 Material Icons 风格矢量图标资源，例如搜索、刷新、退出、播放、返回、前进、字幕、低码率播放、诊断导出和诊断分享。图标资源放在 Android `drawable`，由 `tv/ui/TvUi.kt` 的 `TvIcon` 统一引用，避免页面里散落资源 id。首页文件夹分页的“上一页 / 下一页”也应使用共享返回 / 前进图标，而不是退回纯文字按钮。
 
 `TvDiagnostics` 生成不含 token 的联调快照，供 TV UI 展示 server、user、item、media source、play method、错误消息和焦点信息。Android 层的 `DeviceCodecDiagnostics` 会追加本机 `MediaCodecList` 可见的 H.264、HEVC、AV1、VP9、Dolby Vision、AC3、EAC3、TrueHD 和 DTS 解码器快照，并把基础 codec 列表转换为 `PlaybackDeviceProfile` 注入 `TvWorkflowController`。具备 profile 时，playback info 使用 POST body 传递 `DeviceProfile`；没有 profile 时保留 GET fallback。错误消息进入诊断前必须统一脱敏，至少覆盖播放 URL 里的 `api_key` / access token query、`X-Emby-Token` / `X-MediaBrowser-Token` 头值和 MediaBrowser authorization token。
 

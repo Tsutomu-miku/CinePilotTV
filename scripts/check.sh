@@ -592,7 +592,7 @@ if grep -q '默认字幕：' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/ui/Med
   exit 1
 fi
 
-for icon in search refresh logout play back subtitles speed mic account info download share; do
+for icon in search refresh logout play back subtitles speed mic account info download share forward; do
   if [[ ! -s "$ROOT_DIR/app/src/main/res/drawable/ic_${icon}.xml" ]]; then
     echo "Missing TV action icon: ic_${icon}.xml" >&2
     exit 1
@@ -606,6 +606,16 @@ fi
 
 if ! grep -q 'ACCOUNT' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/ui/TvUi.kt"; then
   echo "TV UI helpers must expose an account switch icon" >&2
+  exit 1
+fi
+
+if ! grep -q 'iconAction("上一页", TvIcon.BACK' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/ui/HomeScreen.kt"; then
+  echo "Home browse previous action must use the shared back icon" >&2
+  exit 1
+fi
+
+if ! grep -q 'iconAction("下一页", TvIcon.FORWARD' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/ui/HomeScreen.kt"; then
+  echo "Home browse next action must use the shared forward icon" >&2
   exit 1
 fi
 

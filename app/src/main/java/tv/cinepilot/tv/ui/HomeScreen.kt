@@ -59,10 +59,10 @@ fun ComponentActivity.homeScreen(
 
         val browseActions = mutableListOf<View>()
         if (navigation.canPageBackward) {
-            browseActions.add(action("上一页", navigation.onPreviousPage))
+            browseActions.add(iconAction("上一页", TvIcon.BACK, navigation.onPreviousPage))
         }
         if (navigation.canPageForward) {
-            browseActions.add(action("下一页", navigation.onNextPage))
+            browseActions.add(iconAction("下一页", TvIcon.FORWARD, navigation.onNextPage))
         }
         if (browseActions.isNotEmpty()) {
             addView(section("浏览"))
