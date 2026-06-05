@@ -416,6 +416,11 @@ if ! grep -q 'radioChoice' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/home/Hom
   exit 1
 fi
 
+if ! grep -q 'settingChoiceRow' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/home/HomeRouteScreens.kt"; then
+  echo "Search filters must use the shared compact setting row" >&2
+  exit 1
+fi
+
 if grep -q 'choiceAction' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/home/HomeRouteScreens.kt"; then
   echo "Search filters must not use large selected-prefix buttons" >&2
   exit 1

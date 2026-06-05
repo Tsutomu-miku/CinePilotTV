@@ -34,7 +34,7 @@ app/
     ui/TvFocus.kt                TV 焦点态、初始焦点和密集选择按钮 helper
     ui/TvFlowLayout.kt           详情页 tags 自动换行布局
     ui/MediaShelf.kt             首页横向媒体架和海报卡片
-    ui/ChoiceRows.kt             字幕样式、播放速度和详情轨道选择的紧凑单选行 / 组
+    ui/ChoiceRows.kt             搜索筛选、字幕样式、播放速度和详情轨道选择的紧凑单选行 / 组
     ui/HomeScreen.kt             首页屏幕布局和浏览操作区
     ui/DetailsScreen.kt          媒体详情屏幕布局
     ui/MediaTechnicalInfo.kt     playback info 到详情页技术信息标签的格式化

@@ -20,6 +20,7 @@ import tv.cinepilot.tv.ui.homeScreen
 import tv.cinepilot.tv.ui.input
 import tv.cinepilot.tv.ui.radioChoice
 import tv.cinepilot.tv.ui.screen
+import tv.cinepilot.tv.ui.settingChoiceRow
 
 fun ComponentActivity.homeRouteScreen(
     state: TvAppState,
@@ -86,7 +87,7 @@ fun ComponentActivity.searchScreen(
         ).apply {
             bottomMargin = dp(16)
         })
-        addView(actionStrip(SearchFilter.values().map { filter ->
+        addView(settingChoiceRow(SearchFilter.values().map { filter ->
             radioChoice(filter.label(), filter == selectedFilter) {
                 onFilter(filter, searchInput.text.toString())
             }
