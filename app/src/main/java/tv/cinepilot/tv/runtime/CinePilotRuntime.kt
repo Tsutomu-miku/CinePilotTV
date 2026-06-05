@@ -16,6 +16,7 @@ class CinePilotRuntime private constructor(
     val clientIdentity: ClientIdentity,
     val mediaBrowserClient: MediaBrowserClient,
     val workflowController: TvWorkflowController,
+    val deviceCodecDiagnostics: DeviceCodecDiagnostics,
     val initialState: TvAppState,
 ) {
     companion object {
@@ -40,6 +41,7 @@ class CinePilotRuntime private constructor(
                     mediaBrowserClient,
                     HomeRowsLoader(mediaBrowserClient),
                 ),
+                deviceCodecDiagnostics = DeviceCodecDiagnostics(),
                 initialState = TvAppState.initial(),
             )
         }

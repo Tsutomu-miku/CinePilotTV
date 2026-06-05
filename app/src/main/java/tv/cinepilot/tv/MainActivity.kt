@@ -81,6 +81,7 @@ class MainActivity : ComponentActivity() {
             workflowController = viewModel.workflowController,
             playerHost = playerHost,
             subtitleStyleStore = subtitleStyleStore,
+            deviceCodecDiagnostics = viewModel.deviceCodecDiagnostics,
             runTask = ::runTask,
             showHome = ::showHome,
             showError = ::showError,

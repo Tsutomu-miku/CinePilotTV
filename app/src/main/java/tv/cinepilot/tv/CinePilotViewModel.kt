@@ -9,6 +9,7 @@ class CinePilotViewModel private constructor(context: Context) : ViewModel() {
     val runtime: CinePilotRuntime = CinePilotRuntime.create(context.applicationContext)
     val workflowController = runtime.workflowController
     val mediaBrowserClient = runtime.mediaBrowserClient
+    val deviceCodecDiagnostics = runtime.deviceCodecDiagnostics
 
     companion object {
         fun factory(context: Context): ViewModelProvider.Factory {

@@ -8,9 +8,11 @@ import androidx.core.content.FileProvider
 import java.io.File
 import tv.cinepilot.core.tv.TvAppState
 import tv.cinepilot.core.tv.TvDiagnostics
+import tv.cinepilot.tv.runtime.DeviceCodecDiagnostics
 
 class PlaybackDiagnosticsController(
     private val activity: ComponentActivity,
+    private val deviceCodecDiagnostics: DeviceCodecDiagnostics,
 ) {
     fun showFromError(state: TvAppState, onBackError: () -> Unit) {
         show(
@@ -26,7 +28,7 @@ class PlaybackDiagnosticsController(
         backLabel: String? = null,
         onBackDiagnosticsTarget: () -> Unit,
     ) {
-        val diagnostics = TvDiagnostics.describe(state)
+        val diagnostics = diagnosticsText(state)
         activity.setContentView(activity.diagnosticsScreen(
             diagnostics = diagnostics,
             returnToPlayer = returnToPlayer,
@@ -47,7 +49,7 @@ class PlaybackDiagnosticsController(
         backLabel: String? = null,
         onBackDiagnosticsTarget: () -> Unit,
     ) {
-        val diagnostics = TvDiagnostics.describe(state)
+        val diagnostics = diagnosticsText(state)
         activity.setContentView(activity.diagnosticsExportedScreen(
             path = path,
             returnToPlayer = returnToPlayer,
@@ -82,6 +84,10 @@ class PlaybackDiagnosticsController(
         return directory.resolve(DIAGNOSTICS_FILE_NAME).apply {
             writeText(diagnostics)
         }
+    }
+
+    private fun diagnosticsText(state: TvAppState): String {
+        return TvDiagnostics.describe(state) + deviceCodecDiagnostics.describe()
     }
 
     private companion object {

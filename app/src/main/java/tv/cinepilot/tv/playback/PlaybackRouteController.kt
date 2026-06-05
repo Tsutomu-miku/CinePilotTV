@@ -13,6 +13,7 @@ import tv.cinepilot.core.tv.TvWorkflowController
 import tv.cinepilot.tv.details.DetailTrackSelection
 import tv.cinepilot.tv.details.detailsRouteScreen
 import tv.cinepilot.tv.player.Media3PlayerHost
+import tv.cinepilot.tv.runtime.DeviceCodecDiagnostics
 import tv.cinepilot.tv.ui.playerScreen
 
 class PlaybackRouteController(
@@ -20,12 +21,13 @@ class PlaybackRouteController(
     private val workflowController: TvWorkflowController,
     private val playerHost: Media3PlayerHost,
     private val subtitleStyleStore: SubtitleStyleStore,
+    deviceCodecDiagnostics: DeviceCodecDiagnostics,
     private val runTask: (String, () -> Unit, () -> Unit) -> Unit,
     private val showHome: (TvAppState) -> Unit,
     private val showError: (Throwable) -> Unit,
     private val loadPosterImage: (ImageView, MediaItemSummary, Int, Int) -> Unit,
 ) {
-    private val diagnosticsController = PlaybackDiagnosticsController(activity)
+    private val diagnosticsController = PlaybackDiagnosticsController(activity, deviceCodecDiagnostics)
     private var selectedPlaybackInfo: PlaybackInfo? = null
     private var selectedTrackItemId: String? = null
     private var selectedTrackSelection = DetailTrackSelection()

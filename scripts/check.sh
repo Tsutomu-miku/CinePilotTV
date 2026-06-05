@@ -873,6 +873,29 @@ if ! grep -q 'FLAG_GRANT_READ_URI_PERMISSION' "$ROOT_DIR/app/src/main/java/tv/ci
   exit 1
 fi
 
+DEVICE_CODEC_DIAGNOSTICS="$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/runtime/DeviceCodecDiagnostics.kt"
+if [[ ! -s "$DEVICE_CODEC_DIAGNOSTICS" ]]; then
+  echo "Missing Android device codec diagnostics module" >&2
+  exit 1
+fi
+
+if ! grep -q 'MediaCodecList' "$DEVICE_CODEC_DIAGNOSTICS"; then
+  echo "Device codec diagnostics must use Android MediaCodecList" >&2
+  exit 1
+fi
+
+for codec_key in codec.video.hevc codec.video.av1 codec.video.dolbyVision codec.audio.truehd codec.audio.dtsHd; do
+  if ! grep -q "$codec_key" "$DEVICE_CODEC_DIAGNOSTICS"; then
+    echo "Device codec diagnostics must report $codec_key" >&2
+    exit 1
+  fi
+done
+
+if ! grep -q 'deviceCodecDiagnostics.describe' "$PLAYBACK_DIAGNOSTICS_CONTROLLER"; then
+  echo "Playback diagnostics must append device codec diagnostics" >&2
+  exit 1
+fi
+
 if ! grep -q 'errorMessage=' "$ROOT_DIR/core/src/main/java/tv/cinepilot/core/tv/TvDiagnostics.java"; then
   echo "TV diagnostics must include the recoverable error message" >&2
   exit 1
@@ -898,7 +921,7 @@ if [[ ! -s "$PLAYBACK_DIAGNOSTICS_CONTROLLER" ]]; then
   exit 1
 fi
 
-if ! grep -q 'PlaybackDiagnosticsController(activity)' "$PLAYBACK_ROUTE_CONTROLLER"; then
+if ! grep -q 'PlaybackDiagnosticsController(activity, deviceCodecDiagnostics)' "$PLAYBACK_ROUTE_CONTROLLER"; then
   echo "Playback route controller must delegate diagnostics route handling" >&2
   exit 1
 fi

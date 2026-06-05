@@ -23,6 +23,7 @@ app/
     player/Media3PlaybackBridge.kt Media3 事件到播放上报控制器的桥接
     player/Media3StreamIndexResolver.kt Media3 selected track 到协议 MediaStream.Index 的谨慎映射
     runtime/CinePilotRuntime.kt  Android app runtime composition root
+    runtime/DeviceCodecDiagnostics.kt Android MediaCodecList 到诊断文本的设备 codec 能力快照
     runtime/PrimaryImageLoader.kt 海报与 public user 头像异步加载和短超时网络读取
     runtime/QuickConnectPoller.kt Jellyfin Quick Connect 自动轮询、立即检查和陈旧回调隔离
     runtime/RecentAccountStore.kt 最近登录账号列表和旧版本账号存储兼容

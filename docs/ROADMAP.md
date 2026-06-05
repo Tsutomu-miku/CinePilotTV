@@ -111,7 +111,7 @@
 - 播放器防误触：Back 退出播放前需要二次确认，确认层也不能形成第二套播放控制。
 - 无法连接服务器、不支持媒体、token 过期和上下文错误恢复已具备最小入口。
 - Media3 播放失败会释放播放器并显示中文恢复建议，已细分网络 / HTTP、超时、设备解码或格式不支持、DRM / 受保护内容和 HTTP 明文限制。
-- 设备端诊断信息已具备最小快照、不含 token 的文件导出、系统文件分享和文本 fallback；错误消息里的播放 URL token、access token query 和 token header 会统一脱敏。
+- 设备端诊断信息已具备最小快照、不含 token 的文件导出、系统文件分享、文本 fallback 和 Android `MediaCodecList` codec 能力快照；错误消息里的播放 URL token、access token query 和 token header 会统一脱敏。
 
 ## P2 候选
 
@@ -119,4 +119,4 @@
 - 服务器侧搜索已具备最小入口、全部 / 电影 / 剧集 / 单集 / 视频结果筛选，以及 Android 系统语音输入入口。
 - Live TV 支持。
 - 离线诊断导出已具备最小入口、私有文件导出和基于 `FileProvider` 的系统文件分享。
-- 设备级 codec 能力探测与 `DeviceProfile` 精细映射。
+- `DeviceProfile` 精细映射：设备级 codec 能力已进入诊断快照，仍需把能力转换为 Jellyfin / Emby 播放信息请求参数。
