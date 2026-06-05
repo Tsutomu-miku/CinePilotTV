@@ -14,6 +14,9 @@ fun ComponentActivity.homeScreen(
     loadImage: (ImageView, MediaItemSummary, Int, Int) -> Unit,
     onFocusedCard: (View) -> Unit,
 ): View {
+    val homeRows = state.homeRows()
+    val hasNoMedia = homeRows.isEmpty() || homeRows.all { it.items().isEmpty() }
+
     return screen("首页") {
         addView(actionStrip(listOf(
             compactIconAction("搜索媒体", TvIcon.SEARCH, navigation.onSearch),
@@ -22,11 +25,12 @@ fun ComponentActivity.homeScreen(
             compactIconAction("退出", TvIcon.LOGOUT, navigation.onLogout),
         )))
 
-        if (state.homeRows().isEmpty() || state.homeRows().all { it.items().isEmpty() }) {
+        if (hasNoMedia) {
             addView(emptyState("没有可显示的媒体"))
+            addView(homeEmptyActions(navigation))
         }
 
-        state.homeRows().forEach { row ->
+        homeRows.forEach { row ->
             if (row.items().isNotEmpty()) {
                 addView(section(row.title()))
                 addView(mediaShelf(
@@ -54,6 +58,14 @@ fun ComponentActivity.homeScreen(
             addView(actionStrip(browseActions))
         }
     }
+}
+
+private fun ComponentActivity.homeEmptyActions(navigation: HomeNavigation): View {
+    return actionStrip(listOf(
+        iconAction("刷新", TvIcon.REFRESH, navigation.onRefresh).requestInitialFocus(),
+        iconAction("搜索媒体", TvIcon.SEARCH, navigation.onSearch),
+        iconAction("切换账号", TvIcon.ACCOUNT, navigation.onSwitchAccount),
+    ))
 }
 
 data class HomeNavigation(

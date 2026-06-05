@@ -207,6 +207,16 @@ for home_text in "首页" "切换账号"; do
   fi
 done
 
+if ! grep -q 'homeEmptyActions' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/ui/HomeScreen.kt"; then
+  echo "Home empty state must expose inline recovery actions" >&2
+  exit 1
+fi
+
+if ! grep -q 'requestInitialFocus' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/ui/HomeScreen.kt"; then
+  echo "Home empty state must give D-pad focus to the primary recovery action" >&2
+  exit 1
+fi
+
 for playback_text in "播放" "退出登录"; do
   if ! grep -R -q "$playback_text" "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv"; then
     echo "TV UI is missing text: $playback_text" >&2
@@ -374,7 +384,8 @@ if ! grep -q '语音' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/home/HomeRout
   exit 1
 fi
 
-if ! grep -R -q 'homeRows().all' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv"; then
+if ! grep -q 'hasNoMedia' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/ui/HomeScreen.kt" ||
+  ! grep -q '没有可显示的媒体' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/ui/HomeScreen.kt"; then
   echo "Android TV UI must show an empty state for empty search results" >&2
   exit 1
 fi
