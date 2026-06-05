@@ -163,6 +163,11 @@ if ! grep -q 'TvRoute.PLAYER' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/MainA
   exit 1
 fi
 
+if (( $(wc -l < "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/MainActivity.kt") > 300 )); then
+  echo "MainActivity must stay focused on top-level routing and remain below 300 lines" >&2
+  exit 1
+fi
+
 if ! grep -q 'TYPE_TEXT_VARIATION_PASSWORD' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/auth/AuthScreens.kt"; then
   echo "Auth screens must mask the password input" >&2
   exit 1
@@ -403,12 +408,22 @@ if grep -q 'choiceAction' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/home/Home
   exit 1
 fi
 
-if ! grep -q 'RecognizerIntent.ACTION_RECOGNIZE_SPEECH' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/MainActivity.kt"; then
+if [[ ! -s "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/home/SearchRouteController.kt" ]]; then
+  echo "Missing dedicated search route controller" >&2
+  exit 1
+fi
+
+if ! grep -q 'SearchRouteController' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/MainActivity.kt"; then
+  echo "MainActivity must delegate search flow to SearchRouteController" >&2
+  exit 1
+fi
+
+if ! grep -q 'RecognizerIntent.ACTION_RECOGNIZE_SPEECH' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/home/SearchRouteController.kt"; then
   echo "Search must support Android voice recognition input" >&2
   exit 1
 fi
 
-if ! grep -q 'ActivityResultContracts.StartActivityForResult' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/MainActivity.kt"; then
+if ! grep -q 'ActivityResultContracts.StartActivityForResult' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/home/SearchRouteController.kt"; then
   echo "Voice search must use an Activity result callback" >&2
   exit 1
 fi

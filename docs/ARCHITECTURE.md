@@ -12,7 +12,7 @@ Android app 的运行时入口是 `CinePilotRuntime`。它负责创建客户端�
 
 客户端身份的 device id 应优先使用 `Settings.Secure.ANDROID_ID`，因为 session scope 依赖 device id 来避免 token 跨设备复用。只有无法读取 Android ID 时才 fallback 到设备型号和系统 build id。
 
-`MainActivity` 当前使用 Android 原生 View 承载 TV 流程：服务器输入、登录、首页、详情、播放准备和播放器。界面事件必须通过 `TvWorkflowController` 推进状态。通用暗色 TV 主题、焦点态、按钮、输入框、首页媒体架、详情屏幕和全屏播放器组件放在 `app/.../tv/ui`，避免 Activity 继续承担所有视觉细节。
+`MainActivity` 当前使用 Android 原生 View 承载 TV 流程，并只保留启动、生命周期、顶层 Back 分发和跨 route controller 的事件转发。服务器连接和登录放在 `AuthRouteController`，搜索页 / 筛选 / 语音输入放在 `SearchRouteController`，详情到播放器的播放准备和诊断放在 `PlaybackRouteController` / `PlaybackDiagnosticsController`。界面事件必须通过 `TvWorkflowController` 推进状态。通用暗色 TV 主题、焦点态、按钮、输入框、首页媒体架、详情屏幕和全屏播放器组件放在 `app/.../tv/ui`，避免 Activity 继续承担所有视觉细节。
 
 Android 遥控器 Back 键必须和页面按钮使用同一套 workflow 语义：登录、首页和错误页回到服务器输入；详情回首页；播放器页先释放 Media3 player 再回详情；只有服务器输入页交给系统退出。
 
@@ -88,7 +88,7 @@ Android 首页按钮获得选择意图时，应先调用 `TvWorkflowController.f
 
 文件夹分页由 `TvWorkflowController` 持有当前 parent、title、total count 和 start index。Android 只根据 `canPageBackwardInBrowse()` / `canPageForwardInBrowse()` 展示“上一页 / 下一页”，并调用 controller 的分页方法，不自行拼 `StartIndex` 或 `Limit`。
 
-首页搜索使用服务器侧 `SearchTerm` 查询，并把结果渲染为临时 home row。搜索页提供全部、电影、剧集、单集和视频筛选；筛选只通过 `SearchFilter` 转换成 `IncludeItemTypes` 传给服务器，Android UI 不能在本地按标题或类型二次猜测过滤。语音搜索只调用 Android 系统 `RecognizerIntent`，识别成功后复用同一个 workflow search 入口，不引入录音权限或独立语音状态。搜索结果进入同一套返回栈，用户可以通过“返回上级”回到搜索前的首页或目录。搜索结果为空时，首页必须显示“没有可显示的媒体”，不能只留下一个空标题。
+首页搜索使用服务器侧 `SearchTerm` 查询，并把结果渲染为临时 home row。搜索页提供全部、电影、剧集、单集和视频筛选；筛选只通过 `SearchFilter` 转换成 `IncludeItemTypes` 传给服务器，Android UI 不能在本地按标题或类型二次猜测过滤。语音搜索由 `SearchRouteController` 调用 Android 系统 `RecognizerIntent`，识别成功后复用同一个 workflow search 入口，不引入录音权限或独立语音状态。搜索结果进入同一套返回栈，用户可以通过“返回上级”回到搜索前的首页或目录。搜索结果为空时，界面显示“没有找到匹配的媒体”并提供重新搜索，不能只留下一个空标题。
 
 普通 browse 查询默认使用 `SortBy=SortName` 和 `SortOrder=Ascending`，让分页、焦点恢复和剧集层级浏览有稳定顺序。特殊行如最新内容可以用自己的 endpoint 和排序语义。
 

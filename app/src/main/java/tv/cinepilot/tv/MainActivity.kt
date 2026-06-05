@@ -1,17 +1,11 @@
 package tv.cinepilot.tv
 
-import android.app.Activity
-import android.content.ActivityNotFoundException
 import android.content.Intent
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
-import android.speech.RecognizerIntent
 import android.view.View
-import android.widget.EditText
 import android.widget.ImageView
-import android.widget.Toast
-import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.ComponentActivity
 import androidx.activity.OnBackPressedCallback
 import androidx.lifecycle.ViewModelProvider
@@ -19,14 +13,13 @@ import java.util.concurrent.Executors
 import tv.cinepilot.core.protocol.MediaBrowserException
 import tv.cinepilot.core.protocol.MediaItemSummary
 import tv.cinepilot.core.protocol.PublicUserSummary
-import tv.cinepilot.core.tv.SearchFilter
 import tv.cinepilot.core.tv.TvAppState
 import tv.cinepilot.core.tv.TvRoute
 import tv.cinepilot.tv.auth.AuthRouteController
 import tv.cinepilot.tv.error.errorRouteScreen
+import tv.cinepilot.tv.home.SearchRouteController
 import tv.cinepilot.tv.home.activeSearchTerm
 import tv.cinepilot.tv.home.homeRouteScreen
-import tv.cinepilot.tv.home.searchScreen
 import tv.cinepilot.tv.player.Media3PlayerHost
 import tv.cinepilot.tv.playback.PlaybackRouteController
 import tv.cinepilot.tv.playback.SubtitleStyleStore
@@ -40,26 +33,12 @@ class MainActivity : ComponentActivity() {
     private lateinit var playerHost: Media3PlayerHost
     private lateinit var authRoutes: AuthRouteController
     private lateinit var playbackRoutes: PlaybackRouteController
+    private lateinit var searchRoutes: SearchRouteController
     private lateinit var primaryImageLoader: PrimaryImageLoader
     private lateinit var subtitleStyleStore: SubtitleStyleStore
     private val executor = Executors.newSingleThreadExecutor()
     private val mainHandler = Handler(Looper.getMainLooper())
-    private var searchVisible = false
     private var accountSwitcherReturnState: TvAppState? = null
-    private var searchFilter = SearchFilter.ALL
-    private var pendingVoiceSearchTerm = ""
-    private val voiceSearchLauncher = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
-        val spokenTerm = result.data
-            ?.getStringArrayListExtra(RecognizerIntent.EXTRA_RESULTS)
-            ?.firstOrNull()
-            ?.trim()
-            .orEmpty()
-        if (result.resultCode == Activity.RESULT_OK && spokenTerm.isNotBlank()) {
-            submitSearchTerm(spokenTerm, searchFilter)
-        } else {
-            showSearch(pendingVoiceSearchTerm)
-        }
-    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -89,6 +68,12 @@ class MainActivity : ComponentActivity() {
             showError = ::showError,
             loadPosterImage = ::loadPrimaryImage,
         )
+        searchRoutes = SearchRouteController(
+            activity = this,
+            workflowController = viewModel.workflowController,
+            runTask = ::runTask,
+            showHome = ::showHome,
+        )
         onBackPressedDispatcher.addCallback(this, object : OnBackPressedCallback(true) {
             override fun handleOnBackPressed() {
                 handleBackPressed()
@@ -117,9 +102,7 @@ class MainActivity : ComponentActivity() {
         if (playbackRoutes.handleAuxiliaryBackPressed()) {
             return
         }
-        if (searchVisible) {
-            searchVisible = false
-            showHome(viewModel.workflowController.state())
+        if (searchRoutes.closeIfVisible()) {
             return
         }
         accountSwitcherReturnState?.let { returnState ->
@@ -164,7 +147,7 @@ class MainActivity : ComponentActivity() {
 
     private fun showHome(state: TvAppState) {
         authRoutes.stopQuickConnectPolling()
-        searchVisible = false
+        searchRoutes.hide()
         accountSwitcherReturnState = null
         var focusedCard: View? = null
         setContentView(homeRouteScreen(
@@ -172,7 +155,10 @@ class MainActivity : ComponentActivity() {
             canGoBack = viewModel.workflowController.canGoBackInBrowse(),
             canPageBackward = viewModel.workflowController.canPageBackwardInBrowse(),
             canPageForward = viewModel.workflowController.canPageForwardInBrowse(),
-            onSearch = { showSearch(state.activeSearchTerm()) },
+            onSearch = {
+                accountSwitcherReturnState = null
+                searchRoutes.showSearch(state.activeSearchTerm())
+            },
             onRefresh = ::refreshHome,
             onSwitchAccount = ::showAccountSwitcher,
             onLogout = authRoutes::logoutFromHome,
@@ -186,25 +172,8 @@ class MainActivity : ComponentActivity() {
         focusedCard?.post { focusedCard?.requestFocus() }
     }
 
-    private fun showSearch(initialTerm: String = "") {
-        searchVisible = true
-        accountSwitcherReturnState = null
-        val searchViews = searchScreen(
-            initialTerm = initialTerm,
-            selectedFilter = searchFilter,
-            onFilter = { filter, currentTerm ->
-                searchFilter = filter
-                showSearch(currentTerm)
-            },
-            onVoiceInput = ::startVoiceSearch,
-            onSubmit = ::submitSearch,
-        )
-        setContentView(searchViews.root)
-        searchViews.input.post { searchViews.input.requestFocus() }
-    }
-
     private fun showAccountSwitcher() {
-        searchVisible = false
+        searchRoutes.hide()
         accountSwitcherReturnState = viewModel.workflowController.state()
         authRoutes.showServerEntry()
     }
@@ -230,36 +199,6 @@ class MainActivity : ComponentActivity() {
             viewModel.workflowController.nextBrowsePage()
         }) {
             showHome(viewModel.workflowController.state())
-        }
-    }
-
-    private fun submitSearch(term: String, filter: SearchFilter, searchInput: EditText) {
-        if (term.isBlank()) {
-            searchInput.requestFocus()
-            return
-        }
-        submitSearchTerm(term, filter)
-    }
-
-    private fun submitSearchTerm(term: String, filter: SearchFilter) {
-        runTask("正在搜索...", {
-            viewModel.workflowController.search(term, filter)
-        }) {
-            showHome(viewModel.workflowController.state())
-        }
-    }
-
-    private fun startVoiceSearch(currentTerm: String) {
-        pendingVoiceSearchTerm = currentTerm
-        val intent = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
-            putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
-            putExtra(RecognizerIntent.EXTRA_PROMPT, "说出要搜索的媒体")
-        }
-        try {
-            voiceSearchLauncher.launch(intent)
-        } catch (_: ActivityNotFoundException) {
-            Toast.makeText(this, "当前设备没有可用的语音输入", Toast.LENGTH_SHORT).show()
-            showSearch(currentTerm)
         }
     }
 
