@@ -144,6 +144,7 @@ enum class TvIcon(@DrawableRes val drawableRes: Int) {
     SPEED(R.drawable.ic_speed),
     MIC(R.drawable.ic_mic),
     ACCOUNT(R.drawable.ic_account),
+    INFO(R.drawable.ic_info),
 }
 
 fun ComponentActivity.label(text: String): TextView {

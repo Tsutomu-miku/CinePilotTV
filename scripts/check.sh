@@ -517,7 +517,7 @@ for compatibility_label in 兼容性 高码率 字幕格式 图形字幕 高清�
   fi
 done
 
-for icon in search refresh logout play back subtitles speed mic account; do
+for icon in search refresh logout play back subtitles speed mic account info; do
   if [[ ! -s "$ROOT_DIR/app/src/main/res/drawable/ic_${icon}.xml" ]]; then
     echo "Missing TV action icon: ic_${icon}.xml" >&2
     exit 1
@@ -1013,6 +1013,21 @@ fi
 
 if ! grep -q 'requestInitialFocus' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/error/ErrorRouteScreen.kt"; then
   echo "Error recovery page must give D-pad focus to the first available recovery action" >&2
+  exit 1
+fi
+
+if ! grep -q 'primaryIconAction("低码率重试"' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/error/ErrorRouteScreen.kt"; then
+  echo "Playback error recovery must make low bitrate retry the primary action" >&2
+  exit 1
+fi
+
+if ! grep -q 'primaryOrSecondaryAction(actions, "重新登录"' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/error/ErrorRouteScreen.kt"; then
+  echo "Expired session recovery must make re-login the primary action when no earlier action exists" >&2
+  exit 1
+fi
+
+if ! grep -q 'TvIcon.INFO' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/error/ErrorRouteScreen.kt"; then
+  echo "Error diagnostics action must use an info icon" >&2
   exit 1
 fi
 
