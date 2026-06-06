@@ -913,15 +913,49 @@ if grep -q 'primaryIconAction\|compactIconAction\|action("播放"\|action("暂�
   exit 1
 fi
 
-for host_action in seekBack seekForward togglePlayPause handleRemoteKey KEYCODE_MEDIA_PLAY_PAUSE KEYCODE_MEDIA_REWIND KEYCODE_MEDIA_FAST_FORWARD; do
+REMOTE_PLAYER_VIEW="$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/player/RemotePlayerView.kt"
+
+for host_action in seekBack seekForward togglePlayPause RemotePlayerView; do
   if ! grep -q "$host_action" "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/player/Media3PlayerHost.kt"; then
     echo "Media3PlayerHost must wire remote playback control: $host_action" >&2
     exit 1
   fi
 done
 
-for in_player_track_control in 'setShowSubtitleButton(true)' KEYCODE_CAPTIONS KEYCODE_SETTINGS; do
-  if ! grep -q "$in_player_track_control" "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/player/Media3PlayerHost.kt"; then
+for remote_action in dispatchKeyEvent KEYCODE_MEDIA_PLAY_PAUSE KEYCODE_MEDIA_REWIND KEYCODE_MEDIA_FAST_FORWARD; do
+  if ! grep -q "$remote_action" "$REMOTE_PLAYER_VIEW"; then
+    echo "RemotePlayerView must handle remote playback control: $remote_action" >&2
+    exit 1
+  fi
+done
+
+if ! grep -q 'showSeekFeedback' "$REMOTE_PLAYER_VIEW" ||
+  ! grep -q '+30 秒' "$REMOTE_PLAYER_VIEW"; then
+  echo "RemotePlayerView must show lightweight feedback for seek shortcuts" >&2
+  exit 1
+fi
+
+if ! grep -q 'enterPausedControlMode' "$REMOTE_PLAYER_VIEW" ||
+  ! grep -q 'requestPlayPauseFocus' "$REMOTE_PLAYER_VIEW" ||
+  ! grep -q 'playPauseButtonIds' "$REMOTE_PLAYER_VIEW" ||
+  ! grep -q 'playPauseButtonHasFocus()' "$REMOTE_PLAYER_VIEW"; then
+  echo "RemotePlayerView must keep native play/pause focused while paused" >&2
+  exit 1
+fi
+
+if ! grep -q 'SHORTCUT_SEEK_MODE_MS' "$REMOTE_PLAYER_VIEW" ||
+  ! grep -q 'showController()' "$REMOTE_PLAYER_VIEW"; then
+  echo "RemotePlayerView must show the timeline while preserving repeated seek shortcuts" >&2
+  exit 1
+fi
+
+if ! grep -q 'setShowSubtitleButton(true)' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/player/Media3PlayerHost.kt"; then
+  echo "Media3PlayerHost must expose Media3 subtitle controls" >&2
+  exit 1
+fi
+
+for in_player_track_control in KEYCODE_CAPTIONS KEYCODE_SETTINGS; do
+  if ! grep -q "$in_player_track_control" "$REMOTE_PLAYER_VIEW"; then
     echo "Media3PlayerHost must expose Media3 in-player audio/subtitle controls: $in_player_track_control" >&2
     exit 1
   fi
@@ -932,9 +966,16 @@ if [[ ! -s "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/playback/PlaybackDebugIn
   exit 1
 fi
 
-if ! grep -q 'iconAction("视频信息", TvIcon.INFO' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/ui/PlayerScreen.kt" ||
+if ! grep -q 'playerInfoButton' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/ui/PlayerScreen.kt" ||
+  ! grep -q 'R.drawable.ic_info' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/ui/PlayerScreen.kt" ||
   ! grep -q 'playbackDebugInfo(state)' "$PLAYBACK_ROUTE_CONTROLLER"; then
   echo "Player screen must expose a video info debug button using current playable media" >&2
+  exit 1
+fi
+
+if ! grep -q 'Media3UiR.id.exo_settings' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/ui/PlayerScreen.kt" ||
+  ! grep -q 'controls.addView(infoButton' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/ui/PlayerScreen.kt"; then
+  echo "Player video info button must be inserted beside Media3 settings controls" >&2
   exit 1
 fi
 
@@ -1356,8 +1397,26 @@ if ! grep -q 'setPlaybackSpeed' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/pla
   exit 1
 fi
 
-if ! grep -q 'KEYCODE_DPAD_LEFT' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/player/Media3PlayerHost.kt"; then
+if ! grep -q 'KEYCODE_DPAD_LEFT' "$REMOTE_PLAYER_VIEW"; then
   echo "Media3PlayerHost must support D-pad left/right seek shortcuts" >&2
+  exit 1
+fi
+
+if ! grep -q 'KEYCODE_DPAD_CENTER' "$REMOTE_PLAYER_VIEW" ||
+  ! grep -q 'togglePlayPause()' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/player/Media3PlayerHost.kt"; then
+  echo "Player remote OK key must directly toggle play/pause" >&2
+  exit 1
+fi
+
+if ! grep -q 'setShowRewindButton(false)' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/player/Media3PlayerHost.kt" ||
+  ! grep -q 'setShowFastForwardButton(false)' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/player/Media3PlayerHost.kt" ||
+  ! grep -q 'hideInlineTransportButtons' "$REMOTE_PLAYER_VIEW"; then
+  echo "Player controller must hide duplicate seek buttons" >&2
+  exit 1
+fi
+
+if ! grep -q 'isControllerFullyVisible' "$REMOTE_PLAYER_VIEW"; then
+  echo "Player left/right quick seek must only intercept while controls are hidden" >&2
   exit 1
 fi
 

@@ -5,7 +5,6 @@ import android.graphics.Typeface
 import android.net.Uri
 import android.os.Handler
 import android.os.Looper
-import android.view.KeyEvent
 import android.view.View
 import androidx.media3.common.C
 import androidx.media3.common.MediaItem
@@ -78,17 +77,28 @@ class Media3PlayerHost(
         bridge = playbackBridge
         player = nextPlayer
         startProgressTicks(nextPlayer, playbackBridge)
-        return PlayerView(context).apply {
+        return RemotePlayerView(
+            context = context,
+            onSeekBack = ::seekBack,
+            onSeekForward = ::seekForward,
+            onTogglePlayPause = ::togglePlayPause,
+            onPlay = { player?.play() },
+            onPause = { player?.pause() },
+            normalControllerTimeoutMs = PLAYER_CONTROLLER_TIMEOUT_MS,
+        ).apply {
             this.player = nextPlayer
             useController = true
             keepScreenOn = true
             setShowSubtitleButton(true)
             setShowPreviousButton(false)
             setShowNextButton(false)
-            setControllerAutoShow(true)
+            setShowRewindButton(false)
+            setShowFastForwardButton(false)
+            setShowPlayButtonIfPlaybackIsSuppressed(false)
+            setControllerAutoShow(false)
             setControllerShowTimeoutMs(PLAYER_CONTROLLER_TIMEOUT_MS)
             applySubtitleStyle(this)
-            setOnKeyListener { _, keyCode, event -> handleRemoteKey(this, keyCode, event) }
+            hideInlineTransportButtons()
         }
     }
 
@@ -100,14 +110,16 @@ class Media3PlayerHost(
         seekBy(REMOTE_SEEK_STEP_MS)
     }
 
-    fun togglePlayPause() {
-        player?.let { currentPlayer ->
+    fun togglePlayPause(): Boolean {
+        return player?.let { currentPlayer ->
             if (currentPlayer.isPlaying) {
                 currentPlayer.pause()
+                false
             } else {
                 currentPlayer.play()
+                true
             }
-        }
+        } ?: false
     }
 
     fun release() {
@@ -124,49 +136,6 @@ class Media3PlayerHost(
     fun shutdown() {
         release()
         checkInExecutor.shutdownNow()
-    }
-
-    private fun handleRemoteKey(playerView: PlayerView, keyCode: Int, event: KeyEvent): Boolean {
-        if (event.action != KeyEvent.ACTION_DOWN) {
-            return false
-        }
-        return when (keyCode) {
-            KeyEvent.KEYCODE_MENU,
-            KeyEvent.KEYCODE_SETTINGS,
-            KeyEvent.KEYCODE_CAPTIONS -> {
-                playerView.showController()
-                true
-            }
-            KeyEvent.KEYCODE_MEDIA_REWIND -> {
-                seekBack()
-                true
-            }
-            KeyEvent.KEYCODE_MEDIA_FAST_FORWARD -> {
-                seekForward()
-                true
-            }
-            KeyEvent.KEYCODE_DPAD_LEFT -> {
-                seekBack()
-                true
-            }
-            KeyEvent.KEYCODE_DPAD_RIGHT -> {
-                seekForward()
-                true
-            }
-            KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE -> {
-                togglePlayPause()
-                true
-            }
-            KeyEvent.KEYCODE_MEDIA_PLAY -> {
-                player?.play()
-                true
-            }
-            KeyEvent.KEYCODE_MEDIA_PAUSE -> {
-                player?.pause()
-                true
-            }
-            else -> false
-        }
     }
 
     private fun seekBy(deltaMillis: Long) {
