@@ -711,6 +711,27 @@ if ! grep -q 'TvColors.PillBorder' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/
   exit 1
 fi
 
+if ! grep -q 'homeStage' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/ui/HomeScreen.kt" ||
+  ! grep -q 'homeHeroBar' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/ui/HomeScreen.kt" ||
+  ! grep -q 'homeActionRail' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/ui/HomeScreen.kt"; then
+  echo "Home screen must render as an Infuse-style media stage with a quiet action rail" >&2
+  exit 1
+fi
+
+if ! grep -q 'detailInfoPanel' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/ui/DetailsScreen.kt" ||
+  ! grep -q 'TvColors.Surface' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/ui/DetailsScreen.kt" ||
+  ! grep -q 'TvColors.PillBorder' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/ui/DetailsScreen.kt"; then
+  echo "Details screen must use an Infuse-style glass information panel" >&2
+  exit 1
+fi
+
+if ! grep -q 'PopupWindow' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/ui/OptionSelect.kt" ||
+  ! grep -q 'TvColors.PillBorder' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/ui/OptionSelect.kt" ||
+  ! grep -q 'TvColors.Focus' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/ui/OptionSelect.kt"; then
+  echo "OptionSelect must remain a glass popover selector with themed focus state" >&2
+  exit 1
+fi
+
 if ! grep -q 'iconAction("上一页", TvIcon.BACK' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/ui/HomeScreen.kt"; then
   echo "Home browse previous action must use the shared back icon" >&2
   exit 1

@@ -1,7 +1,14 @@
 package tv.cinepilot.tv.ui
 
+import android.graphics.Typeface
+import android.text.TextUtils
+import android.view.Gravity
 import android.view.View
+import android.view.ViewGroup
 import android.widget.ImageView
+import android.widget.LinearLayout
+import android.widget.ScrollView
+import android.widget.TextView
 import androidx.activity.ComponentActivity
 import tv.cinepilot.core.protocol.MediaItemSummary
 import tv.cinepilot.core.tv.HomeRow
@@ -22,8 +29,12 @@ fun ComponentActivity.homeScreen(
     var fallbackFocusAssigned = false
     var restoredFocusAssigned = false
 
-    return screen(if (isSearchResults) "搜索结果" else "首页") {
-        addView(actionStrip(listOf(
+    return homeStage(if (isSearchResults) "搜索结果" else "媒体库") {
+        addView(homeHeroBar(
+            title = if (isSearchResults) "搜索结果" else "媒体库",
+            subtitle = if (isSearchResults) "按当前筛选浏览匹配的媒体" else "继续观看、媒体库和最新内容",
+        ))
+        addView(homeActionRail(listOf(
             compactIconAction("搜索媒体", TvIcon.SEARCH, navigation.onSearch),
             compactIconAction("刷新", TvIcon.REFRESH, navigation.onRefresh),
             compactIconAction("切换账号", TvIcon.ACCOUNT, navigation.onSwitchAccount),
@@ -69,6 +80,63 @@ fun ComponentActivity.homeScreen(
             addView(section("浏览"))
             addView(actionStrip(browseActions))
         }
+    }
+}
+
+private fun ComponentActivity.homeStage(title: String, content: LinearLayout.() -> Unit): ScrollView {
+    val container = LinearLayout(this).apply {
+        orientation = LinearLayout.VERTICAL
+        setPadding(dp(TvSpacing.ScreenX), dp(22), dp(TvSpacing.ScreenX), dp(TvSpacing.ScreenBottom))
+        setBackgroundColor(TvColors.Background)
+        content()
+    }
+    return ScrollView(this).apply {
+        setBackgroundColor(TvColors.Background)
+        isFillViewport = true
+        isFocusable = false
+        descendantFocusability = ViewGroup.FOCUS_AFTER_DESCENDANTS
+        contentDescription = title
+        addView(container, LinearLayout.LayoutParams(
+            LinearLayout.LayoutParams.MATCH_PARENT,
+            LinearLayout.LayoutParams.WRAP_CONTENT,
+        ))
+    }
+}
+
+private fun ComponentActivity.homeHeroBar(title: String, subtitle: String): View {
+    return LinearLayout(this).apply {
+        orientation = LinearLayout.VERTICAL
+        setPadding(0, 0, 0, dp(8))
+        addView(TextView(this@homeHeroBar).apply {
+            text = "CinePilot TV"
+            textSize = 12f
+            letterSpacing = 0.08f
+            setTextColor(TvColors.Accent)
+            includeFontPadding = false
+        })
+        addView(TextView(this@homeHeroBar).apply {
+            text = title
+            textSize = 26f
+            typeface = Typeface.DEFAULT
+            setTextColor(TvColors.TextPrimary)
+            includeFontPadding = false
+            maxLines = 1
+            ellipsize = TextUtils.TruncateAt.END
+            setPadding(0, dp(5), 0, dp(3))
+        })
+        addView(TextView(this@homeHeroBar).apply {
+            text = subtitle
+            textSize = TvType.Metadata
+            setTextColor(TvColors.TextMuted)
+            includeFontPadding = false
+            gravity = Gravity.START
+        })
+    }
+}
+
+private fun ComponentActivity.homeActionRail(actions: List<View>): View {
+    return actionStrip(actions).apply {
+        setPadding(0, 0, 0, dp(4))
     }
 }
 

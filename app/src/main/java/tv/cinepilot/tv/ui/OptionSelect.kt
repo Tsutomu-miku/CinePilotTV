@@ -31,7 +31,7 @@ fun ComponentActivity.optionSelect(
         isClickable = true
         descendantFocusability = ViewGroup.FOCUS_BLOCK_DESCENDANTS
         contentDescription = "$title，当前 $selectedLabel"
-        background = rounded(TvColors.SurfaceControl, dp(TvRadius.Control), dp(1), TvColors.PosterBorder)
+        background = rounded(TvColors.Surface, dp(TvRadius.Control), dp(1), TvColors.PillBorder)
         setPadding(dp(14), 0, dp(12), 0)
         addView(optionTitle(title))
         addView(optionValue(selectedLabel), LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f))
@@ -46,10 +46,10 @@ fun ComponentActivity.optionSelect(
                 .setDuration(160L)
                 .start()
             focusedView.background = rounded(
-                if (hasFocus) TvColors.SurfaceRaised else TvColors.SurfaceControl,
+                if (hasFocus) TvColors.SurfaceRaised else TvColors.Surface,
                 dp(TvRadius.Control),
-                if (hasFocus) dp(3) else dp(1),
-                if (hasFocus) TvColors.FocusRing else TvColors.PosterBorder,
+                if (hasFocus) dp(2) else dp(1),
+                if (hasFocus) TvColors.FocusRing else TvColors.PillBorder,
             )
         }
         layoutParams = LinearLayout.LayoutParams(
@@ -89,7 +89,7 @@ private fun ComponentActivity.optionValue(value: String): TextView {
 
 private fun ComponentActivity.optionChevron(): TextView {
     return TextView(this).apply {
-        text = ">"
+        text = "⌄"
         textSize = TvType.Metadata
         setTextColor(TvColors.TextMuted)
         gravity = Gravity.CENTER
@@ -126,13 +126,13 @@ private fun ComponentActivity.showOptionPopover(
         addView(list)
     }
     val width = minOf(dp(680), resources.displayMetrics.widthPixels - dp(160))
-    val height = minOf(dp(76 + options.size * 48), resources.displayMetrics.heightPixels - dp(160))
+    val height = minOf(dp(74 + options.size * 46), resources.displayMetrics.heightPixels - dp(160))
     popup = PopupWindow(scroll, width, height, true).apply {
         isOutsideTouchable = true
         setBackgroundDrawable(ColorDrawable(Color.TRANSPARENT))
         elevation = dp(10).toFloat()
     }
-    scroll.background = rounded(TvColors.SurfaceRaised, dp(TvRadius.Card), dp(1), TvColors.FocusRing)
+    scroll.background = rounded(TvColors.SurfaceRaised, dp(TvRadius.Card), dp(1), TvColors.PillBorder)
     popup?.showAtLocation(anchor.rootView, Gravity.CENTER, 0, 0)
     (selectedView ?: list.getChildAt(1))?.post {
         (selectedView ?: list.getChildAt(1))?.requestFocus()
@@ -165,14 +165,22 @@ private fun ComponentActivity.popoverOption(option: TvOptionSelectItem, onClick:
         setPadding(dp(12), 0, dp(12), 0)
         setOnClickListener { onClick() }
         setOnFocusChangeListener { focusedView, hasFocus ->
+            focusedView.animate()
+                .translationZ(if (hasFocus) dp(6).toFloat() else 0f)
+                .setDuration(140L)
+                .start()
             focusedView.background = optionBackground(option.selected, hasFocus)
             if (focusedView is TextView) {
-                focusedView.setTextColor(if (hasFocus || option.selected) TvColors.AccentStrong else TvColors.TextSecondary)
+                focusedView.setTextColor(when {
+                    hasFocus -> TvColors.FocusText
+                    option.selected -> TvColors.AccentStrong
+                    else -> TvColors.TextSecondary
+                })
             }
         }
         layoutParams = LinearLayout.LayoutParams(
             LinearLayout.LayoutParams.MATCH_PARENT,
-            dp(42),
+            dp(40),
         ).apply {
             bottomMargin = dp(6)
         }
@@ -180,12 +188,12 @@ private fun ComponentActivity.popoverOption(option: TvOptionSelectItem, onClick:
 }
 
 private fun ComponentActivity.optionBackground(selected: Boolean, focused: Boolean) = rounded(
-    if (focused) TvColors.SurfaceControl else TvColors.SurfaceRaised,
+    if (focused) TvColors.Focus else if (selected) TvColors.SurfaceControl else TvColors.SurfaceRaised,
     dp(TvRadius.Control),
     if (focused || selected) dp(2) else dp(1),
     when {
         focused -> TvColors.FocusRing
         selected -> TvColors.Accent
-        else -> TvColors.PosterBorder
+        else -> TvColors.PillBorder
     },
 )

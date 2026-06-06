@@ -109,10 +109,12 @@ private fun ComponentActivity.addPosterIfAvailable(
         contentDescription = "${item.name()} 海报"
         scaleType = ImageView.ScaleType.CENTER_CROP
         setBackground(rounded(TvColors.PosterFallback, dp(8), dp(1), TvColors.PosterBorder))
+        clipToOutline = true
+        elevation = dp(8).toFloat()
         adjustViewBounds = false
     }
     container.addView(poster, LinearLayout.LayoutParams(dp(TvSize.DetailPosterWidth), dp(TvSize.DetailPosterHeight)).apply {
-        rightMargin = dp(22)
+        rightMargin = dp(24)
         bottomMargin = dp(16)
     })
     loadPosterImage(poster, item, 240, 360)

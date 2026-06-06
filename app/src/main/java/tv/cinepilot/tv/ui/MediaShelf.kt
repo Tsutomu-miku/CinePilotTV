@@ -29,7 +29,7 @@ fun ComponentActivity.mediaShelf(
         orientation = LinearLayout.HORIZONTAL
         clipChildren = false
         clipToPadding = false
-        setPadding(dp(TvSpacing.FocusInset), dp(TvSpacing.FocusInset), dp(12), dp(6))
+        setPadding(dp(TvSpacing.FocusInset), dp(2), dp(12), dp(8))
     }
     row.items().forEach { item ->
         val card = mediaCard(row, item, onFocus, onOpen, loadImage)
@@ -58,7 +58,7 @@ private fun ComponentActivity.mediaCard(
         isClickable = true
         clipToOutline = true
         contentDescription = "${row.title()} ${item.name()}"
-        background = rounded(TvColors.SurfaceRaised, dp(TvRadius.Card))
+        background = rounded(TvColors.PosterFallback, dp(TvRadius.Card), dp(1), TvColors.PosterBorder)
         setOnClickListener { onOpen(row, item) }
     }
     val poster = ImageView(this).apply {
@@ -94,9 +94,9 @@ private fun ComponentActivity.mediaCard(
             onFocus(row, item)
         }
         focusedView.animate()
-            .alpha(if (hasFocus) 1f else 0.96f)
-            .translationZ(if (hasFocus) dp(8).toFloat() else 0f)
-            .setDuration(120L)
+            .alpha(if (hasFocus) 1f else 0.94f)
+            .translationZ(if (hasFocus) dp(10).toFloat() else 0f)
+            .setDuration(MEDIA_CARD_FOCUS_ANIMATION_MS)
             .start()
         title.setTextColor(if (hasFocus) TvColors.FocusText else TvColors.TextPrimary)
         animateMediaCardFocus(focusedView as FrameLayout, title, hasFocus)
@@ -113,8 +113,8 @@ private fun ComponentActivity.animateMediaCardFocus(card: FrameLayout, title: Te
     mediaTitleAnimators[title]?.cancel()
     mediaTitleAnimators[title] = ValueAnimator.ofObject(
         ArgbEvaluator(),
-        if (hasFocus) TvColors.Overlay else TvColors.AccentStrong,
-        if (hasFocus) TvColors.AccentStrong else TvColors.Overlay,
+        if (hasFocus) TvColors.Overlay else TvColors.Focus,
+        if (hasFocus) TvColors.Focus else TvColors.Overlay,
     ).apply {
         duration = MEDIA_CARD_FOCUS_ANIMATION_MS
         addUpdateListener { animator ->
@@ -128,7 +128,7 @@ private fun ComponentActivity.animateMediaCardFocus(card: FrameLayout, title: Te
         duration = MEDIA_CARD_FOCUS_ANIMATION_MS
         addUpdateListener { animator ->
             val progress = animator.animatedValue as Float
-            val strokeWidth = (dp(4) * progress).toInt()
+            val strokeWidth = (dp(3) * progress).toInt()
             card.foreground = rounded(
                 Color.TRANSPARENT,
                 dp(TvRadius.Card),

@@ -4,7 +4,9 @@ import android.graphics.Typeface
 import android.text.TextUtils
 import android.view.Gravity
 import android.view.View
+import android.view.ViewGroup
 import android.widget.LinearLayout
+import android.widget.ScrollView
 import android.widget.TextView
 import androidx.activity.ComponentActivity
 import tv.cinepilot.core.protocol.MediaItemType
@@ -21,14 +23,15 @@ fun ComponentActivity.detailsScreen(
     folderAction: View,
     loadPoster: (LinearLayout, MediaItemSummary) -> Unit,
 ): View {
-    val root = screen("详情") {
+    val root = detailsStage(item.name()) {
         addView(LinearLayout(this@detailsScreen).apply {
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.TOP
+            clipChildren = false
+            clipToPadding = false
             loadPoster(this, item)
             addView(
-                LinearLayout(this@detailsScreen).apply {
-                    orientation = LinearLayout.VERTICAL
+                detailInfoPanel {
                     addView(detailTitle(item.name()))
                     addView(metadataPills(detailMetadata(item, episodeLabel)))
                     if (item.hasResumePosition()) {
@@ -59,10 +62,39 @@ fun ComponentActivity.detailsScreen(
     return root.bindVerticalDpadScrollFallback()
 }
 
+private fun ComponentActivity.detailsStage(title: String, content: LinearLayout.() -> Unit): ScrollView {
+    val container = LinearLayout(this).apply {
+        orientation = LinearLayout.VERTICAL
+        setPadding(dp(TvSpacing.ScreenX), dp(24), dp(TvSpacing.ScreenX), dp(TvSpacing.ScreenBottom))
+        setBackgroundColor(TvColors.Background)
+        content()
+    }
+    return ScrollView(this).apply {
+        setBackgroundColor(TvColors.Background)
+        isFillViewport = true
+        isFocusable = false
+        descendantFocusability = ViewGroup.FOCUS_AFTER_DESCENDANTS
+        contentDescription = "详情 $title"
+        addView(container, LinearLayout.LayoutParams(
+            LinearLayout.LayoutParams.MATCH_PARENT,
+            LinearLayout.LayoutParams.WRAP_CONTENT,
+        ))
+    }
+}
+
+private fun ComponentActivity.detailInfoPanel(content: LinearLayout.() -> Unit): LinearLayout {
+    return LinearLayout(this).apply {
+        orientation = LinearLayout.VERTICAL
+        background = rounded(TvColors.Surface, dp(TvRadius.Card), dp(1), TvColors.PillBorder)
+        setPadding(dp(18), dp(16), dp(18), dp(18))
+        content()
+    }
+}
+
 private fun ComponentActivity.detailTitle(title: String): TextView {
     return TextView(this).apply {
         text = title
-        textSize = TvType.Title
+        textSize = 28f
         typeface = Typeface.DEFAULT
         setTextColor(TvColors.TextPrimary)
         maxLines = 3
