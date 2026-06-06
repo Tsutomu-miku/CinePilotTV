@@ -938,7 +938,8 @@ fi
 if ! grep -q 'enterPausedControlMode' "$REMOTE_PLAYER_VIEW" ||
   ! grep -q 'requestPlayPauseFocus' "$REMOTE_PLAYER_VIEW" ||
   ! grep -q 'playPauseButtonIds' "$REMOTE_PLAYER_VIEW" ||
-  ! grep -q 'playPauseButtonHasFocus()' "$REMOTE_PLAYER_VIEW"; then
+  ! grep -q 'playPauseButtonHasFocus()' "$REMOTE_PLAYER_VIEW" ||
+  ! grep -q 'togglePlayPauseFromControl' "$REMOTE_PLAYER_VIEW"; then
   echo "RemotePlayerView must keep native play/pause focused while paused" >&2
   exit 1
 fi

@@ -124,6 +124,11 @@ internal class RemotePlayerView(
             transportButtonIds.forEach { viewId ->
                 findViewById<View>(viewId)?.visibility = View.GONE
             }
+            playPauseButtonIds.forEach { viewId ->
+                findViewById<View>(viewId)?.setOnClickListener {
+                    togglePlayPauseFromControl()
+                }
+            }
         }
     }
 
@@ -142,12 +147,7 @@ internal class RemotePlayerView(
         if (isControllerFullyVisible && controllerChildHasFocus()) {
             if (playPauseButtonHasFocus()) {
                 if (event.repeatCount == 0) {
-                    val isPlaying = onTogglePlayPause()
-                    if (isPlaying) {
-                        enterPlayingMode()
-                    } else {
-                        enterPausedControlMode()
-                    }
+                    togglePlayPauseFromControl()
                 }
                 return true
             }
@@ -162,6 +162,15 @@ internal class RemotePlayerView(
             }
         }
         return true
+    }
+
+    private fun togglePlayPauseFromControl() {
+        val isPlaying = onTogglePlayPause()
+        if (isPlaying) {
+            enterPlayingMode()
+        } else {
+            enterPausedControlMode()
+        }
     }
 
     private fun seekBackWithFeedback() {
@@ -211,6 +220,9 @@ internal class RemotePlayerView(
         post {
             playPauseButton()?.requestFocus()
         }
+        postDelayed({
+            playPauseButton()?.requestFocus()
+        }, PLAY_PAUSE_FOCUS_RETRY_MS)
     }
 
     private fun playPauseButtonHasFocus(): Boolean {
@@ -258,6 +270,7 @@ internal class RemotePlayerView(
         private const val FEEDBACK_VISIBLE_MS = 520L
         private const val FEEDBACK_FADE_MS = 150L
         private const val SHORTCUT_SEEK_MODE_MS = 1_500L
+        private const val PLAY_PAUSE_FOCUS_RETRY_MS = 80L
         private val playPauseButtonIds = listOf(
             Media3UiR.id.exo_play_pause,
             Media3UiR.id.exo_play,
