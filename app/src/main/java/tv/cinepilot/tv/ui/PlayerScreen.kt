@@ -7,6 +7,7 @@ import android.view.View
 import android.widget.FrameLayout
 import android.widget.TextView
 import androidx.activity.ComponentActivity
+import androidx.media3.ui.PlayerView
 
 fun ComponentActivity.playerScreen(
     playerView: View,
@@ -23,22 +24,31 @@ fun ComponentActivity.playerScreen(
     val infoButton = iconAction("视频信息", TvIcon.INFO) {
         infoPanel.visibility = if (infoPanel.visibility == View.VISIBLE) View.GONE else View.VISIBLE
     }
+    infoButton.visibility = View.GONE
     root.addView(infoButton, FrameLayout.LayoutParams(
         FrameLayout.LayoutParams.WRAP_CONTENT,
         dp(TvSize.ControlHeight),
-        Gravity.TOP or Gravity.END,
+        Gravity.BOTTOM or Gravity.END,
     ).apply {
-        topMargin = dp(24)
         rightMargin = dp(32)
+        bottomMargin = dp(96)
     })
     root.addView(infoPanel, FrameLayout.LayoutParams(
         dp(560),
         FrameLayout.LayoutParams.WRAP_CONTENT,
-        Gravity.TOP or Gravity.END,
+        Gravity.BOTTOM or Gravity.END,
     ).apply {
-        topMargin = dp(86)
         rightMargin = dp(32)
+        bottomMargin = dp(170)
     })
+    if (playerView is PlayerView) {
+        playerView.setControllerVisibilityListener(PlayerView.ControllerVisibilityListener { visibility ->
+            infoButton.visibility = visibility
+            if (visibility != View.VISIBLE) {
+                infoPanel.visibility = View.GONE
+            }
+        })
+    }
     return root
 }
 

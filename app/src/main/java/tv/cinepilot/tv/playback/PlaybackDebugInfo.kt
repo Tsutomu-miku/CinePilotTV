@@ -18,6 +18,9 @@ fun playbackDebugInfo(state: TvAppState): String {
     playable.request()?.let { request ->
         lines.add("请求路径：${request.path()}")
         lines.add("请求参数：${request.query().keys.joinToString(", ").ifBlank { "无" }}")
+    } ?: playable.url()?.let { url ->
+        lines.add("请求路径：${urlPath(url)}")
+        lines.add("请求参数：${urlQueryKeys(url).joinToString(", ").ifBlank { "无" }}")
     }
     lines.add("起播位置：${formatPlaybackPosition(playable.startTimeTicks())}")
     lines.add("播放速度：${playable.playbackRate()?.let { "${it}x" } ?: "1.0x"}")
@@ -38,6 +41,20 @@ private fun playMethodLabel(method: PlayMethod): String {
 
 private fun urlSourceLabel(playable: PlayableMedia): String {
     return if (playable.hasReadyUrl()) "服务器已返回播放 URL" else "由本机协议请求生成"
+}
+
+private fun urlPath(url: String): String {
+    return url.substringBefore('?').substringAfter("://").substringAfter('/')
+}
+
+private fun urlQueryKeys(url: String): List<String> {
+    val query = url.substringAfter('?', "")
+    if (query.isBlank()) {
+        return emptyList()
+    }
+    return query.substringBefore('#')
+        .split('&')
+        .mapNotNull { pair -> pair.substringBefore('=', "").takeIf { it.isNotBlank() } }
 }
 
 private fun selectedVideoLabel(playable: PlayableMedia): String {
