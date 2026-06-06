@@ -86,7 +86,7 @@ private fun subtitleDeliveryLabel(playable: PlayableMedia): String {
     if (index < 0) {
         return "关闭"
     }
-    if (playable.subtitleDeliveryUrl().isNotBlank() && playable.playMethod() != PlayMethod.TRANSCODE) {
+    if (playable.subtitleDeliveryUrl().isNotBlank()) {
         return "Media3 外挂字幕 URL"
     }
     if (playable.subtitleDeliveryMethod().isNotBlank()) {

@@ -191,7 +191,6 @@ class Media3PlayerHost(
         val subtitleDeliveryUrl = playable.subtitleDeliveryUrl()
         val subtitleStreamIndex = playable.subtitleStreamIndex()
         if (
-            playable.playMethod() != PlayMethod.TRANSCODE &&
             subtitleStreamIndex != null &&
             subtitleStreamIndex >= 0 &&
             !subtitleDeliveryUrl.isNullOrBlank()

@@ -603,6 +603,30 @@ public final class ProtocolCoreTest {
         assertTrue(negotiatedSubtitleSelection.url().contains("StartTimeTicks=300000000"), "hls subtitle keeps selected start");
         assertEquals("Hls", negotiatedSubtitleSelection.subtitleDeliveryMethod(), "hls subtitle delivery method is retained");
 
+        MediaSourceInfo transcodeWithExternalSubtitle = MediaSourceInfo.builder("source-transcode-external")
+                .supportsTranscoding(true)
+                .transcodingUrl("/Videos/item-7/master.m3u8?MediaSourceId=source-transcode-external&VideoCodec=h264&AudioCodec=aac")
+                .mediaStreams(List.of(
+                        new MediaStreamInfo(0, MediaStreamType.VIDEO, "h264", "", "1080p", true, false, false, null),
+                        new MediaStreamInfo(1, MediaStreamType.AUDIO, "aac", "jpn", "Japanese", true, false, false, null),
+                        new MediaStreamInfo(2, MediaStreamType.SUBTITLE, "srt", "zho", "Chinese SRT", true, false, true, "External", "/Videos/item-7/Subtitles/2/Stream.srt")
+                ))
+                .build();
+        PlayableMedia externalTranscodeSelection = PlaybackSourceSelector.select(
+                address,
+                session,
+                ServerFlavor.JELLYFIN,
+                new PlaybackInfo("item-7", "play-session-7", List.of(transcodeWithExternalSubtitle)),
+                new PlaybackSelectionPreferences(0L, 1, 2, null, 0, 0, 0)
+        ).orElseThrow();
+        assertEquals(PlayMethod.TRANSCODE, externalTranscodeSelection.playMethod(), "external subtitle can accompany transcode video");
+        assertEquals("External", externalTranscodeSelection.subtitleDeliveryMethod(), "external subtitle delivery method is retained");
+        assertEquals(
+                "https://media.example.com/jellyfin/Videos/item-7/Subtitles/2/Stream.srt",
+                externalTranscodeSelection.subtitleDeliveryUrl(),
+                "external subtitle url is retained for transcode playback"
+        );
+
         MediaSourceInfo fallbackTranscode = MediaSourceInfo.builder("source-hls")
                 .supportsTranscoding(true)
                 .mediaStreams(List.of(
