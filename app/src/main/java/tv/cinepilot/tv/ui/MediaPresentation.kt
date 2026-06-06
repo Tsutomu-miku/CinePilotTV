@@ -1,0 +1,121 @@
+package tv.cinepilot.tv.ui
+
+import tv.cinepilot.core.protocol.MediaItemSummary
+import tv.cinepilot.core.protocol.MediaItemType
+import tv.cinepilot.core.protocol.MediaTicks
+
+data class ArtworkSet(
+    val primaryTag: String,
+    val thumbTag: String,
+    val backdropTags: List<String>,
+    val fallbackStrategy: ArtworkFallbackStrategy,
+) {
+    val hasBackdrop: Boolean = backdropTags.isNotEmpty() || thumbTag.isNotBlank() || primaryTag.isNotBlank()
+}
+
+enum class ArtworkFallbackStrategy {
+    BACKDROP_THUMB_PRIMARY,
+    PRIMARY_ONLY,
+    NONE,
+}
+
+data class MediaMetadataLine(
+    val values: List<String>,
+) {
+    fun text(): String = values.filter { it.isNotBlank() }.joinToString(" · ")
+}
+
+data class MediaPresentation(
+    val title: String,
+    val subtitle: String,
+    val metadata: MediaMetadataLine,
+    val progressLabel: String,
+    val primaryArtwork: ArtworkSet,
+    val backdropArtwork: ArtworkSet,
+    val technicalTags: List<String>,
+)
+
+enum class InfuseActionEmphasis {
+    PRIMARY,
+    SECONDARY,
+    QUIET,
+}
+
+data class InfuseAction(
+    val label: String,
+    val icon: TvIcon,
+    val emphasis: InfuseActionEmphasis,
+    val onClick: () -> Unit,
+)
+
+fun MediaItemSummary.toMediaPresentation(
+    subtitle: String = episodeLabel(this),
+    progressLabel: String = resumeProgressLabel(),
+    technicalTags: List<String> = emptyList(),
+): MediaPresentation {
+    val artwork = artworkSet()
+    return MediaPresentation(
+        title = name().ifBlank { id() },
+        subtitle = subtitle,
+        metadata = MediaMetadataLine(mediaMetadataValues(this, subtitle)),
+        progressLabel = progressLabel,
+        primaryArtwork = artwork.copy(fallbackStrategy = ArtworkFallbackStrategy.PRIMARY_ONLY),
+        backdropArtwork = artwork,
+        technicalTags = technicalTags,
+    )
+}
+
+private fun MediaItemSummary.artworkSet(): ArtworkSet {
+    val primary = imageTags()["Primary"].orEmpty()
+    val thumb = imageTags()["Thumb"].orEmpty()
+    val fallback = when {
+        backdropImageTags().isNotEmpty() || thumb.isNotBlank() -> ArtworkFallbackStrategy.BACKDROP_THUMB_PRIMARY
+        primary.isNotBlank() -> ArtworkFallbackStrategy.PRIMARY_ONLY
+        else -> ArtworkFallbackStrategy.NONE
+    }
+    return ArtworkSet(primary, thumb, backdropImageTags(), fallback)
+}
+
+private fun MediaItemSummary.resumeProgressLabel(): String {
+    return if (hasResumePosition()) {
+        "可从 ${formatPlaybackPosition(userData().playbackPositionTicks())} 继续播放"
+    } else {
+        ""
+    }
+}
+
+private fun mediaMetadataValues(item: MediaItemSummary, subtitle: String): List<String> {
+    val values = mutableListOf<String>()
+    presentationMediaTypeLabel(item.type()).takeIf { it.isNotBlank() }?.let(values::add)
+    if (subtitle.isNotBlank()) {
+        values.add(subtitle.replace(" · ", " / "))
+    }
+    if (item.type() != MediaItemType.EPISODE) {
+        item.productionYear()?.let { values.add(it.toString()) }
+    }
+    item.runTimeTicks()?.let { values.add(durationText(it)) }
+    values.addAll(item.genres().take(3))
+    return values
+}
+
+fun presentationMediaTypeLabel(type: MediaItemType): String = when (type) {
+    MediaItemType.MOVIE -> "电影"
+    MediaItemType.SERIES -> "剧集"
+    MediaItemType.SEASON -> "季"
+    MediaItemType.EPISODE -> "单集"
+    MediaItemType.VIDEO -> "视频"
+    MediaItemType.COLLECTION_FOLDER,
+    MediaItemType.FOLDER -> "目录"
+    MediaItemType.UNKNOWN -> ""
+}
+
+fun durationText(ticks: Long): String {
+    val totalMinutes = (MediaTicks.toMilliseconds(ticks) / 60_000).coerceAtLeast(1)
+    val hours = totalMinutes / 60
+    val minutes = totalMinutes % 60
+    return when {
+        hours > 0 && minutes > 0 -> "${hours} 小时 ${minutes} 分钟"
+        hours > 0 -> "${hours} 小时"
+        else -> "${minutes} 分钟"
+    }
+}
