@@ -41,6 +41,12 @@ object TvColors {
         private set
     var Overlay = Color.argb(230, 8, 13, 24)
         private set
+    var GlassTint = Color.argb(184, 12, 18, 31)
+        private set
+    var GlassFocusTint = Color.argb(214, 34, 46, 66)
+        private set
+    var GlassBorder = Color.argb(92, 226, 232, 240)
+        private set
 
     fun applyTheme(themeId: String) {
         val palette = when (themeId) {
@@ -79,6 +85,9 @@ object TvColors {
                 textMuted = Color.rgb(142, 152, 174),
                 pillBorder = Color.argb(170, 130, 150, 190),
                 overlay = Color.argb(218, 6, 8, 16),
+                glassTint = Color.argb(144, 15, 18, 30),
+                glassFocusTint = Color.argb(190, 42, 55, 82),
+                glassBorder = Color.argb(132, 235, 242, 255),
             )
             else -> ThemePalette()
         }
@@ -101,6 +110,9 @@ object TvColors {
         TextMuted = palette.textMuted
         PillBorder = palette.pillBorder
         Overlay = palette.overlay
+        GlassTint = palette.glassTint
+        GlassFocusTint = palette.glassFocusTint
+        GlassBorder = palette.glassBorder
     }
 
     private data class ThemePalette(
@@ -122,6 +134,9 @@ object TvColors {
         val textMuted: Int = Color.rgb(148, 163, 184),
         val pillBorder: Int = Color.rgb(51, 65, 85),
         val overlay: Int = Color.argb(230, 8, 13, 24),
+        val glassTint: Int = Color.argb(184, 12, 18, 31),
+        val glassFocusTint: Int = Color.argb(214, 34, 46, 66),
+        val glassBorder: Int = Color.argb(92, 226, 232, 240),
     )
 }
 
