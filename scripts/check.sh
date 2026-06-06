@@ -549,7 +549,7 @@ if ! grep -q '打开子项目' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/deta
   exit 1
 fi
 
-if ! grep -R -q '剧情简介' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv"; then
+if ! grep -q '剧情简介' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/ui/DetailsInfoSections.kt"; then
   echo "Android TV UI must show media overview on details when available" >&2
   exit 1
 fi
@@ -586,12 +586,12 @@ if [[ ! -s "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/ui/DetailsScreen.kt" ]];
   exit 1
 fi
 
-if ! grep -q 'detailTitle' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/ui/DetailsScreen.kt"; then
+if ! grep -q 'presentation.title' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/ui/DetailsHero.kt"; then
   echo "Details screen must isolate long media titles from the page header" >&2
   exit 1
 fi
 
-if ! grep -q 'maxLines = 3' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/ui/DetailsScreen.kt"; then
+if ! grep -q 'maxLines = 3' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/ui/DetailsHero.kt"; then
   echo "Details title must clamp long titles to protect metadata and actions" >&2
   exit 1
 fi
@@ -745,10 +745,24 @@ if ! grep -q 'infuseStage' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/ui/HomeS
   exit 1
 fi
 
-if ! grep -q 'loadBackdrop' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/ui/DetailsScreen.kt" ||
-  ! grep -q 'detailGlassSection' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/ui/DetailsScreen.kt" ||
-  ! grep -q 'applyBackdropBlur' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/ui/DetailsScreen.kt"; then
-  echo "Details screen must use backdrop artwork and shared glass sections" >&2
+if (( $(wc -l < "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/ui/DetailsScreen.kt") > 240 )); then
+  echo "DetailsScreen must stay below 240 lines and delegate layout to Infuse details components" >&2
+  exit 1
+fi
+
+for detail_module in DetailsStage.kt DetailsHero.kt DetailsActions.kt DetailsInfoSections.kt; do
+  if [[ ! -s "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/ui/$detail_module" ]]; then
+    echo "Details screen must stay split into Infuse detail modules; missing $detail_module" >&2
+    exit 1
+  fi
+done
+
+if ! grep -q 'toMediaPresentation' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/ui/DetailsScreen.kt" ||
+  ! grep -q 'detailsHero' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/ui/DetailsScreen.kt" ||
+  ! grep -q 'detailsInfoSections' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/ui/DetailsScreen.kt" ||
+  ! grep -q 'infuseBackdrop' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/ui/DetailsStage.kt" ||
+  ! grep -q 'glassPanel' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/ui/DetailsInfoSections.kt"; then
+  echo "Details screen must use presentation models, backdrop artwork, and shared glass sections" >&2
   exit 1
 fi
 
@@ -779,8 +793,9 @@ if [[ ! -s "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/details/DetailsRouteScre
   exit 1
 fi
 
-if ! grep -q 'addPosterIfAvailable' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/details/DetailsRouteScreen.kt"; then
-  echo "Details screen must render media posters when available" >&2
+if ! grep -q 'loadPosterImage' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/details/DetailsRouteScreen.kt" ||
+  ! grep -q 'loadPoster(this, item' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/ui/DetailsHero.kt"; then
+  echo "Details screen must render media posters through the Infuse details hero" >&2
   exit 1
 fi
 
@@ -804,7 +819,7 @@ if ! grep -q 'connectTimeout' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/runti
   exit 1
 fi
 
-if ! grep -R -q 'durationLabel' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/ui/DetailsScreen.kt"; then
+if ! grep -R -q 'durationText' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/ui/MediaPresentation.kt"; then
   echo "Android TV UI must show localized runtime on details when available" >&2
   exit 1
 fi
@@ -1388,8 +1403,8 @@ if ! grep -q '继续播放' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/details
   exit 1
 fi
 
-if ! grep -q 'primaryIconAction' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/ui/TvUi.kt" ||
-  ! grep -q 'primaryPlaybackAction' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/details/DetailsRouteScreen.kt"; then
+if ! grep -q 'InfuseActionEmphasis.PRIMARY' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/details/DetailsRouteScreen.kt" ||
+  ! grep -q 'actions.firstOrNull()?.emphasis == InfuseActionEmphasis.PRIMARY' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/ui/DetailsActions.kt"; then
   echo "Details screen must render the first playback action as a primary TV action" >&2
   exit 1
 fi
@@ -1409,7 +1424,7 @@ if ! grep -q 'formatPlaybackPosition' "$ROOT_DIR/app/src/main/java/tv/cinepilot/
   exit 1
 fi
 
-if ! grep -q '低码率播放' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/details/DetailsRouteScreen.kt"; then
+if ! grep -q '低码率' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/details/DetailsRouteScreen.kt"; then
   echo "Details screen must expose a low bitrate playback action" >&2
   exit 1
 fi
@@ -1517,12 +1532,12 @@ if ! grep -q 'normalizedFor(selectedPlaybackInfo' "$PLAYBACK_ROUTE_CONTROLLER"; 
   exit 1
 fi
 
-if ! grep -q 'bindVerticalDpadScrollFallback()' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/ui/DetailsScreen.kt"; then
+if ! grep -q 'bindVerticalDpadScrollFallback()' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/ui/DetailsStage.kt"; then
   echo "Details screen must bind all focusable controls to vertical D-pad scroll fallback" >&2
   exit 1
 fi
 
-if grep -q 'scrollTargets' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/ui/DetailsScreen.kt"; then
+if grep -R -q 'scrollTargets' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/ui/DetailsScreen.kt" "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/ui/DetailsStage.kt" "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/ui/DetailsHero.kt"; then
   echo "Details screen must not keep button-level D-pad scroll target lists" >&2
   exit 1
 fi

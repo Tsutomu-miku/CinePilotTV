@@ -2,23 +2,15 @@ package tv.cinepilot.tv.details
 
 import android.view.View
 import android.widget.ImageView
-import android.widget.LinearLayout
 import androidx.activity.ComponentActivity
 import tv.cinepilot.core.protocol.MediaItemSummary
 import tv.cinepilot.core.protocol.PlaybackInfo
 import tv.cinepilot.core.protocol.PlaybackSelectionPreferences
+import tv.cinepilot.tv.ui.InfuseAction
+import tv.cinepilot.tv.ui.InfuseActionEmphasis
 import tv.cinepilot.tv.ui.TvIcon
-import tv.cinepilot.tv.ui.TvColors
-import tv.cinepilot.tv.ui.TvSize
-import tv.cinepilot.tv.ui.action
 import tv.cinepilot.tv.ui.detailsScreen
-import tv.cinepilot.tv.ui.dp
-import tv.cinepilot.tv.ui.episodeLabel
-import tv.cinepilot.tv.ui.formatPlaybackPosition
-import tv.cinepilot.tv.ui.iconAction
 import tv.cinepilot.tv.ui.mediaTechnicalPills
-import tv.cinepilot.tv.ui.primaryIconAction
-import tv.cinepilot.tv.ui.rounded
 
 fun ComponentActivity.detailsRouteScreen(
     item: MediaItemSummary,
@@ -35,8 +27,6 @@ fun ComponentActivity.detailsRouteScreen(
 ): View {
     return detailsScreen(
         item = item,
-        episodeLabel = episodeLabel(item),
-        formatTicks = ::formatPlaybackPosition,
         playbackActions = if (item.playable()) {
             playbackActions(item, onPreparePlayback, onSubtitleStyle, onPlaybackSpeed, onSeriesNextUp)
         } else {
@@ -44,9 +34,9 @@ fun ComponentActivity.detailsRouteScreen(
         },
         trackControls = detailTrackControls(playbackInfo, trackSelection, onTrackSelection),
         technicalInfo = mediaTechnicalPills(playbackInfo),
-        folderAction = action("打开子项目", onOpenFolder),
-        loadPoster = { container, mediaItem ->
-            addPosterIfAvailable(container, mediaItem, loadPosterImage)
+        folderAction = InfuseAction("打开子项目", TvIcon.FORWARD, InfuseActionEmphasis.PRIMARY, onOpenFolder),
+        loadPoster = { poster, mediaItem, width, height ->
+            loadPosterImage(poster, mediaItem, width, height)
         },
         loadBackdrop = { backdrop, mediaItem ->
             loadBackdropImage(backdrop, mediaItem, 1280, 720)
@@ -60,41 +50,31 @@ private fun ComponentActivity.playbackActions(
     onSubtitleStyle: () -> Unit,
     onPlaybackSpeed: () -> Unit,
     onSeriesNextUp: () -> Unit,
-): List<View> {
-    val actions = mutableListOf<View>()
+): List<InfuseAction> {
+    val actions = mutableListOf<InfuseAction>()
     if (item.hasResumePosition()) {
-        actions.add(primaryPlaybackAction("继续播放", TvIcon.PLAY, null, onPreparePlayback))
-        actions.add(playbackAction("从头播放", TvIcon.PLAY, PlaybackSelectionPreferences.defaults(), onPreparePlayback))
+        actions.add(playbackAction("继续播放", TvIcon.PLAY, InfuseActionEmphasis.PRIMARY, null, onPreparePlayback))
+        actions.add(playbackAction("从头播放", TvIcon.PLAY, InfuseActionEmphasis.SECONDARY, PlaybackSelectionPreferences.defaults(), onPreparePlayback))
     } else {
-        actions.add(primaryPlaybackAction("播放", TvIcon.PLAY, null, onPreparePlayback))
+        actions.add(playbackAction("播放", TvIcon.PLAY, InfuseActionEmphasis.PRIMARY, null, onPreparePlayback))
     }
-    actions.add(playbackAction("低码率播放", TvIcon.SPEED, lowBitratePreferences(item), onPreparePlayback))
-    actions.add(iconAction("字幕样式", TvIcon.SUBTITLES, onSubtitleStyle))
-    actions.add(iconAction("播放速度", TvIcon.SPEED, onPlaybackSpeed))
+    actions.add(playbackAction("低码率", TvIcon.SPEED, InfuseActionEmphasis.QUIET, lowBitratePreferences(item), onPreparePlayback))
+    actions.add(InfuseAction("字幕样式", TvIcon.SUBTITLES, InfuseActionEmphasis.QUIET, onSubtitleStyle))
+    actions.add(InfuseAction("速度", TvIcon.SPEED, InfuseActionEmphasis.QUIET, onPlaybackSpeed))
     if (item.seriesId().isNotBlank()) {
-        actions.add(iconAction("本剧下一集", TvIcon.PLAY, onSeriesNextUp))
+        actions.add(InfuseAction("本剧下一集", TvIcon.PLAY, InfuseActionEmphasis.QUIET, onSeriesNextUp))
     }
     return actions
 }
 
-private fun ComponentActivity.primaryPlaybackAction(
+private fun playbackAction(
     text: String,
     icon: TvIcon,
+    emphasis: InfuseActionEmphasis,
     preferences: PlaybackSelectionPreferences?,
     onPreparePlayback: (PlaybackSelectionPreferences?) -> Unit,
-): View {
-    return primaryIconAction(text, icon) {
-        onPreparePlayback(preferences)
-    }
-}
-
-private fun ComponentActivity.playbackAction(
-    text: String,
-    icon: TvIcon,
-    preferences: PlaybackSelectionPreferences?,
-    onPreparePlayback: (PlaybackSelectionPreferences?) -> Unit,
-): View {
-    return iconAction(text, icon) {
+): InfuseAction {
+    return InfuseAction(text, icon, emphasis) {
         onPreparePlayback(preferences)
     }
 }
@@ -102,24 +82,4 @@ private fun ComponentActivity.playbackAction(
 private fun lowBitratePreferences(item: MediaItemSummary): PlaybackSelectionPreferences {
     val startTimeTicks = if (item.hasResumePosition()) item.userData().playbackPositionTicks() else 0L
     return PlaybackSelectionPreferences.lowBitrate(startTimeTicks)
-}
-
-private fun ComponentActivity.addPosterIfAvailable(
-    container: LinearLayout,
-    item: MediaItemSummary,
-    loadPosterImage: (ImageView, MediaItemSummary, Int, Int) -> Unit,
-) {
-    val poster = ImageView(this).apply {
-        contentDescription = "${item.name()} 海报"
-        scaleType = ImageView.ScaleType.CENTER_CROP
-        setBackground(rounded(TvColors.PosterFallback, dp(8), dp(1), TvColors.PosterBorder))
-        clipToOutline = true
-        elevation = dp(8).toFloat()
-        adjustViewBounds = false
-    }
-    container.addView(poster, LinearLayout.LayoutParams(dp(TvSize.DetailPosterWidth), dp(TvSize.DetailPosterHeight)).apply {
-        rightMargin = dp(24)
-        bottomMargin = dp(16)
-    })
-    loadPosterImage(poster, item, 240, 360)
 }
