@@ -711,6 +711,11 @@ if [[ ! -s "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/ui/GlassUi.kt" ]] ||
   exit 1
 fi
 
+if grep -q 'Orientation.TOP_BOTTOM\|colors = intArrayOf' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/ui/GlassUi.kt"; then
+  echo "Glass surfaces must avoid decorative gradients; use uniform tint, blur, and hairline borders" >&2
+  exit 1
+fi
+
 if [[ ! -s "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/runtime/ArtworkLoader.kt" ]] ||
   ! grep -q 'backdropImageUrl' "$ROOT_DIR/core/src/main/java/tv/cinepilot/core/protocol/MediaBrowserClient.java" ||
   ! grep -q 'BackdropImageTags' "$ROOT_DIR/core/src/main/java/tv/cinepilot/core/protocol/MediaBrowserResponseMapper.java"; then

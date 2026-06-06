@@ -1,6 +1,5 @@
 package tv.cinepilot.tv.ui
 
-import android.animation.ArgbEvaluator
 import android.animation.ValueAnimator
 import android.graphics.Color
 import android.graphics.Typeface
@@ -112,22 +111,11 @@ private fun ComponentActivity.mediaCard(
 }
 
 private fun ComponentActivity.animateMediaCardFocus(card: FrameLayout, title: TextView, hasFocus: Boolean) {
-    mediaTitleAnimators[title]?.cancel()
-    mediaTitleAnimators[title] = ValueAnimator.ofObject(
-        ArgbEvaluator(),
-        if (hasFocus) TvColors.Overlay else TvColors.Focus,
-        if (hasFocus) TvColors.Focus else TvColors.Overlay,
-    ).apply {
-        duration = MEDIA_CARD_FOCUS_ANIMATION_MS
-        addUpdateListener { animator ->
-            title.background = GlassDrawable(
-                animator.animatedValue as Int,
-                dp(TvRadius.Card).toFloat(),
-                TvColors.GlassBorder,
-            )
-        }
-        start()
-    }
+    title.background = GlassDrawable(
+        TvColors.GlassTint,
+        dp(TvRadius.Card).toFloat(),
+        if (hasFocus) TvColors.FocusRing else TvColors.GlassBorder,
+    )
 
     mediaRingAnimators[card]?.cancel()
     mediaRingAnimators[card] = ValueAnimator.ofFloat(if (hasFocus) 0f else 1f, if (hasFocus) 1f else 0f).apply {
@@ -156,6 +144,5 @@ private fun focusRingWithAlpha(progress: Float): Int {
     )
 }
 
-private val mediaTitleAnimators = WeakHashMap<TextView, ValueAnimator>()
 private val mediaRingAnimators = WeakHashMap<FrameLayout, ValueAnimator>()
 private const val MEDIA_CARD_FOCUS_ANIMATION_MS = 160L

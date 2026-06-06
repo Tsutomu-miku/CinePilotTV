@@ -15,9 +15,7 @@ object GlassTokens {
     const val BackdropBlur = 28f
     const val PanelRadius = 18
     const val ControlRadius = 14
-    const val BorderAlpha = 118
-    const val HighlightAlpha = 72
-    const val ShadowElevation = 12
+    const val ShadowElevation = 8
 }
 
 class GlassDrawable(
@@ -26,12 +24,7 @@ class GlassDrawable(
     private val borderColor: Int,
 ) : LayerDrawable(arrayOf(
     GradientDrawable().apply {
-        orientation = GradientDrawable.Orientation.TOP_BOTTOM
-        colors = intArrayOf(
-            Color.argb(GlassTokens.HighlightAlpha, 255, 255, 255),
-            tintColor,
-            tintColor,
-        )
+        setColor(tintColor)
         cornerRadius = radius
     },
     GradientDrawable().apply {

@@ -17,7 +17,7 @@ Infuse 参考对象来自 Firecore 官方介绍和 release notes：它强调优�
 禁止项：
 
 - 只新增一个主题色，却继续保留页面硬编码灰蓝、纯黑面板或粗重按钮。
-- 只使用半透明 `argb` 色块冒充玻璃；没有 blur、高光边、暗色 tint 和焦点 material state 的，不算 Infuse 对齐。
+- 只使用半透明 `argb` 色块冒充玻璃；没有 blur、均匀暗色 tint、hairline 高光边和焦点 material state 的，不算 Infuse 对齐。
 - 首页首屏首先看到工具栏，而不是媒体内容。
 - 详情页变成字段表、调试面板或按钮列表。
 - 大面积文字按钮、粗边框、强烈渐变装饰、光斑背景。
@@ -85,12 +85,13 @@ Infuse 相关主题必须覆盖完整视觉 token，而不是只换焦点色：
 - textPrimary / textSecondary / textMuted：冷白文字层级。
 - pillBorder：metadata 标签轻边框。
 - overlay：海报标题遮罩和播放器信息面板。
-- glassTint / glassFocusTint / glassBorder：真正玻璃层的暗色 tint、焦点 material state 和高光边。
+- glassTint / glassFocusTint / glassBorder：真正玻璃层的均匀暗色 tint、焦点 material state 和 hairline 高光边。
 
 ### Glass Primitive
 
 - 必须通过共享 `GlassDrawable` / `GlassTokens` / `glassPanel` 实现，不允许页面各自写半透明矩形。
-- API 31+ backdrop 图片应使用 `RenderEffect.createBlurEffect`；低版本 fallback 也必须有 dark tint、hairline border 和轻高光。
+- API 31+ backdrop 图片应使用 `RenderEffect.createBlurEffect`；低版本 fallback 也必须有 dark tint 和 hairline border。
+- 禁止在 glass surface 内使用可见的装饰性颜色渐变；玻璃质感来自背景图、blur、透明度、细边和阴影层级。
 - 玻璃层只承载摘要、选择器、诊断等信息；不能把整个页面包进大卡片。
 
 ### 海报卡片
