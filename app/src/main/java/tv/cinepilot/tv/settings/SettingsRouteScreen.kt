@@ -3,17 +3,18 @@ package tv.cinepilot.tv.settings
 import android.view.View
 import androidx.activity.ComponentActivity
 import tv.cinepilot.tv.ui.TvOptionSelectItem
-import tv.cinepilot.tv.ui.label
+import tv.cinepilot.tv.ui.compactPanelSpacing
+import tv.cinepilot.tv.ui.infusePanelNote
+import tv.cinepilot.tv.ui.infusePanelScreen
+import tv.cinepilot.tv.ui.infusePanelTitle
 import tv.cinepilot.tv.ui.optionSelect
-import tv.cinepilot.tv.ui.screen
-import tv.cinepilot.tv.ui.section
 
 fun ComponentActivity.settingsRouteScreen(
     theme: AppTheme,
     onTheme: (AppTheme) -> Unit,
 ): View {
-    return screen("设置") {
-        addView(section("外观"))
+    return infusePanelScreen("设置") {
+        addView(infusePanelTitle("外观"))
         addView(optionSelect(
             title = "主题",
             selectedLabel = theme.label,
@@ -23,8 +24,8 @@ fun ComponentActivity.settingsRouteScreen(
                 }
             },
             requestFocus = true,
-        ))
-        addView(section("说明"))
-        addView(label("主题会保存到本机，重启应用后继续生效。"))
+        ).compactPanelSpacing())
+        addView(infusePanelTitle("说明"))
+        addView(infusePanelNote("主题会保存到本机，重启应用后继续生效。"))
     }
 }

@@ -458,13 +458,13 @@ if ! grep -q 'IME_ACTION_SEARCH' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/ho
   exit 1
 fi
 
-if ! grep -q 'radioChoice' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/home/HomeRouteScreens.kt"; then
-  echo "Search filters must use compact radio choices" >&2
+if ! grep -q 'optionSelect' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/home/HomeRouteScreens.kt"; then
+  echo "Search filters must use compact option-select controls" >&2
   exit 1
 fi
 
-if ! grep -q 'settingChoiceRow' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/home/HomeRouteScreens.kt"; then
-  echo "Search filters must use the shared compact setting row" >&2
+if ! grep -q 'infusePanelScreen("搜索媒体")' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/home/HomeRouteScreens.kt"; then
+  echo "Search filters must use the shared Infuse panel shell" >&2
   exit 1
 fi
 
@@ -1347,12 +1347,12 @@ if ! grep -q 'state.selectedItem() != null && !authenticationExpired' "$ROOT_DIR
   exit 1
 fi
 
-if ! grep -q 'requestInitialFocus' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/error/ErrorRouteScreen.kt"; then
+if ! grep -q 'requestFirstFocus = true' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/error/ErrorRouteScreen.kt"; then
   echo "Error recovery page must give D-pad focus to the first available recovery action" >&2
   exit 1
 fi
 
-if ! grep -q 'primaryIconAction("低码率重试"' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/error/ErrorRouteScreen.kt"; then
+if ! grep -q 'InfuseAction("低码率重试", TvIcon.SPEED, InfuseActionEmphasis.PRIMARY' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/error/ErrorRouteScreen.kt"; then
   echo "Playback error recovery must make low bitrate retry the primary action" >&2
   exit 1
 fi
@@ -1367,9 +1367,9 @@ if ! grep -q 'TvIcon.INFO' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/error/Er
   exit 1
 fi
 
-if ! grep -q 'actionColumn' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/error/ErrorRouteScreen.kt" ||
-  ! grep -q 'fun ComponentActivity.actionColumn' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/ui/TvUi.kt"; then
-  echo "Error recovery actions must use the shared vertical action group" >&2
+if ! grep -q 'infuseActions(actions, requestFirstFocus = true)' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/error/ErrorRouteScreen.kt" ||
+  ! grep -q 'infusePanelScreen("出错了")' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/error/ErrorRouteScreen.kt"; then
+  echo "Error recovery actions must use the shared Infuse action group and panel shell" >&2
   exit 1
 fi
 

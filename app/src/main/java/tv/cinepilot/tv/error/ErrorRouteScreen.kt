@@ -1,16 +1,16 @@
 package tv.cinepilot.tv.error
 
 import android.view.View
-import android.widget.ScrollView
 import androidx.activity.ComponentActivity
 import tv.cinepilot.core.tv.TvAppState
+import tv.cinepilot.tv.ui.InfuseAction
+import tv.cinepilot.tv.ui.InfuseActionEmphasis
 import tv.cinepilot.tv.ui.TvIcon
-import tv.cinepilot.tv.ui.actionColumn
-import tv.cinepilot.tv.ui.iconAction
-import tv.cinepilot.tv.ui.label
-import tv.cinepilot.tv.ui.primaryIconAction
-import tv.cinepilot.tv.ui.requestInitialFocus
-import tv.cinepilot.tv.ui.screen
+import tv.cinepilot.tv.ui.compactPanelSpacing
+import tv.cinepilot.tv.ui.infuseActions
+import tv.cinepilot.tv.ui.infusePanelNote
+import tv.cinepilot.tv.ui.infusePanelScreen
+import tv.cinepilot.tv.ui.infusePanelTitle
 
 fun ComponentActivity.errorRouteScreen(
     state: TvAppState,
@@ -23,16 +23,17 @@ fun ComponentActivity.errorRouteScreen(
     onHome: () -> Unit,
     onLogin: () -> Unit,
     onServerEntry: () -> Unit,
-): ScrollView {
-    return screen("出错了") {
-        addView(label(message))
+): View {
+    return infusePanelScreen("出错了") {
+        addView(infusePanelTitle("播放遇到问题"))
+        addView(infusePanelNote(message).compactPanelSpacing(16))
         val canRecoverPlayback = state.selectedItem() != null && !authenticationExpired
-        val actions = mutableListOf<View>()
+        val actions = mutableListOf<InfuseAction>()
         if (canRecoverPlayback) {
-            actions.add(primaryIconAction("低码率重试", TvIcon.SPEED, onRetryLowBitrate))
-            actions.add(iconAction("返回详情", TvIcon.BACK, onReturnDetails))
-            actions.add(iconAction("切换音轨 / 字幕", TvIcon.SUBTITLES, onPlaybackOptions))
-            actions.add(iconAction("诊断信息", TvIcon.INFO, onDiagnostics))
+            actions.add(InfuseAction("低码率重试", TvIcon.SPEED, InfuseActionEmphasis.PRIMARY, onRetryLowBitrate))
+            actions.add(InfuseAction("返回详情", TvIcon.BACK, InfuseActionEmphasis.QUIET, onReturnDetails))
+            actions.add(InfuseAction("切换音轨 / 字幕", TvIcon.SUBTITLES, InfuseActionEmphasis.QUIET, onPlaybackOptions))
+            actions.add(InfuseAction("诊断信息", TvIcon.INFO, InfuseActionEmphasis.QUIET, onDiagnostics))
         }
         if (state.homeRows().isNotEmpty() && !authenticationExpired) {
             actions.add(primaryOrSecondaryAction(actions, "返回首页", TvIcon.BACK, onHome))
@@ -41,21 +42,20 @@ fun ComponentActivity.errorRouteScreen(
             actions.add(primaryOrSecondaryAction(actions, "重新登录", TvIcon.ACCOUNT, onLogin))
         }
         actions.add(primaryOrSecondaryAction(actions, "返回服务器输入", TvIcon.BACK, onServerEntry))
-        addView(actionColumn(actions.mapIndexed { index, view ->
-            if (index == 0) view.requestInitialFocus() else view
-        }))
+        addView(infuseActions(actions, requestFirstFocus = true))
     }
 }
 
-private fun ComponentActivity.primaryOrSecondaryAction(
-    existingActions: List<View>,
+private fun primaryOrSecondaryAction(
+    existingActions: List<InfuseAction>,
     text: String,
     icon: TvIcon,
     onClick: () -> Unit,
-): View {
-    return if (existingActions.isEmpty()) {
-        primaryIconAction(text, icon, onClick)
+): InfuseAction {
+    val emphasis = if (existingActions.isEmpty()) {
+        InfuseActionEmphasis.PRIMARY
     } else {
-        iconAction(text, icon, onClick)
+        InfuseActionEmphasis.QUIET
     }
+    return InfuseAction(text, icon, emphasis, onClick)
 }

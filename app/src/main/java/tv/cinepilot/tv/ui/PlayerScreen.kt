@@ -125,16 +125,38 @@ private fun ComponentActivity.playerInfoPanelParams(): FrameLayout.LayoutParams 
     }
 }
 
-private fun ComponentActivity.playerInfoPanel(debugInfo: String): TextView {
-    return TextView(this).apply {
-        text = debugInfo
-        textSize = TvType.Metadata
-        setTextColor(TvColors.TextSecondary)
-        setLineSpacing(2f, 1.05f)
-        maxLines = 18
-        ellipsize = TextUtils.TruncateAt.END
-        background = glassDrawable(GlassTokens.PanelRadius)
+private fun ComponentActivity.playerInfoPanel(debugInfo: String): View {
+    return glassPanel {
         setPadding(dp(14), dp(12), dp(14), dp(12))
+        addView(LinearLayout(this@playerInfoPanel).apply {
+            orientation = LinearLayout.VERTICAL
+            addView(TextView(this@playerInfoPanel).apply {
+                text = "视频信息"
+                textSize = InfuseTypeTokens.ShelfTitle
+                setTextColor(TvColors.TextPrimary)
+                includeFontPadding = false
+                setPadding(0, 0, 0, dp(8))
+            })
+            debugInfo.lineSequence()
+                .filter { it.isNotBlank() }
+                .take(14)
+                .forEach { line -> addView(playerInfoLine(line)) }
+        })
         visibility = View.GONE
+    }
+}
+
+private fun ComponentActivity.playerInfoLine(line: String): View {
+    val label = line.substringBefore('：', "")
+    val value = line.substringAfter('：', line)
+    return TextView(this).apply {
+        text = if (label.isBlank()) value else "$label  $value"
+        textSize = InfuseTypeTokens.Metadata
+        setTextColor(TvColors.TextSecondary)
+        maxLines = if (label == "请求路径" || label == "请求参数") 2 else 1
+        ellipsize = TextUtils.TruncateAt.END
+        includeFontPadding = false
+        setLineSpacing(2f, 1.04f)
+        setPadding(0, dp(3), 0, dp(3))
     }
 }
