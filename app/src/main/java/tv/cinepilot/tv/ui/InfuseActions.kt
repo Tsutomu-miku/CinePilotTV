@@ -53,6 +53,10 @@ fun ComponentActivity.infuseActionRow(actions: List<View>): HorizontalScrollView
     }
 }
 
-fun ComponentActivity.infuseActions(actions: List<InfuseAction>): View {
-    return infuseActionRow(actions.map(::infuseAction))
+fun ComponentActivity.infuseActions(actions: List<InfuseAction>, requestFirstFocus: Boolean = false): View {
+    val views = actions.map(::infuseAction)
+    if (requestFirstFocus) {
+        views.firstOrNull()?.requestInitialFocus()
+    }
+    return infuseActionRow(views)
 }

@@ -247,7 +247,7 @@ if ! grep -q 'iconAction("返回服务器输入", TvIcon.BACK' "$ROOT_DIR/app/sr
 fi
 
 for home_text in "首页" "搜索结果" "切换账号" "设置"; do
-  if ! grep -q "$home_text" "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/ui/HomeScreen.kt"; then
+  if ! grep -R -q "$home_text" "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/ui/HomeScreen.kt" "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/ui/HomeTopChrome.kt"; then
     echo "Home screen is missing TV UI text: $home_text" >&2
     exit 1
   fi
@@ -258,7 +258,7 @@ if ! grep -q 'homeEmptyActions' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/ui/
   exit 1
 fi
 
-if ! grep -q 'requestInitialFocus' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/ui/HomeScreen.kt"; then
+if ! grep -q 'requestFirstFocus = true' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/ui/HomeScreen.kt"; then
   echo "Home empty state must give D-pad focus to the primary recovery action" >&2
   exit 1
 fi
@@ -661,7 +661,7 @@ if ! grep -q 'SETTINGS(R.drawable.ic_settings)' "$ROOT_DIR/app/src/main/java/tv/
   exit 1
 fi
 
-if ! grep -q 'compactIconAction("设置", TvIcon.SETTINGS' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/ui/HomeScreen.kt"; then
+if ! grep -q 'InfuseAction("设置", TvIcon.SETTINGS' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/ui/HomeTopChrome.kt"; then
   echo "Home toolbar must expose a global settings entry" >&2
   exit 1
 fi
@@ -723,10 +723,25 @@ if [[ ! -s "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/runtime/ArtworkLoader.kt
   exit 1
 fi
 
-if ! grep -q 'homeStage' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/ui/HomeScreen.kt" ||
-  ! grep -q 'cinematicBackdrop' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/ui/HomeScreen.kt" ||
-  ! grep -q 'updateHomeArtwork' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/ui/HomeScreen.kt"; then
-  echo "Home screen must render as a focused artwork-driven media stage" >&2
+if [[ ! -s "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/ui/MediaPresentation.kt" ]] ||
+  [[ ! -s "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/ui/InfuseTokens.kt" ]] ||
+  [[ ! -s "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/ui/InfuseChrome.kt" ]] ||
+  [[ ! -s "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/ui/InfuseActions.kt" ]] ||
+  [[ ! -s "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/ui/InfusePoster.kt" ]]; then
+  echo "Infuse redesign must keep presentation models and component modules" >&2
+  exit 1
+fi
+
+if (( $(wc -l < "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/ui/HomeScreen.kt") > 240 )); then
+  echo "HomeScreen must stay below 240 lines and delegate layout to Infuse components" >&2
+  exit 1
+fi
+
+if ! grep -q 'infuseStage' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/ui/HomeScreen.kt" ||
+  ! grep -q 'homeHero' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/ui/HomeScreen.kt" ||
+  ! grep -q 'homeShelfSection' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/ui/HomeScreen.kt" ||
+  ! grep -q 'updateHomeFocus' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/ui/HomeScreen.kt"; then
+  echo "Home screen must render through the componentized Infuse artwork hub" >&2
   exit 1
 fi
 
@@ -744,12 +759,12 @@ if ! grep -q 'PopupWindow' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/ui/Optio
   exit 1
 fi
 
-if ! grep -q 'iconAction("上一页", TvIcon.BACK' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/ui/HomeScreen.kt"; then
+if ! grep -q 'InfuseAction("上一页", TvIcon.BACK' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/ui/HomeScreen.kt"; then
   echo "Home browse previous action must use the shared back icon" >&2
   exit 1
 fi
 
-if ! grep -q 'iconAction("下一页", TvIcon.FORWARD' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/ui/HomeScreen.kt"; then
+if ! grep -q 'InfuseAction("下一页", TvIcon.FORWARD' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/ui/HomeScreen.kt"; then
   echo "Home browse next action must use the shared forward icon" >&2
   exit 1
 fi
