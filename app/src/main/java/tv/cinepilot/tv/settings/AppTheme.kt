@@ -6,6 +6,7 @@ enum class AppTheme(
     val description: String,
 ) {
     CINEPILOT("cinepilot", "CinePilot 青绿", "默认深色主题"),
+    INFUSE("infuse", "Infuse 玻璃", "深黑舞台与冷蓝玻璃高光"),
     JELLYFIN("jellyfin", "Jellyfin 蓝", "蓝色焦点与强调色"),
     EMBY("emby", "Emby 绿", "绿色焦点与强调色");
 

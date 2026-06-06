@@ -78,7 +78,7 @@ private fun ComponentActivity.mediaCard(
         setTextColor(TvColors.TextPrimary)
         maxLines = 2
         ellipsize = TextUtils.TruncateAt.END
-        background = rounded(CARD_TITLE_NORMAL, dp(TvRadius.Card))
+        background = rounded(TvColors.Overlay, dp(TvRadius.Card))
         setPadding(dp(12), dp(10), dp(12), dp(10))
     }
     card.addView(
@@ -113,8 +113,8 @@ private fun ComponentActivity.animateMediaCardFocus(card: FrameLayout, title: Te
     mediaTitleAnimators[title]?.cancel()
     mediaTitleAnimators[title] = ValueAnimator.ofObject(
         ArgbEvaluator(),
-        if (hasFocus) CARD_TITLE_NORMAL else TvColors.AccentStrong,
-        if (hasFocus) TvColors.AccentStrong else CARD_TITLE_NORMAL,
+        if (hasFocus) TvColors.Overlay else TvColors.AccentStrong,
+        if (hasFocus) TvColors.AccentStrong else TvColors.Overlay,
     ).apply {
         duration = MEDIA_CARD_FOCUS_ANIMATION_MS
         addUpdateListener { animator ->
@@ -152,5 +152,4 @@ private fun focusRingWithAlpha(progress: Float): Int {
 
 private val mediaTitleAnimators = WeakHashMap<TextView, ValueAnimator>()
 private val mediaRingAnimators = WeakHashMap<FrameLayout, ValueAnimator>()
-private val CARD_TITLE_NORMAL = Color.argb(210, 8, 13, 24)
 private const val MEDIA_CARD_FOCUS_ANIMATION_MS = 160L

@@ -4,6 +4,16 @@
 
 - Jellyfin 官网展示的产品截图强调：首页突出媒体库和海报；详情页承载媒体信息；播放页给出播放和投屏等控制。
 - Emby Android TV 文档强调 Android TV 设备和遥控器场景，同时把播放兼容性放在 direct play、转码和码率策略上。
+- Infuse 官方定位是优雅的视频播放器，围绕海报、artwork、metadata 和播放控制建立高级感；Firecore release notes 在 tvOS 8.2.5 引入 Liquid Glass design，8.2.7 继续更新 player controls 外观。本项目的 Infuse 主题不复制 Apple 私有组件，而提炼为深黑舞台、半透明玻璃 surface、冷蓝高光、轻量控制层和海报优先的信息架构。
+
+## Infuse 主题审计
+
+- 全局：Infuse 主题必须切换完整颜色系统，包括背景、surface、raised surface、control、input、poster fallback、边框、overlay、文字和焦点色；不能只改焦点色。
+- 首页：媒体海报是第一视觉，标题遮罩使用主题 overlay，焦点环和标题底条用冷蓝高光表达选中；工具区保持紧凑，不能变成大面积按钮墙。
+- 详情页：左海报、右信息仍保持稳定比例；metadata 和技术信息使用主题化 pill，减少硬编码灰蓝边框，让 Infuse 的玻璃感贯穿详情决策区。
+- 设置页：主题 OptionSelect 第一屏可见，Infuse 主题文案说明“深黑舞台与冷蓝玻璃高光”，帮助用户理解这是视觉模式而非协议模式。
+- 播放器：黑底全屏仍优先；视频信息面板、快捷 seek 反馈和控制区辅助按钮使用主题 overlay / focus ring，不常驻遮挡内容。
+- 登录 / 错误 / 空状态：沿用同一套 surface、input、focus token；这些页面不应单独写死颜色，否则切换 Infuse 后会显得割裂。
 
 ## 详情页原则
 
@@ -21,6 +31,7 @@
 ## Design tokens
 
 - 颜色集中在 `TvColors`：背景、surface、焦点、强调色、正文色和弱文本色都从这里引用。
+- `TvColors.applyTheme` 必须覆盖完整 palette。新增主题时至少定义 background、surface、surfaceRaised、surfaceControl、surfaceInput、posterFallback、posterBorder、focus、focusRing、focusText、accent、accentStrong、resume、textPrimary、textSecondary、textMuted、pillBorder 和 overlay。
 - 间距集中在 `TvSpacing`：页面左右边距、section 间距、按钮间距、海报间距和播放器浮层边距不在页面里临时写死。
 - 字号集中在 `TvType`：品牌、标题、section、正文、元信息、卡片标题和播放器标题分别固定尺度。
 - 尺寸集中在 `TvSize`：按钮高度、输入框高度、首页海报、详情海报和播放器浮层高度统一管理。

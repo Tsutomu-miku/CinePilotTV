@@ -135,7 +135,7 @@ private fun ComponentActivity.playerInfoPanel(debugInfo: String): TextView {
         setLineSpacing(2f, 1.05f)
         maxLines = 18
         ellipsize = TextUtils.TruncateAt.END
-        background = rounded(Color.argb(230, 8, 13, 24), dp(TvRadius.Control), dp(1), TvColors.FocusRing)
+        background = rounded(TvColors.Overlay, dp(TvRadius.Control), dp(1), TvColors.FocusRing)
         setPadding(dp(14), dp(12), dp(14), dp(12))
         visibility = View.GONE
     }

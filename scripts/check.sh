@@ -683,6 +683,26 @@ if ! grep -q 'fun applyTheme' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/ui/Tv
   exit 1
 fi
 
+if ! grep -q 'INFUSE("infuse"' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/settings/AppTheme.kt" ||
+  ! grep -q '"infuse" -> ThemePalette' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/ui/TvDesign.kt"; then
+  echo "Global settings must include a selectable Infuse-inspired theme" >&2
+  exit 1
+fi
+
+for theme_palette_token in background surface surfaceRaised surfaceControl surfaceInput posterFallback posterBorder textPrimary textSecondary textMuted pillBorder overlay; do
+  if ! grep -q "val $theme_palette_token:" "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/ui/TvDesign.kt"; then
+    echo "Theme palettes must cover complete visual token: $theme_palette_token" >&2
+    exit 1
+  fi
+done
+
+if ! grep -q 'TvColors.PillBorder' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/ui/TvUi.kt" ||
+  ! grep -q 'TvColors.Overlay' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/ui/MediaShelf.kt" ||
+  ! grep -q 'TvColors.Overlay' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/ui/PlayerScreen.kt"; then
+  echo "Infuse-style glass tokens must be used by pills, shelves, and player panels" >&2
+  exit 1
+fi
+
 if ! grep -q 'iconAction("上一页", TvIcon.BACK' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/ui/HomeScreen.kt"; then
   echo "Home browse previous action must use the shared back icon" >&2
   exit 1

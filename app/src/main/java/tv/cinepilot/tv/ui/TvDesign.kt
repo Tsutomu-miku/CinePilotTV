@@ -3,6 +3,8 @@ package tv.cinepilot.tv.ui
 import android.graphics.Color
 
 object TvColors {
+    var ThemeId = "cinepilot"
+        private set
     var Background = Color.rgb(8, 13, 24)
         private set
     var Surface = Color.rgb(13, 20, 33)
@@ -35,6 +37,10 @@ object TvColors {
         private set
     var TextMuted = Color.rgb(148, 163, 184)
         private set
+    var PillBorder = Color.rgb(51, 65, 85)
+        private set
+    var Overlay = Color.argb(230, 8, 13, 24)
+        private set
 
     fun applyTheme(themeId: String) {
         val palette = when (themeId) {
@@ -54,23 +60,68 @@ object TvColors {
                 accentStrong = Color.rgb(190, 242, 100),
                 resume = Color.rgb(63, 98, 18),
             )
+            "infuse" -> ThemePalette(
+                background = Color.rgb(3, 5, 12),
+                surface = Color.argb(188, 13, 16, 26),
+                surfaceRaised = Color.argb(214, 21, 25, 38),
+                surfaceControl = Color.argb(190, 28, 34, 50),
+                surfaceInput = Color.argb(205, 18, 23, 36),
+                posterFallback = Color.rgb(18, 21, 31),
+                posterBorder = Color.rgb(61, 72, 98),
+                focus = Color.rgb(126, 170, 255),
+                focusRing = Color.rgb(224, 235, 255),
+                focusText = Color.rgb(5, 11, 24),
+                accent = Color.rgb(154, 185, 255),
+                accentStrong = Color.rgb(238, 244, 255),
+                resume = Color.rgb(54, 87, 178),
+                textPrimary = Color.rgb(248, 250, 255),
+                textSecondary = Color.rgb(215, 222, 238),
+                textMuted = Color.rgb(142, 152, 174),
+                pillBorder = Color.argb(170, 130, 150, 190),
+                overlay = Color.argb(218, 6, 8, 16),
+            )
             else -> ThemePalette()
         }
+        ThemeId = themeId
+        Background = palette.background
+        Surface = palette.surface
+        SurfaceRaised = palette.surfaceRaised
+        SurfaceControl = palette.surfaceControl
+        SurfaceInput = palette.surfaceInput
+        PosterFallback = palette.posterFallback
+        PosterBorder = palette.posterBorder
         Focus = palette.focus
         FocusRing = palette.focusRing
         FocusText = palette.focusText
         Accent = palette.accent
         AccentStrong = palette.accentStrong
         Resume = palette.resume
+        TextPrimary = palette.textPrimary
+        TextSecondary = palette.textSecondary
+        TextMuted = palette.textMuted
+        PillBorder = palette.pillBorder
+        Overlay = palette.overlay
     }
 
     private data class ThemePalette(
+        val background: Int = Color.rgb(8, 13, 24),
+        val surface: Int = Color.rgb(13, 20, 33),
+        val surfaceRaised: Int = Color.rgb(18, 26, 38),
+        val surfaceControl: Int = Color.rgb(26, 36, 52),
+        val surfaceInput: Int = Color.rgb(16, 24, 39),
+        val posterFallback: Int = Color.rgb(24, 34, 49),
+        val posterBorder: Int = Color.rgb(30, 41, 59),
         val focus: Int = Color.rgb(20, 184, 166),
         val focusRing: Int = Color.rgb(153, 246, 228),
         val focusText: Int = Color.rgb(3, 18, 22),
         val accent: Int = Color.rgb(45, 212, 191),
         val accentStrong: Int = Color.rgb(94, 234, 212),
         val resume: Int = Color.rgb(15, 118, 110),
+        val textPrimary: Int = Color.WHITE,
+        val textSecondary: Int = Color.rgb(226, 232, 240),
+        val textMuted: Int = Color.rgb(148, 163, 184),
+        val pillBorder: Int = Color.rgb(51, 65, 85),
+        val overlay: Int = Color.argb(230, 8, 13, 24),
     )
 }
 

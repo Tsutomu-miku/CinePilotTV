@@ -1,6 +1,5 @@
 package tv.cinepilot.tv.details
 
-import android.graphics.Color
 import android.view.View
 import android.widget.ImageView
 import android.widget.LinearLayout
@@ -9,6 +8,7 @@ import tv.cinepilot.core.protocol.MediaItemSummary
 import tv.cinepilot.core.protocol.PlaybackInfo
 import tv.cinepilot.core.protocol.PlaybackSelectionPreferences
 import tv.cinepilot.tv.ui.TvIcon
+import tv.cinepilot.tv.ui.TvColors
 import tv.cinepilot.tv.ui.TvSize
 import tv.cinepilot.tv.ui.action
 import tv.cinepilot.tv.ui.detailsScreen
@@ -108,7 +108,7 @@ private fun ComponentActivity.addPosterIfAvailable(
     val poster = ImageView(this).apply {
         contentDescription = "${item.name()} 海报"
         scaleType = ImageView.ScaleType.CENTER_CROP
-        setBackground(rounded(Color.rgb(30, 41, 59), dp(8)))
+        setBackground(rounded(TvColors.PosterFallback, dp(8), dp(1), TvColors.PosterBorder))
         adjustViewBounds = false
     }
     container.addView(poster, LinearLayout.LayoutParams(dp(TvSize.DetailPosterWidth), dp(TvSize.DetailPosterHeight)).apply {

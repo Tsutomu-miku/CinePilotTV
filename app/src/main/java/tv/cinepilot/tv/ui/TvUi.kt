@@ -65,7 +65,7 @@ fun ComponentActivity.input(hintText: String, inputTypeValue: Int = InputType.TY
         setSingleLine(true)
         setTextColor(TvColors.TextPrimary)
         setHintTextColor(TvColors.TextMuted)
-        setFocusableColors(this, Color.rgb(31, 78, 91), TvColors.SurfaceInput)
+        setFocusableColors(this, TvColors.SurfaceRaised, TvColors.SurfaceInput)
         setPadding(dp(18), 0, dp(18), 0)
     }
 }
@@ -228,7 +228,7 @@ fun ComponentActivity.metadataPills(values: List<String>): TvFlowLayout {
                 text = value
                 textSize = TvType.Metadata
                 setTextColor(TvColors.TextSecondary)
-                background = rounded(TvColors.PosterFallback, dp(TvRadius.Control), dp(1), Color.rgb(51, 65, 85))
+                background = rounded(TvColors.PosterFallback, dp(TvRadius.Control), dp(1), TvColors.PillBorder)
                 setPadding(dp(10), dp(5), dp(10), dp(5))
             }, ViewGroup.MarginLayoutParams(
                 ViewGroup.LayoutParams.WRAP_CONTENT,
