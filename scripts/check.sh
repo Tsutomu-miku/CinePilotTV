@@ -17,6 +17,7 @@ required_docs=(
   "$ROOT_DIR/docs/ARCHITECTURE.md"
   "$ROOT_DIR/docs/CODE_STRUCTURE.md"
   "$ROOT_DIR/docs/DESIGN_NOTES.md"
+  "$ROOT_DIR/docs/INFUSE_DESIGN_SPEC.md"
   "$ROOT_DIR/docs/PROTOCOL_NOTES.md"
   "$ROOT_DIR/docs/VERIFICATION.md"
 )
@@ -688,6 +689,13 @@ if ! grep -q 'INFUSE("infuse"' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/sett
   echo "Global settings must include a selectable Infuse-inspired theme" >&2
   exit 1
 fi
+
+for infuse_spec_term in "artwork-first" "liquid glass" "cool blue highlight" "截图验收" "不重写 Media3 控制层"; do
+  if ! grep -q "$infuse_spec_term" "$ROOT_DIR/docs/INFUSE_DESIGN_SPEC.md"; then
+    echo "Infuse design spec must include: $infuse_spec_term" >&2
+    exit 1
+  fi
+done
 
 for theme_palette_token in background surface surfaceRaised surfaceControl surfaceInput posterFallback posterBorder textPrimary textSecondary textMuted pillBorder overlay; do
   if ! grep -q "val $theme_palette_token:" "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/ui/TvDesign.kt"; then

@@ -14,6 +14,7 @@
 
 - 中文项目文档存在。
 - `docs/DESIGN_NOTES.md` 记录 TV 详情页、首页和播放器的设计原则，避免后续样式继续暴露协议字段或偏离遥控器使用场景。
+- `docs/INFUSE_DESIGN_SPEC.md` 记录 Infuse 风格重设计目标、组件规格和截图验收标准；后续实现 Infuse 化时不能只换主题色。
 - Gradle 多模块结构包含 `:app` 和 `:core`。
 - Android app 依赖 `:core`。
 - Android ViewModel、runtime、TV workflow controller、最小 TV UI、Media3 player host 和 Media3 playback bridge 入口存在。

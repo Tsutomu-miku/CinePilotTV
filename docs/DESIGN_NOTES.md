@@ -5,6 +5,7 @@
 - Jellyfin 官网展示的产品截图强调：首页突出媒体库和海报；详情页承载媒体信息；播放页给出播放和投屏等控制。
 - Emby Android TV 文档强调 Android TV 设备和遥控器场景，同时把播放兼容性放在 direct play、转码和码率策略上。
 - Infuse 官方定位是优雅的视频播放器，围绕海报、artwork、metadata 和播放控制建立高级感；Firecore release notes 在 tvOS 8.2.5 引入 Liquid Glass design，8.2.7 继续更新 player controls 外观。本项目的 Infuse 主题不复制 Apple 私有组件，而提炼为深黑舞台、半透明玻璃 surface、冷蓝高光、轻量控制层和海报优先的信息架构。
+- Infuse 化的完整设计规格见 `docs/INFUSE_DESIGN_SPEC.md`。实现视觉调整前先对照该规格，不要把“Infuse”简化为一组主题色。
 
 ## Infuse 主题审计
 
