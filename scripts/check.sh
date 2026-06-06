@@ -697,37 +697,44 @@ for infuse_spec_term in "artwork-first" "liquid glass" "cool blue highlight" "æˆ
   fi
 done
 
-for theme_palette_token in background surface surfaceRaised surfaceControl surfaceInput posterFallback posterBorder textPrimary textSecondary textMuted pillBorder overlay; do
+for theme_palette_token in background surface surfaceRaised surfaceControl surfaceInput posterFallback posterBorder textPrimary textSecondary textMuted pillBorder overlay glassTint glassFocusTint glassBorder; do
   if ! grep -q "val $theme_palette_token:" "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/ui/TvDesign.kt"; then
     echo "Theme palettes must cover complete visual token: $theme_palette_token" >&2
     exit 1
   fi
 done
 
-if ! grep -q 'TvColors.PillBorder' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/ui/TvUi.kt" ||
-  ! grep -q 'TvColors.Overlay' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/ui/MediaShelf.kt" ||
-  ! grep -q 'TvColors.Overlay' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/ui/PlayerScreen.kt"; then
-  echo "Infuse-style glass tokens must be used by pills, shelves, and player panels" >&2
+if [[ ! -s "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/ui/GlassUi.kt" ]] ||
+  ! grep -q 'class GlassDrawable' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/ui/GlassUi.kt" ||
+  ! grep -q 'RenderEffect.createBlurEffect' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/ui/GlassUi.kt"; then
+  echo "Infuse-style glass must use a shared primitive with API 31 blur support" >&2
+  exit 1
+fi
+
+if [[ ! -s "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/runtime/ArtworkLoader.kt" ]] ||
+  ! grep -q 'backdropImageUrl' "$ROOT_DIR/core/src/main/java/tv/cinepilot/core/protocol/MediaBrowserClient.java" ||
+  ! grep -q 'BackdropImageTags' "$ROOT_DIR/core/src/main/java/tv/cinepilot/core/protocol/MediaBrowserResponseMapper.java"; then
+  echo "Artwork-driven UI must load Backdrop/Thumb artwork through protocol and runtime loaders" >&2
   exit 1
 fi
 
 if ! grep -q 'homeStage' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/ui/HomeScreen.kt" ||
-  ! grep -q 'homeHeroBar' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/ui/HomeScreen.kt" ||
-  ! grep -q 'homeActionRail' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/ui/HomeScreen.kt"; then
-  echo "Home screen must render as an Infuse-style media stage with a quiet action rail" >&2
+  ! grep -q 'cinematicBackdrop' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/ui/HomeScreen.kt" ||
+  ! grep -q 'updateHomeArtwork' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/ui/HomeScreen.kt"; then
+  echo "Home screen must render as a focused artwork-driven media stage" >&2
   exit 1
 fi
 
-if ! grep -q 'detailInfoPanel' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/ui/DetailsScreen.kt" ||
-  ! grep -q 'TvColors.Surface' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/ui/DetailsScreen.kt" ||
-  ! grep -q 'TvColors.PillBorder' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/ui/DetailsScreen.kt"; then
-  echo "Details screen must use an Infuse-style glass information panel" >&2
+if ! grep -q 'loadBackdrop' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/ui/DetailsScreen.kt" ||
+  ! grep -q 'detailGlassSection' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/ui/DetailsScreen.kt" ||
+  ! grep -q 'applyBackdropBlur' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/ui/DetailsScreen.kt"; then
+  echo "Details screen must use backdrop artwork and shared glass sections" >&2
   exit 1
 fi
 
 if ! grep -q 'PopupWindow' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/ui/OptionSelect.kt" ||
-  ! grep -q 'TvColors.PillBorder' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/ui/OptionSelect.kt" ||
-  ! grep -q 'TvColors.Focus' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/ui/OptionSelect.kt"; then
+  ! grep -q 'glassDrawable' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/ui/OptionSelect.kt" ||
+  ! grep -q 'applyGlassFocus' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/ui/OptionSelect.kt"; then
   echo "OptionSelect must remain a glass popover selector with themed focus state" >&2
   exit 1
 fi

@@ -77,6 +77,7 @@ class MainActivity : ComponentActivity() {
             showHome = ::showHome,
             showError = ::showError,
             loadPosterImage = ::loadPosterImage,
+            loadBackdropImage = ::loadBackdropImage,
         )
         searchRoutes = SearchRouteController(
             activity = this,
@@ -189,6 +190,7 @@ class MainActivity : ComponentActivity() {
             onOpen = playbackRoutes::openMediaItem,
             onFocusItem = { row, item -> viewModel.workflowController.focusItem(row.id(), item.id()) },
             loadImage = ::loadPosterImage,
+            loadBackdrop = ::loadBackdropImage,
             onFocusedCard = { focusedCard = it },
         ))
         focusedCard?.post { focusedCard?.requestFocus() }

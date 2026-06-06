@@ -26,6 +26,7 @@ class PlaybackRouteController(
     private val showHome: (TvAppState) -> Unit,
     private val showError: (Throwable) -> Unit,
     private val loadPosterImage: (ImageView, MediaItemSummary, Int, Int) -> Unit,
+    private val loadBackdropImage: (ImageView, MediaItemSummary, Int, Int) -> Unit,
 ) {
     private val diagnosticsController = PlaybackDiagnosticsController(activity, deviceCodecDiagnostics)
     private var selectedPlaybackInfo: PlaybackInfo? = null
@@ -45,6 +46,7 @@ class PlaybackRouteController(
             item = item,
             playbackInfo = effectivePlaybackInfo,
             loadPosterImage = loadPosterImage,
+            loadBackdropImage = loadBackdropImage,
             trackSelection = effectiveTrackSelection,
             onPreparePlayback = { preferences ->
                 preparePlaybackWith(applyTrackSelection(item, preferences))

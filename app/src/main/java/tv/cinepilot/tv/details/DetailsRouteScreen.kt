@@ -24,6 +24,7 @@ fun ComponentActivity.detailsRouteScreen(
     item: MediaItemSummary,
     playbackInfo: PlaybackInfo?,
     loadPosterImage: (ImageView, MediaItemSummary, Int, Int) -> Unit,
+    loadBackdropImage: (ImageView, MediaItemSummary, Int, Int) -> Unit,
     trackSelection: DetailTrackSelection,
     onPreparePlayback: (PlaybackSelectionPreferences?) -> Unit,
     onTrackSelection: (DetailTrackSelection) -> Unit,
@@ -46,6 +47,9 @@ fun ComponentActivity.detailsRouteScreen(
         folderAction = action("打开子项目", onOpenFolder),
         loadPoster = { container, mediaItem ->
             addPosterIfAvailable(container, mediaItem, loadPosterImage)
+        },
+        loadBackdrop = { backdrop, mediaItem ->
+            loadBackdropImage(backdrop, mediaItem, 1280, 720)
         },
     )
 }

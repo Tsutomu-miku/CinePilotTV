@@ -17,6 +17,7 @@ Infuse 参考对象来自 Firecore 官方介绍和 release notes：它强调优�
 禁止项：
 
 - 只新增一个主题色，却继续保留页面硬编码灰蓝、纯黑面板或粗重按钮。
+- 只使用半透明 `argb` 色块冒充玻璃；没有 blur、高光边、暗色 tint 和焦点 material state 的，不算 Infuse 对齐。
 - 首页首屏首先看到工具栏，而不是媒体内容。
 - 详情页变成字段表、调试面板或按钮列表。
 - 大面积文字按钮、粗边框、强烈渐变装饰、光斑背景。
@@ -26,16 +27,17 @@ Infuse 参考对象来自 Firecore 官方介绍和 release notes：它强调优�
 
 ### 首页
 
-- 首页首屏必须像媒体墙：媒体 row 和海报卡片优先，工具栏收敛为顶部轻量操作区。
-- 海报卡片保留当前紧凑密度，但视觉上要更像 artwork：标题遮罩使用 `TvColors.Overlay`，常态不要实色块过重。
+- 首页首屏必须是 focused artwork hub：当前焦点媒体的 `Backdrop > Thumb > Primary blurred` 作为背景，左侧显示标题和安静 metadata。
+- 媒体 row 和海报卡片优先，工具栏收敛为顶部轻量操作区，默认焦点必须落在媒体而不是工具按钮。
+- 海报卡片保留当前紧凑密度，但视觉上要更像 artwork：常态不压标题黑条，焦点卡才显示轻玻璃标题。
 - 焦点卡片必须通过冷蓝高光、轻微层级、内部焦点环和标题遮罩变化表达；不能靠放大卡片制造选中感。
 - 空状态仍要有恢复动作，但使用轻玻璃信息面板，不做大卡片套大卡片。
 - 文件夹分页、搜索结果、继续观看、最新媒体 row 必须保持同一媒体墙语言。
 
 ### 详情页
 
-- 详情页目标是电影详情构图：左侧海报 / artwork，右侧标题、metadata、主动作和次级信息。
-- 后续可引入 backdrop 氛围层，但必须先做亮度保护和文字可读性保护；不能直接把原图铺满导致标题不可读。
+- 详情页目标是 cinematic detail：全屏 backdrop / fanart 背景加暗角保护，左侧海报 / artwork，右侧标题、metadata、主动作和次级信息。
+- 没有 backdrop 时使用 Thumb 或 Primary blurred fallback，不能退回纯黑表单页。
 - 主动作只有“播放 / 继续播放”可以突出；从头播放、低码率、字幕样式、播放速度保持次级。
 - metadata 和技术信息使用轻量玻璃标签，优先展示观看决策语言：分辨率、HDR / Dolby、编码、声道、字幕概览和转码风险。
 - 媒体源、音轨、字幕继续使用 OptionSelect 摘要行 + popover，不平铺成 RadioSelect，不跳转到独立选择页。
@@ -83,6 +85,13 @@ Infuse 相关主题必须覆盖完整视觉 token，而不是只换焦点色：
 - textPrimary / textSecondary / textMuted：冷白文字层级。
 - pillBorder：metadata 标签轻边框。
 - overlay：海报标题遮罩和播放器信息面板。
+- glassTint / glassFocusTint / glassBorder：真正玻璃层的暗色 tint、焦点 material state 和高光边。
+
+### Glass Primitive
+
+- 必须通过共享 `GlassDrawable` / `GlassTokens` / `glassPanel` 实现，不允许页面各自写半透明矩形。
+- API 31+ backdrop 图片应使用 `RenderEffect.createBlurEffect`；低版本 fallback 也必须有 dark tint、hairline border 和轻高光。
+- 玻璃层只承载摘要、选择器、诊断等信息；不能把整个页面包进大卡片。
 
 ### 海报卡片
 
@@ -151,8 +160,8 @@ Infuse 相关主题必须覆盖完整视觉 token，而不是只换焦点色：
 
 ## 当前实现状态
 
-- 首页已切换为媒体舞台：弱化通用页面标题和顶部工具区，让媒体 row 更早进入首屏。
-- 海报卡片已使用 artwork-first 视觉：常态为 poster fallback / overlay，焦点使用内部冷蓝环和短动画，不改变卡片尺寸。
-- 详情页已从通用标题页改为海报 + 轻玻璃信息层构图，技术信息继续通过可换行 metadata pill 次级展示。
-- OptionSelect 已保持 popover 选择器形态，并使用 glass surface、pill border 与主题化焦点态。
-- 搜索、设置、错误页和播放器控制层仍需后续继续按本规格做截图审计和局部 polish。
+- 已新增共享 glass primitive：`GlassDrawable`、`GlassTokens`、`glassPanel` 和 API 31+ backdrop blur helper。
+- 已补齐 artwork 协议和 runtime loader：媒体项建模 `BackdropImageTags`，Android 端可按 Backdrop / Thumb / Primary fallback 加载背景。
+- 首页已切换为 focused artwork hub：焦点媒体驱动背景 artwork 和左侧摘要，海报卡常态不再压黑色标题条。
+- 详情页已切换为 cinematic detail：全屏背景 artwork + 暗角，主决策区直接浮在背景上，音轨 / 字幕 / 技术信息进入轻玻璃区。
+- OptionSelect 和播放器视频信息已改用共享 glass primitive；搜索、设置、错误页仍需后续按同一语言继续 polish。

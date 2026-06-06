@@ -31,7 +31,7 @@ fun ComponentActivity.optionSelect(
         isClickable = true
         descendantFocusability = ViewGroup.FOCUS_BLOCK_DESCENDANTS
         contentDescription = "$title，当前 $selectedLabel"
-        background = rounded(TvColors.Surface, dp(TvRadius.Control), dp(1), TvColors.PillBorder)
+        background = glassDrawable(GlassTokens.ControlRadius)
         setPadding(dp(14), 0, dp(12), 0)
         addView(optionTitle(title))
         addView(optionValue(selectedLabel), LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f))
@@ -40,17 +40,7 @@ fun ComponentActivity.optionSelect(
             showOptionPopover(anchor, title, options)
         }
         setOnFocusChangeListener { focusedView, hasFocus ->
-            focusedView.animate()
-                .alpha(if (hasFocus) 1f else 0.96f)
-                .translationZ(if (hasFocus) dp(6).toFloat() else 0f)
-                .setDuration(160L)
-                .start()
-            focusedView.background = rounded(
-                if (hasFocus) TvColors.SurfaceRaised else TvColors.Surface,
-                dp(TvRadius.Control),
-                if (hasFocus) dp(2) else dp(1),
-                if (hasFocus) TvColors.FocusRing else TvColors.PillBorder,
-            )
+            focusedView.applyGlassFocus(hasFocus)
         }
         layoutParams = LinearLayout.LayoutParams(
             LinearLayout.LayoutParams.MATCH_PARENT,
@@ -132,7 +122,7 @@ private fun ComponentActivity.showOptionPopover(
         setBackgroundDrawable(ColorDrawable(Color.TRANSPARENT))
         elevation = dp(10).toFloat()
     }
-    scroll.background = rounded(TvColors.SurfaceRaised, dp(TvRadius.Card), dp(1), TvColors.PillBorder)
+    scroll.background = glassDrawable(GlassTokens.PanelRadius)
     popup?.showAtLocation(anchor.rootView, Gravity.CENTER, 0, 0)
     (selectedView ?: list.getChildAt(1))?.post {
         (selectedView ?: list.getChildAt(1))?.requestFocus()

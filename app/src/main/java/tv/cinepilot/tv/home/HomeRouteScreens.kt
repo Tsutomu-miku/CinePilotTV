@@ -38,6 +38,7 @@ fun ComponentActivity.homeRouteScreen(
     onOpen: (HomeRow, MediaItemSummary) -> Unit,
     onFocusItem: (HomeRow, MediaItemSummary) -> Unit,
     loadImage: (ImageView, MediaItemSummary, Int, Int) -> Unit,
+    loadBackdrop: (ImageView, MediaItemSummary, Int, Int) -> Unit,
     onFocusedCard: (View) -> Unit,
 ) = homeScreen(
     state = state,
@@ -57,6 +58,7 @@ fun ComponentActivity.homeRouteScreen(
     onOpen = onOpen,
     onFocusItem = onFocusItem,
     loadImage = loadImage,
+    loadBackdrop = loadBackdrop,
     onFocusedCard = onFocusedCard,
 )
 

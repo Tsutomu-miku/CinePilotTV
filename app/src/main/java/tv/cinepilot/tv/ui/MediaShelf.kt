@@ -78,7 +78,8 @@ private fun ComponentActivity.mediaCard(
         setTextColor(TvColors.TextPrimary)
         maxLines = 2
         ellipsize = TextUtils.TruncateAt.END
-        background = rounded(TvColors.Overlay, dp(TvRadius.Card))
+        visibility = View.GONE
+        background = glassDrawable(TvRadius.Card)
         setPadding(dp(12), dp(10), dp(12), dp(10))
     }
     card.addView(
@@ -93,6 +94,7 @@ private fun ComponentActivity.mediaCard(
         if (hasFocus) {
             onFocus(row, item)
         }
+        title.visibility = if (hasFocus) View.VISIBLE else View.GONE
         focusedView.animate()
             .alpha(if (hasFocus) 1f else 0.94f)
             .translationZ(if (hasFocus) dp(10).toFloat() else 0f)
@@ -118,7 +120,11 @@ private fun ComponentActivity.animateMediaCardFocus(card: FrameLayout, title: Te
     ).apply {
         duration = MEDIA_CARD_FOCUS_ANIMATION_MS
         addUpdateListener { animator ->
-            title.background = rounded(animator.animatedValue as Int, dp(TvRadius.Card))
+            title.background = GlassDrawable(
+                animator.animatedValue as Int,
+                dp(TvRadius.Card).toFloat(),
+                TvColors.GlassBorder,
+            )
         }
         start()
     }

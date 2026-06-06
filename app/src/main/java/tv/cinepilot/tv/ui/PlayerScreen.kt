@@ -1,7 +1,6 @@
 package tv.cinepilot.tv.ui
 
 import android.graphics.Color
-import android.graphics.drawable.GradientDrawable
 import android.text.TextUtils
 import android.view.Gravity
 import android.view.View
@@ -53,7 +52,7 @@ private fun ComponentActivity.playerInfoButton(onClick: () -> Unit): ImageButton
         contentDescription = "视频信息"
         setImageResource(R.drawable.ic_info)
         setColorFilter(Color.WHITE)
-        background = rounded(Color.TRANSPARENT, dp(TvRadius.Control), dp(1), Color.TRANSPARENT)
+        background = glassDrawable(GlassTokens.ControlRadius)
         isFocusable = true
         isClickable = true
         scaleType = ImageView.ScaleType.CENTER
@@ -103,13 +102,12 @@ private fun PlayerView.installPlayerInfoButton(infoButton: View, infoPanel: View
     }
 }
 
-private fun View.playerInfoButtonBackground(hasFocus: Boolean): GradientDrawable {
-    return GradientDrawable().apply {
-        shape = GradientDrawable.RECTANGLE
-        cornerRadius = dpValue(TvRadius.Control).toFloat()
-        setColor(if (hasFocus) TvColors.Focus else Color.TRANSPARENT)
-        setStroke(if (hasFocus) dpValue(1) else 0, if (hasFocus) TvColors.FocusRing else Color.TRANSPARENT)
-    }
+private fun View.playerInfoButtonBackground(hasFocus: Boolean): GlassDrawable {
+    return GlassDrawable(
+        if (hasFocus) TvColors.GlassFocusTint else TvColors.GlassTint,
+        dpValue(GlassTokens.ControlRadius).toFloat(),
+        if (hasFocus) TvColors.FocusRing else TvColors.GlassBorder,
+    )
 }
 
 private fun View.dpValue(value: Int): Int {
@@ -135,7 +133,7 @@ private fun ComponentActivity.playerInfoPanel(debugInfo: String): TextView {
         setLineSpacing(2f, 1.05f)
         maxLines = 18
         ellipsize = TextUtils.TruncateAt.END
-        background = rounded(TvColors.Overlay, dp(TvRadius.Control), dp(1), TvColors.FocusRing)
+        background = glassDrawable(GlassTokens.PanelRadius)
         setPadding(dp(14), dp(12), dp(14), dp(12))
         visibility = View.GONE
     }

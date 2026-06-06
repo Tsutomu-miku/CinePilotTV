@@ -1,10 +1,13 @@
 package tv.cinepilot.tv.ui
 
+import android.graphics.Color
 import android.graphics.Typeface
 import android.text.TextUtils
 import android.view.Gravity
 import android.view.View
 import android.view.ViewGroup
+import android.widget.FrameLayout
+import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.ScrollView
 import android.widget.TextView
@@ -22,8 +25,9 @@ fun ComponentActivity.detailsScreen(
     technicalInfo: List<String>,
     folderAction: View,
     loadPoster: (LinearLayout, MediaItemSummary) -> Unit,
+    loadBackdrop: (ImageView, MediaItemSummary) -> Unit,
 ): View {
-    val root = detailsStage(item.name()) {
+    return detailsStage(item, loadBackdrop) {
         addView(LinearLayout(this@detailsScreen).apply {
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.TOP
@@ -31,7 +35,7 @@ fun ComponentActivity.detailsScreen(
             clipToPadding = false
             loadPoster(this, item)
             addView(
-                detailInfoPanel {
+                detailDecisionColumn {
                     addView(detailTitle(item.name()))
                     addView(metadataPills(detailMetadata(item, episodeLabel)))
                     if (item.hasResumePosition()) {
@@ -41,60 +45,104 @@ fun ComponentActivity.detailsScreen(
                     if (item.playable()) {
                         addView(actionStrip(playbackActions))
                         playbackActions.firstOrNull()?.requestInitialFocus()
-                        trackControls?.let(::addView)
                     } else {
                         addView(folderAction)
                         folderAction.requestInitialFocus()
-                    }
-                    if (technicalInfo.isNotEmpty()) {
-                        addView(section("媒体信息"))
-                        addView(metadataPills(technicalInfo))
-                    }
-                    if (item.overview().isNotBlank()) {
-                        addView(section("剧情简介"))
-                        addView(bodyText(item.overview()))
                     }
                 },
                 LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f),
             )
         })
+        trackControls?.let { controls ->
+            addView(detailGlassSection { addView(controls) })
+        }
+        if (technicalInfo.isNotEmpty()) {
+            addView(detailGlassSection {
+                addView(section("媒体信息"))
+                addView(metadataPills(technicalInfo))
+            })
+        }
+        if (item.overview().isNotBlank()) {
+            addView(detailGlassSection {
+                addView(section("剧情简介"))
+                addView(bodyText(item.overview()))
+            })
+        }
     }
-    return root.bindVerticalDpadScrollFallback()
 }
 
-private fun ComponentActivity.detailsStage(title: String, content: LinearLayout.() -> Unit): ScrollView {
+private fun ComponentActivity.detailsStage(
+    item: MediaItemSummary,
+    loadBackdrop: (ImageView, MediaItemSummary) -> Unit,
+    content: LinearLayout.() -> Unit,
+): FrameLayout {
+    val backdrop = ImageView(this).apply {
+        scaleType = ImageView.ScaleType.CENTER_CROP
+        alpha = 0.74f
+        setBackgroundColor(TvColors.Background)
+        applyBackdropBlur()
+    }
+    loadBackdrop(backdrop, item)
     val container = LinearLayout(this).apply {
         orientation = LinearLayout.VERTICAL
         setPadding(dp(TvSpacing.ScreenX), dp(24), dp(TvSpacing.ScreenX), dp(TvSpacing.ScreenBottom))
-        setBackgroundColor(TvColors.Background)
         content()
     }
-    return ScrollView(this).apply {
-        setBackgroundColor(TvColors.Background)
+    val scroll = ScrollView(this).apply {
         isFillViewport = true
         isFocusable = false
         descendantFocusability = ViewGroup.FOCUS_AFTER_DESCENDANTS
-        contentDescription = "详情 $title"
+        contentDescription = "详情 ${item.name()}"
         addView(container, LinearLayout.LayoutParams(
             LinearLayout.LayoutParams.MATCH_PARENT,
             LinearLayout.LayoutParams.WRAP_CONTENT,
         ))
+    }.bindVerticalDpadScrollFallback()
+    return FrameLayout(this).apply {
+        setBackgroundColor(TvColors.Background)
+        addView(backdrop, FrameLayout.LayoutParams(
+            FrameLayout.LayoutParams.MATCH_PARENT,
+            FrameLayout.LayoutParams.MATCH_PARENT,
+        ))
+        addView(View(this@detailsStage).apply {
+            background = rounded(Color.argb(186, 0, 0, 0), 0)
+        }, FrameLayout.LayoutParams(
+            FrameLayout.LayoutParams.MATCH_PARENT,
+            FrameLayout.LayoutParams.MATCH_PARENT,
+        ))
+        addView(scroll)
     }
 }
 
-private fun ComponentActivity.detailInfoPanel(content: LinearLayout.() -> Unit): LinearLayout {
+private fun ComponentActivity.detailDecisionColumn(content: LinearLayout.() -> Unit): LinearLayout {
     return LinearLayout(this).apply {
         orientation = LinearLayout.VERTICAL
-        background = rounded(TvColors.Surface, dp(TvRadius.Card), dp(1), TvColors.PillBorder)
-        setPadding(dp(18), dp(16), dp(18), dp(18))
+        setPadding(dp(4), dp(6), dp(4), dp(16))
         content()
+    }
+}
+
+private fun ComponentActivity.detailGlassSection(content: LinearLayout.() -> Unit): FrameLayout {
+    return glassPanel {
+        setPadding(dp(18), dp(14), dp(18), dp(16))
+        addView(LinearLayout(this@detailGlassSection).apply {
+            orientation = LinearLayout.VERTICAL
+            content()
+        })
+    }.apply {
+        layoutParams = LinearLayout.LayoutParams(
+            LinearLayout.LayoutParams.MATCH_PARENT,
+            LinearLayout.LayoutParams.WRAP_CONTENT,
+        ).apply {
+            topMargin = dp(14)
+        }
     }
 }
 
 private fun ComponentActivity.detailTitle(title: String): TextView {
     return TextView(this).apply {
         text = title
-        textSize = 28f
+        textSize = 34f
         typeface = Typeface.DEFAULT
         setTextColor(TvColors.TextPrimary)
         maxLines = 3
