@@ -554,6 +554,20 @@ public final class ProtocolCoreTest {
                 "relative direct stream url resolves against server"
         );
 
+        PlayableMedia resumeTranscodeSelection = PlaybackSourceSelector.select(
+                address,
+                session,
+                ServerFlavor.JELLYFIN,
+                new PlaybackInfo("item-3", "play-session-3", List.of(transcodingOnly)),
+                new PlaybackSelectionPreferences(MediaTicks.fromMilliseconds(90_000), null, null, null, 0, 0, 0)
+        ).orElseThrow();
+        assertEquals(PlayMethod.TRANSCODE, resumeTranscodeSelection.playMethod(), "transcode url can resume");
+        assertTrue(
+                !resumeTranscodeSelection.url().contains("StartTimeTicks=900000000"),
+                "server transcoding url is not rewritten with resume start ticks"
+        );
+        assertEquals(MediaTicks.fromMilliseconds(90_000), resumeTranscodeSelection.startTimeTicks(), "transcode url keeps local resume ticks");
+
         MediaSourceInfo directStreamWithEmbeddedSubtitle = MediaSourceInfo.builder("source-embedded-subtitle")
                 .supportsDirectStream(true)
                 .supportsTranscoding(true)
@@ -1224,8 +1238,8 @@ public final class ProtocolCoreTest {
                 "source-1",
                 "play-session-1",
                 PlayMethod.TRANSCODE,
-                "https://media.example.com/Videos/item-1/master.m3u8",
                 null,
+                ProtocolRequest.get("/Videos/item-1/master.m3u8").build(),
                 null,
                 null,
                 "",
@@ -1241,7 +1255,35 @@ public final class ProtocolCoreTest {
 
         assertTrue(
                 transport.requests.get(0).bodyJson().contains("\"PositionTicks\":650000000"),
-                "transcode playback report includes stream start offset"
+                "generated transcode request report includes stream start offset"
+        );
+
+        FakeTransport readyUrlTransport = new FakeTransport();
+        readyUrlTransport.enqueue(204, "");
+        MediaBrowserClient readyUrlClient = new MediaBrowserClient(readyUrlTransport, new InMemorySessionRepository(), client);
+        PlayableMedia readyUrlPlayable = new PlayableMedia(
+                "item-1",
+                "source-1",
+                "play-session-1",
+                PlayMethod.TRANSCODE,
+                "https://media.example.com/Videos/item-1/master.m3u8",
+                null,
+                null,
+                null,
+                "",
+                "",
+                "",
+                "",
+                MediaTicks.fromMilliseconds(60_000),
+                null
+        );
+        PlaybackSessionController readyUrlController = new PlaybackSessionController(readyUrlClient, authenticated, readyUrlPlayable);
+
+        readyUrlController.start(0L, 65_000L);
+
+        assertTrue(
+                readyUrlTransport.requests.get(0).bodyJson().contains("\"PositionTicks\":650000000"),
+                "ready transcode url report uses player position without extra offset"
         );
     }
 

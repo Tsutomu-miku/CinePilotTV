@@ -227,7 +227,7 @@ class Media3PlayerHost(
     }
 
     private fun initialPlayerPositionMillis(playable: PlayableMedia): Long {
-        if (playable.playMethod() == PlayMethod.TRANSCODE) {
+        if (playable.playMethod() == PlayMethod.TRANSCODE && playable.request() != null) {
             return 0L
         }
         return MediaTicks.toMilliseconds(playable.startTimeTicks())

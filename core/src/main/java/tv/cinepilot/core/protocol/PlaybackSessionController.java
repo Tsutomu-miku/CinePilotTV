@@ -103,7 +103,7 @@ public final class PlaybackSessionController {
 
     public PlaybackReport report(long positionMillis) {
         long positionTicks = MediaTicks.fromMilliseconds(positionMillis);
-        if (playableMedia.playMethod() == PlayMethod.TRANSCODE) {
+        if (playableMedia.playMethod() == PlayMethod.TRANSCODE && playableMedia.request() != null) {
             positionTicks = Math.addExact(positionTicks, playableMedia.startTimeTicks());
         }
         return new PlaybackReport(
