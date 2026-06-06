@@ -24,6 +24,9 @@ import tv.cinepilot.tv.player.Media3PlayerHost
 import tv.cinepilot.tv.playback.PlaybackRouteController
 import tv.cinepilot.tv.playback.SubtitleStyleStore
 import tv.cinepilot.tv.runtime.PrimaryImageLoader
+import tv.cinepilot.tv.settings.SettingsRouteController
+import tv.cinepilot.tv.settings.SettingsStore
+import tv.cinepilot.tv.ui.TvColors
 import tv.cinepilot.tv.ui.label
 import tv.cinepilot.tv.ui.screen
 import tv.cinepilot.tv.ui.tvErrorMessage
@@ -34,14 +37,18 @@ class MainActivity : ComponentActivity() {
     private lateinit var authRoutes: AuthRouteController
     private lateinit var playbackRoutes: PlaybackRouteController
     private lateinit var searchRoutes: SearchRouteController
+    private lateinit var settingsRoutes: SettingsRouteController
     private lateinit var primaryImageLoader: PrimaryImageLoader
     private lateinit var subtitleStyleStore: SubtitleStyleStore
+    private lateinit var settingsStore: SettingsStore
     private val executor = Executors.newSingleThreadExecutor()
     private val mainHandler = Handler(Looper.getMainLooper())
     private var accountSwitcherReturnState: TvAppState? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        settingsStore = SettingsStore(this)
+        TvColors.applyTheme(settingsStore.theme().id)
         viewModel = ViewModelProvider(this, CinePilotViewModel.factory(applicationContext))[CinePilotViewModel::class.java]
         subtitleStyleStore = SubtitleStyleStore(this)
         playerHost = Media3PlayerHost(this, viewModel.mediaBrowserClient, subtitleStyleStore)
@@ -74,6 +81,11 @@ class MainActivity : ComponentActivity() {
             runTask = ::runTask,
             showHome = ::showHome,
         )
+        settingsRoutes = SettingsRouteController(
+            activity = this,
+            settingsStore = settingsStore,
+            showHome = ::showHome,
+        )
         onBackPressedDispatcher.addCallback(this, object : OnBackPressedCallback(true) {
             override fun handleOnBackPressed() {
                 handleBackPressed()
@@ -103,6 +115,9 @@ class MainActivity : ComponentActivity() {
             return
         }
         if (searchRoutes.closeIfVisible()) {
+            return
+        }
+        if (settingsRoutes.closeIfVisible()) {
             return
         }
         accountSwitcherReturnState?.let { returnState ->
@@ -148,6 +163,7 @@ class MainActivity : ComponentActivity() {
     private fun showHome(state: TvAppState) {
         authRoutes.stopQuickConnectPolling()
         searchRoutes.hide()
+        settingsRoutes.hide()
         accountSwitcherReturnState = null
         var focusedCard: View? = null
         setContentView(homeRouteScreen(
@@ -161,6 +177,7 @@ class MainActivity : ComponentActivity() {
             },
             onRefresh = ::refreshHome,
             onSwitchAccount = ::showAccountSwitcher,
+            onSettings = { settingsRoutes.show(state) },
             onLogout = authRoutes::logoutFromHome,
             onBackInBrowse = { showHome(viewModel.workflowController.back()) },
             onPreviousPage = ::previousBrowsePage,

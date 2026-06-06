@@ -245,7 +245,7 @@ if ! grep -q 'iconAction("返回服务器输入", TvIcon.BACK' "$ROOT_DIR/app/sr
   exit 1
 fi
 
-for home_text in "首页" "搜索结果" "切换账号"; do
+for home_text in "首页" "搜索结果" "切换账号" "设置"; do
   if ! grep -q "$home_text" "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/ui/HomeScreen.kt"; then
     echo "Home screen is missing TV UI text: $home_text" >&2
     exit 1
@@ -638,7 +638,7 @@ if grep -q '默认字幕：' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/ui/Med
   exit 1
 fi
 
-for icon in search refresh logout play back subtitles speed mic account info download share forward; do
+for icon in search refresh logout play back subtitles speed mic account info download share forward settings; do
   if [[ ! -s "$ROOT_DIR/app/src/main/res/drawable/ic_${icon}.xml" ]]; then
     echo "Missing TV action icon: ic_${icon}.xml" >&2
     exit 1
@@ -652,6 +652,34 @@ fi
 
 if ! grep -q 'ACCOUNT' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/ui/TvUi.kt"; then
   echo "TV UI helpers must expose an account switch icon" >&2
+  exit 1
+fi
+
+if ! grep -q 'SETTINGS(R.drawable.ic_settings)' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/ui/TvUi.kt"; then
+  echo "TV UI helpers must expose a settings icon" >&2
+  exit 1
+fi
+
+if ! grep -q 'compactIconAction("设置", TvIcon.SETTINGS' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/ui/HomeScreen.kt"; then
+  echo "Home toolbar must expose a global settings entry" >&2
+  exit 1
+fi
+
+if ! grep -q 'SettingsRouteController' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/MainActivity.kt" ||
+  ! grep -q 'settingsRoutes.closeIfVisible' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/MainActivity.kt"; then
+  echo "MainActivity must route global settings and handle Back from settings" >&2
+  exit 1
+fi
+
+if ! grep -q 'class SettingsStore' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/settings/SettingsStore.kt" ||
+  ! grep -q 'getSharedPreferences("cinepilot_settings"' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/settings/SettingsStore.kt"; then
+  echo "Global settings must persist theme choices locally" >&2
+  exit 1
+fi
+
+if ! grep -q 'fun applyTheme' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/ui/TvDesign.kt" ||
+  ! grep -q 'TvColors.applyTheme(settingsStore.theme().id)' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/MainActivity.kt"; then
+  echo "Global settings theme must apply before rendering UI" >&2
   exit 1
 fi
 

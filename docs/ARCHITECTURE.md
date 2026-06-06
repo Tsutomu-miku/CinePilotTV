@@ -12,7 +12,7 @@ Android app 的运行时入口是 `CinePilotRuntime`。它负责创建客户端�
 
 客户端身份的 device id 应优先使用 `Settings.Secure.ANDROID_ID`，因为 session scope 依赖 device id 来避免 token 跨设备复用。只有无法读取 Android ID 时才 fallback 到设备型号和系统 build id。
 
-`MainActivity` 当前使用 Android 原生 View 承载 TV 流程，并只保留启动、生命周期、顶层 Back 分发和跨 route controller 的事件转发。服务器连接和登录放在 `AuthRouteController`，搜索页 / 筛选 / 语音输入放在 `SearchRouteController`，详情到播放器的播放准备和诊断放在 `PlaybackRouteController` / `PlaybackDiagnosticsController`。界面事件必须通过 `TvWorkflowController` 推进状态。通用暗色 TV 主题、焦点态、按钮、输入框、首页媒体架、详情屏幕和全屏播放器组件放在 `app/.../tv/ui`，避免 Activity 继续承担所有视觉细节。
+`MainActivity` 当前使用 Android 原生 View 承载 TV 流程，并只保留启动、生命周期、顶层 Back 分发和跨 route controller 的事件转发。服务器连接和登录放在 `AuthRouteController`，搜索页 / 筛选 / 语音输入放在 `SearchRouteController`，全局设置和主题应用放在 `SettingsRouteController`，详情到播放器的播放准备和诊断放在 `PlaybackRouteController` / `PlaybackDiagnosticsController`。界面事件必须通过 `TvWorkflowController` 推进状态。通用暗色 TV 主题、焦点态、按钮、输入框、首页媒体架、详情屏幕和全屏播放器组件放在 `app/.../tv/ui`，避免 Activity 继续承担所有视觉细节。
 
 Android 遥控器 Back 键必须和页面按钮使用同一套 workflow 语义：登录、首页和错误页回到服务器输入；详情回首页；播放器页先释放 Media3 player 再回详情；只有服务器输入页交给系统退出。
 
@@ -24,7 +24,7 @@ Jellyfin 登录页可以发起 Quick Connect：Activity 展示服务器返回的
 
 按钮、输入框、媒体卡片和 OptionSelect 摘要行必须有显式 focus color / focus border，不能只依赖平台默认样式；这样在深色 TV 背景上 D-pad 当前焦点始终可见。滚动详情页应通过 `TvFocus` 的统一垂直 D-pad 滚动兜底处理播放按钮、媒体源、音轨和字幕摘要行，避免页面里散落按钮级防丢焦逻辑。
 
-关键操作按钮应配套开源 Material Icons 风格矢量图标资源，例如搜索、刷新、退出、播放、返回、前进、字幕、低码率播放、诊断导出和诊断分享。图标资源放在 Android `drawable`，由 `tv/ui/TvUi.kt` 的 `TvIcon` 统一引用，避免页面里散落资源 id。首页文件夹分页的“上一页 / 下一页”也应使用共享返回 / 前进图标，而不是退回纯文字按钮。
+关键操作按钮应配套开源 Material Icons 风格矢量图标资源，例如搜索、刷新、设置、退出、播放、返回、前进、字幕、低码率播放、诊断导出和诊断分享。图标资源放在 Android `drawable`，由 `tv/ui/TvUi.kt` 的 `TvIcon` 统一引用，避免页面里散落资源 id。首页文件夹分页的“上一页 / 下一页”也应使用共享返回 / 前进图标，而不是退回纯文字按钮。
 
 `TvDiagnostics` 生成不含 token 的联调快照，供 TV UI 展示 server、user、item、media source、play method、错误消息和焦点信息。Android 层的 `DeviceCodecDiagnostics` 会追加本机 `MediaCodecList` 可见的 H.264、HEVC、AV1、VP9、Dolby Vision、AC3、EAC3、TrueHD 和 DTS 解码器快照，并把基础 codec 列表转换为 `PlaybackDeviceProfile` 注入 `TvWorkflowController`。具备 profile 时，playback info 使用 POST body 传递 `DeviceProfile`；没有 profile 时保留 GET fallback。错误消息进入诊断前必须统一脱敏，至少覆盖播放 URL 里的 `api_key` / access token query、`X-Emby-Token` / `X-MediaBrowser-Token` 头值和 MediaBrowser authorization token。
 

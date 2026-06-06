@@ -3,22 +3,75 @@ package tv.cinepilot.tv.ui
 import android.graphics.Color
 
 object TvColors {
-    val Background = Color.rgb(8, 13, 24)
-    val Surface = Color.rgb(13, 20, 33)
-    val SurfaceRaised = Color.rgb(18, 26, 38)
-    val SurfaceControl = Color.rgb(26, 36, 52)
-    val SurfaceInput = Color.rgb(16, 24, 39)
-    val PosterFallback = Color.rgb(24, 34, 49)
-    val PosterBorder = Color.rgb(30, 41, 59)
-    val Focus = Color.rgb(20, 184, 166)
-    val FocusRing = Color.rgb(153, 246, 228)
-    val FocusText = Color.rgb(3, 18, 22)
-    val Accent = Color.rgb(45, 212, 191)
-    val AccentStrong = Color.rgb(94, 234, 212)
-    val Resume = Color.rgb(15, 118, 110)
-    val TextPrimary = Color.WHITE
-    val TextSecondary = Color.rgb(226, 232, 240)
-    val TextMuted = Color.rgb(148, 163, 184)
+    var Background = Color.rgb(8, 13, 24)
+        private set
+    var Surface = Color.rgb(13, 20, 33)
+        private set
+    var SurfaceRaised = Color.rgb(18, 26, 38)
+        private set
+    var SurfaceControl = Color.rgb(26, 36, 52)
+        private set
+    var SurfaceInput = Color.rgb(16, 24, 39)
+        private set
+    var PosterFallback = Color.rgb(24, 34, 49)
+        private set
+    var PosterBorder = Color.rgb(30, 41, 59)
+        private set
+    var Focus = Color.rgb(20, 184, 166)
+        private set
+    var FocusRing = Color.rgb(153, 246, 228)
+        private set
+    var FocusText = Color.rgb(3, 18, 22)
+        private set
+    var Accent = Color.rgb(45, 212, 191)
+        private set
+    var AccentStrong = Color.rgb(94, 234, 212)
+        private set
+    var Resume = Color.rgb(15, 118, 110)
+        private set
+    var TextPrimary = Color.WHITE
+        private set
+    var TextSecondary = Color.rgb(226, 232, 240)
+        private set
+    var TextMuted = Color.rgb(148, 163, 184)
+        private set
+
+    fun applyTheme(themeId: String) {
+        val palette = when (themeId) {
+            "jellyfin" -> ThemePalette(
+                focus = Color.rgb(0, 168, 232),
+                focusRing = Color.rgb(186, 230, 253),
+                focusText = Color.rgb(2, 18, 30),
+                accent = Color.rgb(56, 189, 248),
+                accentStrong = Color.rgb(125, 211, 252),
+                resume = Color.rgb(3, 105, 161),
+            )
+            "emby" -> ThemePalette(
+                focus = Color.rgb(82, 196, 26),
+                focusRing = Color.rgb(187, 247, 208),
+                focusText = Color.rgb(5, 22, 12),
+                accent = Color.rgb(132, 204, 22),
+                accentStrong = Color.rgb(190, 242, 100),
+                resume = Color.rgb(63, 98, 18),
+            )
+            else -> ThemePalette()
+        }
+        Focus = palette.focus
+        FocusRing = palette.focusRing
+        FocusText = palette.focusText
+        Accent = palette.accent
+        AccentStrong = palette.accentStrong
+        Resume = palette.resume
+    }
+
+    private data class ThemePalette(
+        val focus: Int = Color.rgb(20, 184, 166),
+        val focusRing: Int = Color.rgb(153, 246, 228),
+        val focusText: Int = Color.rgb(3, 18, 22),
+        val accent: Int = Color.rgb(45, 212, 191),
+        val accentStrong: Int = Color.rgb(94, 234, 212),
+        val resume: Int = Color.rgb(15, 118, 110),
+    )
 }
 
 object TvSpacing {

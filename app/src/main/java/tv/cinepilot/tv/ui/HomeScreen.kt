@@ -27,6 +27,7 @@ fun ComponentActivity.homeScreen(
             compactIconAction("搜索媒体", TvIcon.SEARCH, navigation.onSearch),
             compactIconAction("刷新", TvIcon.REFRESH, navigation.onRefresh),
             compactIconAction("切换账号", TvIcon.ACCOUNT, navigation.onSwitchAccount),
+            compactIconAction("设置", TvIcon.SETTINGS, navigation.onSettings),
             compactIconAction("退出", TvIcon.LOGOUT, navigation.onLogout),
         )))
 
@@ -97,6 +98,7 @@ data class HomeNavigation(
     val onSearch: () -> Unit,
     val onRefresh: () -> Unit,
     val onSwitchAccount: () -> Unit,
+    val onSettings: () -> Unit,
     val onLogout: () -> Unit,
     val onBackInBrowse: () -> Unit,
     val onPreviousPage: () -> Unit,

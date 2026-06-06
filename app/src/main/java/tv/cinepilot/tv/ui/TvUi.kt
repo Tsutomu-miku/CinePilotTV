@@ -148,6 +148,7 @@ enum class TvIcon(@DrawableRes val drawableRes: Int) {
     DOWNLOAD(R.drawable.ic_download),
     SHARE(R.drawable.ic_share),
     FORWARD(R.drawable.ic_forward),
+    SETTINGS(R.drawable.ic_settings),
 }
 
 fun ComponentActivity.label(text: String): TextView {
