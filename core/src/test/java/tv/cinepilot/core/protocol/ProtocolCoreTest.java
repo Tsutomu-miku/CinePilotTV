@@ -247,8 +247,21 @@ public final class ProtocolCoreTest {
         assertTrue(imageUrl.contains("fillHeight=480"), "image height query");
         assertTrue(imageUrl.contains("quality=90"), "image quality query");
 
+        ProtocolRequest backdrop = MediaImageRequests.item(
+                session,
+                ServerFlavor.JELLYFIN,
+                "movie 1",
+                "Backdrop",
+                0,
+                "backdrop-tag",
+                1280,
+                720
+        );
+        assertEquals("/Items/movie%201/Images/Backdrop/0", backdrop.path(), "backdrop image path includes index");
+
         ProtocolRequest detail = MediaBrowserRequests.item(session, ServerFlavor.JELLYFIN, "item/with/slash");
         assertEquals("/Users/user%201/Items/item%2Fwith%2Fslash", detail.path(), "item detail path encodes item id");
+        assertTrue(detail.url(address).contains("EnableImageTypes=Primary%2CBackdrop%2CThumb"), "detail requests artwork types");
     }
 
     private static void scopesSavedSessions() {
@@ -961,7 +974,8 @@ public final class ProtocolCoreTest {
                       "ProductionYear": 2016,
                       "Overview": "A linguist meets visitors from another world.",
                       "Genres": ["Science Fiction", "Drama"],
-                      "ImageTags": {"Primary": "primary-tag"},
+                      "ImageTags": {"Primary": "primary-tag", "Thumb": "thumb-tag"},
+                      "BackdropImageTags": ["backdrop-tag"],
                       "UserData": {"Played": false, "PlaybackPositionTicks": 120000000, "PlayCount": 0, "IsFavorite": true}
                     },
                     {
@@ -986,6 +1000,8 @@ public final class ProtocolCoreTest {
         assertEquals("A linguist meets visitors from another world.", movie.overview(), "overview maps");
         assertEquals("Science Fiction", movie.genres().get(0), "genres map");
         assertEquals("primary-tag", movie.imageTags().get("Primary"), "image tags map");
+        assertEquals("backdrop-tag", movie.backdropImageTags().get(0), "backdrop tags map");
+        assertTrue(movie.hasBackdropArtwork(), "backdrop helper");
         assertTrue(movie.hasResumePosition(), "resume helper");
         assertEquals(MediaItemType.SERIES, page.items().get(1).type(), "series type maps");
 
@@ -1024,6 +1040,10 @@ public final class ProtocolCoreTest {
         assertTrue(imageUrl.startsWith("https://media.example.com/jellyfin/Items/movie-1/Images/Primary?"), "client image url");
         assertTrue(imageUrl.contains("tag=primary-tag"), "client image tag");
         assertTrue(imageUrl.contains("api_key=token-1"), "client image url carries token");
+
+        String backdropUrl = mediaClient.backdropImageUrl(authenticated, movie, 1280, 720);
+        assertTrue(backdropUrl.startsWith("https://media.example.com/jellyfin/Items/movie-1/Images/Backdrop/0?"), "client backdrop url");
+        assertTrue(backdropUrl.contains("tag=backdrop-tag"), "client backdrop tag");
     }
 
     private static void persistsSavedSessionsToFile() {

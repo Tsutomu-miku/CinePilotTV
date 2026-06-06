@@ -109,6 +109,7 @@ public final class MediaBrowserRequests {
                 .query("EnableImages", "true")
                 .query("EnableUserData", "true")
                 .query("ImageTypeLimit", "1")
+                .query("EnableImageTypes", "Primary,Backdrop,Thumb")
                 .query("Fields", ITEM_FIELDS)
                 .build();
     }
@@ -121,6 +122,7 @@ public final class MediaBrowserRequests {
                 .query("EnableImages", "true")
                 .query("EnableUserData", "true")
                 .query("ImageTypeLimit", "1")
+                .query("EnableImageTypes", "Primary,Backdrop,Thumb")
                 .query("Fields", ITEM_FIELDS)
                 .build();
     }
@@ -136,6 +138,7 @@ public final class MediaBrowserRequests {
                 .query("EnableImages", "true")
                 .query("EnableUserData", "true")
                 .query("ImageTypeLimit", "1")
+                .query("EnableImageTypes", "Primary,Backdrop,Thumb")
                 .query("Fields", ITEM_FIELDS);
         if (seriesId != null && !seriesId.isBlank()) {
             builder.query("SeriesId", seriesId);
@@ -148,6 +151,9 @@ public final class MediaBrowserRequests {
         String userId = ProtocolRequest.encodePathSegment(session.userId());
         String encodedItemId = ProtocolRequest.encodePathSegment(itemId);
         return authenticated(ProtocolRequest.get("/Users/" + userId + "/Items/" + encodedItemId), session, flavor)
+                .query("EnableImages", "true")
+                .query("ImageTypeLimit", "1")
+                .query("EnableImageTypes", "Primary,Backdrop,Thumb")
                 .query("Fields", ITEM_FIELDS + ",Chapters")
                 .build();
     }

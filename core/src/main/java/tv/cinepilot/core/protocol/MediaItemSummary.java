@@ -20,7 +20,8 @@ public record MediaItemSummary(
         String overview,
         List<String> genres,
         UserItemData userData,
-        Map<String, String> imageTags
+        Map<String, String> imageTags,
+        List<String> backdropImageTags
 ) {
     public MediaItemSummary {
         require(id, "id");
@@ -44,10 +45,54 @@ public record MediaItemSummary(
         }
         genres = AndroidCollections.listCopy(genres);
         imageTags = AndroidCollections.mapCopy(imageTags);
+        backdropImageTags = AndroidCollections.listCopy(backdropImageTags);
     }
 
     public boolean hasResumePosition() {
         return userData.playbackPositionTicks() > 0;
+    }
+
+    public boolean hasBackdropArtwork() {
+        return !backdropImageTags.isEmpty() || imageTags.containsKey("Thumb") || imageTags.containsKey("Primary");
+    }
+
+    public MediaItemSummary(
+            String id,
+            String parentId,
+            String name,
+            MediaItemType type,
+            boolean folder,
+            boolean playable,
+            Long runTimeTicks,
+            Integer productionYear,
+            Integer indexNumber,
+            Integer parentIndexNumber,
+            String seriesName,
+            String seriesId,
+            String overview,
+            List<String> genres,
+            UserItemData userData,
+            Map<String, String> imageTags
+    ) {
+        this(
+                id,
+                parentId,
+                name,
+                type,
+                folder,
+                playable,
+                runTimeTicks,
+                productionYear,
+                indexNumber,
+                parentIndexNumber,
+                seriesName,
+                seriesId,
+                overview,
+                genres,
+                userData,
+                imageTags,
+                AndroidCollections.emptyList()
+        );
     }
 
     public MediaItemSummary(
@@ -83,7 +128,8 @@ public record MediaItemSummary(
                 overview,
                 genres,
                 userData,
-                imageTags
+                imageTags,
+                AndroidCollections.emptyList()
         );
     }
 

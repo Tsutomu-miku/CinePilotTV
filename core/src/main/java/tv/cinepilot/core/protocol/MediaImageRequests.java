@@ -13,11 +13,28 @@ public final class MediaImageRequests {
             int width,
             int height
     ) {
+        return item(session, flavor, itemId, imageType, -1, tag, width, height);
+    }
+
+    public static ProtocolRequest item(
+            AuthSession session,
+            ServerFlavor flavor,
+            String itemId,
+            String imageType,
+            int imageIndex,
+            String tag,
+            int width,
+            int height
+    ) {
         require(itemId, "itemId");
         require(imageType, "imageType");
         String encodedItemId = ProtocolRequest.encodePathSegment(itemId);
+        String imagePath = "/Items/" + encodedItemId + "/Images/" + ProtocolRequest.encodePathSegment(imageType);
+        if (imageIndex >= 0) {
+            imagePath += "/" + imageIndex;
+        }
         ProtocolRequest.Builder builder = MediaBrowserRequests.authenticated(
-                ProtocolRequest.get("/Items/" + encodedItemId + "/Images/" + ProtocolRequest.encodePathSegment(imageType)),
+                ProtocolRequest.get(imagePath),
                 session,
                 flavor
         );

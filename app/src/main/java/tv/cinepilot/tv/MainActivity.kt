@@ -23,6 +23,7 @@ import tv.cinepilot.tv.home.homeRouteScreen
 import tv.cinepilot.tv.player.Media3PlayerHost
 import tv.cinepilot.tv.playback.PlaybackRouteController
 import tv.cinepilot.tv.playback.SubtitleStyleStore
+import tv.cinepilot.tv.runtime.ArtworkLoader
 import tv.cinepilot.tv.runtime.PrimaryImageLoader
 import tv.cinepilot.tv.settings.SettingsRouteController
 import tv.cinepilot.tv.settings.SettingsStore
@@ -39,6 +40,7 @@ class MainActivity : ComponentActivity() {
     private lateinit var searchRoutes: SearchRouteController
     private lateinit var settingsRoutes: SettingsRouteController
     private lateinit var primaryImageLoader: PrimaryImageLoader
+    private lateinit var artworkLoader: ArtworkLoader
     private lateinit var subtitleStyleStore: SubtitleStyleStore
     private lateinit var settingsStore: SettingsStore
     private val executor = Executors.newSingleThreadExecutor()
@@ -53,6 +55,7 @@ class MainActivity : ComponentActivity() {
         subtitleStyleStore = SubtitleStyleStore(this)
         playerHost = Media3PlayerHost(this, viewModel.mediaBrowserClient, subtitleStyleStore)
         primaryImageLoader = PrimaryImageLoader(viewModel.mediaBrowserClient)
+        artworkLoader = ArtworkLoader(viewModel.mediaBrowserClient)
         authRoutes = AuthRouteController(
             activity = this,
             workflowController = viewModel.workflowController,
@@ -73,7 +76,7 @@ class MainActivity : ComponentActivity() {
             runTask = ::runTask,
             showHome = ::showHome,
             showError = ::showError,
-            loadPosterImage = ::loadPrimaryImage,
+            loadPosterImage = ::loadPosterImage,
         )
         searchRoutes = SearchRouteController(
             activity = this,
@@ -105,6 +108,7 @@ class MainActivity : ComponentActivity() {
     override fun onDestroy() {
         authRoutes.stopQuickConnectPolling()
         playerHost.shutdown()
+        artworkLoader.shutdown()
         primaryImageLoader.shutdown()
         executor.shutdownNow()
         super.onDestroy()
@@ -184,7 +188,7 @@ class MainActivity : ComponentActivity() {
             onNextPage = ::nextBrowsePage,
             onOpen = playbackRoutes::openMediaItem,
             onFocusItem = { row, item -> viewModel.workflowController.focusItem(row.id(), item.id()) },
-            loadImage = ::loadPrimaryImage,
+            loadImage = ::loadPosterImage,
             onFocusedCard = { focusedCard = it },
         ))
         focusedCard?.post { focusedCard?.requestFocus() }
@@ -220,8 +224,12 @@ class MainActivity : ComponentActivity() {
         }
     }
 
-    private fun loadPrimaryImage(target: ImageView, item: MediaItemSummary, width: Int, height: Int) {
-        primaryImageLoader.load(this, viewModel.workflowController.state().authenticated(), target, item, width, height)
+    private fun loadPosterImage(target: ImageView, item: MediaItemSummary, width: Int, height: Int) {
+        artworkLoader.loadPoster(this, viewModel.workflowController.state().authenticated(), target, item, width, height)
+    }
+
+    private fun loadBackdropImage(target: ImageView, item: MediaItemSummary, width: Int, height: Int) {
+        artworkLoader.loadBackdrop(this, viewModel.workflowController.state().authenticated(), target, item, width, height)
     }
 
     private fun loadPublicUserImage(target: ImageView, user: PublicUserSummary, width: Int, height: Int) {

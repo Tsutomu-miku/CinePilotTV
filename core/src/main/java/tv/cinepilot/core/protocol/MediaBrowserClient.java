@@ -179,10 +179,50 @@ public final class MediaBrowserClient {
     }
 
     public String primaryImageUrl(AuthenticatedServer authenticated, MediaItemSummary item, int width, int height) {
+        return itemImageUrl(authenticated, item, "Primary", width, height);
+    }
+
+    public String backdropImageUrl(AuthenticatedServer authenticated, MediaItemSummary item, int width, int height) {
         if (item == null) {
             throw new IllegalArgumentException("item is required");
         }
-        String tag = item.imageTags().get("Primary");
+        if (!item.backdropImageTags().isEmpty()) {
+            return itemImageUrl(authenticated, item, "Backdrop", 0, item.backdropImageTags().get(0), width, height);
+        }
+        if (item.imageTags().containsKey("Thumb")) {
+            return itemImageUrl(authenticated, item, "Thumb", width, height);
+        }
+        return primaryImageUrl(authenticated, item, width, height);
+    }
+
+    public String itemImageUrl(
+            AuthenticatedServer authenticated,
+            MediaItemSummary item,
+            String imageType,
+            int width,
+            int height
+    ) {
+        if (item == null) {
+            throw new IllegalArgumentException("item is required");
+        }
+        return itemImageUrl(authenticated, item, imageType, -1, item.imageTags().get(imageType), width, height);
+    }
+
+    public String itemImageUrl(
+            AuthenticatedServer authenticated,
+            MediaItemSummary item,
+            String imageType,
+            int imageIndex,
+            String tag,
+            int width,
+            int height
+    ) {
+        if (item == null) {
+            throw new IllegalArgumentException("item is required");
+        }
+        if (imageType == null || imageType.isBlank()) {
+            throw new IllegalArgumentException("imageType is required");
+        }
         if (tag == null || tag.isBlank()) {
             return "";
         }
@@ -190,7 +230,8 @@ public final class MediaBrowserClient {
                 authenticated.session(),
                 authenticated.server().flavor(),
                 item.id(),
-                "Primary",
+                imageType,
+                imageIndex,
                 tag,
                 width,
                 height

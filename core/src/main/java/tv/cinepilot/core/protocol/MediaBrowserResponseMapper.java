@@ -161,7 +161,8 @@ public final class MediaBrowserResponseMapper {
                 valueOrEmpty(JsonValue.string(item, "Overview")),
                 stringList(item, "Genres"),
                 userData(JsonValue.childObject(item, "UserData")),
-                imageTags(JsonValue.childObject(item, "ImageTags"))
+                imageTags(JsonValue.childObject(item, "ImageTags")),
+                stringList(item, "BackdropImageTags")
         );
     }
 
