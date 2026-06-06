@@ -42,13 +42,14 @@ fun streamLabel(stream: MediaStreamInfo): String {
             parts.add(stream.codec())
         }
     }
-    if (stream.defaultStream()) {
+    val current = parts.joinToString(" ")
+    if (stream.defaultStream() && !current.contains("默认")) {
         parts.add("默认")
     }
-    if (stream.forced()) {
+    if (stream.forced() && !current.contains("强制")) {
         parts.add("强制")
     }
-    if (stream.external()) {
+    if (stream.external() && !current.contains("外挂")) {
         parts.add("外挂")
     }
     return parts.ifEmpty { listOf("未命名") }.joinToString(" · ")

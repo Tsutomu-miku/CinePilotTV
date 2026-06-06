@@ -10,7 +10,7 @@ app/
     auth/AuthRouteController.kt  服务器连接、会话恢复、登录和 Quick Connect route 编排
     auth/AuthScreens.kt          服务器输入、登录、public users 和 Quick Connect 页面布局
     details/DetailsRouteScreen.kt 媒体详情页组装、详情动作按钮和海报 View
-    details/DetailTrackControls.kt 详情页媒体源、音轨和字幕内联 OptionSelect 控件
+    details/DetailTrackControls.kt 详情页媒体源、音轨和字幕 OptionSelect 数据接线
     error/ErrorRouteScreen.kt    错误恢复页、播放失败恢复入口和重新登录入口
     home/HomeRouteScreens.kt     首页导航组装和搜索页布局
     home/SearchRouteController.kt 搜索页、筛选、语音输入和搜索提交 route 编排
@@ -31,7 +31,8 @@ app/
     runtime/RecentAccountStore.kt 最近登录账号列表和旧版本账号存储兼容
     ui/TvDesign.kt               TV 色彩、间距、圆角、字号和固定尺寸 design tokens
     ui/TvUi.kt                   TV 暗色主题、按钮、动作组、输入框、文字和布局 helper
-    ui/TvFocus.kt                TV 焦点态、初始焦点和密集选择按钮 helper
+    ui/TvFocus.kt                TV 焦点态、初始焦点和遥控器滚动 helper
+    ui/OptionSelect.kt           详情页摘要行加弹层列表式 OptionSelect 组件
     ui/TvFlowLayout.kt           详情页 tags 自动换行布局
     ui/MediaShelf.kt             首页横向媒体架和海报卡片
     ui/ChoiceRows.kt             搜索筛选、字幕样式、播放速度和详情轨道选择的紧凑单选行 / 组

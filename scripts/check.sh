@@ -1374,14 +1374,14 @@ if ! grep -q 'smoothScrollTo' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/ui/Tv
 fi
 
 if ! grep -q 'optionSelect' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/details/DetailTrackControls.kt" ||
-  ! grep -q 'fun ComponentActivity.optionSelect' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/ui/TvFocus.kt"; then
-  echo "Details track controls must use compact option-select controls" >&2
+  ! grep -q 'fun ComponentActivity.optionSelect' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/ui/OptionSelect.kt" ||
+  ! grep -q 'PopupWindow' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/ui/OptionSelect.kt"; then
+  echo "Details track controls must use popover option-select controls" >&2
   exit 1
 fi
 
-if ! grep -q 'settingChoiceGroup' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/details/DetailTrackControls.kt" ||
-  ! grep -q 'fun ComponentActivity.settingChoiceGroup' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/ui/ChoiceRows.kt"; then
-  echo "Details track controls must use the shared wrapping setting group" >&2
+if grep -q 'settingChoiceGroup' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/details/DetailTrackControls.kt"; then
+  echo "Details track controls must not flatten option-select choices into inline groups" >&2
   exit 1
 fi
 

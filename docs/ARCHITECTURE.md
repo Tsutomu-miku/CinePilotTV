@@ -22,7 +22,7 @@ Jellyfin 登录页可以发起 Quick Connect：Activity 展示服务器返回的
 
 服务器地址输入应使用 URI text variation，密码输入必须使用 password variation。登录界面可以保留原生 `EditText`，但不能明文显示密码。
 
-按钮、输入框和媒体卡片必须有显式 focus color / focus border，不能只依赖平台默认样式；这样在深色 TV 背景上 D-pad 当前焦点始终可见。滚动详情页应通过 `TvFocus` 的统一垂直 D-pad 滚动兜底处理播放按钮、媒体源、音轨和字幕单选项，避免页面里散落按钮级防丢焦逻辑。
+按钮、输入框、媒体卡片和 OptionSelect 摘要行必须有显式 focus color / focus border，不能只依赖平台默认样式；这样在深色 TV 背景上 D-pad 当前焦点始终可见。滚动详情页应通过 `TvFocus` 的统一垂直 D-pad 滚动兜底处理播放按钮、媒体源、音轨和字幕摘要行，避免页面里散落按钮级防丢焦逻辑。
 
 关键操作按钮应配套开源 Material Icons 风格矢量图标资源，例如搜索、刷新、退出、播放、返回、前进、字幕、低码率播放、诊断导出和诊断分享。图标资源放在 Android `drawable`，由 `tv/ui/TvUi.kt` 的 `TvIcon` 统一引用，避免页面里散落资源 id。首页文件夹分页的“上一页 / 下一页”也应使用共享返回 / 前进图标，而不是退回纯文字按钮。
 
@@ -128,7 +128,7 @@ TV 首页必须提供切换账号和退出登录两个不同入口。切换账�
 
 播放准备的 start ticks 由 `TvWorkflowController.preparePlayback` 决定：调用方传入 `null` 表示按媒体项 resume ticks 继续播放；传入 `PlaybackSelectionPreferences` 表示显式偏好，`startTimeTicks=0` 即从头播放。最大码率、音轨、字幕和最大声道数偏好会转发给 playback info 请求，分辨率和码率偏好也会继续用于 HLS URL 构造；如果最终使用本机生成的 HLS 请求，start ticks 由服务器侧处理并在播放上报中加回；如果最终复用服务器 `TranscodingUrl`，不要重写该 URL，而应让 Media3 本地 seek 到恢复位置。Android 详情页应在有 resume 进度时同时暴露“继续播放”和“从头播放”，用可读时间展示恢复位置、媒体时长和剧集上下文，不能把协议 ticks 或 `EPISODE` 这类 wire enum 直接显示给用户，并提供低码率播放入口。播放操作完成 playback info 准备后应直接进入 Media3 播放器，减少详情到播放的点击层级。
 
-播放前的媒体源、音轨和字幕选择由 `TvWorkflowController.loadPlaybackChoices` 获取服务器 playback info，并以内联单选框展示在详情页。Android 对多个 `MediaSources` 必须按媒体源分组展示，优先使用服务器返回的 source name、path 文件名、container 和 bitrate 形成可读标签；音轨 / 字幕只展示所属媒体源里的 `MediaStream.Index`、语言、标题和默认 / 强制 / 外挂标记。用户选择后通过 `PlaybackSelectionPreferences` 重新准备播放，确保 playback info 请求、播放源选择、HLS URL 和播放上报使用同一个协议 media source id / stream index，不能把一个媒体源的字幕 index 套到另一个媒体源上。
+播放前的媒体源、音轨和字幕选择由 `TvWorkflowController.loadPlaybackChoices` 获取服务器 playback info，并以 OptionSelect 摘要行展示在详情页，按确认后打开 popover 列表。Android 对多个 `MediaSources` 必须按媒体源分组展示，优先使用服务器返回的 source name、path 文件名、container 和 bitrate 形成可读标签；音轨 / 字幕只展示所属媒体源里的 `MediaStream.Index`、语言、标题和默认 / 强制 / 外挂标记。用户选择后通过 `PlaybackSelectionPreferences` 重新准备播放，确保 playback info 请求、播放源选择、HLS URL 和播放上报使用同一个协议 media source id / stream index，不能把一个媒体源的字幕 index 套到另一个媒体源上。
 
 播放源选择规则在 `core` 中执行：优先 direct play，其次 direct stream，最后 transcode。相对 URL 必须按服务器基础地址解析；缺少可用 URL 但支持转码时，才由 HLS 请求规格补齐。
 

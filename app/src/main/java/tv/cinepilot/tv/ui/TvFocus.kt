@@ -6,7 +6,6 @@ import android.content.res.ColorStateList
 import android.view.KeyEvent
 import android.view.View
 import android.view.ViewGroup
-import android.widget.Button
 import android.widget.LinearLayout
 import android.widget.RadioButton
 import android.widget.ScrollView
@@ -14,7 +13,7 @@ import android.widget.TextView
 import androidx.activity.ComponentActivity
 import java.util.WeakHashMap
 
-fun ComponentActivity.choiceAction(text: String, selected: Boolean, onClick: () -> Unit): Button {
+fun ComponentActivity.choiceAction(text: String, selected: Boolean, onClick: () -> Unit): android.widget.Button {
     return action(if (selected) "已选 $text" else text, onClick).apply {
         val normalColor = if (selected) TvColors.AccentStrong else TvColors.SurfaceControl
         setTextColor(if (selected) TvColors.FocusText else TvColors.TextPrimary)
@@ -69,47 +68,6 @@ fun ComponentActivity.radioChoice(text: String, selected: Boolean, onClick: () -
         layoutParams = LinearLayout.LayoutParams(
             LinearLayout.LayoutParams.WRAP_CONTENT,
             dp(40),
-        ).apply {
-            rightMargin = dp(8)
-            bottomMargin = dp(8)
-        }
-    }
-}
-
-fun ComponentActivity.optionSelect(text: String, selected: Boolean, onClick: () -> Unit): Button {
-    return Button(this).apply {
-        this.text = text
-        isAllCaps = false
-        textSize = TvType.Metadata
-        minHeight = dp(38)
-        minimumHeight = dp(38)
-        typeface = android.graphics.Typeface.DEFAULT
-        val normalColor = if (selected) TvColors.Resume else TvColors.SurfaceControl
-        val normalText = if (selected) TvColors.TextPrimary else TvColors.TextSecondary
-        setTextColor(normalText)
-        background = rounded(
-            normalColor,
-            dp(TvRadius.Control),
-            if (selected) dp(2) else dp(1),
-            if (selected) TvColors.AccentStrong else TvColors.PosterBorder,
-        )
-        setPadding(dp(12), 0, dp(12), 0)
-        setOnClickListener { onClick() }
-        setOnFocusChangeListener { focusedView, hasFocus ->
-            applyFocusState(focusedView, hasFocus)
-            if (focusedView is TextView) {
-                focusedView.setTextColor(if (hasFocus) TvColors.FocusText else normalText)
-            }
-            animateFocusBackground(
-                view = focusedView,
-                hasFocus = hasFocus,
-                focusedColor = TvColors.Focus,
-                normalColor = normalColor,
-            )
-        }
-        layoutParams = LinearLayout.LayoutParams(
-            LinearLayout.LayoutParams.WRAP_CONTENT,
-            dp(38),
         ).apply {
             rightMargin = dp(8)
             bottomMargin = dp(8)
