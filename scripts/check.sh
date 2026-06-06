@@ -880,7 +880,7 @@ if ! grep -q 'FrameLayout.LayoutParams.MATCH_PARENT' "$ROOT_DIR/app/src/main/jav
   exit 1
 fi
 
-if grep -q 'iconAction\|action(' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/ui/PlayerScreen.kt"; then
+if grep -q 'primaryIconAction\|compactIconAction\|action("播放"\|action("暂停"\|action("快进"\|action("快退"' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/ui/PlayerScreen.kt"; then
   echo "PlayerScreen must not add a second app-level playback control layer" >&2
   exit 1
 fi
@@ -895,6 +895,24 @@ done
 for in_player_track_control in 'setShowSubtitleButton(true)' KEYCODE_CAPTIONS KEYCODE_SETTINGS; do
   if ! grep -q "$in_player_track_control" "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/player/Media3PlayerHost.kt"; then
     echo "Media3PlayerHost must expose Media3 in-player audio/subtitle controls: $in_player_track_control" >&2
+    exit 1
+  fi
+done
+
+if [[ ! -s "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/playback/PlaybackDebugInfo.kt" ]]; then
+  echo "Missing playback debug info formatter for the player overlay" >&2
+  exit 1
+fi
+
+if ! grep -q 'iconAction("视频信息", TvIcon.INFO' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/ui/PlayerScreen.kt" ||
+  ! grep -q 'playbackDebugInfo(state)' "$PLAYBACK_ROUTE_CONTROLLER"; then
+  echo "Player screen must expose a video info debug button using current playable media" >&2
+  exit 1
+fi
+
+for playback_debug_label in 播放方式 媒体源 字幕交付 URL; do
+  if ! grep -q "$playback_debug_label" "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/playback/PlaybackDebugInfo.kt"; then
+    echo "Playback debug info must include label: $playback_debug_label" >&2
     exit 1
   fi
 done
@@ -1387,6 +1405,12 @@ fi
 
 if ! grep -q 'subtitleMethod("Hls")' "$ROOT_DIR/core/src/main/java/tv/cinepilot/core/protocol/PlaybackSourceSelector.java"; then
   echo "PlaybackSourceSelector must request HLS subtitle delivery when a subtitle is selected" >&2
+  exit 1
+fi
+
+if ! grep -q 'requiresServerDeliveredSubtitle' "$ROOT_DIR/core/src/main/java/tv/cinepilot/core/protocol/PlaybackSourceSelector.java" ||
+  ! grep -q 'embedded subtitle uses server HLS delivery' "$ROOT_DIR/core/src/test/java/tv/cinepilot/core/protocol/ProtocolCoreTest.java"; then
+  echo "PlaybackSourceSelector must use server HLS delivery when selected subtitles cannot be attached externally" >&2
   exit 1
 fi
 

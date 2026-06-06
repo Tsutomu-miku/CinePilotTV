@@ -34,6 +34,8 @@ Jellyfin 登录页可以发起 Quick Connect：Activity 展示服务器返回的
 
 进入播放器页后，Activity 应主动把焦点交给 `PlayerView`，让遥控器播放控制优先落在 Media3。播放器页面必须使用黑底全屏播放器 surface，不叠加第二套 app 级播放按钮；播放 / 暂停、seek、进度条和控制显隐交给 Media3 原生控制层与遥控器媒体键，退出播放使用系统 Back。
 
+播放器页可以提供一个小型“视频信息”调试入口，但它只能展示当前播放链路信息，不能变成第二套播放控制。信息面板默认隐藏，用户点击后展示播放方式、媒体源、URL 类型、请求路径、视频 / 音轨 / 字幕和字幕交付方式等内容，方便判断 direct play、direct stream、transcode 和字幕交付问题。
+
 播放中音轨 / 字幕调整优先使用 Media3 原生控制层：`PlayerView` 显示字幕按钮，遥控器菜单键、设置键或字幕键只负责呼出 Media3 控制层，让用户进入原生 settings / subtitles 选择。App 不在播放器画面上叠加第二套音轨字幕面板。
 
 `Media3PlaybackBridge` 监听 Media3 player 状态并调用 `PlaybackSessionController`，把 ready、pause、unpause、seek、ended、release 和可唯一映射的音轨 / 字幕变化转换为服务器播放上报。Media3 `onPlayerError` 必须回到 Android 错误页，用中文提示播放失败和可尝试的低码率 / 轨道切换 / 转码设置方向；错误页和诊断都不能展示 raw playback URL 或 token。
@@ -132,7 +134,7 @@ TV 首页必须提供切换账号和退出登录两个不同入口。切换账�
 
 播放源选择还负责保留服务器默认 media stream index：显式用户偏好优先；没有偏好时，音轨使用服务器标记的默认音轨，缺失默认标记时退到第一个音轨；字幕只使用服务器标记的默认字幕，不自动选择任意字幕。
 
-HLS 播放请求在用户明确选择字幕时必须同时带上 `SubtitleStreamIndex` 和 `SubtitleMethod=Hls`，让服务器把字幕按 HLS 方式交付给 Media3；direct play / direct stream 如果 playback info 返回选中字幕的 `DeliveryUrl`，Android 播放层要把它作为 Media3 `SubtitleConfiguration` 附加到同一个 `MediaItem`；用户关闭字幕时可以传 `SubtitleStreamIndex=-1`，但不能强行指定字幕交付方式。详情页选中的字幕如果是 PGS、DVD subtitle 或 VobSub 这类图形字幕，播放准备会把 `AlwaysBurnInSubtitleWhenTranscoding=true` 写入 playback info 请求，让服务器在转码时烧录字幕，避免 Media3 收到无法独立渲染的图形字幕轨。
+HLS 播放请求在用户明确选择字幕时必须同时带上 `SubtitleStreamIndex` 和 `SubtitleMethod=Hls`，让服务器把字幕按 HLS 方式交付给 Media3；direct play / direct stream 如果 playback info 返回选中字幕的 `DeliveryUrl`，Android 播放层要把它作为 Media3 `SubtitleConfiguration` 附加到同一个 `MediaItem`。如果用户明确选择的字幕没有 `DeliveryUrl`，或该字幕需要转码烧录，播放源选择器必须优先走服务器 HLS / transcode，不能继续 direct play 后把字幕丢掉。用户关闭字幕时可以传 `SubtitleStreamIndex=-1`，但不能强行指定字幕交付方式。详情页选中的字幕如果是 PGS、DVD subtitle 或 VobSub 这类图形字幕，播放准备会把 `AlwaysBurnInSubtitleWhenTranscoding=true` 写入 playback info 请求，让服务器在转码时烧录字幕，避免 Media3 收到无法独立渲染的图形字幕轨。
 
 播放 check-in 调度由 `PlaybackCheckInScheduler` 建模：开始播放立即发 started，常规进度约每 10 秒发 progress，暂停、seek、轨道变化等事件立即发 progress，停止播放发 stopped。调度器只产生领域事件；`MediaBrowserClient.sendPlaybackCheckIn` 负责把事件转换成协议请求并通过 transport 发送。
 

@@ -170,7 +170,10 @@ class PlaybackRouteController(
                 }
             },
         )
-        activity.setContentView(activity.playerScreen(playerView = playerView))
+        activity.setContentView(activity.playerScreen(
+            playerView = playerView,
+            debugInfo = playbackDebugInfo(state),
+        ))
         playerView.post { playerView.requestFocus() }
     }
 

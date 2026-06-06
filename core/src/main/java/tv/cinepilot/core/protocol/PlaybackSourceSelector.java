@@ -20,6 +20,15 @@ public final class PlaybackSourceSelector {
 
         var sources = candidateSources(playbackInfo, safePreferences);
 
+        Optional<PlayableMedia> serverDeliveredSubtitle = sources.stream()
+                .filter(source -> requiresServerDeliveredSubtitle(source, safePreferences))
+                .filter(MediaSourceInfo::supportsTranscoding)
+                .findFirst()
+                .map(source -> playableFromHlsRequest(session, flavor, playbackInfo, source, safePreferences));
+        if (serverDeliveredSubtitle.isPresent()) {
+            return serverDeliveredSubtitle;
+        }
+
         Optional<PlayableMedia> directPlay = sources.stream()
                 .filter(MediaSourceInfo::supportsDirectPlay)
                 .filter(source -> hasValue(source.directStreamUrl()))
@@ -272,6 +281,22 @@ public final class PlaybackSourceSelector {
                 .filter(stream -> stream.type() == MediaStreamType.SUBTITLE)
                 .filter(stream -> stream.index() == selectedIndex)
                 .findFirst();
+    }
+
+    private static boolean requiresServerDeliveredSubtitle(
+            MediaSourceInfo source,
+            PlaybackSelectionPreferences preferences
+    ) {
+        Integer selectedIndex = preferences.subtitleStreamIndex();
+        if (selectedIndex == null || selectedIndex < 0) {
+            return false;
+        }
+        Optional<MediaStreamInfo> selectedStream = selectedSubtitleStream(source, preferences);
+        if (selectedStream.isEmpty()) {
+            return false;
+        }
+        return Boolean.TRUE.equals(preferences.alwaysBurnInSubtitleWhenTranscoding()) ||
+                !hasValue(selectedStream.get().deliveryUrl());
     }
 
     private static Integer defaultStreamIndex(MediaSourceInfo source, MediaStreamType type, boolean fallbackToFirst) {

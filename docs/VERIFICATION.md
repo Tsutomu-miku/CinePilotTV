@@ -115,6 +115,7 @@ Android TV 设备或模拟器上需要验证：
 - 详情页点击播放、继续播放、从头播放或低码率播放后，应在准备播放信息加载完成后直接进入播放器，不再要求用户停在中间确认页再点一次。
 - 详情页“播放速度”应使用统一设置行里的横向单选式紧凑选项组，默认焦点落在 1.0x，选中状态不应用“已选”前缀增加按钮宽度；选择 0.75x、1.0x、1.25x、1.5x、2.0x 后应准备播放，并由 Media3 应用选中速度，同时播放上报保留 `PlaybackRate`。如果用户已在详情页选择媒体源、音轨或字幕，通过播放速度入口进入播放也必须保留这些选择。
 - 播放器页面必须是黑底全屏播放 surface，遥控器焦点默认交给 Media3 PlayerView；页面不能叠加第二套 app 级播放按钮，播放 / 暂停、seek、进度条和控制显隐交给 Media3 原生控制层与遥控器媒体键，退出播放使用系统 Back，左右键应直接执行 -30s / +30s 快捷进度调整。
+- 播放器页面应有一个小型“视频信息”按钮，默认不展开；点击后展示播放方式、媒体源、URL 类型、请求路径、视频 / 音轨 / 字幕和字幕交付方式，帮助判断直连、直传、转码和字幕问题。
 - 播放中按遥控器菜单键、设置键或字幕键应呼出 Media3 原生控制层；字幕按钮应可见，用户可以通过 Media3 原生 settings / subtitles 调整音轨或字幕，播放器页面不能新增 app 级轨道选择面板。
 - 播放中通过 Media3 原生控制层调整音轨 / 字幕时，只有 selected track 能用 label、language、codec 唯一映射回当前媒体源的 `MediaStream.Index` 才能上报 `AudioTrackChange` / `SubtitleTrackChange`；匹配不唯一时不能猜测本地 ordinal。
 - 播放自然结束后应释放播放器并回到详情页，让用户可以重新播放、切换音轨 / 字幕或进入“本剧下一集”。
@@ -151,6 +152,7 @@ Android TV 设备或模拟器上需要验证：
 - HLS 播放准备在用户选择字幕时会带上 `SubtitleMethod=Hls`。
 - 详情页选择 PGS、DVD subtitle 或 VobSub 图形字幕时，播放准备会把 `AlwaysBurnInSubtitleWhenTranscoding=true` 带入 playback info 请求，提示服务器转码时烧录字幕。
 - direct play / direct stream 播放准备在用户选择外挂字幕且服务器返回 `DeliveryUrl` 时，会把字幕 URL 附加到 Media3 `MediaItem.SubtitleConfiguration`。
+- direct play / direct stream 如果用户选择的字幕没有 `DeliveryUrl`，播放准备应改走服务器 HLS / transcode 并带上 `SubtitleStreamIndex` 和 `SubtitleMethod=Hls`，避免播放器里没有字幕轨、CC 图标不可用。
 - 搜索无结果时，界面会显示“没有找到匹配的媒体”；服务器返回空首页媒体行时，界面会显示“没有可显示的媒体”。
 - 播放开始、暂停、seek、停止会触发 Jellyfin / Emby 播放上报。
 - 硬件媒体键的播放 / 暂停、快退、快进应调用 Media3 控制，保证遥控器按键和播放器原生控制行为一致。

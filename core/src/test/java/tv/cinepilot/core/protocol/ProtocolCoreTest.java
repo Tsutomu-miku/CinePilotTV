@@ -554,6 +554,28 @@ public final class ProtocolCoreTest {
                 "relative direct stream url resolves against server"
         );
 
+        MediaSourceInfo directStreamWithEmbeddedSubtitle = MediaSourceInfo.builder("source-embedded-subtitle")
+                .supportsDirectStream(true)
+                .supportsTranscoding(true)
+                .directStreamUrl("/videos/item-5/stream.mkv?MediaSourceId=source-embedded-subtitle")
+                .mediaStreams(List.of(
+                        new MediaStreamInfo(0, MediaStreamType.VIDEO, "h264", "", "1080p", true, false, false, null),
+                        new MediaStreamInfo(1, MediaStreamType.AUDIO, "aac", "eng", "English", true, false, false, null),
+                        new MediaStreamInfo(5, MediaStreamType.SUBTITLE, "ass", "zho", "Chinese ASS", false, false, false, null)
+                ))
+                .build();
+        PlayableMedia embeddedSubtitleSelection = PlaybackSourceSelector.select(
+                address,
+                session,
+                ServerFlavor.JELLYFIN,
+                new PlaybackInfo("item-5", "play-session-5", List.of(directStreamWithEmbeddedSubtitle)),
+                new PlaybackSelectionPreferences(0L, null, 5, null, 0, 0, 0)
+        ).orElseThrow();
+        assertEquals(PlayMethod.TRANSCODE, embeddedSubtitleSelection.playMethod(), "embedded subtitle uses server HLS delivery");
+        assertTrue(!embeddedSubtitleSelection.hasReadyUrl(), "embedded subtitle waits for HLS request url");
+        assertTrue(embeddedSubtitleSelection.request().url(address).contains("SubtitleStreamIndex=5"), "embedded subtitle hls stream index");
+        assertTrue(embeddedSubtitleSelection.request().url(address).contains("SubtitleMethod=Hls"), "embedded subtitle hls method");
+
         MediaSourceInfo fallbackTranscode = MediaSourceInfo.builder("source-hls")
                 .supportsTranscoding(true)
                 .mediaStreams(List.of(
