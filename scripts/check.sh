@@ -1408,7 +1408,8 @@ if ! grep -q 'subtitleMethod("Hls")' "$ROOT_DIR/core/src/main/java/tv/cinepilot/
   exit 1
 fi
 
-if ! grep -q 'requiresServerDeliveredSubtitle' "$ROOT_DIR/core/src/main/java/tv/cinepilot/core/protocol/PlaybackSourceSelector.java" ||
+if ! grep -q 'PlaybackSubtitleDelivery.requiresServerDelivery' "$ROOT_DIR/core/src/main/java/tv/cinepilot/core/protocol/PlaybackSourceSelector.java" ||
+  ! grep -q 'serverHlsSubtitle' "$ROOT_DIR/core/src/main/java/tv/cinepilot/core/protocol/PlaybackSubtitleDelivery.java" ||
   ! grep -q 'embedded subtitle uses server HLS delivery' "$ROOT_DIR/core/src/test/java/tv/cinepilot/core/protocol/ProtocolCoreTest.java"; then
   echo "PlaybackSourceSelector must use server HLS delivery when selected subtitles cannot be attached externally" >&2
   exit 1

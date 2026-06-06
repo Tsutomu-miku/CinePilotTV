@@ -149,10 +149,10 @@ Android TV 设备或模拟器上需要验证：
 - 详情页必须能看见字幕能力，字幕选择必须能进入并选择具体 subtitle stream。
 - 详情页必须提供“字幕样式”入口；字号、颜色和背景选择会保存到本机，并在下一次创建 Media3 播放器时应用到字幕渲染。字幕样式页应使用统一设置行里的横向单选式紧凑选项组，不应以全宽竖排大按钮呈现每个选项，也不应用“已选”前缀增加按钮宽度；当前值由单选态表达，不应额外显示重复的“当前 ……”状态文本；恢复默认应使用图标动作。调整颜色或背景后，焦点应停留在刚操作的选项组，不能跳回字号行。
 - 详情页的低码率播放会把最大码率、声道数、起播 ticks 等偏好传入 playback info，并在 HLS URL 构造时继续使用分辨率 / 码率偏好。
-- HLS 播放准备在用户选择字幕时会带上 `SubtitleMethod=Hls`。
+- 用户选择字幕后，播放准备会重新获取 playback info；如果返回 `TranscodingUrl`，播放源选择应复用它并保留 codec / container / copy 策略等原 query，再覆盖 `SubtitleStreamIndex` 和必要的 `SubtitleMethod`。
 - 详情页选择 PGS、DVD subtitle 或 VobSub 图形字幕时，播放准备会把 `AlwaysBurnInSubtitleWhenTranscoding=true` 带入 playback info 请求，提示服务器转码时烧录字幕。
 - direct play / direct stream 播放准备在用户选择外挂字幕且服务器返回 `DeliveryUrl` 时，会把字幕 URL 附加到 Media3 `MediaItem.SubtitleConfiguration`。
-- direct play / direct stream 如果用户选择的字幕没有 `DeliveryUrl`，播放准备应改走服务器 HLS / transcode 并带上 `SubtitleStreamIndex` 和 `SubtitleMethod=Hls`，避免播放器里没有字幕轨、CC 图标不可用。
+- direct play / direct stream 如果用户选择的字幕没有 `DeliveryUrl`，或服务端标记 `DeliveryMethod=Hls` / `Encode`，播放准备应改走服务器 HLS / transcode，避免播放器里没有字幕轨、CC 图标不可用。
 - 搜索无结果时，界面会显示“没有找到匹配的媒体”；服务器返回空首页媒体行时，界面会显示“没有可显示的媒体”。
 - 播放开始、暂停、seek、停止会触发 Jellyfin / Emby 播放上报。
 - 硬件媒体键的播放 / 暂停、快退、快进应调用 Media3 控制，保证遥控器按键和播放器原生控制行为一致。

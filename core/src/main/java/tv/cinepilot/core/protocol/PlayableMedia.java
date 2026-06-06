@@ -16,6 +16,7 @@ public record PlayableMedia(
         String subtitleCodec,
         String subtitleLanguage,
         String subtitleDisplayTitle,
+        String subtitleDeliveryMethod,
         List<MediaStreamInfo> mediaStreams,
         long startTimeTicks,
         Float playbackRate
@@ -45,6 +46,9 @@ public record PlayableMedia(
         if (subtitleDisplayTitle == null) {
             subtitleDisplayTitle = "";
         }
+        if (subtitleDeliveryMethod == null) {
+            subtitleDeliveryMethod = "";
+        }
         mediaStreams = AndroidCollections.listCopy(mediaStreams);
         if (playbackRate != null && playbackRate <= 0f) {
             playbackRate = null;
@@ -70,6 +74,7 @@ public record PlayableMedia(
                 request,
                 audioStreamIndex,
                 subtitleStreamIndex,
+                "",
                 "",
                 "",
                 "",
@@ -109,6 +114,7 @@ public record PlayableMedia(
                 subtitleCodec,
                 subtitleLanguage,
                 subtitleDisplayTitle,
+                "",
                 AndroidCollections.emptyList(),
                 startTimeTicks,
                 playbackRate

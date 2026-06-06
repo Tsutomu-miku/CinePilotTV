@@ -137,6 +137,7 @@ public final class MediaBrowserResponseMapper {
                 JsonValue.bool(stream, "IsDefault"),
                 JsonValue.bool(stream, "IsForced"),
                 JsonValue.bool(stream, "IsExternal"),
+                valueOrEmpty(JsonValue.string(stream, "DeliveryMethod")),
                 JsonValue.string(stream, "DeliveryUrl")
         );
     }

@@ -66,6 +66,7 @@ class Media3PlayerHost(
         )
         val nextPlayer = ExoPlayer.Builder(context).build().apply {
             addListener(playbackBridge)
+            applyTrackPreferences(playable)
             setMediaItem(
                 mediaItem(playable, authorizedPlaybackUrl, authenticated.session()),
                 initialPlayerPositionMillis(playable),
@@ -206,6 +207,24 @@ class Media3PlayerHost(
             ))
         }
         return builder.build()
+    }
+
+    private fun ExoPlayer.applyTrackPreferences(playable: PlayableMedia) {
+        val textIndex = playable.subtitleStreamIndex()
+        val textDisabled = textIndex != null && textIndex < 0
+        val textLanguage = playable.subtitleLanguage().ifBlank { null }
+        val parameters = trackSelectionParameters
+            .buildUpon()
+            .setTrackTypeDisabled(C.TRACK_TYPE_TEXT, textDisabled)
+            .setSelectUndeterminedTextLanguage(!textDisabled && textIndex != null)
+            .setIgnoredTextSelectionFlags(if (textDisabled) C.SELECTION_FLAG_DEFAULT else 0)
+            .apply {
+                if (!textDisabled && textLanguage != null) {
+                    setPreferredTextLanguage(textLanguage)
+                }
+            }
+            .build()
+        trackSelectionParameters = parameters
     }
 
     private fun initialPlayerPositionMillis(playable: PlayableMedia): Long {

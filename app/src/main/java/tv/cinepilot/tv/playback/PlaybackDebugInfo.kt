@@ -89,5 +89,8 @@ private fun subtitleDeliveryLabel(playable: PlayableMedia): String {
     if (playable.subtitleDeliveryUrl().isNotBlank() && playable.playMethod() != PlayMethod.TRANSCODE) {
         return "Media3 外挂字幕 URL"
     }
+    if (playable.subtitleDeliveryMethod().isNotBlank()) {
+        return "服务器 ${playable.subtitleDeliveryMethod()} 交付"
+    }
     return "服务器 HLS / 转码交付"
 }

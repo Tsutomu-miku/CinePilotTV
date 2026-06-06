@@ -576,6 +576,33 @@ public final class ProtocolCoreTest {
         assertTrue(embeddedSubtitleSelection.request().url(address).contains("SubtitleStreamIndex=5"), "embedded subtitle hls stream index");
         assertTrue(embeddedSubtitleSelection.request().url(address).contains("SubtitleMethod=Hls"), "embedded subtitle hls method");
 
+        MediaSourceInfo negotiatedHlsSubtitle = MediaSourceInfo.builder("source-negotiated-hls")
+                .supportsDirectStream(true)
+                .supportsTranscoding(true)
+                .directStreamUrl("/videos/item-6/stream.mkv?MediaSourceId=source-negotiated-hls")
+                .transcodingUrl("/Videos/item-6/master.m3u8?MediaSourceId=source-negotiated-hls&VideoCodec=h264&AudioCodec=aac&SubtitleMethod=External")
+                .mediaStreams(List.of(
+                        new MediaStreamInfo(0, MediaStreamType.VIDEO, "h264", "", "1080p", true, false, false, null),
+                        new MediaStreamInfo(1, MediaStreamType.AUDIO, "aac", "eng", "English", true, false, false, null),
+                        new MediaStreamInfo(5, MediaStreamType.SUBTITLE, "ass", "zho", "Chinese ASS", false, false, false, "Hls", null)
+                ))
+                .build();
+        PlayableMedia negotiatedSubtitleSelection = PlaybackSourceSelector.select(
+                address,
+                session,
+                ServerFlavor.JELLYFIN,
+                new PlaybackInfo("item-6", "play-session-6", List.of(negotiatedHlsSubtitle)),
+                new PlaybackSelectionPreferences(MediaTicks.fromMilliseconds(30_000), 1, 5, null, 0, 0, 0)
+        ).orElseThrow();
+        assertEquals(PlayMethod.TRANSCODE, negotiatedSubtitleSelection.playMethod(), "hls subtitle uses server transcode url");
+        assertTrue(negotiatedSubtitleSelection.hasReadyUrl(), "hls subtitle reuses ready transcoding url");
+        assertTrue(negotiatedSubtitleSelection.url().contains("VideoCodec=h264"), "hls subtitle keeps video codec");
+        assertTrue(negotiatedSubtitleSelection.url().contains("AudioCodec=aac"), "hls subtitle keeps audio codec");
+        assertTrue(negotiatedSubtitleSelection.url().contains("SubtitleStreamIndex=5"), "hls subtitle overrides stream index");
+        assertTrue(negotiatedSubtitleSelection.url().contains("SubtitleMethod=Hls"), "hls subtitle overrides delivery method");
+        assertTrue(negotiatedSubtitleSelection.url().contains("StartTimeTicks=300000000"), "hls subtitle keeps selected start");
+        assertEquals("Hls", negotiatedSubtitleSelection.subtitleDeliveryMethod(), "hls subtitle delivery method is retained");
+
         MediaSourceInfo fallbackTranscode = MediaSourceInfo.builder("source-hls")
                 .supportsTranscoding(true)
                 .mediaStreams(List.of(
@@ -681,7 +708,7 @@ public final class ProtocolCoreTest {
                       "MediaStreams": [
                         {"Index": 0, "Type": "Video", "Codec": "hevc", "DisplayTitle": "4K HEVC", "Width": 3840, "Height": 2160, "BitDepth": 10, "VideoRangeType": "HDR10", "IsDefault": true},
                         {"Index": 1, "Type": "Audio", "Codec": "eac3", "Language": "eng", "DisplayTitle": "English Atmos", "Channels": 6, "Profile": "Dolby Atmos", "IsDefault": true},
-                        {"Index": 2, "Type": "Subtitle", "Codec": "srt", "Language": "eng", "DisplayTitle": "English CC", "IsExternal": true, "DeliveryUrl": "/Videos/item-1/Subtitles/2/Stream.srt"}
+                        {"Index": 2, "Type": "Subtitle", "Codec": "srt", "Language": "eng", "DisplayTitle": "English CC", "IsExternal": true, "DeliveryMethod": "External", "DeliveryUrl": "/Videos/item-1/Subtitles/2/Stream.srt"}
                       ]
                     }
                   ]
@@ -704,6 +731,7 @@ public final class ProtocolCoreTest {
         assertEquals(Integer.valueOf(6), source.mediaStreams().get(1).channels(), "audio channels map");
         assertEquals("Dolby Atmos", source.mediaStreams().get(1).profile(), "audio profile maps");
         assertEquals(MediaStreamType.SUBTITLE, source.mediaStreams().get(2).type(), "subtitle type maps");
+        assertEquals("External", source.mediaStreams().get(2).deliveryMethod(), "subtitle delivery method maps");
         assertEquals("/Videos/item-1/Subtitles/2/Stream.srt", source.mediaStreams().get(2).deliveryUrl(), "subtitle url maps");
 
         MediaItemPage latestItems = MediaBrowserResponseMapper.itemPage("""

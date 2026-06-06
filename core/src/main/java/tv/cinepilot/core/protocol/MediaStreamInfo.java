@@ -17,6 +17,7 @@ public record MediaStreamInfo(
         boolean defaultStream,
         boolean forced,
         boolean external,
+        String deliveryMethod,
         String deliveryUrl
 ) {
     public MediaStreamInfo(
@@ -47,6 +48,41 @@ public record MediaStreamInfo(
                 defaultStream,
                 forced,
                 external,
+                "",
+                deliveryUrl
+        );
+    }
+
+    public MediaStreamInfo(
+            int index,
+            MediaStreamType type,
+            String codec,
+            String language,
+            String displayTitle,
+            boolean defaultStream,
+            boolean forced,
+            boolean external,
+            String deliveryMethod,
+            String deliveryUrl
+    ) {
+        this(
+                index,
+                type,
+                codec,
+                language,
+                displayTitle,
+                null,
+                null,
+                null,
+                null,
+                0L,
+                "",
+                "",
+                "",
+                defaultStream,
+                forced,
+                external,
+                deliveryMethod,
                 deliveryUrl
         );
     }
@@ -78,6 +114,12 @@ public record MediaStreamInfo(
         }
         if (videoRangeType == null) {
             videoRangeType = "";
+        }
+        if (deliveryMethod == null) {
+            deliveryMethod = "";
+        }
+        if (deliveryUrl == null) {
+            deliveryUrl = "";
         }
     }
 }

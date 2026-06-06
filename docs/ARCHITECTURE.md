@@ -130,13 +130,13 @@ TV 首页必须提供切换账号和退出登录两个不同入口。切换账�
 
 播放前的媒体源、音轨和字幕选择由 `TvWorkflowController.loadPlaybackChoices` 获取服务器 playback info，并以内联单选框展示在详情页。Android 对多个 `MediaSources` 必须按媒体源分组展示，优先使用服务器返回的 source name、path 文件名、container 和 bitrate 形成可读标签；音轨 / 字幕只展示所属媒体源里的 `MediaStream.Index`、语言、标题和默认 / 强制 / 外挂标记。用户选择后通过 `PlaybackSelectionPreferences` 重新准备播放，确保 playback info 请求、播放源选择、HLS URL 和播放上报使用同一个协议 media source id / stream index，不能把一个媒体源的字幕 index 套到另一个媒体源上。
 
-播放源选择规则在 `core` 中执行：优先 direct play，其次 direct stream，最后 transcode。相对 URL 必须按服务器基础地址解析；缺少可用 URL 但支持转码时，由 HLS 请求规格补齐。
+播放源选择规则在 `core` 中执行：优先 direct play，其次 direct stream，最后 transcode。相对 URL 必须按服务器基础地址解析；缺少可用 URL 但支持转码时，才由 HLS 请求规格补齐。
 
 当 `PlaybackSelectionPreferences.mediaSourceId` 非空时，`PlaybackSourceSelector` 只能在该媒体源内选择 direct play / direct stream / transcode；如果服务器没有返回对应媒体源，必须返回无可播放源，而不能静默回退到另一个版本。
 
 播放源选择还负责保留服务器默认 media stream index：显式用户偏好优先；没有偏好时，音轨使用服务器标记的默认音轨，缺失默认标记时退到第一个音轨；字幕只使用服务器标记的默认字幕，不自动选择任意字幕。
 
-HLS 播放请求在用户明确选择字幕时必须同时带上 `SubtitleStreamIndex` 和 `SubtitleMethod=Hls`，让服务器把字幕按 HLS 方式交付给 Media3；direct play / direct stream 如果 playback info 返回选中字幕的 `DeliveryUrl`，Android 播放层要把它作为 Media3 `SubtitleConfiguration` 附加到同一个 `MediaItem`。如果用户明确选择的字幕没有 `DeliveryUrl`，或该字幕需要转码烧录，播放源选择器必须优先走服务器 HLS / transcode，不能继续 direct play 后把字幕丢掉。用户关闭字幕时可以传 `SubtitleStreamIndex=-1`，但不能强行指定字幕交付方式。详情页选中的字幕如果是 PGS、DVD subtitle 或 VobSub 这类图形字幕，播放准备会把 `AlwaysBurnInSubtitleWhenTranscoding=true` 写入 playback info 请求，让服务器在转码时烧录字幕，避免 Media3 收到无法独立渲染的图形字幕轨。
+用户明确选择字幕时，播放准备必须先用 `SubtitleStreamIndex` 重新获取 playback info；如果服务器返回可用 `TranscodingUrl`，播放源选择器应复用该 URL 并最小覆盖字幕 query，保留服务端协商出的 codec、container、copy 策略和 play session。direct play / direct stream 如果 playback info 返回选中字幕的 `DeliveryUrl`，Android 播放层要把它作为 Media3 `SubtitleConfiguration` 附加到同一个 `MediaItem`。如果用户明确选择的字幕没有 `DeliveryUrl`，或 `DeliveryMethod` 是 `Hls` / `Encode`，播放源选择器必须走服务器 HLS / transcode，不能继续 direct play 后把字幕丢掉。用户关闭字幕时可以传 `SubtitleStreamIndex=-1`，但不能强行指定字幕交付方式。详情页选中的字幕如果是 PGS、DVD subtitle 或 VobSub 这类图形字幕，播放准备会把 `AlwaysBurnInSubtitleWhenTranscoding=true` 写入 playback info 请求，让服务器在转码时烧录字幕，避免 Media3 收到无法独立渲染的图形字幕轨。
 
 播放 check-in 调度由 `PlaybackCheckInScheduler` 建模：开始播放立即发 started，常规进度约每 10 秒发 progress，暂停、seek、轨道变化等事件立即发 progress，停止播放发 stopped。调度器只产生领域事件；`MediaBrowserClient.sendPlaybackCheckIn` 负责把事件转换成协议请求并通过 transport 发送。
 
