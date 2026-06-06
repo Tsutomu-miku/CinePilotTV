@@ -10,7 +10,7 @@ app/
     auth/AuthRouteController.kt  服务器连接、会话恢复、登录和 Quick Connect route 编排
     auth/AuthScreens.kt          服务器输入、登录、public users 和 Quick Connect 页面布局
     details/DetailsRouteScreen.kt 媒体详情页组装、详情动作按钮和海报 View
-    details/DetailTrackControls.kt 详情页媒体源、音轨和字幕内联单选控件
+    details/DetailTrackControls.kt 详情页媒体源、音轨和字幕内联 OptionSelect 控件
     error/ErrorRouteScreen.kt    错误恢复页、播放失败恢复入口和重新登录入口
     home/HomeRouteScreens.kt     首页导航组装和搜索页布局
     home/SearchRouteController.kt 搜索页、筛选、语音输入和搜索提交 route 编排

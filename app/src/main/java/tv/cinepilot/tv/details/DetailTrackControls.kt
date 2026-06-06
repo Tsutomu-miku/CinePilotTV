@@ -8,7 +8,7 @@ import tv.cinepilot.core.protocol.MediaStreamInfo
 import tv.cinepilot.core.protocol.MediaStreamType
 import tv.cinepilot.core.protocol.PlaybackInfo
 import tv.cinepilot.tv.ui.label
-import tv.cinepilot.tv.ui.radioChoice
+import tv.cinepilot.tv.ui.optionSelect
 import tv.cinepilot.tv.ui.section
 import tv.cinepilot.tv.ui.settingChoiceGroup
 import tv.cinepilot.tv.ui.sourceLabel
@@ -61,7 +61,7 @@ fun ComponentActivity.detailTrackControls(
         if (sources.size > 1) {
             addView(section("媒体源"))
             addView(choiceGroup(sources) { source ->
-                radioChoice(sourceLabel(source), source.id() == activeSource.id()) {
+                optionSelect(sourceLabel(source), source.id() == activeSource.id()) {
                     onSelection(DetailTrackSelection(mediaSourceId = source.id()))
                 }
             })
@@ -97,7 +97,7 @@ fun ComponentActivity.detailTrackControls(
                     burnSubtitleWhenTranscoding = stream.requiresBurnInWhenTranscoding(),
                 ))
             },
-            extraChoice = radioChoice("关闭字幕", selection.subtitleSelected && selection.subtitleStreamIndex == SUBTITLES_OFF_INDEX) {
+            extraChoice = optionSelect("关闭字幕", selection.subtitleSelected && selection.subtitleStreamIndex == SUBTITLES_OFF_INDEX) {
                 onSelection(selection.forSource(activeSource.id()).copy(
                     subtitleSelected = true,
                     subtitleStreamIndex = SUBTITLES_OFF_INDEX,
@@ -125,10 +125,10 @@ private fun LinearLayout.addTrackGroup(
         addView(activity.label(emptyText))
         return
     }
-    val choices = mutableListOf<View>(activity.radioChoice(defaultText, defaultSelected, onDefault))
+    val choices = mutableListOf<View>(activity.optionSelect(defaultText, defaultSelected, onDefault))
     extraChoice?.let(choices::add)
     streams.forEach { stream ->
-        choices.add(activity.radioChoice(streamLabel(stream), optionSelected(stream)) {
+        choices.add(activity.optionSelect(streamLabel(stream), optionSelected(stream)) {
             onStream(stream)
         })
     }

@@ -36,7 +36,7 @@ Jellyfin / Emby 播放协议、HLS 参数和字幕策略的项目准则见 `docs
 
 进入播放器页后，Activity 应主动把焦点交给 `PlayerView`，让遥控器播放控制优先落在 Media3。播放器页面必须使用黑底全屏播放器 surface，不叠加第二套 app 级播放按钮；播放 / 暂停、seek、进度条和控制显隐交给 Media3 原生控制层与遥控器媒体键，退出播放使用系统 Back。
 
-播放器页可以提供一个小型“视频信息”调试入口，但它只能展示当前播放链路信息，不能变成第二套播放控制。信息面板默认隐藏，用户点击后展示播放方式、媒体源、URL 类型、请求路径、视频 / 音轨 / 字幕和字幕交付方式等内容，方便判断 direct play、direct stream、transcode 和字幕交付问题。
+播放器页可以提供一个小型“视频信息”调试入口，但它只能展示当前播放链路信息，不能变成第二套播放控制，也不能常驻遮挡画面。入口应跟随 Media3 原生控制层显示，靠近控制区右侧；信息面板默认隐藏，用户点击后展示播放方式、媒体源、URL 类型、请求路径、视频 / 音轨 / 字幕和字幕交付方式等内容，方便判断 direct play、direct stream、transcode 和字幕交付问题。
 
 播放中音轨 / 字幕调整优先使用 Media3 原生控制层：`PlayerView` 显示字幕按钮，遥控器菜单键、设置键或字幕键只负责呼出 Media3 控制层，让用户进入原生 settings / subtitles 选择。App 不在播放器画面上叠加第二套音轨字幕面板。
 
@@ -126,7 +126,7 @@ TV 首页必须提供切换账号和退出登录两个不同入口。切换账�
 
 播放信息请求、HLS URL 构造和播放 check-in 请求规格属于 `core`；Media3 只消费已经选出的播放 URL 和轨道选择结果。
 
-播放准备的 start ticks 由 `TvWorkflowController.preparePlayback` 决定：调用方传入 `null` 表示按媒体项 resume ticks 继续播放；传入 `PlaybackSelectionPreferences` 表示显式偏好，`startTimeTicks=0` 即从头播放。最大码率、音轨、字幕和最大声道数偏好会转发给 playback info 请求，分辨率和码率偏好也会继续用于 HLS URL 构造。Android 详情页应在有 resume 进度时同时暴露“继续播放”和“从头播放”，用可读时间展示恢复位置、媒体时长和剧集上下文，不能把协议 ticks 或 `EPISODE` 这类 wire enum 直接显示给用户，并提供低码率播放入口。播放操作完成 playback info 准备后应直接进入 Media3 播放器，减少详情到播放的点击层级。
+播放准备的 start ticks 由 `TvWorkflowController.preparePlayback` 决定：调用方传入 `null` 表示按媒体项 resume ticks 继续播放；传入 `PlaybackSelectionPreferences` 表示显式偏好，`startTimeTicks=0` 即从头播放。最大码率、音轨、字幕和最大声道数偏好会转发给 playback info 请求，分辨率和码率偏好也会继续用于 HLS URL 构造；如果最终使用本机生成的 HLS 请求，start ticks 由服务器侧处理并在播放上报中加回；如果最终复用服务器 `TranscodingUrl`，不要重写该 URL，而应让 Media3 本地 seek 到恢复位置。Android 详情页应在有 resume 进度时同时暴露“继续播放”和“从头播放”，用可读时间展示恢复位置、媒体时长和剧集上下文，不能把协议 ticks 或 `EPISODE` 这类 wire enum 直接显示给用户，并提供低码率播放入口。播放操作完成 playback info 准备后应直接进入 Media3 播放器，减少详情到播放的点击层级。
 
 播放前的媒体源、音轨和字幕选择由 `TvWorkflowController.loadPlaybackChoices` 获取服务器 playback info，并以内联单选框展示在详情页。Android 对多个 `MediaSources` 必须按媒体源分组展示，优先使用服务器返回的 source name、path 文件名、container 和 bitrate 形成可读标签；音轨 / 字幕只展示所属媒体源里的 `MediaStream.Index`、语言、标题和默认 / 强制 / 外挂标记。用户选择后通过 `PlaybackSelectionPreferences` 重新准备播放，确保 playback info 请求、播放源选择、HLS URL 和播放上报使用同一个协议 media source id / stream index，不能把一个媒体源的字幕 index 套到另一个媒体源上。
 

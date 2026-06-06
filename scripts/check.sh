@@ -910,6 +910,12 @@ if ! grep -q 'iconAction("视频信息", TvIcon.INFO' "$ROOT_DIR/app/src/main/ja
   exit 1
 fi
 
+if ! grep -q 'setControllerVisibilityListener' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/ui/PlayerScreen.kt" ||
+  ! grep -q 'infoButton.visibility = View.GONE' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/ui/PlayerScreen.kt"; then
+  echo "Player video info button must follow Media3 controller visibility instead of staying always visible" >&2
+  exit 1
+fi
+
 for playback_debug_label in 播放方式 媒体源 字幕交付 URL; do
   if ! grep -q "$playback_debug_label" "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/playback/PlaybackDebugInfo.kt"; then
     echo "Playback debug info must include label: $playback_debug_label" >&2
@@ -1367,8 +1373,9 @@ if ! grep -q 'smoothScrollTo' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/ui/Tv
   exit 1
 fi
 
-if ! grep -q 'radioChoice' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/details/DetailTrackControls.kt"; then
-  echo "Details track controls must use single-choice radio controls" >&2
+if ! grep -q 'optionSelect' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/details/DetailTrackControls.kt" ||
+  ! grep -q 'fun ComponentActivity.optionSelect' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/ui/TvFocus.kt"; then
+  echo "Details track controls must use compact option-select controls" >&2
   exit 1
 fi
 
