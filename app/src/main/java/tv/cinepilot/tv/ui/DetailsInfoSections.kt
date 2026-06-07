@@ -17,7 +17,7 @@ fun ComponentActivity.detailsInfoSections(
     if (technicalInfo.isNotEmpty()) {
         sections.add(detailsInfoSection {
             addView(infuseSectionTitle("媒体信息"))
-            addView(metadataPills(technicalInfo.take(12)))
+            addView(metadataPills(technicalInfo.take(10)))
         })
     }
     if (overview.isNotBlank()) {

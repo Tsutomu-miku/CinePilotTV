@@ -1,6 +1,7 @@
 package tv.cinepilot.tv.ui
 
 import android.graphics.Color
+import android.graphics.drawable.GradientDrawable
 import android.view.View
 import android.view.ViewGroup
 import android.widget.FrameLayout
@@ -16,6 +17,7 @@ fun ComponentActivity.detailsStage(
     content: LinearLayout.() -> Unit,
 ): FrameLayout {
     val backdrop = cinematicBackdrop()
+    backdrop.alpha = 0.68f
     loadBackdrop(backdrop, item)
     val container = LinearLayout(this).apply {
         orientation = LinearLayout.VERTICAL
@@ -44,11 +46,29 @@ fun ComponentActivity.detailsStage(
             FrameLayout.LayoutParams.MATCH_PARENT,
         ))
         addView(View(this@detailsStage).apply {
-            background = rounded(Color.argb(214, 0, 0, 0), 0)
+            background = rounded(Color.argb(96, 0, 0, 0), 0)
         }, FrameLayout.LayoutParams(
             FrameLayout.LayoutParams.MATCH_PARENT,
             FrameLayout.LayoutParams.MATCH_PARENT,
         ))
+        addView(View(this@detailsStage).apply {
+            background = readableDetailsScrim()
+        }, FrameLayout.LayoutParams(
+            dp(980),
+            FrameLayout.LayoutParams.MATCH_PARENT,
+        ))
         addView(scroll)
     }
+}
+
+private fun readableDetailsScrim(): GradientDrawable {
+    return GradientDrawable(
+        GradientDrawable.Orientation.LEFT_RIGHT,
+        intArrayOf(
+            Color.argb(236, 0, 0, 0),
+            Color.argb(202, 0, 0, 0),
+            Color.argb(80, 0, 0, 0),
+            Color.TRANSPARENT,
+        ),
+    )
 }
