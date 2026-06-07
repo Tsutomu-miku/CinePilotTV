@@ -14,6 +14,7 @@ data class HomeRowPresentation(
     val row: HomeRow,
     val title: String,
     val visualStyle: RowVisualStyle,
+    val wrapItems: Boolean,
 ) {
     val showTitle: Boolean = title.isNotBlank()
 }
@@ -23,6 +24,7 @@ fun HomeRow.toHomeRowPresentation(): HomeRowPresentation {
         row = this,
         title = displayTitle(),
         visualStyle = rowVisualStyle(),
+        wrapItems = shouldWrapItems(),
     )
 }
 
@@ -42,6 +44,10 @@ private fun HomeRow.rowVisualStyle(): RowVisualStyle {
         id().startsWith("search:") || id().startsWith("folder:") -> items().majorityStyle()
         else -> items().majorityStyle()
     }
+}
+
+private fun HomeRow.shouldWrapItems(): Boolean {
+    return id().startsWith("search:") || id().startsWith("folder:")
 }
 
 private fun List<MediaItemSummary>.majorityStyle(): RowVisualStyle {

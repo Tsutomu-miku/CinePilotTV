@@ -27,7 +27,12 @@ fun ComponentActivity.mediaWallRow(
         if (presentation.showTitle) {
             addView(mediaWallRowTitle(presentation.title))
         }
-        addView(mediaWallStrip(presentation, onCell, onFocus, onOpen, loadArtwork))
+        val mediaWall = if (presentation.wrapItems) {
+            mediaWallGrid(presentation, onCell, onFocus, onOpen, loadArtwork)
+        } else {
+            mediaWallStrip(presentation, onCell, onFocus, onOpen, loadArtwork)
+        }
+        addView(mediaWall)
     }
 }
 

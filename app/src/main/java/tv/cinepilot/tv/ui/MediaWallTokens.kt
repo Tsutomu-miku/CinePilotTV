@@ -15,6 +15,7 @@ object MediaWallTokens {
     const val CollectionCellWidth = 150
     const val CollectionCellHeight = 52
     const val CellGap = 8
+    const val GridMinGap = 5
     const val CellRadius = 6
     const val CollectionRadius = 7
     const val EdgeChromeSize = 30
