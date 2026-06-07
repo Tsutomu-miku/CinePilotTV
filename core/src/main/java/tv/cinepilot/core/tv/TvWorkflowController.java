@@ -1,11 +1,13 @@
 package tv.cinepilot.core.tv;
 
 import java.util.List;
+import tv.cinepilot.core.AndroidCollections;
 import tv.cinepilot.core.protocol.AuthenticatedServer;
 import tv.cinepilot.core.protocol.ItemQuery;
 import tv.cinepilot.core.protocol.MediaBrowserClient;
 import tv.cinepilot.core.protocol.MediaItemPage;
 import tv.cinepilot.core.protocol.MediaItemSummary;
+import tv.cinepilot.core.protocol.MediaItemType;
 import tv.cinepilot.core.protocol.MediaServerAddress;
 import tv.cinepilot.core.protocol.PlayableMedia;
 import tv.cinepilot.core.protocol.PlaybackDeviceProfile;
@@ -266,6 +268,72 @@ public final class TvWorkflowController {
                 .orElseThrow(() -> new IllegalStateException(NO_CHILD_ITEM_MESSAGE));
     }
 
+    public ShowStructure loadSeriesStructure(String seriesId) {
+        if (state.authenticated() == null) {
+            throw new IllegalStateException("authenticated session is required before loading a series");
+        }
+        MediaItemSummary series = client.item(state.authenticated(), seriesId);
+        MediaItemPage seasonsPage = childPage(series.id(), 0, BrowseSession.FOLDER_PAGE_SIZE, false);
+        List<MediaItemSummary> seasons = seasonsPage.items();
+        MediaItemSummary selectedSeason = seasons.stream()
+                .filter(item -> item.type() == MediaItemType.SEASON)
+                .findFirst()
+                .orElse(null);
+        List<MediaItemSummary> episodes = selectedSeason == null
+                ? AndroidCollections.emptyList()
+                : childPage(selectedSeason.id(), 0, BrowseSession.FOLDER_PAGE_SIZE, false).items();
+        MediaItemSummary nextUp = client.nextUpItems(state.authenticated(), series.id(), 1).items()
+                .stream()
+                .findFirst()
+                .orElse(null);
+        MediaItemSummary resume = episodes.stream()
+                .filter(MediaItemSummary::hasResumePosition)
+                .findFirst()
+                .orElse(nextUp);
+        return new ShowStructure(series, seasons, selectedSeason, episodes, nextUp, resume);
+    }
+
+    public ShowStructure loadSeasonStructure(String seasonId) {
+        if (state.authenticated() == null) {
+            throw new IllegalStateException("authenticated session is required before loading a season");
+        }
+        MediaItemSummary season = client.item(state.authenticated(), seasonId);
+        String seriesId = season.seriesId().isBlank() ? season.parentId() : season.seriesId();
+        MediaItemSummary series = client.item(state.authenticated(), seriesId);
+        MediaItemPage seasonsPage = childPage(series.id(), 0, BrowseSession.FOLDER_PAGE_SIZE, false);
+        List<MediaItemSummary> seasons = seasonsPage.items();
+        List<MediaItemSummary> episodes = childPage(season.id(), 0, BrowseSession.FOLDER_PAGE_SIZE, false).items();
+        MediaItemSummary nextUp = client.nextUpItems(state.authenticated(), series.id(), 1).items()
+                .stream()
+                .findFirst()
+                .orElse(null);
+        MediaItemSummary resume = episodes.stream()
+                .filter(MediaItemSummary::hasResumePosition)
+                .findFirst()
+                .orElse(nextUp);
+        return new ShowStructure(series, seasons, season, episodes, nextUp, resume);
+    }
+
+    public ShowStructure loadEpisodeContext(MediaItemSummary episode) {
+        if (state.authenticated() == null) {
+            throw new IllegalStateException("authenticated session is required before loading episode context");
+        }
+        String seasonId = episode.parentId();
+        if (seasonId.isBlank()) {
+            throw new IllegalStateException(NO_CHILD_ITEM_MESSAGE);
+        }
+        MediaItemSummary season = client.item(state.authenticated(), seasonId);
+        String seriesId = episode.seriesId().isBlank() ? season.seriesId() : episode.seriesId();
+        MediaItemSummary series = client.item(state.authenticated(), seriesId);
+        MediaItemPage seasonsPage = childPage(series.id(), 0, BrowseSession.FOLDER_PAGE_SIZE, false);
+        List<MediaItemSummary> episodes = childPage(season.id(), 0, BrowseSession.FOLDER_PAGE_SIZE, false).items();
+        MediaItemSummary nextUp = client.nextUpItems(state.authenticated(), series.id(), 1).items()
+                .stream()
+                .findFirst()
+                .orElse(null);
+        return new ShowStructure(series, seasonsPage.items(), season, episodes, nextUp, episode);
+    }
+
     private PlaybackInfoOptions playbackInfoOptions(
             PlaybackSelectionPreferences preferences,
             boolean useResumePosition
@@ -336,15 +404,19 @@ public final class TvWorkflowController {
     }
 
     private MediaItemPage folderPage(String parentId, int startIndex) {
+        return childPage(parentId, startIndex, BrowseSession.FOLDER_PAGE_SIZE, true);
+    }
+
+    private MediaItemPage childPage(String parentId, int startIndex, int limit, boolean requireItems) {
         MediaItemPage page = client.items(
                 state.authenticated(),
                 ItemQuery.browse()
                         .parentId(parentId)
                         .startIndex(startIndex)
-                        .limit(BrowseSession.FOLDER_PAGE_SIZE)
+                        .limit(limit)
                         .build()
         );
-        if (page.items().isEmpty()) {
+        if (requireItems && page.items().isEmpty()) {
             throw new IllegalStateException(NO_CHILD_ITEM_MESSAGE);
         }
         return page;

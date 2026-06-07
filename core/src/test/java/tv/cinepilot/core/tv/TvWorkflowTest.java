@@ -41,6 +41,7 @@ public final class TvWorkflowTest {
         controllerForwardsDeviceProfileToPlaybackInfo();
         controllerLoadsPlaybackChoicesForTrackSelection();
         controllerLoadsNextUpForSelectedSeries();
+        controllerLoadsShowStructuresWithoutChangingState();
         controllerLogoutRevokesSavedSession();
         controllerRestoresSavedSessionAndLoadsHome();
         controllerBrowsesFolderRowsAndReturnsToParent();
@@ -459,6 +460,35 @@ public final class TvWorkflowTest {
         assertTrue(nextUpUrl.contains("Limit=1"), "selected series limit");
     }
 
+    private static void controllerLoadsShowStructuresWithoutChangingState() {
+        FakeTransport transport = new FakeTransport();
+        transport.enqueue(200, "{\"Id\":\"server-1\",\"ServerName\":\"Jellyfin\"}");
+        transport.enqueue(200, "{\"AccessToken\":\"token-1\",\"ServerId\":\"server-1\",\"User\":{\"Id\":\"user-1\"}}");
+        enqueueHomeResponses(transport);
+        enqueueSeriesStructureResponses(transport);
+        enqueueSeasonStructureResponses(transport);
+        enqueueEpisodeContextResponses(transport);
+
+        ClientIdentity client = new ClientIdentity("CinePilot TV", "Living Room TV", "device-1", "0.1.0");
+        MediaBrowserClient mediaClient = new MediaBrowserClient(transport, new InMemorySessionRepository(), client);
+        TvWorkflowController controller = new TvWorkflowController(mediaClient, new HomeRowsLoader(mediaClient, 12));
+
+        controller.submitServer("https://media.example.com/jellyfin");
+        TvAppState home = controller.login("root", "secret");
+        ShowStructure series = controller.loadSeriesStructure("series-1");
+        ShowStructure season = controller.loadSeasonStructure("season-1");
+        ShowStructure episode = controller.loadEpisodeContext(episodeItem());
+
+        assertEquals(TvRoute.HOME, controller.state().route(), "show structure loads do not route away from home");
+        assertEquals(home.focus(), controller.state().focus(), "show structure loads preserve home focus");
+        assertEquals("series-1", series.series().id(), "series structure series id");
+        assertEquals("season-1", series.selectedSeason().id(), "series structure selected season");
+        assertEquals(2, series.episodes().size(), "series structure episode preview count");
+        assertEquals("season-1", season.selectedSeason().id(), "season structure selected season");
+        assertEquals(2, season.seasons().size(), "season structure still has all seasons");
+        assertEquals("episode-1", episode.resumeEpisode().id(), "episode context keeps current episode");
+    }
+
     private static void controllerLogoutRevokesSavedSession() {
         FakeTransport transport = new FakeTransport();
         transport.enqueue(200, "{\"Id\":\"server-1\",\"ServerName\":\"Jellyfin\"}");
@@ -765,6 +795,55 @@ public final class TvWorkflowTest {
                 """);
     }
 
+    private static void enqueueSeriesStructureResponses(FakeTransport transport) {
+        transport.enqueue(200, "{\"Id\":\"series-1\",\"Name\":\"Show\",\"Type\":\"Series\",\"IsFolder\":true}");
+        transport.enqueue(200, seasonsJson());
+        transport.enqueue(200, episodesJson());
+        transport.enqueue(200, nextUpJson());
+    }
+
+    private static void enqueueSeasonStructureResponses(FakeTransport transport) {
+        transport.enqueue(200, "{\"Id\":\"season-1\",\"Name\":\"Season 1\",\"Type\":\"Season\",\"ParentId\":\"series-1\",\"SeriesId\":\"series-1\",\"IsFolder\":true}");
+        transport.enqueue(200, "{\"Id\":\"series-1\",\"Name\":\"Show\",\"Type\":\"Series\",\"IsFolder\":true}");
+        transport.enqueue(200, seasonsJson());
+        transport.enqueue(200, episodesJson());
+        transport.enqueue(200, nextUpJson());
+    }
+
+    private static void enqueueEpisodeContextResponses(FakeTransport transport) {
+        transport.enqueue(200, "{\"Id\":\"season-1\",\"Name\":\"Season 1\",\"Type\":\"Season\",\"ParentId\":\"series-1\",\"SeriesId\":\"series-1\",\"IsFolder\":true}");
+        transport.enqueue(200, "{\"Id\":\"series-1\",\"Name\":\"Show\",\"Type\":\"Series\",\"IsFolder\":true}");
+        transport.enqueue(200, seasonsJson());
+        transport.enqueue(200, episodesJson());
+        transport.enqueue(200, nextUpJson());
+    }
+
+    private static String seasonsJson() {
+        return """
+                {"Items":[
+                  {"Id":"season-1","Name":"Season 1","Type":"Season","ParentId":"series-1","SeriesId":"series-1","IsFolder":true},
+                  {"Id":"season-2","Name":"Season 2","Type":"Season","ParentId":"series-1","SeriesId":"series-1","IsFolder":true}
+                ],"TotalRecordCount":2,"StartIndex":0}
+                """;
+    }
+
+    private static String episodesJson() {
+        return """
+                {"Items":[
+                  {"Id":"episode-1","Name":"Episode 1","Type":"Episode","ParentId":"season-1","SeriesId":"series-1","IsPlayable":true,"UserData":{"PlaybackPositionTicks":10000000}},
+                  {"Id":"episode-2","Name":"Episode 2","Type":"Episode","ParentId":"season-1","SeriesId":"series-1","IsPlayable":true}
+                ],"TotalRecordCount":2,"StartIndex":0}
+                """;
+    }
+
+    private static String nextUpJson() {
+        return """
+                {"Items":[
+                  {"Id":"episode-2","Name":"Episode 2","Type":"Episode","ParentId":"season-1","SeriesId":"series-1","IsPlayable":true}
+                ],"TotalRecordCount":1,"StartIndex":0}
+                """;
+    }
+
     private static AuthenticatedServer authenticated(ClientIdentity client) {
         ServerIdentity server = new ServerIdentity(
                 MediaServerAddress.parse("https://media.example.com/jellyfin"),
@@ -788,6 +867,27 @@ public final class TvWorkflowTest {
                 null,
                 null,
                 "",
+                "",
+                List.of(),
+                UserItemData.empty(),
+                Map.of()
+        );
+    }
+
+    private static MediaItemSummary episodeItem() {
+        return new MediaItemSummary(
+                "episode-1",
+                "season-1",
+                "Episode 1",
+                MediaItemType.EPISODE,
+                false,
+                true,
+                null,
+                null,
+                1,
+                1,
+                "Show",
+                "series-1",
                 "",
                 List.of(),
                 UserItemData.empty(),
