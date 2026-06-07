@@ -10,6 +10,7 @@
 - beautifully organized metadata：metadata 只帮助用户判断当前媒体，不做字段墙。
 - elegant player：播放器内容优先，控制层和视频信息只在需要时出现。
 - liquid glass as overlay：玻璃材料只用于浮层、popover、side sheet、HUD，不用于首页 / 详情主结构的页面卡片。
+- cool blue highlight：焦点态使用冷白 / 冷蓝内描边和轻 glow，不能回到粗蓝块或大面积实色按钮。
 - dense TV layout：1080p 下信息密度要接近成熟媒体库，不能为了“高级感”牺牲可浏览数量。
 
 ## 首页规格
@@ -36,6 +37,7 @@
 - 设置页使用窄 side sheet；主题只是偏好入口，不是页面主视觉。
 - 错误页使用 recovery side sheet：短说明 + 明确主动作 + 次级诊断入口。
 - 播放器保留 Media3 核心；视频信息 HUD 是 compact side sheet，跟随控制层显示，隐藏时不遮挡画面。
+- 本轮不重写 Media3 控制层，只调整周边入口、HUD 和视觉层级。
 
 ## 组件边界
 
@@ -44,7 +46,7 @@
 - `MediaPresentation` 是唯一展示模型入口，包含 `title`、`contextLine`、`microMetadata`、`watchState`、`deliveryBadges` 和 artwork fallback。
 - glass primitive 继续存在，但只服务 overlay / popover / sheet / HUD。
 
-## 验收标准
+## 截图验收
 
 - 首页一眼是媒体墙，不是工具页。
 - 首页默认焦点在媒体 artwork cell，遥控器上下左右路径稳定。

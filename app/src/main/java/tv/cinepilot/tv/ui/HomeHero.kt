@@ -17,7 +17,7 @@ class HomeHeroBinding(
 
 fun ComponentActivity.homeHero(): HomeHeroBinding {
     val title = TextView(this).apply {
-        text = "选择媒体"
+        text = ""
         textSize = InfuseTypeTokens.HeroTitle
         typeface = Typeface.DEFAULT
         setTextColor(TvColors.TextPrimary)
@@ -27,7 +27,7 @@ fun ComponentActivity.homeHero(): HomeHeroBinding {
         setLineSpacing(2f, 1.02f)
     }
     val metadata = TextView(this).apply {
-        text = "移动焦点浏览媒体库"
+        text = ""
         textSize = InfuseTypeTokens.Body
         setTextColor(TvColors.TextSecondary)
         includeFontPadding = false

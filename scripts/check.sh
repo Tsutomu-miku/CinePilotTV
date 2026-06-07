@@ -724,11 +724,12 @@ if [[ ! -s "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/runtime/ArtworkLoader.kt
 fi
 
 if [[ ! -s "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/ui/MediaPresentation.kt" ]] ||
-  [[ ! -s "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/ui/InfuseTokens.kt" ]] ||
-  [[ ! -s "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/ui/InfuseChrome.kt" ]] ||
-  [[ ! -s "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/ui/InfuseActions.kt" ]] ||
-  [[ ! -s "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/ui/InfusePoster.kt" ]]; then
-  echo "Infuse redesign must keep presentation models and component modules" >&2
+  [[ ! -s "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/ui/CinematicStage.kt" ]] ||
+  [[ ! -s "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/ui/EdgeChrome.kt" ]] ||
+  [[ ! -s "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/ui/ArtworkCell.kt" ]] ||
+  [[ ! -s "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/ui/MediaWallRow.kt" ]] ||
+  [[ ! -s "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/ui/SideSheet.kt" ]]; then
+  echo "Infuse redesign must keep media-wall presentation models and component modules" >&2
   exit 1
 fi
 
@@ -737,11 +738,27 @@ if (( $(wc -l < "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/ui/HomeScreen.kt") 
   exit 1
 fi
 
-if ! grep -q 'infuseStage' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/ui/HomeScreen.kt" ||
-  ! grep -q 'homeHero' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/ui/HomeScreen.kt" ||
-  ! grep -q 'homeShelfSection' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/ui/HomeScreen.kt" ||
-  ! grep -q 'updateHomeFocus' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/ui/HomeScreen.kt"; then
-  echo "Home screen must render through the componentized Infuse artwork hub" >&2
+if ! grep -q 'cinematicStage' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/ui/HomeScreen.kt" ||
+  ! grep -q 'edgeChrome' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/ui/HomeScreen.kt" ||
+  ! grep -q 'mediaWallRow' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/ui/HomeScreen.kt" ||
+  ! grep -q 'updateHomeFocusSummary' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/ui/HomeScreen.kt"; then
+  echo "Home screen must render through the media wall shell, not the old hero/card shell" >&2
+  exit 1
+fi
+
+if grep -q '媒体库\|选择媒体\|移动焦点浏览媒体库' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/ui/HomeScreen.kt" "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/ui/HomeHero.kt"; then
+  echo "Home screen must not show product self-description as a top-level media wall title" >&2
+  exit 1
+fi
+
+if grep -q 'homeTopChrome\|homeHero\|homeShelfSection' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/ui/HomeScreen.kt"; then
+  echo "Home screen must not depend on the old title/hero/shelf shell" >&2
+  exit 1
+fi
+
+if ! grep -q 'CellWidth = 112' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/ui/MediaWallTokens.kt" ||
+  ! grep -q 'CellGap = 8' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/ui/MediaWallTokens.kt"; then
+  echo "Media wall density tokens must keep compact artwork cells for 1080p TV" >&2
   exit 1
 fi
 
