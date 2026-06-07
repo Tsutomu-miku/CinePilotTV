@@ -17,13 +17,13 @@ fun ComponentActivity.detailsStage(
     content: LinearLayout.() -> Unit,
 ): FrameLayout {
     val backdrop = cinematicBackdrop()
-    backdrop.alpha = 0.68f
+    backdrop.alpha = 0.84f
     loadBackdrop(backdrop, item)
     val container = LinearLayout(this).apply {
         orientation = LinearLayout.VERTICAL
         setPadding(
             dp(MediaWallTokens.ScreenX),
-            dp(MediaWallTokens.DetailTop),
+            dp(MediaWallTokens.DetailTop + 8),
             dp(MediaWallTokens.ScreenX),
             dp(MediaWallTokens.ScreenBottom),
         )
@@ -46,7 +46,7 @@ fun ComponentActivity.detailsStage(
             FrameLayout.LayoutParams.MATCH_PARENT,
         ))
         addView(View(this@detailsStage).apply {
-            background = rounded(Color.argb(96, 0, 0, 0), 0)
+            background = rounded(Color.argb(42, 0, 0, 0), 0)
         }, FrameLayout.LayoutParams(
             FrameLayout.LayoutParams.MATCH_PARENT,
             FrameLayout.LayoutParams.MATCH_PARENT,
@@ -54,7 +54,7 @@ fun ComponentActivity.detailsStage(
         addView(View(this@detailsStage).apply {
             background = readableDetailsScrim()
         }, FrameLayout.LayoutParams(
-            dp(980),
+            dp(1180),
             FrameLayout.LayoutParams.MATCH_PARENT,
         ))
         addView(scroll)
@@ -66,8 +66,8 @@ private fun readableDetailsScrim(): GradientDrawable {
         GradientDrawable.Orientation.LEFT_RIGHT,
         intArrayOf(
             Color.argb(236, 0, 0, 0),
-            Color.argb(202, 0, 0, 0),
-            Color.argb(80, 0, 0, 0),
+            Color.argb(184, 0, 0, 0),
+            Color.argb(72, 0, 0, 0),
             Color.TRANSPARENT,
         ),
     )

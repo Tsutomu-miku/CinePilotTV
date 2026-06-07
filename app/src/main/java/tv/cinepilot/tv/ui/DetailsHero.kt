@@ -12,7 +12,7 @@ import tv.cinepilot.core.protocol.MediaItemSummary
 
 fun ComponentActivity.detailsHero(
     item: MediaItemSummary,
-    presentation: MediaPresentation,
+    presentation: DetailPresentation,
     actions: List<InfuseAction>,
     folderAction: InfuseAction,
     loadPoster: (ImageView, MediaItemSummary, Int, Int) -> Unit,
@@ -27,15 +27,11 @@ fun ComponentActivity.detailsHero(
             orientation = LinearLayout.VERTICAL
             setPadding(0, dp(4), 0, 0)
             addView(detailsTitle(presentation.title))
-            if (presentation.subtitle.isNotBlank()) {
-                addView(detailsSubtitle(presentation.subtitle))
+            if (presentation.contextLine.isNotBlank()) {
+                addView(detailsSubtitle(presentation.contextLine))
             }
-            addView(metadataPills(presentation.microMetadata))
-            if (presentation.deliveryBadges.isNotEmpty()) {
-                addView(metadataPills(presentation.deliveryBadges))
-            }
-            if (presentation.progressLabel.isNotBlank()) {
-                addView(detailsProgress(presentation.progressLabel))
+            if (presentation.qualityBadges.isNotEmpty()) {
+                addView(detailBadgeLine(presentation.qualityBadges))
             }
             addView(detailsActions(if (item.playable()) actions else listOf(folderAction)))
         }, LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f))
@@ -49,15 +45,20 @@ private fun ComponentActivity.detailsPoster(
     return ImageView(this).apply {
         contentDescription = "${item.name()} 海报"
         scaleType = ImageView.ScaleType.CENTER_CROP
-        setBackground(rounded(TvColors.PosterFallback, dp(TvRadius.Card), dp(1), TvColors.PosterBorder))
+        setBackground(rounded(
+            TvColors.PosterFallback,
+            dp(MediaWallTokens.CellRadius),
+            dp(1),
+            homeHairlineColor(),
+        ))
         clipToOutline = true
-        elevation = dp(InfuseFocusTokens.ElevationDp).toFloat()
-        loadPoster(this, item, 320, 480)
+        elevation = dp(6).toFloat()
+        loadPoster(this, item, 288, 432)
         layoutParams = LinearLayout.LayoutParams(
-            dp(MediaWallTokens.DetailPosterWidth),
-            dp(MediaWallTokens.DetailPosterHeight),
+            dp(154),
+            dp(231),
         ).apply {
-            rightMargin = dp(MediaWallTokens.DetailGap)
+            rightMargin = dp(28)
         }
     }
 }
@@ -72,7 +73,7 @@ private fun ComponentActivity.detailsTitle(title: String): TextView {
         ellipsize = TextUtils.TruncateAt.END
         includeFontPadding = false
         setLineSpacing(2f, 1.02f)
-        setPadding(0, 0, 0, dp(8))
+        setPadding(0, 0, 0, dp(10))
     }
 }
 
@@ -84,16 +85,12 @@ private fun ComponentActivity.detailsSubtitle(text: String): TextView {
         includeFontPadding = false
         maxLines = 1
         ellipsize = TextUtils.TruncateAt.END
-        setPadding(0, 0, 0, dp(8))
+        setPadding(0, 0, 0, dp(12))
     }
 }
 
-private fun ComponentActivity.detailsProgress(text: String): TextView {
-    return TextView(this).apply {
-        this.text = text
-        textSize = MediaWallType.DetailMeta
-        setTextColor(TvColors.AccentStrong)
-        includeFontPadding = false
-        setPadding(0, dp(6), 0, dp(8))
+private fun ComponentActivity.detailBadgeLine(values: List<String>): View {
+    return metadataPills(values.take(8)).apply {
+        setPadding(0, 0, 0, dp(4))
     }
 }

@@ -4,7 +4,7 @@ import android.graphics.Color
 import android.text.TextUtils
 import android.view.Gravity
 import android.view.View
-import android.widget.HorizontalScrollView
+import android.view.ViewGroup
 import android.widget.LinearLayout
 import android.widget.TextView
 import androidx.activity.ComponentActivity
@@ -14,13 +14,10 @@ fun ComponentActivity.detailsActions(actions: List<InfuseAction>): View {
     if (actions.firstOrNull()?.emphasis == InfuseActionEmphasis.PRIMARY) {
         views.firstOrNull()?.requestInitialFocus()
     }
-    return HorizontalScrollView(this).apply {
-        isHorizontalScrollBarEnabled = false
+    return TvFlowLayout(this).apply {
         isFocusable = false
-        addView(LinearLayout(this@detailsActions).apply {
-            orientation = LinearLayout.HORIZONTAL
-            views.forEach(::addView)
-        })
+        setPadding(0, dp(4), 0, dp(2))
+        views.forEach(::addView)
     }
 }
 
@@ -37,24 +34,25 @@ private fun ComponentActivity.detailAction(action: InfuseAction): TextView {
         isClickable = true
         setTextColor(if (primary) TvColors.FocusText else TvColors.TextSecondary)
         setCompoundDrawablesRelativeWithIntrinsicBounds(action.icon.drawableRes, 0, 0, 0)
-        compoundDrawablePadding = dp(7)
+        compoundDrawablePadding = dp(if (primary) 7 else 5)
         background = rounded(
-            if (primary) TvColors.AccentStrong else Color.argb(92, 0, 0, 0),
-            dp(18),
+            if (primary) TvColors.AccentStrong else Color.argb(42, 0, 0, 0),
+            dp(16),
             dp(1),
-            if (primary) TvColors.AccentStrong else TvColors.GlassBorder,
+            if (primary) TvColors.AccentStrong else homeHairlineColor(44),
         )
-        setPadding(dp(if (primary) 18 else 12), 0, dp(if (primary) 18 else 12), 0)
+        setPadding(dp(if (primary) 18 else 10), 0, dp(if (primary) 18 else 10), 0)
         setOnClickListener { action.onClick() }
         setOnFocusChangeListener { view, focused ->
-            view.applyFocusOutline(focused, 18)
+            view.applyFocusOutline(focused, 16)
         }
-        layoutParams = LinearLayout.LayoutParams(
+        layoutParams = ViewGroup.MarginLayoutParams(
             LinearLayout.LayoutParams.WRAP_CONTENT,
-            dp(38),
+            dp(if (primary) 38 else 34),
         ).apply {
             rightMargin = dp(8)
+            bottomMargin = dp(8)
         }
-        minWidth = dp(if (primary) 118 else 86)
+        minWidth = dp(if (primary) 126 else 72)
     }
 }

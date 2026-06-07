@@ -810,13 +810,14 @@ for detail_module in DetailsStage.kt DetailsHero.kt DetailsActions.kt DetailsInf
   fi
 done
 
-if ! grep -q 'toMediaPresentation' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/ui/DetailsScreen.kt" ||
+if [[ ! -s "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/ui/DetailPresentation.kt" ]] ||
+  ! grep -q 'toDetailPresentation' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/ui/DetailsScreen.kt" ||
   ! grep -q 'detailsHero' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/ui/DetailsScreen.kt" ||
   ! grep -q 'detailsInfoSections' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/ui/DetailsScreen.kt" ||
   ! grep -q 'cinematicBackdrop' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/ui/DetailsStage.kt" ||
-  ! grep -q 'microMetadata' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/ui/DetailsHero.kt" ||
+  ! grep -q 'qualityBadges' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/ui/DetailsHero.kt" ||
   ! grep -q 'compactSelectorRow' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/details/DetailTrackControls.kt"; then
-  echo "Details screen must use presentation models, cinematic backdrop, micro metadata, and compact selectors" >&2
+  echo "Details screen must use detail presentation, cinematic backdrop, quality badges, and compact selectors" >&2
   exit 1
 fi
 

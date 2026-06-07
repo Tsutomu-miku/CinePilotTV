@@ -14,7 +14,7 @@ fun ComponentActivity.detailsScreen(
     loadPoster: (ImageView, MediaItemSummary, Int, Int) -> Unit,
     loadBackdrop: (ImageView, MediaItemSummary) -> Unit,
 ): View {
-    val presentation = item.toMediaPresentation(
+    val presentation = item.toDetailPresentation(
         technicalTags = technicalInfo,
     )
     return detailsStage(item, loadBackdrop) {
@@ -27,8 +27,7 @@ fun ComponentActivity.detailsScreen(
         ))
         detailsInfoSections(
             trackControls = trackControls,
-            technicalInfo = presentation.technicalTags,
-            overview = item.overview(),
+            presentation = presentation,
         ).forEach(::addView)
     }
 }
