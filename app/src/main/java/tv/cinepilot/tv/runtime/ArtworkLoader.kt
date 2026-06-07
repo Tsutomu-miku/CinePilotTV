@@ -52,6 +52,23 @@ class ArtworkLoader(
         }
     }
 
+    fun loadArtwork(
+        owner: ComponentActivity,
+        authenticated: AuthenticatedServer?,
+        target: ImageView,
+        item: MediaItemSummary,
+        artworkTarget: ArtworkTarget,
+        width: Int,
+        height: Int,
+    ) {
+        when (artworkTarget) {
+            ArtworkTarget.POSTER -> loadPoster(owner, authenticated, target, item, width, height)
+            ArtworkTarget.LANDSCAPE,
+            ArtworkTarget.BACKDROP,
+            ArtworkTarget.COLLECTION -> loadBackdrop(owner, authenticated, target, item, width, height)
+        }
+    }
+
     fun shutdown() {
         executor.shutdownNow()
     }

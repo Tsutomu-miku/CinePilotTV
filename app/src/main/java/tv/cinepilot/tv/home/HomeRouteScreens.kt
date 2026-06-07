@@ -11,6 +11,7 @@ import tv.cinepilot.core.protocol.MediaItemSummary
 import tv.cinepilot.core.tv.HomeRow
 import tv.cinepilot.core.tv.SearchFilter
 import tv.cinepilot.core.tv.TvAppState
+import tv.cinepilot.tv.runtime.ArtworkTarget
 import tv.cinepilot.tv.ui.HomeNavigation
 import tv.cinepilot.tv.ui.InfuseAction
 import tv.cinepilot.tv.ui.InfuseActionEmphasis
@@ -42,7 +43,7 @@ fun ComponentActivity.homeRouteScreen(
     onNextPage: () -> Unit,
     onOpen: (HomeRow, MediaItemSummary) -> Unit,
     onFocusItem: (HomeRow, MediaItemSummary) -> Unit,
-    loadImage: (ImageView, MediaItemSummary, Int, Int) -> Unit,
+    loadArtwork: (ImageView, MediaItemSummary, ArtworkTarget, Int, Int) -> Unit,
     loadBackdrop: (ImageView, MediaItemSummary, Int, Int) -> Unit,
     onFocusedCard: (View) -> Unit,
 ) = homeScreen(
@@ -62,7 +63,7 @@ fun ComponentActivity.homeRouteScreen(
     ),
     onOpen = onOpen,
     onFocusItem = onFocusItem,
-    loadImage = loadImage,
+    loadArtwork = loadArtwork,
     loadBackdrop = loadBackdrop,
     onFocusedCard = onFocusedCard,
 )

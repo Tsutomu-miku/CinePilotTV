@@ -12,13 +12,14 @@ import androidx.activity.ComponentActivity
 import tv.cinepilot.core.protocol.MediaItemSummary
 import tv.cinepilot.core.tv.HomeRow
 import tv.cinepilot.core.tv.TvAppState
+import tv.cinepilot.tv.runtime.ArtworkTarget
 
 fun ComponentActivity.homeScreen(
     state: TvAppState,
     navigation: HomeNavigation,
     onOpen: (HomeRow, MediaItemSummary) -> Unit,
     onFocusItem: (HomeRow, MediaItemSummary) -> Unit,
-    loadImage: (ImageView, MediaItemSummary, Int, Int) -> Unit,
+    loadArtwork: (ImageView, MediaItemSummary, ArtworkTarget, Int, Int) -> Unit,
     loadBackdrop: (ImageView, MediaItemSummary, Int, Int) -> Unit,
     onFocusedCard: (View) -> Unit,
 ): View {
@@ -65,7 +66,9 @@ fun ComponentActivity.homeScreen(
                             onFocusItem(focusedRow, item)
                         },
                         onOpen = onOpen,
-                        loadImage = loadImage,
+                        loadImage = { target, item, width, height ->
+                            loadArtwork(target, item, ArtworkTarget.POSTER, width, height)
+                        },
                     ))
                 }
             }

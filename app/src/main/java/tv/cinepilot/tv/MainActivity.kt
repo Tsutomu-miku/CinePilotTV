@@ -24,6 +24,7 @@ import tv.cinepilot.tv.player.Media3PlayerHost
 import tv.cinepilot.tv.playback.PlaybackRouteController
 import tv.cinepilot.tv.playback.SubtitleStyleStore
 import tv.cinepilot.tv.runtime.ArtworkLoader
+import tv.cinepilot.tv.runtime.ArtworkTarget
 import tv.cinepilot.tv.runtime.PrimaryImageLoader
 import tv.cinepilot.tv.settings.SettingsRouteController
 import tv.cinepilot.tv.settings.SettingsStore
@@ -189,7 +190,7 @@ class MainActivity : ComponentActivity() {
             onNextPage = ::nextBrowsePage,
             onOpen = playbackRoutes::openMediaItem,
             onFocusItem = { row, item -> viewModel.workflowController.focusItem(row.id(), item.id()) },
-            loadImage = ::loadPosterImage,
+            loadArtwork = ::loadArtworkImage,
             loadBackdrop = ::loadBackdropImage,
             onFocusedCard = { focusedCard = it },
         ))
@@ -228,6 +229,10 @@ class MainActivity : ComponentActivity() {
 
     private fun loadPosterImage(target: ImageView, item: MediaItemSummary, width: Int, height: Int) {
         artworkLoader.loadPoster(this, viewModel.workflowController.state().authenticated(), target, item, width, height)
+    }
+
+    private fun loadArtworkImage(target: ImageView, item: MediaItemSummary, targetType: ArtworkTarget, width: Int, height: Int) {
+        artworkLoader.loadArtwork(this, viewModel.workflowController.state().authenticated(), target, item, targetType, width, height)
     }
 
     private fun loadBackdropImage(target: ImageView, item: MediaItemSummary, width: Int, height: Int) {
