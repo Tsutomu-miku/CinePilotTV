@@ -32,6 +32,14 @@
 - 媒体源、音轨、字幕使用 compact selector 摘要行 + popover；不得占用大表单块。
 - 剧情简介、完整技术信息下移到轻量信息区，不参与首屏播放决策。
 
+## TV Show 能力模型
+
+- Infuse 和 Jellyfin 的共同事实不是“文件夹里有视频”，而是 TV Show 按 `Series -> Season -> Episode` 组织；CinePilot 必须尊重服务端 metadata，而不是把剧集和季当普通文件夹。
+- Series 详情页是剧集总页：展示剧集 artwork、metadata、简介、季列表和当前季集数预览。
+- Season 详情页是季页：展示本季 artwork、metadata、简介和完整 episode grid。
+- Episode 详情页是播放决策页：展示当前集、播放动作、音轨 / 字幕 / 媒体源，以及返回季 / 剧集的层级导航。
+- Back 路径必须按媒体层级返回：`Episode -> Season -> Series -> 原浏览位置`；不得从季或集数页退到登录页。
+
 ## 辅助页与播放器
 
 - 搜索页使用 media wall shell：compact search bar + filter chips，搜索结果仍展示 artwork cell。

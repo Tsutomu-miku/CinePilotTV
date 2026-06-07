@@ -134,6 +134,7 @@
 
 - 首页推倒重做为 media wall：无应用名大标题、无“媒体库 / 选择媒体”说明、无 poster card；默认焦点落在第一个 artwork cell。
 - 详情页推倒重做为 cinematic detail：poster + 标题 metadata + 主播放动作 + compact selector；技术信息只做 micro badges。
+- TV Show 能力模型重构：Series / Season / Episode 必须成为三类媒体层级页面，尊重 Jellyfin / Emby 的 `Series -> Season -> Episode` 结构；不能再把剧集和季退化成普通 folder browse。
 - 搜索结果复用 media wall；设置、错误、播放器信息改为 side sheet / HUD，不能再成为居中大卡片。
 - 继续保留 Media3 播放核心、字幕 / 音轨语义、直连 / 转码调试能力，但这些只能作为次级或调试信息出现。
 
@@ -156,6 +157,8 @@
 - 首屏固定为 backdrop 背景、poster、标题、metadata、播放主动作、少量次级动作。
 - 媒体源、音轨、字幕继续使用 OptionSelect 语义，但视觉上改为 compact selector row。
 - 剧情简介和完整技术信息后移；首屏只展示观看决策需要的信息。
+- Series 详情页展示季列表和当前季 episodes；Season 详情页展示完整 episode grid；Episode 详情页只负责播放决策和音轨 / 字幕选择。
+- 显式 media navigation stack 必须保证 `Episode -> Season -> Series -> 原浏览位置`，不得回到登录页。
 
 ### UI-4 辅助页与播放器
 

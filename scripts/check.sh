@@ -1634,10 +1634,22 @@ fi
 if ! grep -q '选集' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/details/DetailsRouteScreen.kt" ||
   ! grep -q '剧集' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/details/DetailsRouteScreen.kt" ||
   ! grep -q '查看季集' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/details/DetailsRouteScreen.kt" ||
-  ! grep -q 'openEpisodePicker' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/playback/PlaybackRouteController.kt" ||
-  ! grep -q 'openSeriesFolder' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/playback/PlaybackRouteController.kt" ||
+  ! grep -q 'openEpisodeSeason' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/playback/PlaybackRouteController.kt" ||
+  ! grep -q 'openEpisodeSeries' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/playback/PlaybackRouteController.kt" ||
   ! grep -q 'shouldOpenAsDetails' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/playback/PlaybackRouteController.kt"; then
   echo "Episode details must expose season episode picking and series browse navigation" >&2
+  exit 1
+fi
+
+if [[ ! -s "$ROOT_DIR/core/src/main/java/tv/cinepilot/core/tv/ShowStructure.java" ]] ||
+  ! grep -q 'loadSeriesStructure' "$ROOT_DIR/core/src/main/java/tv/cinepilot/core/tv/TvWorkflowController.java" ||
+  ! grep -q 'loadSeasonStructure' "$ROOT_DIR/core/src/main/java/tv/cinepilot/core/tv/TvWorkflowController.java" ||
+  ! grep -q 'loadEpisodeContext' "$ROOT_DIR/core/src/main/java/tv/cinepilot/core/tv/TvWorkflowController.java" ||
+  [[ ! -s "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/details/ShowDetailScreens.kt" ]] ||
+  ! grep -q 'seriesDetailScreen' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/details/ShowDetailScreens.kt" ||
+  ! grep -q 'seasonDetailScreen' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/details/ShowDetailScreens.kt" ||
+  ! grep -q 'mediaBackStack' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/playback/PlaybackRouteController.kt"; then
+  echo "TV show navigation must keep explicit series, season, episode structure and back stack" >&2
   exit 1
 fi
 
