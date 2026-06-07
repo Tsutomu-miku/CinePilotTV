@@ -727,7 +727,10 @@ fi
 if [[ ! -s "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/ui/MediaPresentation.kt" ]] ||
   [[ ! -s "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/ui/CinematicStage.kt" ]] ||
   [[ ! -s "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/ui/EdgeChrome.kt" ]] ||
-  [[ ! -s "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/ui/ArtworkCell.kt" ]] ||
+  [[ ! -s "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/ui/HomeRowPresentation.kt" ]] ||
+  [[ ! -s "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/ui/CollectionRail.kt" ]] ||
+  [[ ! -s "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/ui/LandscapeArtworkCell.kt" ]] ||
+  [[ ! -s "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/ui/PosterArtworkCell.kt" ]] ||
   [[ ! -s "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/ui/MediaWallRow.kt" ]] ||
   [[ ! -s "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/ui/SideSheet.kt" ]]; then
   echo "Infuse redesign must keep media-wall presentation models and component modules" >&2
@@ -754,6 +757,21 @@ if [[ ! -s "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/ui/HomeRowPresentation.k
   [[ ! -s "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/ui/PosterArtworkCell.kt" ]] ||
   [[ ! -s "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/ui/HomeFocusHeader.kt" ]]; then
   echo "Home media wall must keep row-aware collection, landscape, poster, and focus header components" >&2
+  exit 1
+fi
+
+if ! grep -q 'id() == "views"' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/ui/HomeRowPresentation.kt" ||
+  ! grep -q 'RowVisualStyle.COLLECTION_RAIL' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/ui/HomeRowPresentation.kt" ||
+  ! grep -q 'id() == "resume" || id() == "next-up"' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/ui/HomeRowPresentation.kt" ||
+  ! grep -q 'RowVisualStyle.LANDSCAPE_RAIL' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/ui/HomeRowPresentation.kt"; then
+  echo "Home row presentation must keep views as collection rail and resume/next-up as landscape rail" >&2
+  exit 1
+fi
+
+if ! grep -q 'ArtworkTarget.LANDSCAPE' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/ui/LandscapeArtworkCell.kt" ||
+  ! grep -q 'ArtworkTarget.COLLECTION' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/ui/CollectionRail.kt" ||
+  ! grep -q 'loadArtworkImage' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/MainActivity.kt"; then
+  echo "Home media wall must use row-aware artwork targets instead of a poster-only loader" >&2
   exit 1
 fi
 

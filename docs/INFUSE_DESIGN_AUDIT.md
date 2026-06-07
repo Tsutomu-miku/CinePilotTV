@@ -20,10 +20,18 @@
 - `glassPanel` / `infusePanelScreen` 被用作页面骨架，而不是浮层材料；结果看起来是大块表单卡片。
 - 协议信息、技术信息和恢复动作仍过早进入主视觉，压过了“选片 / 播放”这个核心需求。
 
+## 电视截图审计补充
+
+- 2026-06-07 的电视截图显示，分类入口、继续观看、最新内容全部被渲染为同一种竖向 poster cell，导致裁图和低密度。
+- `views` 行标题“媒体库”在首屏左上出现，视觉上仍像页面大标题。
+- 底部 focus summary 遮挡第二行内容，进一步压缩媒体墙。
+- Infuse 官方媒体库参考中，episode / season 内容明显使用横向 artwork，只有电影 / 剧集主封面更适合 poster。
+- 修复方向必须是 row-aware media wall：collection、landscape、poster 分形态渲染，而不是继续调单一 poster cell。
+
 ## 新设计原则
 
 - 首页不展示应用名和页面大标题；顶部只允许极轻 icon rail，默认焦点落在媒体 artwork。
-- 主路径组件按产品模型命名和实现：`CinematicStage`、`EdgeChrome`、`ArtworkCell`、`MediaWallRow`、`FocusOutline`、`CompactSelector`、`SideSheet`。
+- 主路径组件按产品模型命名和实现：`CinematicStage`、`EdgeChrome`、`CollectionRail`、`LandscapeArtworkCell`、`PosterArtworkCell`、`MediaWallRow`、`FocusOutline`、`CompactSelector`、`SideSheet`。
 - 首页和详情的主结构不得使用大 glass panel、card container 或表单 section；glass 只用于 popover、side sheet、debug HUD、错误恢复等浮层。
 - 1080p 首页首屏必须至少展示两行完整媒体 row，并露出第三行；密度优先级高于装饰性“高级感”。
 - 焦点态使用内描边、轻阴影和低矮摘要，不通过放大、粗边框或大标题制造状态。
@@ -33,4 +41,4 @@
 - 首页截图第一眼必须是媒体墙，不是工具栏、说明页或设置页。
 - 详情页截图必须像媒体详情页，不像“海报 + 表单控件”。
 - 搜索结果必须复用 media wall；设置、错误、播放器信息必须是边缘浮层，不是居中大卡片。
-- 检查脚本需要防止旧结构回流：禁止首页大标题文案、禁止主路径依赖 `infusePanelScreen`、禁止 poster 主组件继续叫 card。
+- 检查脚本需要防止旧结构回流：禁止首页大标题文案、禁止主路径依赖 `infusePanelScreen`、禁止 `resume` / `next-up` 使用 poster cell。

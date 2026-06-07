@@ -17,10 +17,11 @@
 
 - 禁止首页主路径展示 `媒体库`、`选择媒体`、`移动焦点浏览媒体库` 之类大标题或说明。
 - 顶部只保留极轻 icon rail：搜索、刷新、账号、设置、退出；默认焦点必须落在第一个媒体 artwork cell。
-- 首页结构是 media wall：row 从顶部内容区直接开始，当前焦点媒体驱动背景 artwork 和低矮焦点摘要。
-- poster 组件是 artwork cell，不是 card：无常驻标题条、无大背景卡片、无大圆角玻璃块。
+- 首页结构是 row-aware media wall：collection、landscape、poster 三种 row 形态按内容类型选择。
+- `views` 行使用 collection rail，不显示“媒体库”标题；`resume` / `next-up` 使用 16:9 landscape rail。
+- movie / series 主内容才使用 poster cell；episode / video / 继续观看不得被裁成竖 poster。
 - 焦点态使用内部细描边、冷白 / 冷蓝 glow、轻阴影和短动画；不通过放大造成裁切或跳动。
-- 1080p 目标：poster `108-116dp x 162-174dp`，gap `8dp`，row title `13-14sp`，首屏至少两行完整 row 并露出第三行。
+- 1080p 目标：poster `104x156dp`，landscape `188x106dp`，collection `150x52dp`，gap `8dp`，首屏至少显示 collection rail + 两行完整内容 row。
 
 ## 详情页规格
 
@@ -41,14 +42,17 @@
 
 ## 组件边界
 
-- 新主路径组件：`CinematicStage`、`EdgeChrome`、`ArtworkCell`、`MediaWallRow`、`FocusOutline`、`CompactSelector`、`SideSheet`。
+- 新主路径组件：`CinematicStage`、`EdgeChrome`、`CollectionRail`、`LandscapeArtworkCell`、`PosterArtworkCell`、`MediaWallRow`、`FocusOutline`、`CompactSelector`、`SideSheet`。
 - 旧 `Infuse*` 组件可以临时保留，但首页 / 详情主路径不得继续依赖 `infusePanelScreen`、`homeTopChrome` 或 card 型 poster 容器。
 - `MediaPresentation` 是唯一展示模型入口，包含 `title`、`contextLine`、`microMetadata`、`watchState`、`deliveryBadges` 和 artwork fallback。
+- `HomeRowPresentation` 是首页 row 形态入口，负责把 `views`、`resume`、`next-up`、`latest:*`、`search:*`、`folder:*` 映射到 collection / landscape / poster。
 - glass primitive 继续存在，但只服务 overlay / popover / sheet / HUD。
 
 ## 截图验收
 
 - 首页一眼是媒体墙，不是工具页。
+- 首页不得出现大“媒体库”标题；分类入口不得是大竖 poster。
+- 继续观看必须是横向 16:9 artwork，底部不得有遮挡内容的 summary bar。
 - 首页默认焦点在媒体 artwork cell，遥控器上下左右路径稳定。
 - 详情页像电影详情，不像海报加表单。
 - 搜索、设置、错误、播放器信息与主路径视觉一致，但不抢主路径注意力。

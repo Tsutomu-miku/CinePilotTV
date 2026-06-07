@@ -139,10 +139,11 @@
 
 ### UI-1 Media wall 基础
 
-- 新建主路径组件：`CinematicStage`、`EdgeChrome`、`ArtworkCell`、`MediaWallRow`、`FocusOutline`、`CompactSelector`、`SideSheet`。
+- 新建主路径组件：`CinematicStage`、`EdgeChrome`、`CollectionRail`、`LandscapeArtworkCell`、`PosterArtworkCell`、`MediaWallRow`、`FocusOutline`、`CompactSelector`、`SideSheet`。
 - 旧 `Infuse*` 组件只允许迁移期保留，不作为首页 / 详情主结构。
-- 1080p 密度目标：poster `108-116dp x 162-174dp`，gap `8dp`，row title `13-14sp`，首屏至少两行完整 row 并露出第三行。
-- `scripts/check.sh` 防回退：禁止首页大标题文案，禁止主路径依赖 `infusePanelScreen`，禁止 poster 主组件继续叫 card。
+- 首页 row-aware media wall 已成为当前执行方向：`views` -> collection rail，`resume` / `next-up` -> landscape rail，movie / series -> poster rail，episode / video -> landscape rail。
+- 1080p 密度目标：poster `104x156dp`，landscape `188x106dp`，collection `150x52dp`，gap `8dp`，首屏至少显示 collection rail + 两行完整内容 row。
+- `scripts/check.sh` 防回退：禁止首页大标题文案，禁止主路径依赖 `infusePanelScreen`，禁止 `resume` / `next-up` 回到 poster cell。
 
 ### UI-2 首页重写
 
