@@ -23,6 +23,7 @@ fun ComponentActivity.optionSelect(
     selectedLabel: String,
     options: List<TvOptionSelectItem>,
     requestFocus: Boolean = false,
+    widthDp: Int? = null,
 ): View {
     return LinearLayout(this).apply {
         orientation = LinearLayout.HORIZONTAL
@@ -32,7 +33,7 @@ fun ComponentActivity.optionSelect(
         descendantFocusability = ViewGroup.FOCUS_BLOCK_DESCENDANTS
         contentDescription = "$title，当前 $selectedLabel"
         background = glassDrawable(GlassTokens.ControlRadius)
-        setPadding(dp(14), 0, dp(12), 0)
+        setPadding(dp(12), 0, dp(10), 0)
         addView(optionTitle(title))
         addView(optionValue(selectedLabel), LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f))
         addView(optionChevron())
@@ -43,8 +44,8 @@ fun ComponentActivity.optionSelect(
             focusedView.applyGlassFocus(hasFocus)
         }
         layoutParams = LinearLayout.LayoutParams(
-            LinearLayout.LayoutParams.MATCH_PARENT,
-            dp(44),
+            widthDp?.let(::dp) ?: LinearLayout.LayoutParams.MATCH_PARENT,
+            dp(40),
         ).apply {
             bottomMargin = dp(8)
         }
@@ -61,7 +62,7 @@ private fun ComponentActivity.optionTitle(title: String): TextView {
         setTextColor(TvColors.AccentStrong)
         gravity = Gravity.CENTER_VERTICAL
         includeFontPadding = false
-        layoutParams = LinearLayout.LayoutParams(dp(80), LinearLayout.LayoutParams.WRAP_CONTENT)
+        layoutParams = LinearLayout.LayoutParams(dp(58), LinearLayout.LayoutParams.WRAP_CONTENT)
     }
 }
 
@@ -115,15 +116,15 @@ private fun ComponentActivity.showOptionPopover(
         isFocusable = false
         addView(list)
     }
-    val width = minOf(dp(680), resources.displayMetrics.widthPixels - dp(160))
-    val height = minOf(dp(74 + options.size * 46), resources.displayMetrics.heightPixels - dp(160))
+    val width = minOf(maxOf(anchor.width, dp(420)), resources.displayMetrics.widthPixels - dp(120))
+    val height = minOf(dp(58 + options.size * 40), resources.displayMetrics.heightPixels - dp(180))
     popup = PopupWindow(scroll, width, height, true).apply {
         isOutsideTouchable = true
         setBackgroundDrawable(ColorDrawable(Color.TRANSPARENT))
         elevation = dp(10).toFloat()
     }
     scroll.background = glassDrawable(GlassTokens.PanelRadius)
-    popup?.showAtLocation(anchor.rootView, Gravity.CENTER, 0, 0)
+    popup?.showAsDropDown(anchor, 0, dp(6))
     (selectedView ?: list.getChildAt(1))?.post {
         (selectedView ?: list.getChildAt(1))?.requestFocus()
     }
@@ -135,7 +136,7 @@ private fun ComponentActivity.popoverTitle(title: String): TextView {
         textSize = TvType.Body
         setTextColor(TvColors.TextPrimary)
         includeFontPadding = false
-        setPadding(dp(8), dp(6), dp(8), dp(12))
+        setPadding(dp(8), dp(4), dp(8), dp(10))
     }
 }
 
@@ -162,7 +163,7 @@ private fun ComponentActivity.popoverOption(option: TvOptionSelectItem, onClick:
             focusedView.background = optionBackground(option.selected, hasFocus)
             if (focusedView is TextView) {
                 focusedView.setTextColor(when {
-                    hasFocus -> TvColors.FocusText
+                    hasFocus -> TvColors.TextPrimary
                     option.selected -> TvColors.AccentStrong
                     else -> TvColors.TextSecondary
                 })
@@ -170,20 +171,24 @@ private fun ComponentActivity.popoverOption(option: TvOptionSelectItem, onClick:
         }
         layoutParams = LinearLayout.LayoutParams(
             LinearLayout.LayoutParams.MATCH_PARENT,
-            dp(40),
+            dp(36),
         ).apply {
-            bottomMargin = dp(6)
+            bottomMargin = dp(5)
         }
     }
 }
 
 private fun ComponentActivity.optionBackground(selected: Boolean, focused: Boolean) = rounded(
-    if (focused) TvColors.Focus else if (selected) TvColors.SurfaceControl else TvColors.SurfaceRaised,
-    dp(TvRadius.Control),
-    if (focused || selected) dp(2) else dp(1),
+    when {
+        focused -> TvColors.GlassFocusTint
+        selected -> Color.argb(72, 255, 255, 255)
+        else -> Color.argb(42, 0, 0, 0)
+    },
+    dp(MediaWallTokens.CollectionRadius),
+    dp(1),
     when {
         focused -> TvColors.FocusRing
-        selected -> TvColors.Accent
-        else -> TvColors.PillBorder
+        selected -> homeHairlineColor(92)
+        else -> homeHairlineColor(44)
     },
 )

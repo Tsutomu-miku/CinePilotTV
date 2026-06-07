@@ -66,6 +66,7 @@ fun ComponentActivity.detailTrackControls(
                     }
                 },
                 requestFocus = selection.focusKey == FOCUS_SOURCE,
+                widthDp = 420,
         ))
     }
     selectors.add(audioOptionSelect(activeSource, selection, onSelection))
@@ -100,6 +101,7 @@ private fun ComponentActivity.audioOptionSelect(
             }
         },
         requestFocus = selection.focusKey == FOCUS_AUDIO,
+        widthDp = 360,
     )
 }
 
@@ -146,6 +148,7 @@ private fun ComponentActivity.subtitleOptionSelect(
             }
         },
         requestFocus = selection.focusKey == FOCUS_SUBTITLE,
+        widthDp = 360,
     )
 }
 
