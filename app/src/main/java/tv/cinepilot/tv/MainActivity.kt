@@ -78,6 +78,7 @@ class MainActivity : ComponentActivity() {
             showHome = ::showHome,
             showError = ::showError,
             loadPosterImage = ::loadPosterImage,
+            loadArtworkImage = ::loadArtworkImage,
             loadBackdropImage = ::loadBackdropImage,
         )
         searchRoutes = SearchRouteController(

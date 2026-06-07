@@ -3,17 +3,22 @@ package tv.cinepilot.tv.playback
 import android.widget.ImageView
 import android.widget.Toast
 import androidx.activity.ComponentActivity
+import java.util.ArrayDeque
 import tv.cinepilot.core.protocol.MediaItemSummary
 import tv.cinepilot.core.protocol.MediaItemType
 import tv.cinepilot.core.protocol.PlaybackInfo
 import tv.cinepilot.core.protocol.PlaybackSelectionPreferences
 import tv.cinepilot.core.tv.HomeRow
+import tv.cinepilot.core.tv.ShowStructure
 import tv.cinepilot.core.tv.TvAppState
 import tv.cinepilot.core.tv.TvRoute
 import tv.cinepilot.core.tv.TvWorkflowController
 import tv.cinepilot.tv.details.DetailTrackSelection
 import tv.cinepilot.tv.details.detailsRouteScreen
+import tv.cinepilot.tv.details.seasonDetailScreen
+import tv.cinepilot.tv.details.seriesDetailScreen
 import tv.cinepilot.tv.player.Media3PlayerHost
+import tv.cinepilot.tv.runtime.ArtworkTarget
 import tv.cinepilot.tv.runtime.DeviceCodecDiagnostics
 import tv.cinepilot.tv.ui.playerScreen
 
@@ -27,6 +32,7 @@ class PlaybackRouteController(
     private val showHome: (TvAppState) -> Unit,
     private val showError: (Throwable) -> Unit,
     private val loadPosterImage: (ImageView, MediaItemSummary, Int, Int) -> Unit,
+    private val loadArtworkImage: (ImageView, MediaItemSummary, ArtworkTarget, Int, Int) -> Unit,
     private val loadBackdropImage: (ImageView, MediaItemSummary, Int, Int) -> Unit,
 ) {
     private val diagnosticsController = PlaybackDiagnosticsController(activity, deviceCodecDiagnostics)
@@ -35,6 +41,7 @@ class PlaybackRouteController(
     private var selectedTrackSelection = DetailTrackSelection()
     private var lastPlaybackBackPressAt = 0L
     private var auxiliaryBackAction: (() -> Unit)? = null
+    private val mediaBackStack = ArrayDeque<() -> Unit>()
 
     fun showDetails(item: MediaItemSummary, playbackInfo: PlaybackInfo? = null) {
         auxiliaryBackAction = null
@@ -60,8 +67,8 @@ class PlaybackRouteController(
             onSubtitleStyle = { showSubtitleStyleOptions(item) },
             onPlaybackSpeed = { showPlaybackSpeedOptions(item) },
             onSeriesNextUp = ::openSeriesNextUp,
-            onOpenEpisodePicker = { openEpisodePicker(item) },
-            onOpenSeries = { openSeriesFolder(item) },
+            onOpenEpisodePicker = { openEpisodeSeason(item) },
+            onOpenSeries = { openEpisodeSeries(item) },
             onOpenFolder = {
                 runTask("正在打开目录...", {
                     workflowController.openFolder(item.id(), item.name())
@@ -72,25 +79,14 @@ class PlaybackRouteController(
         ))
     }
 
-    private fun openEpisodePicker(item: MediaItemSummary) {
-        runTask("正在打开选集...", {
-            workflowController.openFolder(item.parentId(), episodePickerTitle(item))
-        }) {
-            showHome(workflowController.state())
-        }
-    }
-
-    private fun openSeriesFolder(item: MediaItemSummary) {
-        runTask("正在打开剧集...", {
-            workflowController.openFolder(item.seriesId(), item.seriesName().ifBlank { item.name() })
-        }) {
-            showHome(workflowController.state())
-        }
-    }
-
     fun handleAuxiliaryBackPressed(): Boolean {
-        val backAction = auxiliaryBackAction ?: return false
-        backAction()
+        val backAction = auxiliaryBackAction
+        if (backAction != null) {
+            backAction()
+            return true
+        }
+        val mediaBack = mediaBackStack.pollLast() ?: return false
+        mediaBack()
         return true
     }
 
@@ -115,10 +111,97 @@ class PlaybackRouteController(
             }
         }) {
             val state = workflowController.state()
-            if (item.playable() || item.shouldOpenAsDetails()) {
+            if (item.type() == MediaItemType.SERIES) {
+                openSeriesDetail(item.id(), pushBack = false)
+            } else if (item.type() == MediaItemType.SEASON) {
+                openSeasonDetail(item.id(), pushBack = false)
+            } else if (item.playable()) {
                 state.selectedItem()?.let { selectedItem -> showDetails(selectedItem, playbackInfo) }
             } else {
                 showHome(state)
+            }
+        }
+    }
+
+    private fun openSeriesDetail(seriesId: String, pushBack: Boolean) {
+        var structure: ShowStructure? = null
+        runTask("正在打开剧集详情...", {
+            structure = workflowController.loadSeriesStructure(seriesId)
+        }) {
+            structure?.let { showSeriesDetail(it, pushBack) }
+        }
+    }
+
+    private fun openSeasonDetail(seasonId: String, pushBack: Boolean) {
+        var structure: ShowStructure? = null
+        runTask("正在打开季详情...", {
+            structure = workflowController.loadSeasonStructure(seasonId)
+        }) {
+            structure?.let { showSeasonDetail(it, pushBack) }
+        }
+    }
+
+    private fun openEpisodeSeason(item: MediaItemSummary) {
+        if (item.parentId().isBlank()) {
+            return
+        }
+        mediaBackStack.addLast { showDetails(item) }
+        openSeasonDetail(item.parentId(), pushBack = false)
+    }
+
+    private fun openEpisodeSeries(item: MediaItemSummary) {
+        if (item.seriesId().isBlank()) {
+            return
+        }
+        mediaBackStack.addLast { showDetails(item) }
+        openSeriesDetail(item.seriesId(), pushBack = false)
+    }
+
+    private fun showSeriesDetail(structure: ShowStructure, pushBack: Boolean) {
+        if (pushBack) {
+            mediaBackStack.addLast { showHome(workflowController.state()) }
+        }
+        activity.setContentView(activity.seriesDetailScreen(
+            structure = structure,
+            onOpenSeason = { season ->
+                mediaBackStack.addLast { showSeriesDetail(structure, pushBack = false) }
+                openSeasonDetail(season.id(), pushBack = false)
+            },
+            onOpenEpisode = { episode ->
+                openEpisodeDetail(episode) { showSeriesDetail(structure, pushBack = false) }
+            },
+            loadPoster = loadPosterImage,
+            loadBackdrop = { backdrop, item -> loadBackdropImage(backdrop, item, 1280, 720) },
+            loadArtwork = loadArtworkImage,
+        ))
+    }
+
+    private fun showSeasonDetail(structure: ShowStructure, pushBack: Boolean) {
+        if (pushBack) {
+            mediaBackStack.addLast { showHome(workflowController.state()) }
+        }
+        activity.setContentView(activity.seasonDetailScreen(
+            structure = structure,
+            onOpenEpisode = { episode ->
+                openEpisodeDetail(episode) { showSeasonDetail(structure, pushBack = false) }
+            },
+            loadPoster = loadPosterImage,
+            loadBackdrop = { backdrop, item -> loadBackdropImage(backdrop, item, 1280, 720) },
+            loadArtwork = loadArtworkImage,
+        ))
+    }
+
+    private fun openEpisodeDetail(item: MediaItemSummary, backRenderer: () -> Unit) {
+        var playbackInfo: PlaybackInfo? = null
+        runTask("正在打开详情...", {
+            workflowController.openItem(item.id())
+            playbackInfo = runCatching {
+                workflowController.loadPlaybackChoices(null)
+            }.getOrNull()
+        }) {
+            mediaBackStack.addLast(backRenderer)
+            workflowController.state().selectedItem()?.let { selectedItem ->
+                showDetails(selectedItem, playbackInfo)
             }
         }
     }
@@ -278,12 +361,6 @@ class PlaybackRouteController(
     companion object {
         private const val PLAYBACK_BACK_EXIT_WINDOW_MS = 2_000L
     }
-}
-
-private fun episodePickerTitle(item: MediaItemSummary): String {
-    val series = item.seriesName().ifBlank { item.name() }
-    val season = item.parentIndexNumber()?.let { "第 $it 季" }.orEmpty()
-    return listOf(series, season, "选集").filter { it.isNotBlank() }.joinToString(" · ")
 }
 
 private fun MediaItemSummary.shouldOpenAsDetails(): Boolean {
