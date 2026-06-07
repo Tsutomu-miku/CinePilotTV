@@ -28,10 +28,14 @@ data class MediaMetadataLine(
 data class MediaPresentation(
     val title: String,
     val subtitle: String,
+    val contextLine: String,
     val metadata: MediaMetadataLine,
+    val microMetadata: List<String>,
+    val watchState: String,
     val progressLabel: String,
     val primaryArtwork: ArtworkSet,
     val backdropArtwork: ArtworkSet,
+    val deliveryBadges: List<String>,
     val technicalTags: List<String>,
 )
 
@@ -57,10 +61,14 @@ fun MediaItemSummary.toMediaPresentation(
     return MediaPresentation(
         title = name().ifBlank { id() },
         subtitle = subtitle,
+        contextLine = contextLine(this, subtitle),
         metadata = MediaMetadataLine(mediaMetadataValues(this, subtitle)),
+        microMetadata = mediaMetadataValues(this, subtitle).take(5),
+        watchState = progressLabel,
         progressLabel = progressLabel,
         primaryArtwork = artwork.copy(fallbackStrategy = ArtworkFallbackStrategy.PRIMARY_ONLY),
         backdropArtwork = artwork,
+        deliveryBadges = technicalTags.take(4),
         technicalTags = technicalTags,
     )
 }
@@ -96,6 +104,10 @@ private fun mediaMetadataValues(item: MediaItemSummary, subtitle: String): List<
     item.runTimeTicks()?.let { values.add(durationText(it)) }
     values.addAll(item.genres().take(3))
     return values
+}
+
+private fun contextLine(item: MediaItemSummary, subtitle: String): String {
+    return mediaMetadataValues(item, subtitle).take(3).joinToString(" · ")
 }
 
 fun presentationMediaTypeLabel(type: MediaItemType): String = when (type) {
