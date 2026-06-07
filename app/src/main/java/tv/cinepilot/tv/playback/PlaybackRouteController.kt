@@ -4,6 +4,7 @@ import android.widget.ImageView
 import android.widget.Toast
 import androidx.activity.ComponentActivity
 import tv.cinepilot.core.protocol.MediaItemSummary
+import tv.cinepilot.core.protocol.MediaItemType
 import tv.cinepilot.core.protocol.PlaybackInfo
 import tv.cinepilot.core.protocol.PlaybackSelectionPreferences
 import tv.cinepilot.core.tv.HomeRow
@@ -59,6 +60,8 @@ class PlaybackRouteController(
             onSubtitleStyle = { showSubtitleStyleOptions(item) },
             onPlaybackSpeed = { showPlaybackSpeedOptions(item) },
             onSeriesNextUp = ::openSeriesNextUp,
+            onOpenEpisodePicker = { openEpisodePicker(item) },
+            onOpenSeries = { openSeriesFolder(item) },
             onOpenFolder = {
                 runTask("正在打开目录...", {
                     workflowController.openFolder(item.id(), item.name())
@@ -69,6 +72,22 @@ class PlaybackRouteController(
         ))
     }
 
+    private fun openEpisodePicker(item: MediaItemSummary) {
+        runTask("正在打开选集...", {
+            workflowController.openFolder(item.parentId(), episodePickerTitle(item))
+        }) {
+            showHome(workflowController.state())
+        }
+    }
+
+    private fun openSeriesFolder(item: MediaItemSummary) {
+        runTask("正在打开剧集...", {
+            workflowController.openFolder(item.seriesId(), item.seriesName().ifBlank { item.name() })
+        }) {
+            showHome(workflowController.state())
+        }
+    }
+
     fun handleAuxiliaryBackPressed(): Boolean {
         val backAction = auxiliaryBackAction ?: return false
         backAction()
@@ -77,7 +96,11 @@ class PlaybackRouteController(
 
     fun openMediaItem(row: HomeRow, item: MediaItemSummary) {
         workflowController.focusItem(row.id(), item.id())
-        val loadingMessage = if (item.playable()) "正在打开详情..." else "正在打开目录..."
+        val loadingMessage = if (item.playable() || item.shouldOpenAsDetails()) {
+            "正在打开详情..."
+        } else {
+            "正在打开目录..."
+        }
         var playbackInfo: PlaybackInfo? = null
         runTask(loadingMessage, {
             if (item.playable()) {
@@ -85,12 +108,14 @@ class PlaybackRouteController(
                 playbackInfo = runCatching {
                     workflowController.loadPlaybackChoices(null)
                 }.getOrNull()
+            } else if (item.shouldOpenAsDetails()) {
+                workflowController.openItem(item.id())
             } else {
                 workflowController.openFolder(item.id(), item.name())
             }
         }) {
             val state = workflowController.state()
-            if (item.playable()) {
+            if (item.playable() || item.shouldOpenAsDetails()) {
                 state.selectedItem()?.let { selectedItem -> showDetails(selectedItem, playbackInfo) }
             } else {
                 showHome(state)
@@ -253,4 +278,14 @@ class PlaybackRouteController(
     companion object {
         private const val PLAYBACK_BACK_EXIT_WINDOW_MS = 2_000L
     }
+}
+
+private fun episodePickerTitle(item: MediaItemSummary): String {
+    val series = item.seriesName().ifBlank { item.name() }
+    val season = item.parentIndexNumber()?.let { "第 $it 季" }.orEmpty()
+    return listOf(series, season, "选集").filter { it.isNotBlank() }.joinToString(" · ")
+}
+
+private fun MediaItemSummary.shouldOpenAsDetails(): Boolean {
+    return type() == MediaItemType.SERIES || type() == MediaItemType.SEASON
 }

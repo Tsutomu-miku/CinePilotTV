@@ -1485,8 +1485,9 @@ if ! grep -q 'formatPlaybackPosition' "$ROOT_DIR/app/src/main/java/tv/cinepilot/
   exit 1
 fi
 
-if ! grep -q '低码率' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/details/DetailsRouteScreen.kt"; then
-  echo "Details screen must expose a low bitrate playback action" >&2
+if ! grep -q '省流量' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/details/DetailsRouteScreen.kt" ||
+  ! grep -q 'lowBitratePreferences' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/details/DetailsRouteScreen.kt"; then
+  echo "Details screen must expose a user-friendly low bitrate playback action" >&2
   exit 1
 fi
 
@@ -1627,6 +1628,16 @@ fi
 
 if ! grep -q '本剧下一集' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/details/DetailsRouteScreen.kt"; then
   echo "Details screen must expose a series next-up action when SeriesId is available" >&2
+  exit 1
+fi
+
+if ! grep -q '选集' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/details/DetailsRouteScreen.kt" ||
+  ! grep -q '剧集' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/details/DetailsRouteScreen.kt" ||
+  ! grep -q '查看季集' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/details/DetailsRouteScreen.kt" ||
+  ! grep -q 'openEpisodePicker' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/playback/PlaybackRouteController.kt" ||
+  ! grep -q 'openSeriesFolder' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/playback/PlaybackRouteController.kt" ||
+  ! grep -q 'shouldOpenAsDetails' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/playback/PlaybackRouteController.kt"; then
+  echo "Episode details must expose season episode picking and series browse navigation" >&2
   exit 1
 fi
 

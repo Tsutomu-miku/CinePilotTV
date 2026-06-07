@@ -4,6 +4,7 @@ import android.view.View
 import android.widget.ImageView
 import androidx.activity.ComponentActivity
 import tv.cinepilot.core.protocol.MediaItemSummary
+import tv.cinepilot.core.protocol.MediaItemType
 import tv.cinepilot.core.protocol.PlaybackInfo
 import tv.cinepilot.core.protocol.PlaybackSelectionPreferences
 import tv.cinepilot.tv.ui.InfuseAction
@@ -23,18 +24,28 @@ fun ComponentActivity.detailsRouteScreen(
     onSubtitleStyle: () -> Unit,
     onPlaybackSpeed: () -> Unit,
     onSeriesNextUp: () -> Unit,
+    onOpenEpisodePicker: () -> Unit,
+    onOpenSeries: () -> Unit,
     onOpenFolder: () -> Unit,
 ): View {
     return detailsScreen(
         item = item,
         playbackActions = if (item.playable()) {
-            playbackActions(item, onPreparePlayback, onSubtitleStyle, onPlaybackSpeed, onSeriesNextUp)
+            playbackActions(
+                item,
+                onPreparePlayback,
+                onSubtitleStyle,
+                onPlaybackSpeed,
+                onSeriesNextUp,
+                onOpenEpisodePicker,
+                onOpenSeries,
+            )
         } else {
             emptyList()
         },
         trackControls = detailTrackControls(playbackInfo, trackSelection, onTrackSelection),
         technicalInfo = mediaTechnicalPills(playbackInfo),
-        folderAction = InfuseAction("打开子项目", TvIcon.FORWARD, InfuseActionEmphasis.PRIMARY, onOpenFolder),
+        folderAction = InfuseAction(folderActionLabel(item), TvIcon.FORWARD, InfuseActionEmphasis.PRIMARY, onOpenFolder),
         loadPoster = { poster, mediaItem, width, height ->
             loadPosterImage(poster, mediaItem, width, height)
         },
@@ -50,6 +61,8 @@ private fun ComponentActivity.playbackActions(
     onSubtitleStyle: () -> Unit,
     onPlaybackSpeed: () -> Unit,
     onSeriesNextUp: () -> Unit,
+    onOpenEpisodePicker: () -> Unit,
+    onOpenSeries: () -> Unit,
 ): List<InfuseAction> {
     val actions = mutableListOf<InfuseAction>()
     if (item.hasResumePosition()) {
@@ -58,9 +71,15 @@ private fun ComponentActivity.playbackActions(
     } else {
         actions.add(playbackAction("播放", TvIcon.PLAY, InfuseActionEmphasis.PRIMARY, null, onPreparePlayback))
     }
-    actions.add(playbackAction("低码率", TvIcon.SPEED, InfuseActionEmphasis.QUIET, lowBitratePreferences(item), onPreparePlayback))
+    actions.add(playbackAction("省流量", TvIcon.SPEED, InfuseActionEmphasis.QUIET, lowBitratePreferences(item), onPreparePlayback))
     actions.add(InfuseAction("字幕样式", TvIcon.SUBTITLES, InfuseActionEmphasis.QUIET, onSubtitleStyle))
     actions.add(InfuseAction("速度", TvIcon.SPEED, InfuseActionEmphasis.QUIET, onPlaybackSpeed))
+    if (item.type() == MediaItemType.EPISODE && item.parentId().isNotBlank()) {
+        actions.add(InfuseAction("选集", TvIcon.FORWARD, InfuseActionEmphasis.QUIET, onOpenEpisodePicker))
+    }
+    if (item.seriesId().isNotBlank()) {
+        actions.add(InfuseAction("剧集", TvIcon.FORWARD, InfuseActionEmphasis.QUIET, onOpenSeries))
+    }
     if (item.seriesId().isNotBlank()) {
         actions.add(InfuseAction("本剧下一集", TvIcon.PLAY, InfuseActionEmphasis.QUIET, onSeriesNextUp))
     }
@@ -82,4 +101,12 @@ private fun playbackAction(
 private fun lowBitratePreferences(item: MediaItemSummary): PlaybackSelectionPreferences {
     val startTimeTicks = if (item.hasResumePosition()) item.userData().playbackPositionTicks() else 0L
     return PlaybackSelectionPreferences.lowBitrate(startTimeTicks)
+}
+
+private fun folderActionLabel(item: MediaItemSummary): String {
+    return when (item.type()) {
+        MediaItemType.SERIES -> "查看季集"
+        MediaItemType.SEASON -> "选集"
+        else -> "打开子项目"
+    }
 }
