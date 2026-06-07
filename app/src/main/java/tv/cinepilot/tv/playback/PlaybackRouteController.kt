@@ -45,7 +45,11 @@ class PlaybackRouteController(
     private var auxiliaryBackAction: (() -> Unit)? = null
     private val mediaBackStack = ArrayDeque<() -> Unit>()
 
-    fun showDetails(item: MediaItemSummary, playbackInfo: PlaybackInfo? = null) {
+    fun showDetails(
+        item: MediaItemSummary,
+        playbackInfo: PlaybackInfo? = null,
+        episodeContext: ShowStructure? = null,
+    ) {
         auxiliaryBackAction = null
         if (playbackInfo != null && playbackInfo.itemId() == item.id()) {
             selectedPlaybackInfo = playbackInfo
@@ -57,6 +61,8 @@ class PlaybackRouteController(
             playbackInfo = effectivePlaybackInfo,
             loadPosterImage = loadPosterImage,
             loadBackdropImage = loadBackdropImage,
+            loadArtworkImage = loadArtworkImage,
+            siblingEpisodes = episodeContext?.episodes() ?: emptyList(),
             trackSelection = effectiveTrackSelection,
             onPreparePlayback = { preferences ->
                 preparePlaybackWith(applyTrackSelection(item, preferences))
@@ -64,13 +70,16 @@ class PlaybackRouteController(
             onTrackSelection = { selection ->
                 selectedTrackItemId = item.id()
                 selectedTrackSelection = selection
-                showDetails(item, effectivePlaybackInfo)
+                showDetails(item, effectivePlaybackInfo, episodeContext)
             },
             onSubtitleStyle = { showSubtitleStyleOptions(item) },
             onPlaybackSpeed = { showPlaybackSpeedOptions(item) },
             onSeriesNextUp = ::openSeriesNextUp,
             onOpenEpisodePicker = { openEpisodeSeason(item) },
             onOpenSeries = { openEpisodeSeries(item) },
+            onOpenEpisode = { episode ->
+                openEpisodeDetail(episode) { showDetails(item, effectivePlaybackInfo, episodeContext) }
+            },
             onOpenFolder = {
                 runTask("正在打开目录...", {
                     workflowController.openFolder(item.id(), item.name())
@@ -100,12 +109,18 @@ class PlaybackRouteController(
             "正在打开目录..."
         }
         var playbackInfo: PlaybackInfo? = null
+        var episodeContext: ShowStructure? = null
         runTask(loadingMessage, {
             if (item.playable()) {
                 workflowController.openItem(item.id())
                 playbackInfo = runCatching {
                     workflowController.loadPlaybackChoices(null)
                 }.getOrNull()
+                if (item.type() == MediaItemType.EPISODE) {
+                    episodeContext = runCatching {
+                        workflowController.loadEpisodeContext(item)
+                    }.getOrNull()
+                }
             } else if (item.shouldOpenAsDetails()) {
                 workflowController.openItem(item.id())
             } else {
@@ -118,7 +133,7 @@ class PlaybackRouteController(
             } else if (item.type() == MediaItemType.SEASON) {
                 openSeasonDetail(item.id(), pushBack = false)
             } else if (item.playable()) {
-                state.selectedItem()?.let { selectedItem -> showDetails(selectedItem, playbackInfo) }
+                state.selectedItem()?.let { selectedItem -> showDetails(selectedItem, playbackInfo, episodeContext) }
             } else {
                 showHome(state)
             }
@@ -197,15 +212,19 @@ class PlaybackRouteController(
 
     private fun openEpisodeDetail(item: MediaItemSummary, backRenderer: () -> Unit) {
         var playbackInfo: PlaybackInfo? = null
+        var episodeContext: ShowStructure? = null
         runTask("正在打开详情...", {
             workflowController.openItem(item.id())
             playbackInfo = runCatching {
                 workflowController.loadPlaybackChoices(null)
             }.getOrNull()
+            episodeContext = runCatching {
+                workflowController.loadEpisodeContext(item)
+            }.getOrNull()
         }) {
             mediaBackStack.addLast(backRenderer)
             workflowController.state().selectedItem()?.let { selectedItem ->
-                showDetails(selectedItem, playbackInfo)
+                showDetails(selectedItem, playbackInfo, episodeContext)
             }
         }
     }
@@ -224,7 +243,7 @@ class PlaybackRouteController(
         lastPlaybackBackPressAt = 0L
         playerHost.release()
         workflowController.back()
-        workflowController.state().selectedItem()?.let(::showDetails)
+        workflowController.state().selectedItem()?.let { showDetails(it) }
             ?: showHome(workflowController.state())
     }
 
@@ -279,7 +298,7 @@ class PlaybackRouteController(
                     }
                     playerHost.release()
                     workflowController.back()
-                    workflowController.state().selectedItem()?.let(::showDetails)
+                    workflowController.state().selectedItem()?.let { showDetails(it) }
                         ?: showHome(workflowController.state())
                 }
             },
@@ -293,15 +312,19 @@ class PlaybackRouteController(
 
     private fun openSeriesNextUp() {
         var playbackInfo: PlaybackInfo? = null
+        var episodeContext: ShowStructure? = null
         runTask("正在打开本剧下一集...", {
             val nextItem = workflowController.nextUpForSelectedSeries()
             workflowController.openItem(nextItem.id())
             playbackInfo = runCatching {
                 workflowController.loadPlaybackChoices(null)
             }.getOrNull()
+            episodeContext = runCatching {
+                workflowController.loadEpisodeContext(nextItem)
+            }.getOrNull()
         }) {
             workflowController.state().selectedItem()?.let { selectedItem ->
-                showDetails(selectedItem, playbackInfo)
+                showDetails(selectedItem, playbackInfo, episodeContext)
             } ?: showHome(workflowController.state())
         }
     }

@@ -10,6 +10,7 @@ fun ComponentActivity.detailsScreen(
     playbackActions: List<InfuseAction>,
     trackControls: View?,
     technicalInfo: List<String>,
+    extraSections: List<View> = emptyList(),
     folderAction: InfuseAction,
     loadPoster: (ImageView, MediaItemSummary, Int, Int) -> Unit,
     loadBackdrop: (ImageView, MediaItemSummary) -> Unit,
@@ -29,5 +30,6 @@ fun ComponentActivity.detailsScreen(
             trackControls = trackControls,
             presentation = presentation,
         ).forEach(::addView)
+        extraSections.forEach(::addView)
     }
 }

@@ -7,10 +7,15 @@ import tv.cinepilot.core.protocol.MediaItemSummary
 import tv.cinepilot.core.protocol.MediaItemType
 import tv.cinepilot.core.protocol.PlaybackInfo
 import tv.cinepilot.core.protocol.PlaybackSelectionPreferences
+import tv.cinepilot.core.tv.HomeRow
+import tv.cinepilot.tv.runtime.ArtworkTarget
+import tv.cinepilot.tv.ui.HomeRowPresentation
 import tv.cinepilot.tv.ui.InfuseAction
 import tv.cinepilot.tv.ui.InfuseActionEmphasis
+import tv.cinepilot.tv.ui.RowVisualStyle
 import tv.cinepilot.tv.ui.TvIcon
 import tv.cinepilot.tv.ui.detailsScreen
+import tv.cinepilot.tv.ui.mediaWallRow
 import tv.cinepilot.tv.ui.mediaTechnicalPills
 
 fun ComponentActivity.detailsRouteScreen(
@@ -18,6 +23,8 @@ fun ComponentActivity.detailsRouteScreen(
     playbackInfo: PlaybackInfo?,
     loadPosterImage: (ImageView, MediaItemSummary, Int, Int) -> Unit,
     loadBackdropImage: (ImageView, MediaItemSummary, Int, Int) -> Unit,
+    loadArtworkImage: (ImageView, MediaItemSummary, ArtworkTarget, Int, Int) -> Unit,
+    siblingEpisodes: List<MediaItemSummary>,
     trackSelection: DetailTrackSelection,
     onPreparePlayback: (PlaybackSelectionPreferences?) -> Unit,
     onTrackSelection: (DetailTrackSelection) -> Unit,
@@ -26,6 +33,7 @@ fun ComponentActivity.detailsRouteScreen(
     onSeriesNextUp: () -> Unit,
     onOpenEpisodePicker: () -> Unit,
     onOpenSeries: () -> Unit,
+    onOpenEpisode: (MediaItemSummary) -> Unit,
     onOpenFolder: () -> Unit,
 ): View {
     return detailsScreen(
@@ -45,6 +53,7 @@ fun ComponentActivity.detailsRouteScreen(
         },
         trackControls = detailTrackControls(playbackInfo, trackSelection, onTrackSelection),
         technicalInfo = mediaTechnicalPills(playbackInfo),
+        extraSections = episodeStrip(item, siblingEpisodes, onOpenEpisode, loadArtworkImage),
         folderAction = InfuseAction(folderActionLabel(item), TvIcon.FORWARD, InfuseActionEmphasis.PRIMARY, onOpenFolder),
         loadPoster = { poster, mediaItem, width, height ->
             loadPosterImage(poster, mediaItem, width, height)
@@ -53,6 +62,29 @@ fun ComponentActivity.detailsRouteScreen(
             loadBackdropImage(backdrop, mediaItem, 1280, 720)
         },
     )
+}
+
+private fun ComponentActivity.episodeStrip(
+    item: MediaItemSummary,
+    episodes: List<MediaItemSummary>,
+    onOpenEpisode: (MediaItemSummary) -> Unit,
+    loadArtworkImage: (ImageView, MediaItemSummary, ArtworkTarget, Int, Int) -> Unit,
+): List<View> {
+    if (item.type() != MediaItemType.EPISODE || episodes.isEmpty()) {
+        return emptyList()
+    }
+    return listOf(mediaWallRow(
+        presentation = HomeRowPresentation(
+            row = HomeRow("episode-detail:${item.parentId()}", "本季集数", episodes),
+            title = "本季集数",
+            visualStyle = RowVisualStyle.LANDSCAPE_RAIL,
+            wrapItems = false,
+        ),
+        onCell = { _, _ -> },
+        onFocus = { _, _ -> },
+        onOpen = { _, episode -> onOpenEpisode(episode) },
+        loadArtwork = loadArtworkImage,
+    ))
 }
 
 private fun ComponentActivity.playbackActions(

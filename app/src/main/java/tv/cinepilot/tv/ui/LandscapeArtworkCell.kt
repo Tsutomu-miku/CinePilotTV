@@ -39,6 +39,7 @@ fun ComponentActivity.landscapeArtworkCell(
             Gravity.BOTTOM,
         ))
     }
+    episodeWatchedBadge(item)?.let(cell::addView)
     loadArtwork(image, item, ArtworkTarget.LANDSCAPE, 376, 212)
     cell.layoutParams = LinearLayout.LayoutParams(
         dp(MediaWallTokens.LandscapeCellWidth),

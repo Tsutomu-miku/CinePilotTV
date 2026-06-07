@@ -159,6 +159,8 @@
 - 剧情简介和完整技术信息后移；首屏只展示观看决策需要的信息。
 - Series 详情页展示剧集总览、继续观看 / 下一集、紧凑季 rail 和当前季 episodes 预览；Season 详情页必须展示当前集播放决策、评分 / 首播 / 时长 / 技术摘要、简介、完整 episode grid 和演职员摘要；Episode 详情页只负责播放决策和音轨 / 字幕选择。
 - Jellyfin / Emby item metadata 已纳入 TV Show 页面模型：`PremiereDate`、`CommunityRating`、`OfficialRating`、`People`、`MediaStreams` 不再只停留在服务端响应里，UI 必须优先消费这些信息。
+- 单集详情已追加同季缩略图 strip；episode 缩略图使用 `UserData.Played` 显示“已看”角标，使用恢复播放进度显示底部进度条。后续继续优化选中集的高亮状态与长标题展示。
+- 全局媒体 cell 焦点态升级为白色 glow box + 轻微悬浮缩放，优先解决电视遥控器下“当前焦点不明显”的问题。
 - 显式 media navigation stack 必须保证 `Episode -> Season -> Series -> 原浏览位置`，不得回到登录页。
 
 ### UI-4 辅助页与播放器

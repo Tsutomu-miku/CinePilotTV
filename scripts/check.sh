@@ -1662,6 +1662,17 @@ if [[ ! -s "$ROOT_DIR/core/src/main/java/tv/cinepilot/core/tv/ShowStructure.java
   exit 1
 fi
 
+if [[ ! -s "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/ui/MediaStatusOverlays.kt" ]] ||
+  ! grep -q 'episodeWatchedBadge' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/ui/MediaStatusOverlays.kt" ||
+  ! grep -q 'userData().played' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/ui/MediaStatusOverlays.kt" ||
+  ! grep -q '本季集数' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/details/DetailsRouteScreen.kt" ||
+  ! grep -q 'siblingEpisodes' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/details/DetailsRouteScreen.kt" ||
+  ! grep -q 'scaleX' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/ui/FocusOutline.kt" ||
+  ! grep -q 'focusGlow' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/ui/FocusOutline.kt"; then
+  echo "Media cells must expose stronger focus, watched badges, and episode-detail sibling strip" >&2
+  exit 1
+fi
+
 if ! grep -R -q 'SeriesId' "$ROOT_DIR/core/src/main/java/tv/cinepilot/core/protocol"; then
   echo "Core protocol must preserve SeriesId for next-up episode actions" >&2
   exit 1

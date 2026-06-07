@@ -39,6 +39,9 @@
 - Season 详情页是季页，也是同季选集 hub：上半屏必须有当前集信息区，包含集标题、评分、首播日期、时长、分辨率 / 编码 / 音频 / 字幕摘要和简介；下方直接展示同季集数，不能只剩一个空标题和 episode grid。
 - Series / Season 页必须消费 Jellyfin / Emby 提供的 rich metadata：`PremiereDate`、`CommunityRating`、`OfficialRating`、`People`、`MediaStreams`、`Overview`、`Genres`。拿不到字段时可以降级，但不能把页面退化成普通 folder。
 - Episode 详情页是播放决策页：展示当前集、播放动作、音轨 / 字幕 / 媒体源，以及返回季 / 剧集的层级导航。
+- Episode 详情页底部必须保留同季缩略图 strip，允许用户不返回季页也能快速切换其他集；这些缩略图和首页 / 季页共用焦点、进度和已播放状态。
+- 单集缩略图状态规则：`UserData.Played = true` 显示右上角“已看”角标；存在 `PlaybackPositionTicks` 且未播完时显示底部进度条；无角标且无进度表示未看。
+- 遥控器焦点态必须是明显的悬浮白色 glow / shadow box，而不是只有细边框；焦点切换要有轻微 scale 和 elevation。
 - Back 路径必须按媒体层级返回：`Episode -> Season -> Series -> 原浏览位置`；不得从季或集数页退到登录页。
 
 ## 辅助页与播放器

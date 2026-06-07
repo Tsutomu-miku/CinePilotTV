@@ -35,6 +35,7 @@ fun ComponentActivity.posterArtworkCell(
         dp(cellTitleOverlayHeight(maxLines = 2)),
         Gravity.BOTTOM,
     ))
+    episodeWatchedBadge(item)?.let(cell::addView)
     loadArtwork(poster, item, ArtworkTarget.POSTER, 208, 312)
     cell.layoutParams = LinearLayout.LayoutParams(
         dp(MediaWallTokens.PosterCellWidth),
