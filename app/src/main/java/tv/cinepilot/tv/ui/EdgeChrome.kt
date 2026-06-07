@@ -29,14 +29,19 @@ private fun ComponentActivity.edgeChromeButton(action: InfuseAction): ImageButto
         contentDescription = action.label
         setImageResource(action.icon.drawableRes)
         setColorFilter(TvColors.TextSecondary)
-        background = rounded(Color.argb(70, 0, 0, 0), dp(18), dp(1), TvColors.GlassBorder)
+        background = rounded(
+            Color.argb(42, 0, 0, 0),
+            dp(MediaWallTokens.EdgeChromeRadius),
+            dp(1),
+            homeHairlineColor(38),
+        )
         scaleType = ImageView.ScaleType.CENTER
         isFocusable = true
         isClickable = true
-        setPadding(dp(8), dp(8), dp(8), dp(8))
+        setPadding(dp(7), dp(7), dp(7), dp(7))
         setOnClickListener { action.onClick() }
         setOnFocusChangeListener { view, focused ->
-            view.applyFocusOutline(focused, 18)
+            view.applyFocusOutline(focused, MediaWallTokens.EdgeChromeRadius)
             if (view is ImageButton) {
                 view.setColorFilter(if (focused) TvColors.AccentStrong else TvColors.TextSecondary)
             }

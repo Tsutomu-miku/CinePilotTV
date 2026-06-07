@@ -47,11 +47,16 @@ private fun ComponentActivity.collectionCell(
     loadArtwork: (ImageView, MediaItemSummary, ArtworkTarget, Int, Int) -> Unit,
 ): FrameLayout {
     val cell = mediaCell(row, item, onFocus, onOpen).apply {
-        background = rounded(Color.argb(110, 0, 0, 0), dp(8), dp(1), TvColors.GlassBorder)
+        background = rounded(
+            Color.argb(MediaWallTokens.CollectionTintAlpha, 0, 0, 0),
+            dp(MediaWallTokens.CollectionRadius),
+            dp(1),
+            homeHairlineColor(),
+        )
     }
     val image = ImageView(this).apply {
         scaleType = ImageView.ScaleType.CENTER_CROP
-        alpha = 0.42f
+        alpha = 0.34f
     }
     cell.addView(image, FrameLayout.LayoutParams(
         FrameLayout.LayoutParams.MATCH_PARENT,
@@ -60,7 +65,7 @@ private fun ComponentActivity.collectionCell(
     cell.addView(TextView(this).apply {
         text = item.name().ifBlank { item.id() }
         textSize = MediaWallType.RowTitle
-        setTextColor(TvColors.TextPrimary)
+        setTextColor(TvColors.TextSecondary)
         maxLines = 1
         ellipsize = TextUtils.TruncateAt.END
         includeFontPadding = false

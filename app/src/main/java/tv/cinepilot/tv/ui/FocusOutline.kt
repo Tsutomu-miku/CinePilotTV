@@ -8,7 +8,7 @@ import android.view.View
 fun View.applyFocusOutline(focused: Boolean, radiusDp: Int = 8) {
     animate()
         .translationZ(if (focused) viewDp(MediaWallTokens.FocusElevation).toFloat() else 0f)
-        .alpha(if (focused) 1f else 0.96f)
+        .alpha(if (focused) 1f else 0.98f)
         .setDuration(150L)
         .start()
     ValueAnimator.ofFloat(if (focused) 0f else 1f, if (focused) 1f else 0f).apply {
@@ -36,7 +36,8 @@ private fun outlineDrawable(radius: Int, width: Int, color: Int): GradientDrawab
 }
 
 private fun focusColor(progress: Float): Int {
-    val alpha = (230 * progress).toInt().coerceIn(0, 230)
+    val alpha = (MediaWallTokens.FocusAlpha * progress).toInt()
+        .coerceIn(0, MediaWallTokens.FocusAlpha)
     return Color.argb(
         alpha,
         Color.red(TvColors.FocusRing),

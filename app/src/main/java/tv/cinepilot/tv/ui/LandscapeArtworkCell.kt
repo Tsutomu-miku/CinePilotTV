@@ -27,15 +27,15 @@ fun ComponentActivity.landscapeArtworkCell(
         FrameLayout.LayoutParams.MATCH_PARENT,
         FrameLayout.LayoutParams.MATCH_PARENT,
     ))
-    cell.addView(cellTitle(item, maxLines = 1), FrameLayout.LayoutParams(
+    cell.addView(cellTitleOverlay(item, maxLines = 1), FrameLayout.LayoutParams(
         FrameLayout.LayoutParams.MATCH_PARENT,
-        FrameLayout.LayoutParams.WRAP_CONTENT,
+        dp(cellTitleOverlayHeight(maxLines = 1)),
         Gravity.BOTTOM,
     ))
     if (item.resumeFraction() > 0.0) {
         cell.addView(progressBar(item), FrameLayout.LayoutParams(
             FrameLayout.LayoutParams.MATCH_PARENT,
-            dp(3),
+            dp(2),
             Gravity.BOTTOM,
         ))
     }
@@ -53,9 +53,16 @@ fun ComponentActivity.landscapeArtworkCell(
 private fun ComponentActivity.progressBar(item: MediaItemSummary): View {
     val fraction = item.resumeFraction()
     return FrameLayout(this).apply {
-        setBackgroundColor(Color.argb(120, 255, 255, 255))
+        setBackgroundColor(Color.argb(MediaWallTokens.ProgressTrackAlpha, 255, 255, 255))
         addView(View(this@progressBar).apply {
-            setBackgroundColor(TvColors.AccentStrong)
+            setBackgroundColor(
+                Color.argb(
+                    MediaWallTokens.ProgressFillAlpha,
+                    Color.red(TvColors.AccentStrong),
+                    Color.green(TvColors.AccentStrong),
+                    Color.blue(TvColors.AccentStrong),
+                ),
+            )
         }, FrameLayout.LayoutParams(0, FrameLayout.LayoutParams.MATCH_PARENT).apply {
             width = dp((MediaWallTokens.LandscapeCellWidth * fraction).toInt())
         })

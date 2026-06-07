@@ -1,6 +1,7 @@
 package tv.cinepilot.tv.ui
 
 import android.graphics.Color
+import android.graphics.drawable.GradientDrawable
 import android.text.TextUtils
 import android.view.Gravity
 import android.view.View
@@ -29,9 +30,9 @@ fun ComponentActivity.posterArtworkCell(
         FrameLayout.LayoutParams.MATCH_PARENT,
         FrameLayout.LayoutParams.MATCH_PARENT,
     ))
-    cell.addView(cellTitle(item, maxLines = 2), FrameLayout.LayoutParams(
+    cell.addView(cellTitleOverlay(item, maxLines = 2), FrameLayout.LayoutParams(
         FrameLayout.LayoutParams.MATCH_PARENT,
-        FrameLayout.LayoutParams.WRAP_CONTENT,
+        dp(cellTitleOverlayHeight(maxLines = 2)),
         Gravity.BOTTOM,
     ))
     loadArtwork(poster, item, ArtworkTarget.POSTER, 208, 312)
@@ -56,24 +57,44 @@ fun ComponentActivity.mediaCell(
         isClickable = true
         clipToOutline = true
         contentDescription = "${row.title()} ${item.name()}"
-        setBackgroundColor(TvColors.PosterFallback)
+        background = rounded(
+            TvColors.PosterFallback,
+            dp(MediaWallTokens.CellRadius),
+            dp(1),
+            homeHairlineColor(),
+        )
         setOnClickListener { onOpen(row, item) }
         setOnFocusChangeListener { view, focused ->
             if (focused) onFocus(row, item)
-            view.applyFocusOutline(focused, 7)
+            view.applyFocusOutline(focused, MediaWallTokens.CellRadius)
         }
     }
 }
 
-fun ComponentActivity.cellTitle(item: MediaItemSummary, maxLines: Int): TextView {
-    return TextView(this).apply {
-        text = item.name().ifBlank { item.id() }
-        textSize = MediaWallType.CellTitle
-        setTextColor(TvColors.TextPrimary)
-        this.maxLines = maxLines
-        ellipsize = TextUtils.TruncateAt.END
-        includeFontPadding = false
-        background = rounded(Color.argb(188, 0, 0, 0), 0)
-        setPadding(dp(7), dp(5), dp(7), dp(6))
+fun ComponentActivity.cellTitleOverlay(item: MediaItemSummary, maxLines: Int): FrameLayout {
+    return FrameLayout(this).apply {
+        background = GradientDrawable(
+            GradientDrawable.Orientation.TOP_BOTTOM,
+            intArrayOf(Color.TRANSPARENT, Color.argb(MediaWallTokens.TitleScrimAlpha, 0, 0, 0)),
+        )
+        addView(TextView(this@cellTitleOverlay).apply {
+            text = item.name().ifBlank { item.id() }
+            textSize = MediaWallType.CellTitle
+            setTextColor(TvColors.TextPrimary)
+            this.maxLines = maxLines
+            ellipsize = TextUtils.TruncateAt.END
+            includeFontPadding = false
+            setPadding(dp(7), 0, dp(7), dp(6))
+        }, FrameLayout.LayoutParams(
+            FrameLayout.LayoutParams.MATCH_PARENT,
+            FrameLayout.LayoutParams.WRAP_CONTENT,
+            Gravity.BOTTOM,
+        ))
     }
+}
+
+fun cellTitleOverlayHeight(maxLines: Int): Int = if (maxLines > 1) 46 else 34
+
+fun homeHairlineColor(alpha: Int = MediaWallTokens.HairlineAlpha): Int {
+    return Color.argb(alpha, 244, 247, 255)
 }
