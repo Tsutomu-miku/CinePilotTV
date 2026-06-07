@@ -9,19 +9,25 @@ import android.widget.TextView
 import androidx.activity.ComponentActivity
 import tv.cinepilot.core.protocol.MediaItemSummary
 import tv.cinepilot.core.tv.HomeRow
+import tv.cinepilot.tv.runtime.ArtworkTarget
 
 fun ComponentActivity.mediaWallRow(
-    row: HomeRow,
+    presentation: HomeRowPresentation,
     onCell: (View, MediaItemSummary) -> Unit,
     onFocus: (HomeRow, MediaItemSummary) -> Unit,
     onOpen: (HomeRow, MediaItemSummary) -> Unit,
-    loadImage: (ImageView, MediaItemSummary, Int, Int) -> Unit,
+    loadArtwork: (ImageView, MediaItemSummary, ArtworkTarget, Int, Int) -> Unit,
 ): View {
+    if (presentation.visualStyle == RowVisualStyle.COLLECTION_RAIL) {
+        return collectionRail(presentation.row, onCell, onFocus, onOpen, loadArtwork)
+    }
     return LinearLayout(this).apply {
         orientation = LinearLayout.VERTICAL
         setPadding(0, 0, 0, dp(MediaWallTokens.RowGap))
-        addView(mediaWallRowTitle(row.title()))
-        addView(mediaWallStrip(row, onCell, onFocus, onOpen, loadImage))
+        if (presentation.showTitle) {
+            addView(mediaWallRowTitle(presentation.title))
+        }
+        addView(mediaWallStrip(presentation, onCell, onFocus, onOpen, loadArtwork))
     }
 }
 
@@ -36,18 +42,22 @@ private fun ComponentActivity.mediaWallRowTitle(text: String): TextView {
 }
 
 private fun ComponentActivity.mediaWallStrip(
-    row: HomeRow,
+    presentation: HomeRowPresentation,
     onCell: (View, MediaItemSummary) -> Unit,
     onFocus: (HomeRow, MediaItemSummary) -> Unit,
     onOpen: (HomeRow, MediaItemSummary) -> Unit,
-    loadImage: (ImageView, MediaItemSummary, Int, Int) -> Unit,
+    loadArtwork: (ImageView, MediaItemSummary, ArtworkTarget, Int, Int) -> Unit,
 ): HorizontalScrollView {
     val strip = LinearLayout(this).apply {
         orientation = LinearLayout.HORIZONTAL
         clipChildren = false
         clipToPadding = false
-        row.items().forEach { item ->
-            val cell = artworkCell(row, item, onFocus, onOpen, loadImage)
+        presentation.row.items().forEach { item ->
+            val cell = if (presentation.visualStyle == RowVisualStyle.LANDSCAPE_RAIL) {
+                landscapeArtworkCell(presentation.row, item, onFocus, onOpen, loadArtwork)
+            } else {
+                posterArtworkCell(presentation.row, item, onFocus, onOpen, loadArtwork)
+            }
             onCell(cell, item)
             addView(cell)
         }

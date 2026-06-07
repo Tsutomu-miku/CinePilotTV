@@ -28,7 +28,7 @@ fun ComponentActivity.homeScreen(
     val isSearchResults = homeRows.any { it.id().startsWith("search:") }
     val isEmptySearch = hasNoMedia && isSearchResults
     val backdrop = cinematicBackdrop()
-    val summary = homeFocusSummary()
+    val header = homeFocusHeader()
     var fallbackFocusAssigned = false
     var restoredFocusAssigned = false
 
@@ -41,45 +41,45 @@ fun ComponentActivity.homeScreen(
             topMargin = dp(MediaWallTokens.ScreenTop)
             rightMargin = dp(MediaWallTokens.ScreenX)
         })
+        addView(header.root, FrameLayout.LayoutParams(
+            dp(720),
+            dp(MediaWallTokens.HeaderHeight),
+            Gravity.TOP or Gravity.START,
+        ).apply {
+            topMargin = dp(MediaWallTokens.ScreenTop)
+            leftMargin = dp(MediaWallTokens.ScreenX)
+        })
         addView(mediaWallContent {
             if (isSearchResults) {
                 addView(searchResultHint())
             }
             homeRows.forEach { row ->
                 if (row.items().isNotEmpty()) {
+                    val presentation = row.toHomeRowPresentation()
                     addView(mediaWallRow(
-                        row = row,
+                        presentation = presentation,
                         onCell = { cell, item ->
                             val restored = state.focus()?.rowId() == row.id() && state.focus()?.itemId() == item.id()
                             if (restored) {
                                 restoredFocusAssigned = true
-                                updateHomeFocus(backdrop, summary, item, loadBackdrop)
+                                updateHomeFocus(backdrop, header, item, loadBackdrop)
                                 onFocusedCard(cell)
                             } else if (!restoredFocusAssigned && !fallbackFocusAssigned) {
                                 fallbackFocusAssigned = true
-                                updateHomeFocus(backdrop, summary, item, loadBackdrop)
+                                updateHomeFocus(backdrop, header, item, loadBackdrop)
                                 onFocusedCard(cell)
                             }
                         },
                         onFocus = { focusedRow, item ->
-                            updateHomeFocus(backdrop, summary, item, loadBackdrop)
+                            updateHomeFocus(backdrop, header, item, loadBackdrop)
                             onFocusItem(focusedRow, item)
                         },
                         onOpen = onOpen,
-                        loadImage = { target, item, width, height ->
-                            loadArtwork(target, item, ArtworkTarget.POSTER, width, height)
-                        },
+                        loadArtwork = loadArtwork,
                     ))
                 }
             }
             addView(homeBrowseActions(navigation))
-        })
-        addView(summary.root, FrameLayout.LayoutParams(
-            FrameLayout.LayoutParams.MATCH_PARENT,
-            dp(MediaWallTokens.SummaryHeight),
-            Gravity.BOTTOM,
-        ).apply {
-            bottomMargin = dp(MediaWallTokens.SummaryBottom)
         })
         if (hasNoMedia) {
             addView(emptyOverlay(if (isEmptySearch) "没有找到匹配的媒体" else "没有可显示的媒体",
@@ -90,11 +90,11 @@ fun ComponentActivity.homeScreen(
 
 private fun updateHomeFocus(
     backdrop: ImageView,
-    summary: HomeFocusSummary,
+    header: HomeFocusHeader,
     item: MediaItemSummary,
     loadBackdrop: (ImageView, MediaItemSummary, Int, Int) -> Unit,
 ) {
-    updateHomeFocusSummary(summary, item)
+    updateHomeFocusHeader(header, item)
     loadBackdrop(backdrop, item, 1280, 720)
 }
 
@@ -103,9 +103,9 @@ private fun ComponentActivity.mediaWallContent(content: LinearLayout.() -> Unit)
         orientation = LinearLayout.VERTICAL
         setPadding(
             dp(MediaWallTokens.ScreenX),
-            dp(58),
+            dp(MediaWallTokens.ScreenTop + MediaWallTokens.HeaderHeight + 10),
             dp(MediaWallTokens.ScreenX),
-            dp(MediaWallTokens.SummaryHeight + MediaWallTokens.SummaryBottom + 14),
+            dp(MediaWallTokens.ScreenBottom),
         )
         content()
     }

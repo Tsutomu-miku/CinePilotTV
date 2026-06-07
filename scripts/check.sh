@@ -742,8 +742,18 @@ fi
 if ! grep -q 'cinematicStage' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/ui/HomeScreen.kt" ||
   ! grep -q 'edgeChrome' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/ui/HomeScreen.kt" ||
   ! grep -q 'mediaWallRow' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/ui/HomeScreen.kt" ||
-  ! grep -q 'updateHomeFocusSummary' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/ui/HomeScreen.kt"; then
+  ! grep -q 'updateHomeFocusHeader' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/ui/HomeScreen.kt" ||
+  ! grep -q 'toHomeRowPresentation' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/ui/HomeScreen.kt"; then
   echo "Home screen must render through the media wall shell, not the old hero/card shell" >&2
+  exit 1
+fi
+
+if [[ ! -s "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/ui/HomeRowPresentation.kt" ]] ||
+  [[ ! -s "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/ui/CollectionRail.kt" ]] ||
+  [[ ! -s "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/ui/LandscapeArtworkCell.kt" ]] ||
+  [[ ! -s "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/ui/PosterArtworkCell.kt" ]] ||
+  [[ ! -s "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/ui/HomeFocusHeader.kt" ]]; then
+  echo "Home media wall must keep row-aware collection, landscape, poster, and focus header components" >&2
   exit 1
 fi
 
@@ -757,9 +767,16 @@ if grep -q 'homeTopChrome\|homeHero\|homeShelfSection' "$ROOT_DIR/app/src/main/j
   exit 1
 fi
 
-if ! grep -q 'CellWidth = 112' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/ui/MediaWallTokens.kt" ||
+if ! grep -q 'PosterCellWidth = 104' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/ui/MediaWallTokens.kt" ||
+  ! grep -q 'LandscapeCellWidth = 188' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/ui/MediaWallTokens.kt" ||
+  ! grep -q 'CollectionCellWidth = 150' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/ui/MediaWallTokens.kt" ||
   ! grep -q 'CellGap = 8' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/ui/MediaWallTokens.kt"; then
   echo "Media wall density tokens must keep compact artwork cells for 1080p TV" >&2
+  exit 1
+fi
+
+if grep -q 'SummaryBottom\|SummaryHeight' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/ui/HomeScreen.kt"; then
+  echo "Home screen must not reintroduce a bottom focus summary overlay" >&2
   exit 1
 fi
 

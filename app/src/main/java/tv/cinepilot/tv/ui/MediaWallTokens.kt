@@ -6,15 +6,20 @@ object MediaWallTokens {
     const val ScreenBottom = 34
     const val RowGap = 14
     const val RowTitleBottom = 7
-    const val CellWidth = 112
-    const val CellHeight = 168
+    const val PosterCellWidth = 104
+    const val PosterCellHeight = 156
+    const val CellWidth = PosterCellWidth
+    const val CellHeight = PosterCellHeight
+    const val LandscapeCellWidth = 188
+    const val LandscapeCellHeight = 106
+    const val CollectionCellWidth = 150
+    const val CollectionCellHeight = 52
     const val CellGap = 8
-    const val EdgeChromeSize = 36
-    const val EdgeChromeGap = 7
+    const val EdgeChromeSize = 32
+    const val EdgeChromeGap = 6
     const val FocusBorder = 2
     const val FocusElevation = 8
-    const val SummaryHeight = 68
-    const val SummaryBottom = 26
+    const val HeaderHeight = 54
     const val DetailPosterWidth = 172
     const val DetailPosterHeight = 258
     const val DetailTop = 74
@@ -25,8 +30,8 @@ object MediaWallTokens {
 object MediaWallType {
     const val RowTitle = 13.5f
     const val CellTitle = 12f
-    const val SummaryTitle = 24f
-    const val SummaryMeta = 12.5f
+    const val SummaryTitle = 21f
+    const val SummaryMeta = 12f
     const val DetailTitle = 36f
     const val DetailMeta = 13f
     const val Action = 13.5f
