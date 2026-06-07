@@ -1,5 +1,6 @@
 package tv.cinepilot.tv.ui
 
+import android.content.res.ColorStateList
 import android.graphics.Color
 import android.text.TextUtils
 import android.view.Gravity
@@ -32,9 +33,9 @@ private fun ComponentActivity.detailAction(action: InfuseAction): TextView {
         includeFontPadding = false
         isFocusable = true
         isClickable = true
-        setTextColor(if (primary) TvColors.FocusText else TvColors.TextSecondary)
         setCompoundDrawablesRelativeWithIntrinsicBounds(action.icon.drawableRes, 0, 0, 0)
         compoundDrawablePadding = dp(if (primary) 7 else 5)
+        updateDetailActionTint(primary, focused = false)
         background = rounded(
             if (primary) TvColors.AccentStrong else Color.argb(42, 0, 0, 0),
             dp(16),
@@ -45,6 +46,9 @@ private fun ComponentActivity.detailAction(action: InfuseAction): TextView {
         setOnClickListener { action.onClick() }
         setOnFocusChangeListener { view, focused ->
             view.applyFocusOutline(focused, 16)
+            if (view is TextView) {
+                view.updateDetailActionTint(primary, focused)
+            }
         }
         layoutParams = ViewGroup.MarginLayoutParams(
             LinearLayout.LayoutParams.WRAP_CONTENT,
@@ -55,4 +59,14 @@ private fun ComponentActivity.detailAction(action: InfuseAction): TextView {
         }
         minWidth = dp(if (primary) 126 else 72)
     }
+}
+
+private fun TextView.updateDetailActionTint(primary: Boolean, focused: Boolean) {
+    val color = when {
+        primary -> TvColors.FocusText
+        focused -> TvColors.TextPrimary
+        else -> TvColors.TextSecondary
+    }
+    setTextColor(color)
+    compoundDrawableTintList = ColorStateList.valueOf(color)
 }
