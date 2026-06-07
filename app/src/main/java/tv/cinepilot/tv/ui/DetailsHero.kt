@@ -30,7 +30,10 @@ fun ComponentActivity.detailsHero(
             if (presentation.subtitle.isNotBlank()) {
                 addView(detailsSubtitle(presentation.subtitle))
             }
-            addView(metadataPills(presentation.metadata.values.take(6)))
+            addView(metadataPills(presentation.microMetadata))
+            if (presentation.deliveryBadges.isNotEmpty()) {
+                addView(metadataPills(presentation.deliveryBadges))
+            }
             if (presentation.progressLabel.isNotBlank()) {
                 addView(detailsProgress(presentation.progressLabel))
             }
@@ -51,10 +54,10 @@ private fun ComponentActivity.detailsPoster(
         elevation = dp(InfuseFocusTokens.ElevationDp).toFloat()
         loadPoster(this, item, 320, 480)
         layoutParams = LinearLayout.LayoutParams(
-            dp(InfuseLayoutTokens.DetailPosterWidth),
-            dp(InfuseLayoutTokens.DetailPosterHeight),
+            dp(MediaWallTokens.DetailPosterWidth),
+            dp(MediaWallTokens.DetailPosterHeight),
         ).apply {
-            rightMargin = dp(InfuseLayoutTokens.DetailHeroGap)
+            rightMargin = dp(MediaWallTokens.DetailGap)
         }
     }
 }
@@ -62,7 +65,7 @@ private fun ComponentActivity.detailsPoster(
 private fun ComponentActivity.detailsTitle(title: String): TextView {
     return TextView(this).apply {
         text = title
-        textSize = InfuseTypeTokens.DetailTitle
+        textSize = MediaWallType.DetailTitle
         typeface = Typeface.DEFAULT
         setTextColor(TvColors.TextPrimary)
         maxLines = 3
@@ -76,7 +79,7 @@ private fun ComponentActivity.detailsTitle(title: String): TextView {
 private fun ComponentActivity.detailsSubtitle(text: String): TextView {
     return TextView(this).apply {
         this.text = text
-        textSize = InfuseTypeTokens.Body
+        textSize = MediaWallType.DetailMeta
         setTextColor(TvColors.TextSecondary)
         includeFontPadding = false
         maxLines = 1
@@ -88,7 +91,7 @@ private fun ComponentActivity.detailsSubtitle(text: String): TextView {
 private fun ComponentActivity.detailsProgress(text: String): TextView {
     return TextView(this).apply {
         this.text = text
-        textSize = InfuseTypeTokens.Metadata
+        textSize = MediaWallType.DetailMeta
         setTextColor(TvColors.AccentStrong)
         includeFontPadding = false
         setPadding(0, dp(6), 0, dp(8))

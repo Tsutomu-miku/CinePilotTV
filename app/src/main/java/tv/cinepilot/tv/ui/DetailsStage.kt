@@ -15,15 +15,15 @@ fun ComponentActivity.detailsStage(
     loadBackdrop: (ImageView, MediaItemSummary) -> Unit,
     content: LinearLayout.() -> Unit,
 ): FrameLayout {
-    val backdrop = infuseBackdrop()
+    val backdrop = cinematicBackdrop()
     loadBackdrop(backdrop, item)
     val container = LinearLayout(this).apply {
         orientation = LinearLayout.VERTICAL
         setPadding(
-            dp(InfuseLayoutTokens.ScreenX),
-            dp(InfuseLayoutTokens.ScreenTop),
-            dp(InfuseLayoutTokens.ScreenX),
-            dp(InfuseLayoutTokens.ScreenBottom),
+            dp(MediaWallTokens.ScreenX),
+            dp(MediaWallTokens.DetailTop),
+            dp(MediaWallTokens.ScreenX),
+            dp(MediaWallTokens.ScreenBottom),
         )
         content()
     }
@@ -38,13 +38,13 @@ fun ComponentActivity.detailsStage(
         ))
     }.bindVerticalDpadScrollFallback()
     return FrameLayout(this).apply {
-        setBackgroundColor(TvColors.Background)
+        setBackgroundColor(Color.BLACK)
         addView(backdrop, FrameLayout.LayoutParams(
             FrameLayout.LayoutParams.MATCH_PARENT,
             FrameLayout.LayoutParams.MATCH_PARENT,
         ))
         addView(View(this@detailsStage).apply {
-            background = rounded(Color.argb(206, 0, 0, 0), 0)
+            background = rounded(Color.argb(214, 0, 0, 0), 0)
         }, FrameLayout.LayoutParams(
             FrameLayout.LayoutParams.MATCH_PARENT,
             FrameLayout.LayoutParams.MATCH_PARENT,

@@ -1,15 +1,14 @@
 package tv.cinepilot.tv.details
 
 import android.view.View
-import android.widget.LinearLayout
 import androidx.activity.ComponentActivity
 import tv.cinepilot.core.protocol.MediaSourceInfo
 import tv.cinepilot.core.protocol.MediaStreamInfo
 import tv.cinepilot.core.protocol.MediaStreamType
 import tv.cinepilot.core.protocol.PlaybackInfo
 import tv.cinepilot.tv.ui.TvOptionSelectItem
+import tv.cinepilot.tv.ui.compactSelectorRow
 import tv.cinepilot.tv.ui.optionSelect
-import tv.cinepilot.tv.ui.section
 import tv.cinepilot.tv.ui.sourceLabel
 import tv.cinepilot.tv.ui.streamLabel
 
@@ -56,11 +55,9 @@ fun ComponentActivity.detailTrackControls(
         return null
     }
     val activeSource = sources.firstOrNull { it.id() == selection.mediaSourceId } ?: sources.first()
-    return LinearLayout(this).apply {
-        orientation = LinearLayout.VERTICAL
-        addView(section("播放设置"))
-        if (sources.size > 1) {
-            addView(optionSelect(
+    val selectors = mutableListOf<View>()
+    if (sources.size > 1) {
+        selectors.add(optionSelect(
                 title = "媒体源",
                 selectedLabel = sourceValue(activeSource),
                 options = sources.map { source ->
@@ -69,11 +66,11 @@ fun ComponentActivity.detailTrackControls(
                     }
                 },
                 requestFocus = selection.focusKey == FOCUS_SOURCE,
-            ))
-        }
-        addView(audioOptionSelect(activeSource, selection, onSelection))
-        addView(subtitleOptionSelect(activeSource, selection, onSelection))
+        ))
     }
+    selectors.add(audioOptionSelect(activeSource, selection, onSelection))
+    selectors.add(subtitleOptionSelect(activeSource, selection, onSelection))
+    return compactSelectorRow(*selectors.toTypedArray())
 }
 
 private fun ComponentActivity.audioOptionSelect(

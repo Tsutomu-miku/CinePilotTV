@@ -1,7 +1,6 @@
 package tv.cinepilot.tv.ui
 
 import android.view.View
-import android.widget.FrameLayout
 import android.widget.LinearLayout
 import android.widget.TextView
 import androidx.activity.ComponentActivity
@@ -30,24 +29,21 @@ fun ComponentActivity.detailsInfoSections(
     return sections
 }
 
-private fun ComponentActivity.detailsInfoSection(content: LinearLayout.() -> Unit): FrameLayout {
-    return glassPanel {
+private fun ComponentActivity.detailsInfoSection(content: LinearLayout.() -> Unit): LinearLayout {
+    return LinearLayout(this).apply {
+        orientation = LinearLayout.VERTICAL
         setPadding(
-            dp(InfuseLayoutTokens.GlassPadding),
-            dp(InfuseLayoutTokens.GlassPadding),
-            dp(InfuseLayoutTokens.GlassPadding),
-            dp(InfuseLayoutTokens.GlassPadding),
+            0,
+            dp(10),
+            0,
+            0,
         )
-        addView(LinearLayout(this@detailsInfoSection).apply {
-            orientation = LinearLayout.VERTICAL
-            content()
-        })
-    }.apply {
+        content()
         layoutParams = LinearLayout.LayoutParams(
             LinearLayout.LayoutParams.MATCH_PARENT,
             LinearLayout.LayoutParams.WRAP_CONTENT,
         ).apply {
-            topMargin = dp(12)
+            topMargin = dp(10)
         }
     }
 }
@@ -55,7 +51,7 @@ private fun ComponentActivity.detailsInfoSection(content: LinearLayout.() -> Uni
 private fun ComponentActivity.infuseSectionTitle(text: String): TextView {
     return TextView(this).apply {
         this.text = text
-        textSize = InfuseTypeTokens.ShelfTitle
+        textSize = MediaWallType.RowTitle
         setTextColor(TvColors.AccentStrong)
         includeFontPadding = false
         setPadding(0, 0, 0, dp(8))

@@ -777,9 +777,15 @@ done
 if ! grep -q 'toMediaPresentation' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/ui/DetailsScreen.kt" ||
   ! grep -q 'detailsHero' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/ui/DetailsScreen.kt" ||
   ! grep -q 'detailsInfoSections' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/ui/DetailsScreen.kt" ||
-  ! grep -q 'infuseBackdrop' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/ui/DetailsStage.kt" ||
-  ! grep -q 'glassPanel' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/ui/DetailsInfoSections.kt"; then
-  echo "Details screen must use presentation models, backdrop artwork, and shared glass sections" >&2
+  ! grep -q 'cinematicBackdrop' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/ui/DetailsStage.kt" ||
+  ! grep -q 'microMetadata' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/ui/DetailsHero.kt" ||
+  ! grep -q 'compactSelectorRow' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/details/DetailTrackControls.kt"; then
+  echo "Details screen must use presentation models, cinematic backdrop, micro metadata, and compact selectors" >&2
+  exit 1
+fi
+
+if grep -q 'glassPanel' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/ui/DetailsInfoSections.kt"; then
+  echo "Details info sections must not reintroduce large glass form panels" >&2
   exit 1
 fi
 
