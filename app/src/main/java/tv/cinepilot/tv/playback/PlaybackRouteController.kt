@@ -6,6 +6,7 @@ import androidx.activity.ComponentActivity
 import java.util.ArrayDeque
 import tv.cinepilot.core.protocol.MediaItemSummary
 import tv.cinepilot.core.protocol.MediaItemType
+import tv.cinepilot.core.protocol.MediaPerson
 import tv.cinepilot.core.protocol.PlaybackInfo
 import tv.cinepilot.core.protocol.PlaybackSelectionPreferences
 import tv.cinepilot.core.tv.HomeRow
@@ -34,6 +35,7 @@ class PlaybackRouteController(
     private val loadPosterImage: (ImageView, MediaItemSummary, Int, Int) -> Unit,
     private val loadArtworkImage: (ImageView, MediaItemSummary, ArtworkTarget, Int, Int) -> Unit,
     private val loadBackdropImage: (ImageView, MediaItemSummary, Int, Int) -> Unit,
+    private val loadPersonImage: (ImageView, MediaPerson, Int, Int) -> Unit,
 ) {
     private val diagnosticsController = PlaybackDiagnosticsController(activity, deviceCodecDiagnostics)
     private var selectedPlaybackInfo: PlaybackInfo? = null
@@ -173,6 +175,7 @@ class PlaybackRouteController(
             loadPoster = loadPosterImage,
             loadBackdrop = { backdrop, item -> loadBackdropImage(backdrop, item, 1280, 720) },
             loadArtwork = loadArtworkImage,
+            loadPerson = loadPersonImage,
         ))
     }
 
@@ -188,6 +191,7 @@ class PlaybackRouteController(
             loadPoster = loadPosterImage,
             loadBackdrop = { backdrop, item -> loadBackdropImage(backdrop, item, 1280, 720) },
             loadArtwork = loadArtworkImage,
+            loadPerson = loadPersonImage,
         ))
     }
 

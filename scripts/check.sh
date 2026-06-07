@@ -1645,11 +1645,20 @@ if [[ ! -s "$ROOT_DIR/core/src/main/java/tv/cinepilot/core/tv/ShowStructure.java
   ! grep -q 'loadSeriesStructure' "$ROOT_DIR/core/src/main/java/tv/cinepilot/core/tv/TvWorkflowController.java" ||
   ! grep -q 'loadSeasonStructure' "$ROOT_DIR/core/src/main/java/tv/cinepilot/core/tv/TvWorkflowController.java" ||
   ! grep -q 'loadEpisodeContext' "$ROOT_DIR/core/src/main/java/tv/cinepilot/core/tv/TvWorkflowController.java" ||
+  [[ ! -s "$ROOT_DIR/core/src/main/java/tv/cinepilot/core/protocol/MediaPerson.java" ]] ||
+  ! grep -q 'CommunityRating' "$ROOT_DIR/core/src/main/java/tv/cinepilot/core/protocol/MediaBrowserResponseMapper.java" ||
+  ! grep -q 'PremiereDate' "$ROOT_DIR/core/src/main/java/tv/cinepilot/core/protocol/ItemQuery.java" ||
   [[ ! -s "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/details/ShowDetailScreens.kt" ]] ||
+  [[ ! -s "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/details/ShowDetailComponents.kt" ]] ||
+  [[ ! -s "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/details/ShowMetadata.kt" ]] ||
   ! grep -q 'seriesDetailScreen' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/details/ShowDetailScreens.kt" ||
   ! grep -q 'seasonDetailScreen' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/details/ShowDetailScreens.kt" ||
+  ! grep -q 'showHeroTitle' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/details/ShowMetadata.kt" ||
+  ! grep -q 'showTechnicalBadges' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/details/ShowMetadata.kt" ||
+  ! grep -q 'seasonRail' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/details/ShowDetailComponents.kt" ||
+  ! grep -q '全部集数' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/details/ShowDetailScreens.kt" ||
   ! grep -q 'mediaBackStack' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/playback/PlaybackRouteController.kt"; then
-  echo "TV show navigation must keep explicit series, season, episode structure and back stack" >&2
+  echo "TV show pages must keep rich metadata, season rail, episode hub, and explicit back stack" >&2
   exit 1
 fi
 

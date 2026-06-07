@@ -4,6 +4,7 @@ import android.view.View
 import android.widget.ImageView
 import androidx.activity.ComponentActivity
 import tv.cinepilot.core.protocol.MediaItemSummary
+import tv.cinepilot.core.protocol.MediaPerson
 import tv.cinepilot.core.tv.HomeRow
 import tv.cinepilot.core.tv.ShowStructure
 import tv.cinepilot.tv.runtime.ArtworkTarget
@@ -11,12 +12,9 @@ import tv.cinepilot.tv.ui.InfuseAction
 import tv.cinepilot.tv.ui.InfuseActionEmphasis
 import tv.cinepilot.tv.ui.RowVisualStyle
 import tv.cinepilot.tv.ui.TvIcon
-import tv.cinepilot.tv.ui.detailsInfoSections
-import tv.cinepilot.tv.ui.detailsHero
 import tv.cinepilot.tv.ui.detailsStage
-import tv.cinepilot.tv.ui.mediaWallGrid
-import tv.cinepilot.tv.ui.toDetailPresentation
 import tv.cinepilot.tv.ui.HomeRowPresentation
+import tv.cinepilot.tv.ui.mediaWallRow
 
 fun ComponentActivity.seriesDetailScreen(
     structure: ShowStructure,
@@ -25,31 +23,45 @@ fun ComponentActivity.seriesDetailScreen(
     loadPoster: (ImageView, MediaItemSummary, Int, Int) -> Unit,
     loadBackdrop: (ImageView, MediaItemSummary) -> Unit,
     loadArtwork: (ImageView, MediaItemSummary, ArtworkTarget, Int, Int) -> Unit,
+    loadPerson: (ImageView, MediaPerson, Int, Int) -> Unit,
 ): View {
     val series = structure.series()
-    val actions = mutableListOf(
-        InfuseAction("查看季集", TvIcon.FORWARD, InfuseActionEmphasis.PRIMARY) {
-            structure.selectedSeason()?.let(onOpenSeason)
-        },
-    )
+    val featured = structure.resumeEpisode() ?: structure.nextUp() ?: structure.episodes().firstOrNull()
+    val actions = mutableListOf<InfuseAction>()
+    featured?.let { episode ->
+        val label = if (episode.hasResumePosition()) "继续观看" else "播放下一集"
+        actions.add(InfuseAction(label, TvIcon.PLAY, InfuseActionEmphasis.PRIMARY) { onOpenEpisode(episode) })
+    }
+    actions.add(InfuseAction("查看季集", TvIcon.FORWARD, InfuseActionEmphasis.SECONDARY) {
+        structure.selectedSeason()?.let(onOpenSeason)
+    })
     structure.nextUp()?.let { episode ->
-        actions.add(InfuseAction("下一集", TvIcon.PLAY, InfuseActionEmphasis.QUIET) { onOpenEpisode(episode) })
+        if (episode.id() != featured?.id()) {
+            actions.add(InfuseAction("下一集", TvIcon.PLAY, InfuseActionEmphasis.QUIET) { onOpenEpisode(episode) })
+        }
     }
     return detailsStage(series, loadBackdrop) {
-        addView(detailsHero(series, series.toDetailPresentation(emptyList()), actions, actions.first(), loadPoster))
+        addView(showHero(
+            title = series.name().ifBlank { "剧集详情" },
+            meta = showMetaLine(series),
+            badges = featured?.let(::showTechnicalBadges) ?: emptyList(),
+            overview = series.overview(),
+            actions = actions,
+        ))
         if (structure.seasons().isNotEmpty()) {
-            addView(showGrid("季", structure.seasons(), RowVisualStyle.POSTER_RAIL, onOpenSeason, loadArtwork))
+            addView(seasonRail(structure.seasons(), structure.selectedSeason(), onOpenSeason))
         }
         if (structure.episodes().isNotEmpty()) {
-            addView(showGrid(
-                structure.selectedSeason()?.name()?.ifBlank { "集数" } ?: "集数",
+            addView(showEpisodes(
+                structure.selectedSeason()?.name()?.ifBlank { "当前季" } ?: "当前季",
                 structure.episodes(),
-                RowVisualStyle.LANDSCAPE_RAIL,
+                wrap = false,
                 onOpenEpisode,
                 loadArtwork,
             ))
         }
-        detailsInfoSections(null, series.toDetailPresentation(emptyList())).forEach(::addView)
+        peopleStrip("演职员", peopleSummary(series).ifEmpty { featured?.let(::peopleSummary) ?: emptyList() }, loadPerson)
+            ?.let(::addView)
     }
 }
 
@@ -59,42 +71,44 @@ fun ComponentActivity.seasonDetailScreen(
     loadPoster: (ImageView, MediaItemSummary, Int, Int) -> Unit,
     loadBackdrop: (ImageView, MediaItemSummary) -> Unit,
     loadArtwork: (ImageView, MediaItemSummary, ArtworkTarget, Int, Int) -> Unit,
+    loadPerson: (ImageView, MediaPerson, Int, Int) -> Unit,
 ): View {
     val season = structure.selectedSeason() ?: structure.series()
-    val firstEpisode = structure.resumeEpisode() ?: structure.episodes().firstOrNull()
-    val actions = listOfNotNull(
-        firstEpisode?.let { episode ->
-            InfuseAction("播放本季", TvIcon.PLAY, InfuseActionEmphasis.PRIMARY) { onOpenEpisode(episode) }
-        },
-    )
-    return detailsStage(season, loadBackdrop) {
-        addView(detailsHero(
-            season,
-            season.toDetailPresentation(emptyList()),
+    val featured = structure.resumeEpisode() ?: structure.nextUp() ?: structure.episodes().firstOrNull()
+    val heroItem = featured ?: season
+    val actions = listOfNotNull(featured?.let { episode ->
+        val label = if (episode.hasResumePosition()) "继续播放" else "播放本集"
+        InfuseAction(label, TvIcon.PLAY, InfuseActionEmphasis.PRIMARY) { onOpenEpisode(episode) }
+    })
+    return detailsStage(heroItem, loadBackdrop) {
+        addView(showHero(
+            title = showHeroTitle(season, featured),
+            meta = showMetaLine(heroItem),
+            badges = showTechnicalBadges(heroItem),
+            overview = featured?.overview()?.ifBlank { season.overview() } ?: season.overview(),
             actions,
-            InfuseAction("选集", TvIcon.FORWARD, InfuseActionEmphasis.PRIMARY) {},
-            loadPoster,
         ))
         if (structure.episodes().isNotEmpty()) {
-            addView(showGrid("选集", structure.episodes(), RowVisualStyle.LANDSCAPE_RAIL, onOpenEpisode, loadArtwork))
+            addView(showEpisodes("全部集数", structure.episodes(), true, onOpenEpisode, loadArtwork))
         }
-        detailsInfoSections(null, season.toDetailPresentation(emptyList())).forEach(::addView)
+        peopleStrip("演职员", peopleSummary(heroItem).ifEmpty { peopleSummary(structure.series()) }, loadPerson)
+            ?.let(::addView)
     }
 }
 
-private fun ComponentActivity.showGrid(
+private fun ComponentActivity.showEpisodes(
     title: String,
     items: List<MediaItemSummary>,
-    style: RowVisualStyle,
+    wrap: Boolean,
     onOpen: (MediaItemSummary) -> Unit,
     loadArtwork: (ImageView, MediaItemSummary, ArtworkTarget, Int, Int) -> Unit,
 ): View {
-    return mediaWallGrid(
+    return mediaWallRow(
         presentation = HomeRowPresentation(
             row = HomeRow("detail:${title}", title, items),
             title = title,
-            visualStyle = style,
-            wrapItems = true,
+            visualStyle = RowVisualStyle.LANDSCAPE_RAIL,
+            wrapItems = wrap,
         ),
         onCell = { _, _ -> },
         onFocus = { _, _ -> },

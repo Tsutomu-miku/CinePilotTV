@@ -11,6 +11,7 @@ import java.util.concurrent.Executors
 import tv.cinepilot.core.protocol.AuthenticatedServer
 import tv.cinepilot.core.protocol.MediaBrowserClient
 import tv.cinepilot.core.protocol.MediaItemSummary
+import tv.cinepilot.core.protocol.MediaPerson
 
 class ArtworkLoader(
     private val mediaBrowserClient: MediaBrowserClient,
@@ -66,6 +67,22 @@ class ArtworkLoader(
             ArtworkTarget.LANDSCAPE,
             ArtworkTarget.BACKDROP,
             ArtworkTarget.COLLECTION -> loadBackdrop(owner, authenticated, target, item, width, height)
+        }
+    }
+
+    fun loadPerson(
+        owner: ComponentActivity,
+        authenticated: AuthenticatedServer?,
+        target: ImageView,
+        person: MediaPerson,
+        width: Int,
+        height: Int,
+    ) {
+        if (authenticated == null || person.primaryImageTag().isBlank()) {
+            return
+        }
+        loadUrl(owner, target) {
+            mediaBrowserClient.personImageUrl(authenticated, person, width, height)
         }
     }
 

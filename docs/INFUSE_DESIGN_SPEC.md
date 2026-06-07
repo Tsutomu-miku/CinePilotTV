@@ -36,7 +36,8 @@
 
 - Infuse 和 Jellyfin 的共同事实不是“文件夹里有视频”，而是 TV Show 按 `Series -> Season -> Episode` 组织；CinePilot 必须尊重服务端 metadata，而不是把剧集和季当普通文件夹。
 - Series 详情页是剧集总页：展示剧集 artwork、metadata、简介、季列表和当前季集数预览。
-- Season 详情页是季页：展示本季 artwork、metadata、简介和完整 episode grid。
+- Season 详情页是季页，也是同季选集 hub：上半屏必须有当前集信息区，包含集标题、评分、首播日期、时长、分辨率 / 编码 / 音频 / 字幕摘要和简介；下方直接展示同季集数，不能只剩一个空标题和 episode grid。
+- Series / Season 页必须消费 Jellyfin / Emby 提供的 rich metadata：`PremiereDate`、`CommunityRating`、`OfficialRating`、`People`、`MediaStreams`、`Overview`、`Genres`。拿不到字段时可以降级，但不能把页面退化成普通 folder。
 - Episode 详情页是播放决策页：展示当前集、播放动作、音轨 / 字幕 / 媒体源，以及返回季 / 剧集的层级导航。
 - Back 路径必须按媒体层级返回：`Episode -> Season -> Series -> 原浏览位置`；不得从季或集数页退到登录页。
 

@@ -260,6 +260,28 @@ public final class MediaBrowserClient {
         ).url(server.address());
     }
 
+    public String personImageUrl(AuthenticatedServer authenticated, MediaPerson person, int width, int height) {
+        if (authenticated == null) {
+            throw new IllegalArgumentException("authenticated is required");
+        }
+        if (person == null) {
+            throw new IllegalArgumentException("person is required");
+        }
+        if (person.id().isBlank() || person.primaryImageTag().isBlank()) {
+            return "";
+        }
+        String url = MediaImageRequests.item(
+                authenticated.session(),
+                authenticated.server().flavor(),
+                person.id(),
+                "Primary",
+                person.primaryImageTag(),
+                width,
+                height
+        ).url(authenticated.server().address());
+        return PlaybackUrlAuthorizer.withAccessToken(url, authenticated.session());
+    }
+
     public void sendPlaybackCheckIn(AuthenticatedServer authenticated, PlaybackCheckIn checkIn) {
         if (checkIn == null) {
             throw new IllegalArgumentException("checkIn is required");

@@ -19,6 +19,11 @@ public record MediaItemSummary(
         String seriesId,
         String overview,
         List<String> genres,
+        String premiereDate,
+        Double communityRating,
+        String officialRating,
+        List<MediaPerson> people,
+        List<MediaStreamInfo> mediaStreams,
         UserItemData userData,
         Map<String, String> imageTags,
         List<String> backdropImageTags
@@ -43,7 +48,15 @@ public record MediaItemSummary(
         if (overview == null) {
             overview = "";
         }
+        if (premiereDate == null) {
+            premiereDate = "";
+        }
+        if (officialRating == null) {
+            officialRating = "";
+        }
         genres = AndroidCollections.listCopy(genres);
+        people = AndroidCollections.listCopy(people);
+        mediaStreams = AndroidCollections.listCopy(mediaStreams);
         imageTags = AndroidCollections.mapCopy(imageTags);
         backdropImageTags = AndroidCollections.listCopy(backdropImageTags);
     }
@@ -89,6 +102,11 @@ public record MediaItemSummary(
                 seriesId,
                 overview,
                 genres,
+                "",
+                null,
+                "",
+                AndroidCollections.emptyList(),
+                AndroidCollections.emptyList(),
                 userData,
                 imageTags,
                 AndroidCollections.emptyList()
@@ -127,6 +145,11 @@ public record MediaItemSummary(
                 "",
                 overview,
                 genres,
+                "",
+                null,
+                "",
+                AndroidCollections.emptyList(),
+                AndroidCollections.emptyList(),
                 userData,
                 imageTags,
                 AndroidCollections.emptyList()

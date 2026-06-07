@@ -160,10 +160,42 @@ public final class MediaBrowserResponseMapper {
                 valueOrEmpty(JsonValue.string(item, "SeriesId")),
                 valueOrEmpty(JsonValue.string(item, "Overview")),
                 stringList(item, "Genres"),
+                valueOrEmpty(JsonValue.string(item, "PremiereDate")),
+                optionalDouble(item, "CommunityRating"),
+                valueOrEmpty(JsonValue.string(item, "OfficialRating")),
+                people(item),
+                mediaStreams(item),
                 userData(JsonValue.childObject(item, "UserData")),
                 imageTags(JsonValue.childObject(item, "ImageTags")),
                 stringList(item, "BackdropImageTags")
         );
+    }
+
+    private static List<MediaPerson> people(Map<String, Object> item) {
+        List<MediaPerson> people = new ArrayList<>();
+        for (Object value : JsonValue.array(item, "People")) {
+            if (value instanceof Map<?, ?> map) {
+                Map<String, Object> person = JsonValueMap.cast(map);
+                people.add(new MediaPerson(
+                        valueOrEmpty(JsonValue.string(person, "Id")),
+                        valueOrEmpty(JsonValue.string(person, "Name")),
+                        valueOrEmpty(JsonValue.string(person, "Role")),
+                        valueOrEmpty(JsonValue.string(person, "Type")),
+                        valueOrEmpty(JsonValue.string(person, "PrimaryImageTag"))
+                ));
+            }
+        }
+        return AndroidCollections.listCopy(people);
+    }
+
+    private static List<MediaStreamInfo> mediaStreams(Map<String, Object> item) {
+        List<MediaStreamInfo> streams = new ArrayList<>();
+        for (Object value : JsonValue.array(item, "MediaStreams")) {
+            if (value instanceof Map<?, ?> map) {
+                streams.add(mediaStream(JsonValueMap.cast(map)));
+            }
+        }
+        return AndroidCollections.listCopy(streams);
     }
 
     private static boolean playable(Map<String, Object> item, MediaItemType type, boolean folder) {
@@ -239,6 +271,11 @@ public final class MediaBrowserResponseMapper {
     private static Integer optionalInt(Map<String, Object> object, String key) {
         Object value = object.get(key);
         return value instanceof Number number ? number.intValue() : null;
+    }
+
+    private static Double optionalDouble(Map<String, Object> object, String key) {
+        Object value = object.get(key);
+        return value instanceof Number number ? number.doubleValue() : null;
     }
 
     private static String valueOrEmpty(String value) {

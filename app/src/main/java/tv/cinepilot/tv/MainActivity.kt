@@ -12,6 +12,7 @@ import androidx.lifecycle.ViewModelProvider
 import java.util.concurrent.Executors
 import tv.cinepilot.core.protocol.MediaBrowserException
 import tv.cinepilot.core.protocol.MediaItemSummary
+import tv.cinepilot.core.protocol.MediaPerson
 import tv.cinepilot.core.protocol.PublicUserSummary
 import tv.cinepilot.core.tv.TvAppState
 import tv.cinepilot.core.tv.TvRoute
@@ -80,6 +81,7 @@ class MainActivity : ComponentActivity() {
             loadPosterImage = ::loadPosterImage,
             loadArtworkImage = ::loadArtworkImage,
             loadBackdropImage = ::loadBackdropImage,
+            loadPersonImage = ::loadPersonImage,
         )
         searchRoutes = SearchRouteController(
             activity = this,
@@ -238,6 +240,10 @@ class MainActivity : ComponentActivity() {
 
     private fun loadBackdropImage(target: ImageView, item: MediaItemSummary, width: Int, height: Int) {
         artworkLoader.loadBackdrop(this, viewModel.workflowController.state().authenticated(), target, item, width, height)
+    }
+
+    private fun loadPersonImage(target: ImageView, person: MediaPerson, width: Int, height: Int) {
+        artworkLoader.loadPerson(this, viewModel.workflowController.state().authenticated(), target, person, width, height)
     }
 
     private fun loadPublicUserImage(target: ImageView, user: PublicUserSummary, width: Int, height: Int) {
