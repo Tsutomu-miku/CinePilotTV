@@ -116,32 +116,28 @@ private fun View.dpValue(value: Int): Int {
 
 private fun ComponentActivity.playerInfoPanelParams(): FrameLayout.LayoutParams {
     return FrameLayout.LayoutParams(
-        dp(560),
+        dp(MediaWallTokens.SheetWidth),
         FrameLayout.LayoutParams.WRAP_CONTENT,
-        Gravity.BOTTOM or Gravity.END,
+        Gravity.CENTER_VERTICAL or Gravity.END,
     ).apply {
-        rightMargin = dp(32)
-        bottomMargin = dp(170)
+        rightMargin = dp(MediaWallTokens.ScreenX)
     }
 }
 
 private fun ComponentActivity.playerInfoPanel(debugInfo: String): View {
-    return glassPanel {
-        setPadding(dp(14), dp(12), dp(14), dp(12))
-        addView(LinearLayout(this@playerInfoPanel).apply {
-            orientation = LinearLayout.VERTICAL
-            addView(TextView(this@playerInfoPanel).apply {
+    return sideSheet {
+        addView(TextView(this@playerInfoPanel).apply {
                 text = "视频信息"
                 textSize = InfuseTypeTokens.ShelfTitle
                 setTextColor(TvColors.TextPrimary)
                 includeFontPadding = false
                 setPadding(0, 0, 0, dp(8))
-            })
-            debugInfo.lineSequence()
-                .filter { it.isNotBlank() }
-                .take(14)
-                .forEach { line -> addView(playerInfoLine(line)) }
         })
+        debugInfo.lineSequence()
+            .filter { it.isNotBlank() }
+            .take(14)
+            .forEach { line -> addView(playerInfoLine(line)) }
+    }.apply {
         visibility = View.GONE
     }
 }

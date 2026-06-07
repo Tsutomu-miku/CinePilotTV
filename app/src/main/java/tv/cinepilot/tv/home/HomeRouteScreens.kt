@@ -19,12 +19,13 @@ import tv.cinepilot.tv.ui.TvOptionSelectItem
 import tv.cinepilot.tv.ui.compactPanelSpacing
 import tv.cinepilot.tv.ui.dp
 import tv.cinepilot.tv.ui.homeScreen
+import tv.cinepilot.tv.ui.cinematicStage
 import tv.cinepilot.tv.ui.infuseActions
-import tv.cinepilot.tv.ui.infusePanelScreen
 import tv.cinepilot.tv.ui.infusePanelTitle
 import tv.cinepilot.tv.ui.input
 import tv.cinepilot.tv.ui.optionSelect
 import tv.cinepilot.tv.ui.requestInitialFocus
+import tv.cinepilot.tv.ui.sideSheet
 
 fun ComponentActivity.homeRouteScreen(
     state: TvAppState,
@@ -88,29 +89,31 @@ fun ComponentActivity.searchScreen(
             false
         }
     }
-    val root = infusePanelScreen("搜索媒体") {
-        addView(infusePanelTitle("搜索媒体"))
-        addView(searchInput, LinearLayout.LayoutParams(
-            LinearLayout.LayoutParams.MATCH_PARENT,
-            dp(56),
-        ).apply {
-            bottomMargin = dp(12)
+    val root = cinematicStage(scrollable = false) {
+        addView(sideSheet {
+            addView(infusePanelTitle("搜索"))
+            addView(searchInput, LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                dp(52),
+            ).apply {
+                bottomMargin = dp(10)
+            })
+            addView(optionSelect(
+                title = "范围",
+                selectedLabel = selectedFilter.label(),
+                options = SearchFilter.values().map { filter ->
+                    TvOptionSelectItem(filter.label(), filter == selectedFilter) {
+                        onFilter(filter, searchInput.text.toString())
+                    }
+                },
+            ).compactPanelSpacing(10))
+            addView(infuseActions(listOf(
+                InfuseAction("搜索", TvIcon.SEARCH, InfuseActionEmphasis.PRIMARY, ::submitSearch),
+                InfuseAction("语音", TvIcon.MIC, InfuseActionEmphasis.QUIET) {
+                    onVoiceInput(searchInput.text.toString())
+                },
+            )))
         })
-        addView(optionSelect(
-            title = "范围",
-            selectedLabel = selectedFilter.label(),
-            options = SearchFilter.values().map { filter ->
-                TvOptionSelectItem(filter.label(), filter == selectedFilter) {
-                    onFilter(filter, searchInput.text.toString())
-                }
-            },
-        ).compactPanelSpacing())
-        addView(infuseActions(listOf(
-            InfuseAction("搜索", TvIcon.SEARCH, InfuseActionEmphasis.PRIMARY, ::submitSearch),
-            InfuseAction("语音", TvIcon.MIC, InfuseActionEmphasis.QUIET) {
-                onVoiceInput(searchInput.text.toString())
-            },
-        )))
     }
     searchInput.requestInitialFocus()
     return SearchViews(root, searchInput)

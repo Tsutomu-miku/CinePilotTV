@@ -463,8 +463,9 @@ if ! grep -q 'optionSelect' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/home/Ho
   exit 1
 fi
 
-if ! grep -q 'infusePanelScreen("搜索媒体")' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/home/HomeRouteScreens.kt"; then
-  echo "Search filters must use the shared Infuse panel shell" >&2
+if ! grep -q 'cinematicStage(scrollable = false)' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/home/HomeRouteScreens.kt" ||
+  ! grep -q 'sideSheet' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/home/HomeRouteScreens.kt"; then
+  echo "Search filters must use the shared cinematic side sheet shell" >&2
   exit 1
 fi
 
@@ -1391,8 +1392,9 @@ if ! grep -q 'TvIcon.INFO' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/error/Er
 fi
 
 if ! grep -q 'infuseActions(actions, requestFirstFocus = true)' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/error/ErrorRouteScreen.kt" ||
-  ! grep -q 'infusePanelScreen("出错了")' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/error/ErrorRouteScreen.kt"; then
-  echo "Error recovery actions must use the shared Infuse action group and panel shell" >&2
+  ! grep -q 'cinematicStage(scrollable = false)' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/error/ErrorRouteScreen.kt" ||
+  ! grep -q 'sideSheet' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/error/ErrorRouteScreen.kt"; then
+  echo "Error recovery actions must use the shared Infuse action group and cinematic side sheet shell" >&2
   exit 1
 fi
 
