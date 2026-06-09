@@ -1668,7 +1668,8 @@ if [[ ! -s "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/ui/MediaStatusOverlays.k
   ! grep -q '本季集数' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/details/DetailsRouteScreen.kt" ||
   ! grep -q 'siblingEpisodes' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/details/DetailsRouteScreen.kt" ||
   ! grep -q 'scaleX' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/ui/FocusOutline.kt" ||
-  ! grep -q 'focusGlow' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/ui/FocusOutline.kt"; then
+  ! grep -q 'focusWhite' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/ui/FocusOutline.kt" ||
+  ! grep -q 'FocusOverflow' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/ui/MediaWallTokens.kt"; then
   echo "Media cells must expose stronger focus, watched badges, and episode-detail sibling strip" >&2
   exit 1
 fi

@@ -101,6 +101,8 @@ private fun updateHomeFocus(
 private fun ComponentActivity.mediaWallContent(content: LinearLayout.() -> Unit): View {
     val wall = LinearLayout(this).apply {
         orientation = LinearLayout.VERTICAL
+        clipChildren = false
+        clipToPadding = false
         setPadding(
             dp(MediaWallTokens.ScreenX),
             dp(MediaWallTokens.ScreenTop + MediaWallTokens.HeaderHeight + 10),
@@ -113,6 +115,8 @@ private fun ComponentActivity.mediaWallContent(content: LinearLayout.() -> Unit)
         isFillViewport = true
         isFocusable = false
         descendantFocusability = ViewGroup.FOCUS_AFTER_DESCENDANTS
+        clipChildren = false
+        clipToPadding = false
         addView(wall, LinearLayout.LayoutParams(
             LinearLayout.LayoutParams.MATCH_PARENT,
             LinearLayout.LayoutParams.WRAP_CONTENT,

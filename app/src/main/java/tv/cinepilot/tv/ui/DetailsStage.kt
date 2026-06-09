@@ -21,6 +21,8 @@ fun ComponentActivity.detailsStage(
     loadBackdrop(backdrop, item)
     val container = LinearLayout(this).apply {
         orientation = LinearLayout.VERTICAL
+        clipChildren = false
+        clipToPadding = false
         setPadding(
             dp(MediaWallTokens.ScreenX),
             dp(MediaWallTokens.DetailTop + 8),
@@ -33,6 +35,8 @@ fun ComponentActivity.detailsStage(
         isFillViewport = true
         isFocusable = false
         descendantFocusability = ViewGroup.FOCUS_AFTER_DESCENDANTS
+        clipChildren = false
+        clipToPadding = false
         contentDescription = "详情 ${item.name()}"
         addView(container, LinearLayout.LayoutParams(
             LinearLayout.LayoutParams.MATCH_PARENT,
@@ -40,6 +44,8 @@ fun ComponentActivity.detailsStage(
         ))
     }.bindVerticalDpadScrollFallback()
     return FrameLayout(this).apply {
+        clipChildren = false
+        clipToPadding = false
         setBackgroundColor(Color.BLACK)
         addView(backdrop, FrameLayout.LayoutParams(
             FrameLayout.LayoutParams.MATCH_PARENT,

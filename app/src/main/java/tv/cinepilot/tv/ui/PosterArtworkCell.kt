@@ -62,7 +62,7 @@ fun ComponentActivity.mediaCell(
             TvColors.PosterFallback,
             dp(MediaWallTokens.CellRadius),
             dp(1),
-            homeHairlineColor(),
+            homeHairlineColor(22),
         )
         setOnClickListener { onOpen(row, item) }
         setOnFocusChangeListener { view, focused ->

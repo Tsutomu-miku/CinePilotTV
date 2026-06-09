@@ -39,6 +39,7 @@ private fun ComponentActivity.mediaWallGridLine(
         orientation = LinearLayout.HORIZONTAL
         clipChildren = false
         clipToPadding = false
+        setPadding(dp(MediaWallTokens.FocusOverflow), 0, dp(MediaWallTokens.FocusOverflow), 0)
         items.forEachIndexed { index, item ->
             val cell = if (presentation.visualStyle == RowVisualStyle.LANDSCAPE_RAIL) {
                 landscapeArtworkCell(presentation.row, item, onFocus, onOpen, loadArtwork)

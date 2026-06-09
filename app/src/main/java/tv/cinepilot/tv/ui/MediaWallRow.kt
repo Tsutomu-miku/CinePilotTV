@@ -57,6 +57,7 @@ private fun ComponentActivity.mediaWallStrip(
         orientation = LinearLayout.HORIZONTAL
         clipChildren = false
         clipToPadding = false
+        setPadding(dp(MediaWallTokens.FocusOverflow), 0, dp(MediaWallTokens.FocusOverflow), 0)
         presentation.row.items().forEach { item ->
             val cell = if (presentation.visualStyle == RowVisualStyle.LANDSCAPE_RAIL) {
                 landscapeArtworkCell(presentation.row, item, onFocus, onOpen, loadArtwork)
@@ -73,6 +74,7 @@ private fun ComponentActivity.mediaWallStrip(
         descendantFocusability = ViewGroup.FOCUS_AFTER_DESCENDANTS
         clipChildren = false
         clipToPadding = false
+        setPadding(0, dp(1), 0, dp(1))
         addView(strip)
     }
 }

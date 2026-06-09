@@ -29,6 +29,7 @@ object MediaWallTokens {
     const val FocusBorder = 1
     const val FocusAlpha = 188
     const val FocusElevation = 6
+    const val FocusOverflow = 6
     const val HeaderHeight = 54
     const val DetailPosterWidth = 172
     const val DetailPosterHeight = 258
