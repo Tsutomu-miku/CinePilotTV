@@ -11,7 +11,7 @@ import java.nio.file.Path;
 import java.time.Duration;
 
 public final class ProtocolCoreTest {
-    public static void main(String[] args) {
+    public static void main(String[] args) throws IOException {
         normalizesServerAddress();
         preservesServerPathPrefix();
         detectsServerFlavor();
@@ -39,6 +39,8 @@ public final class ProtocolCoreTest {
         playbackSessionControllerSendsPlayerEvents();
         playbackSessionControllerOffsetsTranscodeProgressByStartTicks();
         authorizesPlaybackUrls();
+        serializesHomeRowsRoundTrip();
+        fileHomeRowsCachePersistsAndClears();
         System.out.println("ProtocolCoreTest passed");
     }
 
@@ -1325,6 +1327,97 @@ public final class ProtocolCoreTest {
                 PlaybackUrlAuthorizer.withAccessToken("https://media.example.com/Videos/item-1/master.m3u8?api_key=existing", session),
                 "keeps existing api key"
         );
+    }
+
+    private static void serializesHomeRowsRoundTrip() {
+        Map<String, String> imageTags = new LinkedHashMap<>();
+        imageTags.put("Primary", "poster-1");
+        List<String> backdropTags = new ArrayList<>();
+        backdropTags.add("backdrop-1");
+        UserItemData userData = new UserItemData(true, 1_234_000_000L, 3, true);
+        MediaItemSummary movie = new MediaItemSummary(
+                "item-1", "folder-1", "星际穿越", MediaItemType.MOVIE, false, true,
+                10_000_000_000L, 2014, null, null,
+                "", "", "剧情...", List.of("科幻", "冒险"),
+                "2014-11-12", 8.7, "PG-13",
+                List.of(), List.of(),
+                userData, imageTags, backdropTags
+        );
+        MediaItemSummary episode = new MediaItemSummary(
+                "ep-1", "season-1", "首播集", MediaItemType.EPISODE, false, true,
+                1_500_000_000L, null, 1, 2,
+                "怪奇物语", "series-1", "首播集简介", List.of(),
+                "", null, "",
+                List.of(), List.of(),
+                UserItemData.empty(), imageTags, List.of()
+        );
+        List<tv.cinepilot.core.tv.HomeRow> rows = List.of(
+                new tv.cinepilot.core.tv.HomeRow("resume", "继续观看", List.of(episode)),
+                new tv.cinepilot.core.tv.HomeRow("latest:lib-1", "最新 - 电影", List.of(movie))
+        );
+        String json = HomeRowsSerializer.serialize(rows);
+        assertTrue(json.contains("\"id\":\"resume\""), "serializer keeps row id");
+        assertTrue(json.contains("星际穿越"), "serializer keeps item name");
+        List<tv.cinepilot.core.tv.HomeRow> back = HomeRowsSerializer.deserialize(json);
+        assertEquals(2, back.size(), "round-trip row count");
+        assertEquals("继续观看", back.get(0).title(), "round-trip row title");
+        assertEquals("item-1", back.get(1).items().get(0).id(), "round-trip item id");
+        assertEquals(MediaItemType.EPISODE, back.get(0).items().get(0).type(), "round-trip type");
+        assertEquals(1, (int) back.get(0).items().get(0).indexNumber(), "round-trip episode index");
+        assertEquals(2, (int) back.get(0).items().get(0).parentIndexNumber(), "round-trip season index");
+        assertEquals("怪奇物语", back.get(0).items().get(0).seriesName(), "round-trip series name");
+        assertEquals("series-1", back.get(0).items().get(0).seriesId(), "round-trip series id");
+        assertTrue(back.get(1).items().get(0).userData().played(), "round-trip user played flag");
+        assertEquals(1_234_000_000L, back.get(1).items().get(0).userData().playbackPositionTicks(), "round-trip playback position");
+        assertEquals(3, back.get(1).items().get(0).userData().playCount(), "round-trip play count");
+        assertTrue(back.get(1).items().get(0).userData().favorite(), "round-trip favorite");
+        assertEquals("poster-1", back.get(1).items().get(0).imageTags().get("Primary"), "round-trip image tags");
+        assertEquals("backdrop-1", back.get(1).items().get(0).backdropImageTags().get(0), "round-trip backdrop tags");
+        assertEquals(2014, (int) back.get(1).items().get(0).productionYear(), "round-trip production year");
+        assertTrue(Math.abs(8.7 - back.get(1).items().get(0).communityRating()) < 0.0001, "round-trip community rating");
+        assertEquals("PG-13", back.get(1).items().get(0).officialRating(), "round-trip official rating");
+        assertEquals(true, back.get(1).items().get(0).playable(), "round-trip playable");
+    }
+
+    private static void fileHomeRowsCachePersistsAndClears() throws IOException {
+        Path tmpDir = Files.createTempDirectory("homecache");
+        try {
+            tv.cinepilot.core.tv.FileHomeRowsCache cache =
+                    new tv.cinepilot.core.tv.FileHomeRowsCache(tmpDir);
+            Map<String, String> imageTags = new LinkedHashMap<>();
+            imageTags.put("Primary", "p1");
+            MediaItemSummary item = new MediaItemSummary(
+                    "item-1", "", "Film One", MediaItemType.MOVIE, false, true,
+                    9_000_000_000L, 2023, null, null, "", "", "",
+                    List.of(), "", null, "", List.of(), List.of(),
+                    UserItemData.empty(), imageTags, List.of()
+            );
+            List<tv.cinepilot.core.tv.HomeRow> rows = List.of(
+                    new tv.cinepilot.core.tv.HomeRow("views", "媒体库", List.of(item))
+            );
+            assertTrue(cache.save("server-1", "user-1", rows), "cache save returns true");
+            Optional<List<tv.cinepilot.core.tv.HomeRow>> loaded = cache.load("server-1", "user-1");
+            assertTrue(loaded.isPresent(), "cache produces a value after save");
+            assertEquals("媒体库", loaded.get().get(0).title(), "cache preserves title");
+            assertEquals("Film One", loaded.get().get(0).items().get(0).name(), "cache preserves item");
+            // Missing server or user id must return empty.
+            assertTrue(cache.load("server-1", "other-user").isEmpty(), "cache scopes per user");
+            assertTrue(cache.load("other-server", "user-1").isEmpty(), "cache scopes per server");
+            assertTrue(cache.save("server-1", "user-2", rows), "saving same rows for another user");
+            assertTrue(cache.clear("server-1", "user-1"), "cache clear returns true");
+            assertTrue(cache.load("server-1", "user-1").isEmpty(), "cleared cache produces no value");
+            // Second user scope must remain intact after clearing user-1.
+            assertTrue(cache.load("server-1", "user-2").isPresent(), "cache clear is scoped to (server, user)");
+            // Empty rows are not persisted and are interpreted as a no-op save.
+            assertTrue(!cache.save("x", "y", List.of()), "refuse to save empty row list");
+        } finally {
+            // Best-effort recursive delete.
+            try (java.util.stream.Stream<Path> walk = Files.walk(tmpDir)) {
+                walk.sorted(java.util.Comparator.reverseOrder())
+                        .map(Path::toFile)
+                        .forEach(java.io.File::delete);
+            }
+        }
     }
 
     private static PlaybackReport playbackReportAt(long positionMillis, boolean paused, Float rate) {

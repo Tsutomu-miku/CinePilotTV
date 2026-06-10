@@ -137,6 +137,33 @@ public final class TvWorkflowController {
         return state;
     }
 
+    /**
+     * Push cached home rows into the state without touching the network.
+     * Returns true when the cache was accepted (i.e. the controller is
+     * authenticated and the cache was non-empty). Callers typically invoke
+     * this at cold-start so the UI can paint instantly from disk while a
+     * subsequent {@link #loadHome()} fetches fresh data in the background.
+     */
+    public boolean restoreHomeFromCache(List<HomeRow> cachedRows) {
+        if (state.authenticated() == null || cachedRows == null || cachedRows.isEmpty()) {
+            return false;
+        }
+        browseSession.clear();
+        state = TvWorkflow.homeLoaded(state, cachedRows);
+        return true;
+    }
+
+    /**
+     * True when the controller is authenticated and the state already has
+     * non-empty home rows (either freshly loaded or restored from cache).
+     * Used by the Android layer to skip a redundant paint when a cached
+     * restore was accepted just before the network load returns.
+     */
+    public boolean hasHomeRows() {
+        List<HomeRow> rows = state.homeRows();
+        return rows != null && !rows.isEmpty();
+    }
+
     public TvAppState openItem(String itemId) {
         if (state.authenticated() == null) {
             throw new IllegalStateException("authenticated session is required before opening an item");
