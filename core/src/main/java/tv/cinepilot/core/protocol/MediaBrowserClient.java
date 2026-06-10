@@ -318,6 +318,69 @@ public final class MediaBrowserClient {
         }
     }
 
+    // ---- User state (P1-10 favorite / played / rating) ----
+
+    public void toggleFavorite(AuthenticatedServer authenticated, String itemId, boolean shouldBeFavorite) {
+        require(itemId, "itemId");
+        ProtocolRequest request = shouldBeFavorite
+                ? MediaBrowserRequests.addFavorite(
+                        authenticated.session(), authenticated.server().flavor(), itemId)
+                : MediaBrowserRequests.removeFavorite(
+                        authenticated.session(), authenticated.server().flavor(), itemId);
+        send(authenticated.server().address(), request);
+    }
+
+    public void markWatched(AuthenticatedServer authenticated, String itemId, boolean shouldBeWatched) {
+        require(itemId, "itemId");
+        ProtocolRequest request = shouldBeWatched
+                ? MediaBrowserRequests.markPlayed(
+                        authenticated.session(), authenticated.server().flavor(), itemId)
+                : MediaBrowserRequests.markUnplayed(
+                        authenticated.session(), authenticated.server().flavor(), itemId);
+        send(authenticated.server().address(), request);
+    }
+
+    public void setRating(AuthenticatedServer authenticated, String itemId, Double ratingZeroToTen) {
+        require(itemId, "itemId");
+        ProtocolRequest request = MediaBrowserRequests.setRating(
+                authenticated.session(), authenticated.server().flavor(), itemId, ratingZeroToTen);
+        send(authenticated.server().address(), request);
+    }
+
+    public MediaItemPage personItems(AuthenticatedServer authenticated, String personId, int limit) {
+        require(personId, "personId");
+        ItemQuery query = ItemQuery.browse()
+                .recursive(true)
+                .personIds(personId)
+                .includeItemTypes("Movie,Series,Episode,Video")
+                .mediaTypes("Video")
+                .limit(Math.max(0, limit))
+                .sortBy("ProductionYear,SortName")
+                .sortOrder("Descending,Ascending")
+                .build();
+        return items(authenticated, query);
+    }
+
+    public MediaItemPage favoriteItems(AuthenticatedServer authenticated, int limit) {
+        ItemQuery query = ItemQuery.browse()
+                .recursive(true)
+                .filters("IsFavorite")
+                .mediaTypes("Video")
+                .includeItemTypes("Movie,Series,Episode,Video")
+                .limit(Math.max(0, limit))
+                .sortBy("DatePlayed,CommunityRating,SortName")
+                .sortOrder("Descending,Descending,Ascending")
+                .build();
+        return items(authenticated, query);
+    }
+
+    public MediaItemPage collections(AuthenticatedServer authenticated, int limit) {
+        ProtocolRequest request = MediaBrowserRequests.collections(
+                authenticated.session(), authenticated.server().flavor(), limit);
+        ProtocolResponse response = send(authenticated.server().address(), request);
+        return MediaBrowserResponseMapper.itemPage(response.body());
+    }
+
     public void forget(AuthenticatedServer authenticated) {
         if (authenticated == null) {
             return;
@@ -340,6 +403,12 @@ public final class MediaBrowserClient {
         } catch (InterruptedException exception) {
             Thread.currentThread().interrupt();
             throw new MediaBrowserException("Media server request was interrupted", exception);
+        }
+    }
+
+    private static void require(String value, String name) {
+        if (value == null || value.isBlank()) {
+            throw new IllegalArgumentException(name + " is required");
         }
     }
 }

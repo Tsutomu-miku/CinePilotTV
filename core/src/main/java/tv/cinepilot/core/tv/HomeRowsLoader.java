@@ -32,6 +32,8 @@ public final class HomeRowsLoader {
         addIfNotEmpty(rows, "views", "媒体库", client.userViews(authenticated).items());
         addIfNotEmpty(rows, "resume", "继续观看", client.resumeItems(authenticated, rowLimit).items());
         addIfNotEmpty(rows, "next-up", "下一集", client.nextUpItems(authenticated, rowLimit).items());
+        addIfNotEmpty(rows, "favorites", "收藏夹", client.favoriteItems(authenticated, rowLimit).items());
+        addIfNotEmpty(rows, "collections", "精选合集", client.collections(authenticated, rowLimit).items());
 
         MediaItemPage views = client.userViews(authenticated);
         for (MediaItemSummary view : views.items()) {

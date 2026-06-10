@@ -430,6 +430,52 @@ public final class TvWorkflowController {
         return state;
     }
 
+    // ---- P1-10 / P1-11 user state toggles (favorite / watched / rating) ----
+
+    public TvAppState toggleFavorite() {
+        requireSelectedItem("favorite");
+        MediaItemSummary item = state.selectedItem();
+        boolean nextFavorite = !item.userData().favorite();
+        client.toggleFavorite(state.authenticated(), item.id(), nextFavorite);
+        tv.cinepilot.core.protocol.UserItemData updated = item.userData().withFavorite(nextFavorite);
+        state = TvWorkflow.selectedItemUserDataUpdated(state, updated);
+        return state;
+    }
+
+    public TvAppState toggleWatched() {
+        requireSelectedItem("watched");
+        MediaItemSummary item = state.selectedItem();
+        boolean nextWatched = !item.userData().played();
+        client.markWatched(state.authenticated(), item.id(), nextWatched);
+        tv.cinepilot.core.protocol.UserItemData updated = item.userData().withPlayed(nextWatched);
+        state = TvWorkflow.selectedItemUserDataUpdated(state, updated);
+        return state;
+    }
+
+    public TvAppState setUserRating(Double ratingZeroToTen) {
+        requireSelectedItem("rating");
+        MediaItemSummary item = state.selectedItem();
+        client.setRating(state.authenticated(), item.id(), ratingZeroToTen);
+        tv.cinepilot.core.protocol.UserItemData updated = item.userData().withRating(ratingZeroToTen);
+        state = TvWorkflow.selectedItemUserDataUpdated(state, updated);
+        return state;
+    }
+
+    // ---- P1-13 person drill-down (casts same person's movies/shows as a browse row) ----
+
+    public TvAppState openPerson(String personId, String personName) {
+        if (state.authenticated() == null) {
+            throw new IllegalStateException("authenticated session is required before opening a person");
+        }
+        if (personId == null || personId.isBlank()) {
+            throw new IllegalArgumentException("personId is required");
+        }
+        String safeName = personName == null || personName.isBlank() ? personId : personName;
+        MediaItemPage page = client.personItems(state.authenticated(), personId, BrowseSession.FOLDER_PAGE_SIZE);
+        state = browseSession.openSearch(state, safeName, SearchFilter.ALL, page);
+        return state;
+    }
+
     private MediaItemPage folderPage(String parentId, int startIndex) {
         return childPage(parentId, startIndex, BrowseSession.FOLDER_PAGE_SIZE, true);
     }
@@ -447,5 +493,14 @@ public final class TvWorkflowController {
             throw new IllegalStateException(NO_CHILD_ITEM_MESSAGE);
         }
         return page;
+    }
+
+    private void requireSelectedItem(String action) {
+        if (state.authenticated() == null) {
+            throw new IllegalStateException("authenticated session is required before " + action);
+        }
+        if (state.selectedItem() == null) {
+            throw new IllegalStateException("selected item is required before " + action);
+        }
     }
 }

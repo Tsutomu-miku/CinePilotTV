@@ -36,6 +36,9 @@ fun ComponentActivity.detailsRouteScreen(
     onOpenSeries: () -> Unit,
     onOpenEpisode: (MediaItemSummary) -> Unit,
     onOpenFolder: () -> Unit,
+    onToggleFavorite: () -> Unit,
+    onToggleWatched: () -> Unit,
+    onProviderBadgeClick: (String) -> Unit,
 ): View {
     return detailsScreen(
         item = item,
@@ -48,6 +51,8 @@ fun ComponentActivity.detailsRouteScreen(
                 onSeriesNextUp,
                 onOpenEpisodePicker,
                 onOpenSeries,
+                onToggleFavorite,
+                onToggleWatched,
             )
         } else {
             emptyList()
@@ -56,6 +61,7 @@ fun ComponentActivity.detailsRouteScreen(
         technicalInfo = mediaTechnicalPills(playbackInfo),
         extraSections = episodeStrip(item, siblingEpisodes, onOpenEpisode, loadArtworkImage),
         folderAction = InfuseAction(folderActionLabel(item), TvIcon.FORWARD, InfuseActionEmphasis.PRIMARY, onOpenFolder),
+        onProviderBadgeClick = onProviderBadgeClick,
         loadPoster = { poster, mediaItem, width, height ->
             loadPosterImage(poster, mediaItem, width, height)
         },
@@ -96,6 +102,8 @@ private fun ComponentActivity.playbackActions(
     onSeriesNextUp: () -> Unit,
     onOpenEpisodePicker: () -> Unit,
     onOpenSeries: () -> Unit,
+    onToggleFavorite: () -> Unit,
+    onToggleWatched: () -> Unit,
 ): List<InfuseAction> {
     val actions = mutableListOf<InfuseAction>()
     if (item.hasResumePosition()) {
@@ -104,6 +112,18 @@ private fun ComponentActivity.playbackActions(
     } else {
         actions.add(playbackAction("播放", TvIcon.PLAY, InfuseActionEmphasis.PRIMARY, null, onPreparePlayback))
     }
+    actions.add(InfuseAction(
+        if (item.userData().favorite()) "已收藏" else "收藏",
+        TvIcon.HEART,
+        InfuseActionEmphasis.SECONDARY,
+        onToggleFavorite,
+    ))
+    actions.add(InfuseAction(
+        if (item.userData().played()) "取消已看" else "标记已看",
+        TvIcon.CHECK,
+        InfuseActionEmphasis.SECONDARY,
+        onToggleWatched,
+    ))
     actions.add(playbackAction("省流量", TvIcon.SPEED, InfuseActionEmphasis.QUIET, lowBitratePreferences(item), onPreparePlayback))
     actions.add(InfuseAction("字幕样式", TvIcon.SUBTITLES, InfuseActionEmphasis.QUIET, onSubtitleStyle))
     actions.add(InfuseAction("速度", TvIcon.SPEED, InfuseActionEmphasis.QUIET, onPlaybackSpeed))

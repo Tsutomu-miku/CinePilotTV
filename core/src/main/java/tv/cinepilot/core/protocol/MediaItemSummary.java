@@ -1,6 +1,7 @@
 package tv.cinepilot.core.protocol;
 
 import java.util.List;
+import java.util.LinkedHashMap;
 import java.util.Map;
 import tv.cinepilot.core.AndroidCollections;
 
@@ -26,7 +27,8 @@ public record MediaItemSummary(
         List<MediaStreamInfo> mediaStreams,
         UserItemData userData,
         Map<String, String> imageTags,
-        List<String> backdropImageTags
+        List<String> backdropImageTags,
+        Map<String, String> providerIds
 ) {
     public MediaItemSummary {
         require(id, "id");
@@ -59,6 +61,7 @@ public record MediaItemSummary(
         mediaStreams = AndroidCollections.listCopy(mediaStreams);
         imageTags = AndroidCollections.mapCopy(imageTags);
         backdropImageTags = AndroidCollections.listCopy(backdropImageTags);
+        providerIds = AndroidCollections.mapCopy(providerIds);
     }
 
     public boolean hasResumePosition() {
@@ -68,6 +71,43 @@ public record MediaItemSummary(
     public boolean hasBackdropArtwork() {
         return !backdropImageTags.isEmpty() || imageTags.containsKey("Thumb") || imageTags.containsKey("Primary");
     }
+
+    public String tmdbId() {
+        return providerId("Tmdb");
+    }
+
+    public String imdbId() {
+        return providerId("Imdb");
+    }
+
+    public String tvdbId() {
+        return providerId("Tvdb");
+    }
+
+    public String tmdbCollectionId() {
+        return providerId("TmdbCollection");
+    }
+
+    public String providerId(String key) {
+        if (providerIds == null || key == null) {
+            return "";
+        }
+        String value = providerIds.get(key);
+        return value == null ? "" : value;
+    }
+
+    public MediaItemSummary withUserData(UserItemData updated) {
+        return new MediaItemSummary(
+                id, parentId, name, type, folder, playable,
+                runTimeTicks, productionYear, indexNumber, parentIndexNumber,
+                seriesName, seriesId, overview, genres, premiereDate,
+                communityRating, officialRating, people, mediaStreams,
+                updated == null ? userData : updated,
+                imageTags, backdropImageTags, providerIds
+        );
+    }
+
+    // ---- backward-compatible constructors -------------------------------------------------
 
     public MediaItemSummary(
             String id,
@@ -88,28 +128,47 @@ public record MediaItemSummary(
             Map<String, String> imageTags
     ) {
         this(
-                id,
-                parentId,
-                name,
-                type,
-                folder,
-                playable,
-                runTimeTicks,
-                productionYear,
-                indexNumber,
-                parentIndexNumber,
-                seriesName,
-                seriesId,
-                overview,
-                genres,
-                "",
-                null,
-                "",
-                AndroidCollections.emptyList(),
-                AndroidCollections.emptyList(),
-                userData,
-                imageTags,
-                AndroidCollections.emptyList()
+                id, parentId, name, type, folder, playable,
+                runTimeTicks, productionYear, indexNumber, parentIndexNumber,
+                seriesName, seriesId, overview, genres,
+                "", null, "",
+                AndroidCollections.emptyList(), AndroidCollections.emptyList(),
+                userData, imageTags, AndroidCollections.emptyList(), new LinkedHashMap<>()
+        );
+    }
+
+    /** Backward-compatible 22-arg constructor (without providerIds, added in P1 batch 7). */
+    public MediaItemSummary(
+            String id,
+            String parentId,
+            String name,
+            MediaItemType type,
+            boolean folder,
+            boolean playable,
+            Long runTimeTicks,
+            Integer productionYear,
+            Integer indexNumber,
+            Integer parentIndexNumber,
+            String seriesName,
+            String seriesId,
+            String overview,
+            List<String> genres,
+            String premiereDate,
+            Double communityRating,
+            String officialRating,
+            List<MediaPerson> people,
+            List<MediaStreamInfo> mediaStreams,
+            UserItemData userData,
+            Map<String, String> imageTags,
+            List<String> backdropImageTags
+    ) {
+        this(
+                id, parentId, name, type, folder, playable,
+                runTimeTicks, productionYear, indexNumber, parentIndexNumber,
+                seriesName, seriesId, overview, genres,
+                premiereDate, communityRating, officialRating,
+                people, mediaStreams,
+                userData, imageTags, backdropImageTags, new LinkedHashMap<>()
         );
     }
 
@@ -131,28 +190,12 @@ public record MediaItemSummary(
             Map<String, String> imageTags
     ) {
         this(
-                id,
-                parentId,
-                name,
-                type,
-                folder,
-                playable,
-                runTimeTicks,
-                productionYear,
-                indexNumber,
-                parentIndexNumber,
-                seriesName,
-                "",
-                overview,
-                genres,
-                "",
-                null,
-                "",
-                AndroidCollections.emptyList(),
-                AndroidCollections.emptyList(),
-                userData,
-                imageTags,
-                AndroidCollections.emptyList()
+                id, parentId, name, type, folder, playable,
+                runTimeTicks, productionYear, indexNumber, parentIndexNumber,
+                seriesName, "", overview, genres,
+                "", null, "",
+                AndroidCollections.emptyList(), AndroidCollections.emptyList(),
+                userData, imageTags, AndroidCollections.emptyList(), new LinkedHashMap<>()
         );
     }
 

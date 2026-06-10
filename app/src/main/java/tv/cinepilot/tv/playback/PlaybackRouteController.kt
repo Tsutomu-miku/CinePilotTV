@@ -1,5 +1,7 @@
 package tv.cinepilot.tv.playback
 
+import android.content.Intent
+import android.net.Uri
 import android.widget.ImageView
 import android.widget.Toast
 import androidx.activity.ComponentActivity
@@ -90,6 +92,17 @@ class PlaybackRouteController(
                     showHome(workflowController.state())
                 }
             },
+            onToggleFavorite = {
+                rerenderAfterUserAction({ workflowController.toggleFavorite() }) { newItem ->
+                    showDetails(newItem, effectivePlaybackInfo, episodeContext)
+                }
+            },
+            onToggleWatched = {
+                rerenderAfterUserAction({ workflowController.toggleWatched() }) { newItem ->
+                    showDetails(newItem, effectivePlaybackInfo, episodeContext)
+                }
+            },
+            onProviderBadgeClick = ::openExternalUrl,
         ))
     }
 
@@ -181,6 +194,7 @@ class PlaybackRouteController(
         if (pushBack) {
             mediaBackStack.addLast { showHome(workflowController.state()) }
         }
+        val series = structure.series()
         activity.setContentView(activity.seriesDetailScreen(
             structure = structure,
             onOpenSeason = { season ->
@@ -194,6 +208,18 @@ class PlaybackRouteController(
             loadBackdrop = { backdrop, item -> loadBackdropImage(backdrop, item, 1280, 720) },
             loadArtwork = loadArtworkImage,
             loadPerson = loadPersonImage,
+            onToggleFavorite = {
+                rerenderStructureItem(series.id(), { workflowController.toggleFavorite() }) {
+                    showSeriesDetail(structure, pushBack)
+                }
+            },
+            onToggleWatched = {
+                rerenderStructureItem(series.id(), { workflowController.toggleWatched() }) {
+                    showSeriesDetail(structure, pushBack)
+                }
+            },
+            onProviderBadgeClick = ::openExternalUrl,
+            onPersonClick = ::openPerson,
         ))
     }
 
@@ -201,6 +227,7 @@ class PlaybackRouteController(
         if (pushBack) {
             mediaBackStack.addLast { showHome(workflowController.state()) }
         }
+        val season = structure.selectedSeason() ?: structure.series()
         activity.setContentView(activity.seasonDetailScreen(
             structure = structure,
             onOpenEpisode = { episode ->
@@ -210,6 +237,18 @@ class PlaybackRouteController(
             loadBackdrop = { backdrop, item -> loadBackdropImage(backdrop, item, 1280, 720) },
             loadArtwork = loadArtworkImage,
             loadPerson = loadPersonImage,
+            onToggleFavorite = {
+                rerenderStructureItem(season.id(), { workflowController.toggleFavorite() }) {
+                    showSeasonDetail(structure, pushBack)
+                }
+            },
+            onToggleWatched = {
+                rerenderStructureItem(season.id(), { workflowController.toggleWatched() }) {
+                    showSeasonDetail(structure, pushBack)
+                }
+            },
+            onProviderBadgeClick = ::openExternalUrl,
+            onPersonClick = ::openPerson,
         ))
     }
 
@@ -390,6 +429,63 @@ class PlaybackRouteController(
 
     companion object {
         private const val PLAYBACK_BACK_EXIT_WINDOW_MS = 2_000L
+    }
+
+    // ---- P1 user-action helpers ---------------------------------------------------------------
+
+    /**
+     * Runs [action] (e.g. `toggleFavorite`) on the currently selected detail item,
+     * then re-renders using [rerender] which receives the freshly-updated selected item.
+     * Intended for movie/episode detail screens where the workflow already has a selectedItem.
+     */
+    private fun rerenderAfterUserAction(
+        action: () -> Unit,
+        rerender: (MediaItemSummary) -> Unit,
+    ) {
+        var updated: MediaItemSummary? = null
+        runTask("正在更新...", {
+            action()
+            updated = workflowController.state().selectedItem()
+        }) {
+            updated?.let(rerender)
+        }
+    }
+
+    /**
+     * Ensures the workflow has [itemId] loaded as its selectedItem (so `toggleFavorite` /
+     * `toggleWatched` operate on the right media), runs [action], then invokes [rerender].
+     * Used for series/season detail pages where `ShowStructure` loads via a separate endpoint
+     * and `selectedItem` may be stale or missing.
+     */
+    private fun rerenderStructureItem(
+        itemId: String,
+        action: () -> Unit,
+        rerender: () -> Unit,
+    ) {
+        runTask("正在更新...", {
+            val current = workflowController.state().selectedItem()
+            if (current?.id() != itemId) {
+                runCatching { workflowController.openItem(itemId) }
+            }
+            action()
+        }, rerender)
+    }
+
+    private fun openExternalUrl(url: String) {
+        if (url.isBlank()) return
+        runCatching {
+            activity.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url)))
+        }
+    }
+
+    private fun openPerson(person: MediaPerson) {
+        if (person.id().isBlank()) return
+        val displayName = person.name().ifBlank { person.id() }
+        runTask("正在加载 $displayName 的作品...", {
+            workflowController.openPerson(person.id(), displayName)
+        }) {
+            showHome(workflowController.state())
+        }
     }
 }
 

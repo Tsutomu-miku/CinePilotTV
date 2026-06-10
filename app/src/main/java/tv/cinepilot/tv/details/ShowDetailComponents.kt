@@ -29,6 +29,8 @@ internal fun ComponentActivity.showHero(
     badges: List<String>,
     overview: String,
     actions: List<InfuseAction>,
+    providerBadges: List<tv.cinepilot.tv.ui.ProviderBadge> = emptyList(),
+    onProviderBadgeClick: (String) -> Unit = {},
 ): View {
     return LinearLayout(this).apply {
         orientation = LinearLayout.HORIZONTAL
@@ -46,11 +48,56 @@ internal fun ComponentActivity.showHero(
             if (badges.isNotEmpty()) {
                 addView(metadataPills(badges))
             }
+            if (providerBadges.isNotEmpty()) {
+                addView(showProviderBadges(providerBadges, onProviderBadgeClick))
+            }
             if (overview.isNotBlank()) {
                 addView(showOverview(overview))
             }
             addView(detailsActions(actions))
         }, LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f))
+    }
+}
+
+private fun ComponentActivity.showProviderBadges(
+    badges: List<tv.cinepilot.tv.ui.ProviderBadge>,
+    onClick: (String) -> Unit,
+): View {
+    return TvFlowLayout(this).apply {
+        isFocusable = false
+        setPadding(0, dp(2), 0, dp(2))
+        badges.take(5).forEach { badge ->
+            addView(TextView(this@showProviderBadges).apply {
+                text = badge.label
+                textSize = 11f
+                gravity = Gravity.CENTER
+                maxLines = 1
+                ellipsize = TextUtils.TruncateAt.END
+                includeFontPadding = false
+                isFocusable = true
+                isClickable = true
+                setTextColor(TvColors.TextSecondary)
+                background = rounded(
+                    Color.argb(34, 255, 255, 255),
+                    dp(8),
+                    dp(1),
+                    homeHairlineColor(64),
+                )
+                setPadding(dp(8), 0, dp(8), 0)
+                setOnClickListener { onClick(badge.externalUrl) }
+                setOnFocusChangeListener { view, focused ->
+                    view.applyFocusOutline(focused, 8)
+                    (view as? TextView)?.setTextColor(if (focused) TvColors.TextPrimary else TvColors.TextSecondary)
+                }
+                layoutParams = ViewGroup.MarginLayoutParams(
+                    ViewGroup.LayoutParams.WRAP_CONTENT,
+                    dp(26),
+                ).apply {
+                    rightMargin = dp(6)
+                    bottomMargin = dp(4)
+                }
+            })
+        }
     }
 }
 
@@ -70,6 +117,7 @@ internal fun ComponentActivity.peopleStrip(
     title: String,
     people: List<MediaPerson>,
     loadPerson: (ImageView, MediaPerson, Int, Int) -> Unit,
+    onClick: (MediaPerson) -> Unit = {},
 ): View? {
     if (people.isEmpty()) {
         return null
@@ -83,7 +131,7 @@ internal fun ComponentActivity.peopleStrip(
             clipChildren = false
             clipToPadding = false
             people.take(10).forEach { person ->
-                addView(personCard(person, loadPerson))
+                addView(personCard(person, loadPerson, onClick))
             }
         })
     }
@@ -179,9 +227,14 @@ private fun ComponentActivity.seasonChip(
 private fun ComponentActivity.personCard(
     person: MediaPerson,
     loadPerson: (ImageView, MediaPerson, Int, Int) -> Unit,
+    onClick: (MediaPerson) -> Unit,
 ): LinearLayout {
     return LinearLayout(this).apply {
         orientation = LinearLayout.VERTICAL
+        isFocusable = true
+        isClickable = true
+        clipChildren = false
+        clipToPadding = false
         val image = ImageView(this@personCard).apply {
             scaleType = ImageView.ScaleType.CENTER_CROP
             background = rounded(TvColors.PosterFallback, dp(9), dp(1), homeHairlineColor(38))
@@ -191,6 +244,8 @@ private fun ComponentActivity.personCard(
         addView(image, LinearLayout.LayoutParams(dp(64), dp(64)))
         addView(personText(person.name(), TvColors.TextPrimary))
         addView(personText(person.role().ifBlank { person.type() }, TvColors.TextSecondary))
+        setOnClickListener { onClick(person) }
+        setOnFocusChangeListener { view, focused -> view.applyFocusOutline(focused, 10) }
         layoutParams = LinearLayout.LayoutParams(dp(108), LinearLayout.LayoutParams.WRAP_CONTENT).apply {
             rightMargin = dp(12)
         }

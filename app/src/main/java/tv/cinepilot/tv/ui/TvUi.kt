@@ -149,6 +149,9 @@ enum class TvIcon(@DrawableRes val drawableRes: Int) {
     SHARE(R.drawable.ic_share),
     FORWARD(R.drawable.ic_forward),
     SETTINGS(R.drawable.ic_settings),
+    HEART(R.drawable.ic_heart),
+    CHECK(R.drawable.ic_check),
+    EYE(R.drawable.ic_eye),
 }
 
 fun ComponentActivity.label(text: String): TextView {

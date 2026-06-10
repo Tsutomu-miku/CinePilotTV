@@ -85,6 +85,10 @@ public final class ItemQuery {
             return put("Filters", value);
         }
 
+        public Builder personIds(String value) {
+            return put("PersonIds", value);
+        }
+
         public Builder searchTerm(String value) {
             return put("SearchTerm", value);
         }

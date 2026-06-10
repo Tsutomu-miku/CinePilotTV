@@ -37,7 +37,7 @@ public final class HttpTransportIntegrationTest {
             assertEquals("user-1", authenticated.session().userId(), "authenticates user over HTTP");
 
             HomeRowsLoader loader = new HomeRowsLoader(mediaClient, 12);
-            assertEquals(4, loader.load(authenticated).size(), "loads TV home rows over HTTP");
+            assertEquals(6, loader.load(authenticated).size(), "loads TV home rows over HTTP");
 
             MediaItemSummary detail = mediaClient.item(authenticated, "movie-1");
             assertEquals("Arrival", detail.name(), "loads detail over HTTP");
@@ -89,6 +89,7 @@ public final class HttpTransportIntegrationTest {
         requests.add(requestLine + " X-Emby-Token=" + token + " BODY=" + requestBody);
 
         String path = exchange.getRequestURI().getPath();
+        String query = exchange.getRequestURI().getRawQuery() == null ? "" : exchange.getRequestURI().getRawQuery();
         String response;
         int status = 200;
         if (path.equals("/System/Info/Public")) {
@@ -105,6 +106,10 @@ public final class HttpTransportIntegrationTest {
             response = "{\"Items\":[{\"Id\":\"episode-2\",\"Name\":\"Next Episode\",\"Type\":\"Episode\",\"IsPlayable\":true}],\"TotalRecordCount\":1,\"StartIndex\":0}";
         } else if (path.equals("/Users/user-1/Items/Latest")) {
             response = "{\"Items\":[{\"Id\":\"movie-1\",\"Name\":\"Arrival\",\"Type\":\"Movie\",\"IsPlayable\":true}],\"TotalRecordCount\":1,\"StartIndex\":0}";
+        } else if (path.equals("/Users/user-1/Items") && query.contains("Filters=IsFavorite")) {
+            response = "{\"Items\":[{\"Id\":\"fav-1\",\"Name\":\"Fav\",\"Type\":\"Movie\",\"IsPlayable\":true}],\"TotalRecordCount\":1,\"StartIndex\":0}";
+        } else if (path.equals("/Users/user-1/Items") && query.contains("IncludeItemTypes=BoxSet")) {
+            response = "{\"Items\":[{\"Id\":\"coll-1\",\"Name\":\"Collection\",\"Type\":\"BoxSet\",\"IsFolder\":true,\"IsPlayable\":false}],\"TotalRecordCount\":1,\"StartIndex\":0}";
         } else if (path.equals("/Users/user-1/Items/movie-1")) {
             response = "{\"Id\":\"movie-1\",\"Name\":\"Arrival\",\"Type\":\"Movie\",\"IsPlayable\":true}";
         } else if (path.equals("/Items/movie-1/PlaybackInfo")) {

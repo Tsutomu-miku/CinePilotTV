@@ -168,6 +168,10 @@ public final class HomeRowsSerializer {
         }
         wrote = writeKey(sb, wrote, "u");
         writeUserData(sb, item.userData());
+        if (item.providerIds() != null && !item.providerIds().isEmpty()) {
+            wrote = writeKey(sb, true, "pid");
+            writeStringMap(sb, item.providerIds());
+        }
         sb.append('}');
     }
 
@@ -220,6 +224,14 @@ public final class HomeRowsSerializer {
             if (data.favorite()) {
                 wrote = writeKey(sb, wrote, "f");
                 sb.append('1');
+            }
+            if (data.likes() != null) {
+                wrote = writeKey(sb, wrote, "l");
+                sb.append(data.likes() ? '1' : '0');
+            }
+            if (data.userRating() != null) {
+                wrote = writeKey(sb, wrote, "r");
+                sb.append(data.userRating());
             }
         }
         sb.append('}');
@@ -274,6 +286,7 @@ public final class HomeRowsSerializer {
         String officialRating = sOrEmpty(obj, "or");
         Map<String, String> imageTags = readStringMap(obj, "it");
         List<String> backdropTags = readStringList(obj, "bt");
+        Map<String, String> providerIds = readStringMap(obj, "pid");
         UserItemData userData = readUserData(JsonValue.childObject(obj, "u"));
         return new MediaItemSummary(
                 id, "", name, type, folder, playable,
@@ -281,7 +294,7 @@ public final class HomeRowsSerializer {
                 seriesName, seriesId, overview, genres,
                 premiereDate, communityRating, officialRating,
                 AndroidCollections.emptyList(), AndroidCollections.emptyList(),
-                userData, imageTags, backdropTags
+                userData, imageTags, backdropTags, providerIds
         );
     }
 
@@ -291,7 +304,11 @@ public final class HomeRowsSerializer {
         long pos = longOrZero(obj, "pos");
         int count = intOrZero(obj, "c");
         boolean fav = JsonValue.bool(obj, "f") || hasInt1(obj, "f");
-        return new UserItemData(played, pos, count, fav);
+        Boolean likes = obj.containsKey("l")
+                ? (JsonValue.bool(obj, "l") || hasInt1(obj, "l"))
+                : null;
+        Double rating = doubleOrNull(obj, "r");
+        return new UserItemData(played, pos, count, fav, likes, rating);
     }
 
     private static Map<String, String> readStringMap(Map<String, Object> parent, String key) {

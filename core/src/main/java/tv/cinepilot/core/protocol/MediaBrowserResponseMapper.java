@@ -167,7 +167,8 @@ public final class MediaBrowserResponseMapper {
                 mediaStreams(item),
                 userData(JsonValue.childObject(item, "UserData")),
                 imageTags(JsonValue.childObject(item, "ImageTags")),
-                stringList(item, "BackdropImageTags")
+                stringList(item, "BackdropImageTags"),
+                providerIds(JsonValue.childObject(item, "ProviderIds"))
         );
     }
 
@@ -209,12 +210,32 @@ public final class MediaBrowserResponseMapper {
         if (object.isEmpty()) {
             return UserItemData.empty();
         }
+        Boolean likes = object.containsKey("Likes")
+                ? JsonValue.bool(object, "Likes")
+                : null;
+        Double rating = object.containsKey("Rating")
+                ? optionalDouble(object, "Rating")
+                : null;
         return new UserItemData(
                 JsonValue.bool(object, "Played"),
                 number(object, "PlaybackPositionTicks").longValue(),
                 number(object, "PlayCount").intValue(),
-                JsonValue.bool(object, "IsFavorite")
+                JsonValue.bool(object, "IsFavorite"),
+                likes,
+                rating
         );
+    }
+
+    private static Map<String, String> providerIds(Map<String, Object> object) {
+        Map<String, String> ids = new LinkedHashMap<>();
+        for (Map.Entry<String, Object> entry : object.entrySet()) {
+            if (entry.getValue() instanceof String value) {
+                ids.put(entry.getKey(), value);
+            } else if (entry.getValue() instanceof Number number) {
+                ids.put(entry.getKey(), number.toString());
+            }
+        }
+        return ids;
     }
 
     private static Map<String, String> imageTags(Map<String, Object> object) {

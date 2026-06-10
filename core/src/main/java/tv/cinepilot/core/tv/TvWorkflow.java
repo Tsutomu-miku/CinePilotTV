@@ -195,6 +195,48 @@ public final class TvWorkflow {
         );
     }
 
+    /**
+     * Replaces the user data on the currently selected item (and any matching
+     * cell in the home rows so badges / progress stay in sync) while keeping
+     * focus identity, route, and the rest of the state untouched.
+     */
+    public static TvAppState selectedItemUserDataUpdated(TvAppState state, tv.cinepilot.core.protocol.UserItemData updated) {
+        if (state.selectedItem() == null || updated == null) {
+            return state;
+        }
+        MediaItemSummary updatedItem = state.selectedItem().withUserData(updated);
+        List<HomeRow> updatedRows = replaceItemInRows(state.homeRows(), updatedItem);
+        return state.with(
+                state.route(),
+                state.status(),
+                state.pendingAddress(),
+                state.server(),
+                state.publicUsers(),
+                state.authenticated(),
+                updatedRows,
+                state.focus(),
+                updatedItem,
+                state.playableMedia(),
+                state.errorMessage()
+        );
+    }
+
+    private static List<HomeRow> replaceItemInRows(List<HomeRow> rows, MediaItemSummary updated) {
+        if (rows == null || rows.isEmpty()) {
+            return rows;
+        }
+        boolean changed = false;
+        List<HomeRow> out = new java.util.ArrayList<>(rows.size());
+        for (HomeRow row : rows) {
+            HomeRow next = row.replaceItem(updated);
+            if (next != row) {
+                changed = true;
+            }
+            out.add(next);
+        }
+        return changed ? AndroidCollections.listCopy(out) : rows;
+    }
+
     private static FocusedItem firstFocusable(List<HomeRow> rows) {
         for (HomeRow row : rows) {
             if (!row.items().isEmpty()) {

@@ -12,6 +12,7 @@ fun ComponentActivity.detailsScreen(
     technicalInfo: List<String>,
     extraSections: List<View> = emptyList(),
     folderAction: InfuseAction,
+    onProviderBadgeClick: (String) -> Unit = {},
     loadPoster: (ImageView, MediaItemSummary, Int, Int) -> Unit,
     loadBackdrop: (ImageView, MediaItemSummary) -> Unit,
 ): View {
@@ -24,6 +25,7 @@ fun ComponentActivity.detailsScreen(
             presentation = presentation,
             actions = playbackActions,
             folderAction = folderAction,
+            onProviderBadgeClick = onProviderBadgeClick,
             loadPoster = loadPoster,
         ))
         detailsInfoSections(

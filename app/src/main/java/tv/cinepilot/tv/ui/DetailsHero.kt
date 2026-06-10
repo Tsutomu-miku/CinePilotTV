@@ -1,9 +1,11 @@
 package tv.cinepilot.tv.ui
 
+import android.graphics.Color
 import android.graphics.Typeface
 import android.text.TextUtils
 import android.view.Gravity
 import android.view.View
+import android.view.ViewGroup
 import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.TextView
@@ -15,6 +17,7 @@ fun ComponentActivity.detailsHero(
     presentation: DetailPresentation,
     actions: List<InfuseAction>,
     folderAction: InfuseAction,
+    onProviderBadgeClick: (String) -> Unit = {},
     loadPoster: (ImageView, MediaItemSummary, Int, Int) -> Unit,
 ): View {
     return LinearLayout(this).apply {
@@ -32,6 +35,9 @@ fun ComponentActivity.detailsHero(
             }
             if (presentation.qualityBadges.isNotEmpty()) {
                 addView(detailBadgeLine(presentation.qualityBadges))
+            }
+            if (presentation.providerBadges.isNotEmpty()) {
+                addView(providerBadgeLine(presentation.providerBadges, onProviderBadgeClick))
             }
             addView(detailsActions(if (item.playable()) actions else listOf(folderAction)))
         }, LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f))
@@ -92,5 +98,51 @@ private fun ComponentActivity.detailsSubtitle(text: String): TextView {
 private fun ComponentActivity.detailBadgeLine(values: List<String>): View {
     return metadataPills(values.take(8)).apply {
         setPadding(0, 0, 0, dp(4))
+    }
+}
+
+private fun ComponentActivity.providerBadgeLine(
+    badges: List<ProviderBadge>,
+    onClick: (String) -> Unit,
+): View {
+    return TvFlowLayout(this).apply {
+        isFocusable = false
+        setPadding(0, 0, 0, dp(6))
+        badges.take(5).forEach { badge ->
+            addView(providerPill(badge, onClick))
+        }
+    }
+}
+
+private fun ComponentActivity.providerPill(badge: ProviderBadge, onClick: (String) -> Unit): TextView {
+    return TextView(this).apply {
+        text = badge.label
+        textSize = 11f
+        gravity = Gravity.CENTER
+        maxLines = 1
+        ellipsize = TextUtils.TruncateAt.END
+        includeFontPadding = false
+        isFocusable = true
+        isClickable = true
+        setTextColor(TvColors.TextSecondary)
+        background = rounded(
+            Color.argb(34, 255, 255, 255),
+            dp(8),
+            dp(1),
+            homeHairlineColor(64),
+        )
+        setPadding(dp(8), 0, dp(8), 0)
+        setOnClickListener { onClick(badge.externalUrl) }
+        setOnFocusChangeListener { view, focused ->
+            view.applyFocusOutline(focused, 8)
+            (view as? TextView)?.setTextColor(if (focused) TvColors.TextPrimary else TvColors.TextSecondary)
+        }
+        layoutParams = ViewGroup.MarginLayoutParams(
+            ViewGroup.LayoutParams.WRAP_CONTENT,
+            dp(26),
+        ).apply {
+            rightMargin = dp(6)
+            bottomMargin = dp(4)
+        }
     }
 }

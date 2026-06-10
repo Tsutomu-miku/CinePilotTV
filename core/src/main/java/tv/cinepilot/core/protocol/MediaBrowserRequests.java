@@ -5,7 +5,8 @@ import java.util.Map;
 
 public final class MediaBrowserRequests {
     private static final String ITEM_FIELDS = "PrimaryImageAspectRatio,MediaSources,MediaStreams,Overview,"
-            + "ParentId,Genres,ProductionYear,SeriesId,PremiereDate,CommunityRating,OfficialRating,People";
+            + "ParentId,Genres,ProductionYear,SeriesId,PremiereDate,CommunityRating,OfficialRating,People,"
+            + "ProviderIds,Chapters,ExtraType";
 
     private MediaBrowserRequests() {
     }
@@ -279,5 +280,95 @@ public final class MediaBrowserRequests {
         if (value == null || value.isBlank()) {
             throw new IllegalArgumentException(name + " is required");
         }
+    }
+
+    // ---- User data state endpoints (P1-10 favorite / played / rating) ----
+
+    public static ProtocolRequest addFavorite(AuthSession session, ServerFlavor flavor, String itemId) {
+        require(itemId, "itemId");
+        String userId = ProtocolRequest.encodePathSegment(session.userId());
+        String encodedItemId = ProtocolRequest.encodePathSegment(itemId);
+        return authenticated(
+                ProtocolRequest.post("/Users/" + userId + "/FavoriteItems/" + encodedItemId),
+                session,
+                flavor
+        ).build();
+    }
+
+    public static ProtocolRequest removeFavorite(AuthSession session, ServerFlavor flavor, String itemId) {
+        require(itemId, "itemId");
+        String userId = ProtocolRequest.encodePathSegment(session.userId());
+        String encodedItemId = ProtocolRequest.encodePathSegment(itemId);
+        return authenticated(
+                ProtocolRequest.delete("/Users/" + userId + "/FavoriteItems/" + encodedItemId),
+                session,
+                flavor
+        ).build();
+    }
+
+    public static ProtocolRequest markPlayed(AuthSession session, ServerFlavor flavor, String itemId) {
+        require(itemId, "itemId");
+        String userId = ProtocolRequest.encodePathSegment(session.userId());
+        String encodedItemId = ProtocolRequest.encodePathSegment(itemId);
+        return authenticated(
+                ProtocolRequest.post("/Users/" + userId + "/PlayedItems/" + encodedItemId),
+                session,
+                flavor
+        ).build();
+    }
+
+    public static ProtocolRequest markUnplayed(AuthSession session, ServerFlavor flavor, String itemId) {
+        require(itemId, "itemId");
+        String userId = ProtocolRequest.encodePathSegment(session.userId());
+        String encodedItemId = ProtocolRequest.encodePathSegment(itemId);
+        return authenticated(
+                ProtocolRequest.delete("/Users/" + userId + "/PlayedItems/" + encodedItemId),
+                session,
+                flavor
+        ).build();
+    }
+
+    public static ProtocolRequest setRating(
+            AuthSession session,
+            ServerFlavor flavor,
+            String itemId,
+            Double ratingZeroToTen
+    ) {
+        require(itemId, "itemId");
+        String encodedItemId = ProtocolRequest.encodePathSegment(itemId);
+        ProtocolRequest.Builder builder = authenticated(
+                ProtocolRequest.post("/Users/" + session.userId() + "/Items/" + encodedItemId + "/Rating"),
+                session,
+                flavor
+        );
+        if (ratingZeroToTen == null) {
+            builder.query("DeleteRating", "true");
+        } else {
+            double clamped = Math.max(0.0, Math.min(10.0, ratingZeroToTen));
+            builder.query("Likes", "true");
+            builder.query("Rating", Double.toString(clamped));
+        }
+        return builder.build();
+    }
+
+    // ---- Collections / BoxSets row (P1-16) ----
+
+    public static ProtocolRequest collections(AuthSession session, ServerFlavor flavor, int limit) {
+        String userId = ProtocolRequest.encodePathSegment(session.userId());
+        return authenticated(
+                ProtocolRequest.get("/Users/" + userId + "/Items"),
+                session,
+                flavor
+        ).query("IncludeItemTypes", "BoxSet")
+                .query("Recursive", "true")
+                .query("Limit", Integer.toString(Math.max(0, limit)))
+                .query("EnableImages", "true")
+                .query("EnableUserData", "true")
+                .query("ImageTypeLimit", "1")
+                .query("EnableImageTypes", "Primary,Backdrop,Thumb")
+                .query("SortBy", "SortName")
+                .query("SortOrder", "Ascending")
+                .query("Fields", ITEM_FIELDS)
+                .build();
     }
 }
