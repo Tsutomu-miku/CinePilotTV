@@ -58,6 +58,7 @@ fun ComponentActivity.homeScreen(
         addView(mediaWallContent {
             if (isSearchResults) {
                 addView(searchResultHint())
+                addView(filterChipsRow(filters, availableGenreNames, onChanged = onFiltersChanged))
             }
             if (!isSearchResults && !isOverview) {
                 addView(filterChipsRow(filters, availableGenreNames, onChanged = onFiltersChanged))

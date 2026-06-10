@@ -251,10 +251,12 @@ public final class TvWorkflowController {
             return state;
         }
         SearchFilter safeFilter = SearchFilter.safe(filter);
-        MediaItemPage page = client.items(
-                state.authenticated(),
-                ItemQuery.search(term.trim(), safeFilter.includeItemTypes()).limit(BrowseSession.FOLDER_PAGE_SIZE).build()
-        );
+        ItemQuery.Builder query = ItemQuery.search(term.trim(), safeFilter.includeItemTypes())
+                .limit(BrowseSession.FOLDER_PAGE_SIZE);
+        if (browseFilters != null && !browseFilters.isEmpty()) {
+            browseFilters.applyTo(query);
+        }
+        MediaItemPage page = client.items(state.authenticated(), query.build());
         state = browseSession.openSearch(state, term, safeFilter, page);
         return state;
     }

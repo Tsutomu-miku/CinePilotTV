@@ -61,7 +61,7 @@ public final class MediaBrowseFilters {
 
     /** Jellyfin {@code Filters} parameter combinations that should hide "resume / next-up" rows. */
     public boolean isStrict() {
-        return strict || !filterFlags.isEmpty() || minCommunityRating > 0f || !officialRatings.isBlank();
+        return strict || !filterFlags.isEmpty() || minCommunityRating > 0f || !officialRatings.isBlank() || only4K || onlyHdr;
     }
 
     public ItemQuery.Builder applyTo(ItemQuery.Builder builder) {
@@ -70,6 +70,8 @@ public final class MediaBrowseFilters {
         if (minCommunityRating > 0f) builder.minCommunityRating(minCommunityRating);
         if (!officialRatings.isBlank()) builder.officialRatings(officialRatings);
         if (!filterFlags.isEmpty()) builder.filters(String.join(",", filterFlags));
+        if (only4K) builder.minWidth(3840);
+        if (onlyHdr) builder.isHdr(true);
         return builder;
     }
 
@@ -126,6 +128,20 @@ public final class MediaBrowseFilters {
         return new MediaBrowseFilters(
                 genres, years, next, minCommunityRating, officialRatings,
                 only4K, onlyHdr, strict
+        );
+    }
+
+    public MediaBrowseFilters withOnly4K(boolean on) {
+        return new MediaBrowseFilters(
+                genres, years, filterFlags, minCommunityRating, officialRatings,
+                on, onlyHdr, strict || on
+        );
+    }
+
+    public MediaBrowseFilters withOnlyHdr(boolean on) {
+        return new MediaBrowseFilters(
+                genres, years, filterFlags, minCommunityRating, officialRatings,
+                only4K, on, strict || on
         );
     }
 

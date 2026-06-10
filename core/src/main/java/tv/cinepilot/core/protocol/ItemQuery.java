@@ -109,6 +109,27 @@ public final class ItemQuery {
             return put("OfficialRatings", value);
         }
 
+        /**
+         * Require the media stream to have at least this horizontal pixel count.
+         * Pass 3840 to enforce 4K UHD.
+         */
+        public Builder minWidth(int pixels) {
+            if (pixels <= 0) return this;
+            return put("MinWidth", Integer.toString(pixels));
+        }
+
+        /**
+         * Jellyfin supports a loose HDR filter via the {@code Video3DFormat!=None} and
+         * VideoRange fields. No single server-side parameter maps perfectly; clients
+         * typically query broadly and filter locally. We expose an explicit {@code IsHDR}
+         * marker that can be consumed by post-query filtering when server support is
+         * available, and pass-through as a hint otherwise.
+         */
+        public Builder isHdr(boolean on) {
+            if (!on) return this;
+            return put("IsHdr", "true");
+        }
+
         public Builder searchTerm(String value) {
             return put("SearchTerm", value);
         }

@@ -50,6 +50,25 @@ fun ComponentActivity.filterChipsRow(
             onChanged(filters.withFilterFlag(flag, !active))
         })
     }
+    listOf(
+        "only4K" to "4K",
+        "onlyHdr" to "HDR",
+    ).forEach { (key, label) ->
+        val active = when (key) {
+            "only4K" -> filters.only4K()
+            "onlyHdr" -> filters.onlyHdr()
+            else -> false
+        }
+        strip.addView(filterChip(label, active) {
+            onChanged(
+                when (key) {
+                    "only4K" -> filters.withOnly4K(!active)
+                    "onlyHdr" -> filters.withOnlyHdr(!active)
+                    else -> filters
+                }
+            )
+        })
+    }
     return HorizontalScrollView(this).apply {
         isHorizontalScrollBarEnabled = false
         isFocusable = false
