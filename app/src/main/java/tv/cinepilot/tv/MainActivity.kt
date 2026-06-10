@@ -26,6 +26,7 @@ import tv.cinepilot.tv.playback.PlaybackRouteController
 import tv.cinepilot.tv.playback.SubtitleStyleStore
 import tv.cinepilot.tv.runtime.ArtworkLoader
 import tv.cinepilot.tv.runtime.ArtworkTarget
+import tv.cinepilot.tv.runtime.HomeEntryFlow
 import tv.cinepilot.tv.runtime.PrimaryImageLoader
 import tv.cinepilot.tv.settings.SettingsRouteController
 import tv.cinepilot.tv.settings.SettingsStore
@@ -45,6 +46,7 @@ class MainActivity : ComponentActivity() {
     private lateinit var artworkLoader: ArtworkLoader
     private lateinit var subtitleStyleStore: SubtitleStyleStore
     private lateinit var settingsStore: SettingsStore
+    private lateinit var homeEntryFlow: HomeEntryFlow
     private val executor = Executors.newSingleThreadExecutor()
     private val mainHandler = Handler(Looper.getMainLooper())
     private var accountSwitcherReturnState: TvAppState? = null
@@ -56,8 +58,23 @@ class MainActivity : ComponentActivity() {
         viewModel = ViewModelProvider(this, CinePilotViewModel.factory(applicationContext))[CinePilotViewModel::class.java]
         subtitleStyleStore = SubtitleStyleStore(this)
         playerHost = Media3PlayerHost(this, viewModel.mediaBrowserClient, subtitleStyleStore)
-        primaryImageLoader = PrimaryImageLoader(viewModel.mediaBrowserClient)
-        artworkLoader = ArtworkLoader(viewModel.mediaBrowserClient)
+        primaryImageLoader = PrimaryImageLoader(
+            viewModel.mediaBrowserClient,
+            viewModel.runtime.bitmapCache,
+        )
+        artworkLoader = ArtworkLoader(
+            viewModel.mediaBrowserClient,
+            viewModel.runtime.bitmapCache,
+        )
+        homeEntryFlow = HomeEntryFlow(
+            activity = this,
+            executor = executor,
+            workflowController = viewModel.workflowController,
+            homeRowsCache = viewModel.runtime.homeRowsCache,
+            showLoading = ::showLoading,
+            showHome = ::showHome,
+            showError = ::showError,
+        )
         authRoutes = AuthRouteController(
             activity = this,
             workflowController = viewModel.workflowController,
@@ -68,6 +85,9 @@ class MainActivity : ComponentActivity() {
             showHome = ::showHome,
             showError = ::showError,
             loadPublicUserImage = ::loadPublicUserImage,
+            runHomeEntry = { msg, preload, remember, fallback -> homeEntryFlow.run(msg, preload, remember, fallback) },
+            persistHomeCache = homeEntryFlow::persistCurrentHome,
+            clearHomeCache = homeEntryFlow::clearCurrentHomeCache,
         )
         playbackRoutes = PlaybackRouteController(
             activity = this,
@@ -210,6 +230,7 @@ class MainActivity : ComponentActivity() {
         runTask("正在重新加载首页...", {
             viewModel.workflowController.loadHome()
         }) {
+            homeEntryFlow.persistCurrentHome()
             showHome(viewModel.workflowController.state())
         }
     }
@@ -295,5 +316,4 @@ class MainActivity : ComponentActivity() {
             }
         }
     }
-
 }

@@ -25,6 +25,19 @@ class AuthRouteController(
     private val showHome: (TvAppState) -> Unit,
     private val showError: (Throwable) -> Unit,
     private val loadPublicUserImage: (ImageView, PublicUserSummary, Int, Int) -> Unit,
+    /**
+     * Cache-aware entry flow: execute (preload) on the background, restore any
+     * cached home rows to the UI as soon as possible, then run a full network
+     * refresh and persist the result. Caller provides a loading-message hint
+     * (null means "prefer cached paint over loading overlay"), an optional
+     * (remember) callback invoked on the UI thread after a successful network
+     * refresh, and a (fallback) for preload failure.
+     */
+    private val runHomeEntry: (String?, () -> Unit, () -> Unit, (Throwable) -> Unit) -> Unit,
+    /** Persist currently-loaded home rows; safe to call from any thread. */
+    private val persistHomeCache: () -> Unit,
+    /** Clear any cached rows for the currently-authenticated scope. */
+    private val clearHomeCache: () -> Unit,
 ) {
     private val recentAccountStore by lazy { RecentAccountStore(activity) }
     private var quickConnectStatus: TextView? = null
@@ -35,6 +48,7 @@ class AuthRouteController(
         onWaiting = ::updateQuickConnectWaiting,
         onApproved = {
             rememberAccount()
+            persistHomeCache()
             showHome(workflowController.state())
         },
         onError = showError,
@@ -49,12 +63,15 @@ class AuthRouteController(
             recentAccounts = recentAccounts,
             recentServers = recentServers,
             onContinueAccount = { account ->
-                runTask("正在恢复上次登录...", {
-                    workflowController.submitServer(account.serverAddress)
-                    workflowController.restoreSession(account.userId)
-                }) {
-                    showHome(workflowController.state())
-                }
+                runHomeEntry(
+                    null,
+                    {
+                        workflowController.submitServer(account.serverAddress)
+                        workflowController.restoreSession(account.userId)
+                    },
+                    {},
+                    ::fallbackToServerEntry,
+                )
             },
             onOpenServer = ::connectToServer,
             onClearAccounts = {
@@ -70,16 +87,15 @@ class AuthRouteController(
             showServerEntry()
             return
         }
-        showLoading("正在恢复上次登录...")
-        executor.execute {
-            try {
+        runHomeEntry(
+            "正在恢复上次登录...",
+            {
                 workflowController.submitServer(account.serverAddress)
                 workflowController.restoreSession(account.userId)
-                activity.runOnUiThread { showHome(workflowController.state()) }
-            } catch (_: Throwable) {
-                activity.runOnUiThread { showServerEntry() }
-            }
-        }
+            },
+            {},
+            { activity.runOnUiThread { showServerEntry() } },
+        )
     }
 
     fun showLogin() {
@@ -103,20 +119,16 @@ class AuthRouteController(
         val server = intent?.getStringExtra("qa_server")?.takeIf { it.isNotBlank() } ?: return false
         val username = intent.getStringExtra("qa_username").orEmpty()
         val password = intent.getStringExtra("qa_password").orEmpty()
-        showLoading("正在执行 QA 登录...")
-        executor.execute {
-            try {
+        runHomeEntry(
+            "正在执行 QA 登录...",
+            {
                 workflowController.submitServer(server)
                 loadPublicUsersIfAvailable()
                 workflowController.login(username, password)
-                activity.runOnUiThread {
-                    rememberAccount()
-                    showHome(workflowController.state())
-                }
-            } catch (error: Throwable) {
-                activity.runOnUiThread { showError(error) }
-            }
-        }
+            },
+            ::rememberAccount,
+            { err -> showError(err) },
+        )
         return true
     }
 
@@ -124,6 +136,7 @@ class AuthRouteController(
         runTask("正在退出登录...", {
             forgetAuthenticatedAccount()
             workflowController.logout()
+            clearHomeCache()
         }) {
             showServerEntry()
         }
@@ -151,12 +164,12 @@ class AuthRouteController(
     }
 
     private fun loginWithCredentials(username: String, password: String) {
-        runTask("正在登录并加载首页...", {
-            workflowController.login(username, password)
-        }) {
-            rememberAccount()
-            showHome(workflowController.state())
-        }
+        runHomeEntry(
+            "正在登录并加载首页...",
+            { workflowController.login(username, password) },
+            ::rememberAccount,
+            { err -> showError(err) },
+        )
     }
 
     private fun startQuickConnectLogin() {
@@ -199,6 +212,15 @@ class AuthRouteController(
 
     private fun loadPublicUsersIfAvailable() {
         runCatching { workflowController.loadPublicUsers() }
+    }
+
+    /**
+     * Cache-aware login flows swallow failures with a plain server-entry
+     * fallback so that the launch path is never left stuck on a loading or
+     * error surface after a restoreSession.
+     */
+    private fun fallbackToServerEntry(@Suppress("unused") ignored: Throwable) {
+        activity.runOnUiThread { showServerEntry() }
     }
 
     private fun rememberAccount() {
