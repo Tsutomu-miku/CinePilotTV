@@ -18,6 +18,7 @@ import tv.cinepilot.tv.ui.detailsScreen
 import tv.cinepilot.tv.ui.isEpisode
 import tv.cinepilot.tv.ui.mediaWallRow
 import tv.cinepilot.tv.ui.mediaTechnicalPills
+import tv.cinepilot.tv.ui.userRatingRow
 
 fun ComponentActivity.detailsRouteScreen(
     item: MediaItemSummary,
@@ -40,8 +41,14 @@ fun ComponentActivity.detailsRouteScreen(
     onOpenFolder: () -> Unit,
     onToggleFavorite: () -> Unit,
     onToggleWatched: () -> Unit,
+    onSetUserRating: (Double?) -> Unit = {},
     onProviderBadgeClick: (String) -> Unit,
 ): View {
+    val ratingExtra = listOf(userRatingRow(
+        currentRating = item.userData().userRating(),
+        onChange = onSetUserRating,
+        communityRating = item.communityRating(),
+    ))
     return detailsScreen(
         item = item,
         playbackActions = if (item.playable()) {
@@ -61,7 +68,8 @@ fun ComponentActivity.detailsRouteScreen(
         },
         trackControls = detailTrackControls(playbackInfo, trackSelection, onTrackSelection),
         technicalInfo = mediaTechnicalPills(playbackInfo),
-        extraSections = episodeStrip(item, siblingEpisodes, onOpenEpisode, loadArtworkImage) +
+        extraSections = ratingExtra +
+            episodeStrip(item, siblingEpisodes, onOpenEpisode, loadArtworkImage) +
             collectionStrip(item, sameCollectionItems, onOpenCollectionItem, loadArtworkImage),
         folderAction = InfuseAction(folderActionLabel(item), TvIcon.FORWARD, InfuseActionEmphasis.PRIMARY, onOpenFolder),
         onProviderBadgeClick = onProviderBadgeClick,

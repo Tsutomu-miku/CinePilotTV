@@ -143,6 +143,11 @@ class PlaybackRouteController(
                         showDetails(newItem, effectivePlaybackInfo, episodeContext)
                     }
                 },
+                onSetUserRating = { rating ->
+                    rerenderAfterUserAction({ workflowController.setUserRating(rating) }) { newItem ->
+                        showDetails(newItem, effectivePlaybackInfo, episodeContext)
+                    }
+                },
                 onProviderBadgeClick = ::openExternalUrl,
             ))
         }
@@ -311,6 +316,11 @@ class PlaybackRouteController(
                         showSeriesDetail(structure, pushBack, foldedSeasonsExpanded)
                     }
                 },
+                onSetUserRating = { rating ->
+                    rerenderStructureItem(series.id(), { workflowController.setUserRating(rating) }) {
+                        showSeriesDetail(structure, pushBack, foldedSeasonsExpanded)
+                    }
+                },
                 onProviderBadgeClick = ::openExternalUrl,
                 onPersonClick = ::openPerson,
             ))
@@ -343,6 +353,11 @@ class PlaybackRouteController(
                 },
                 onToggleWatched = {
                     rerenderStructureItem(season.id(), { workflowController.toggleWatched() }) {
+                        showSeasonDetail(structure, pushBack)
+                    }
+                },
+                onSetUserRating = { rating ->
+                    rerenderStructureItem(season.id(), { workflowController.setUserRating(rating) }) {
                         showSeasonDetail(structure, pushBack)
                     }
                 },

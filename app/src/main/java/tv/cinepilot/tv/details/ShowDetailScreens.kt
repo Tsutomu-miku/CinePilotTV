@@ -13,6 +13,7 @@ import tv.cinepilot.tv.ui.InfuseAction
 import tv.cinepilot.tv.ui.InfuseActionEmphasis
 import tv.cinepilot.tv.ui.RowVisualStyle
 import tv.cinepilot.tv.ui.TvIcon
+import tv.cinepilot.tv.ui.userRatingRow
 import tv.cinepilot.tv.ui.detailsStage
 import tv.cinepilot.tv.ui.HomeRowPresentation
 import tv.cinepilot.tv.ui.mediaWallRow
@@ -33,6 +34,7 @@ fun ComponentActivity.seriesDetailScreen(
     loadPerson: (ImageView, MediaPerson, Int, Int) -> Unit,
     onToggleFavorite: () -> Unit = {},
     onToggleWatched: () -> Unit = {},
+    onSetUserRating: (Double?) -> Unit = {},
     onProviderBadgeClick: (String) -> Unit = {},
     onPersonClick: (MediaPerson) -> Unit = {},
 ): View {
@@ -75,6 +77,11 @@ fun ComponentActivity.seriesDetailScreen(
             actions = actions,
             providerBadges = presentation.providerBadges,
             onProviderBadgeClick = onProviderBadgeClick,
+        ))
+        addView(userRatingRow(
+            currentRating = series.userData().userRating(),
+            onChange = onSetUserRating,
+            communityRating = series.communityRating(),
         ))
         if (structure.seasons().isNotEmpty()) {
             addView(seasonRail(
@@ -120,6 +127,7 @@ fun ComponentActivity.seasonDetailScreen(
     loadPerson: (ImageView, MediaPerson, Int, Int) -> Unit,
     onToggleFavorite: () -> Unit = {},
     onToggleWatched: () -> Unit = {},
+    onSetUserRating: (Double?) -> Unit = {},
     onProviderBadgeClick: (String) -> Unit = {},
     onPersonClick: (MediaPerson) -> Unit = {},
 ): View {
@@ -155,6 +163,11 @@ fun ComponentActivity.seasonDetailScreen(
             actions,
             providerBadges = presentation.providerBadges,
             onProviderBadgeClick = onProviderBadgeClick,
+        ))
+        addView(userRatingRow(
+            currentRating = season.userData().userRating(),
+            onChange = onSetUserRating,
+            communityRating = season.communityRating(),
         ))
         if (structure.episodes().isNotEmpty()) {
             addView(groupedEpisodes("全部集数", structure.episodes(), onOpenEpisode, loadArtwork, wrap = true))
