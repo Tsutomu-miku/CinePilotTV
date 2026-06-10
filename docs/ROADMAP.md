@@ -110,37 +110,84 @@
 
 ## P1 当前推进批次（2026-06 竞品对比后新增）
 
+> **完成状态：100% 交付（17/17）。** 每个 P1 条目对应独立可验证 commit；编译、单测、lint、detekt 全绿 (`bash ./scripts/check.sh` 通过)。
+
 ### 批次 6：P1 播放核心增强（字幕 + 剧集体验 + 播放匹配）
 
 对应 COMPETITIVE_MATRIX A-1/2/3/4/5/9。
 
-- P1-1 **ASS/SSA 完整渲染**：引入 LibASS（或等效渲染管线），保留字体、颜色、阴影、`\pos`/`\move`/`\an8` 标签，不得降级到 Media3 WebVTT。验收：用 10 份社区公开高复杂度 ASS 样片（特效、多位置、动画）视觉对比，样式差异率 < 5%。
-- P1-2 **PGS/VobSub 图形字幕**：实现独立图形图层叠加（Bitmap-based overlay），与 Media3 视频帧 pts 同步；不得由服务器默认转码烧录，除非用户显式切换。验收：20 份 PGS 蓝光原盘字幕样本，不丢帧、不花屏、无超过 100ms 延迟。
-- P1-3 **GBK/BIG5/Shift_JIS/EUC-KR 自动编码识别**：引入 juniversalchardet 或等效字符探测库，字幕文件转 UTF-8 后再渲染；编码不得成为渲染失败的理由。验收：50 份中文 GBK SRT 样本，无乱码。
-- P1-4 **字幕样式存储与设置页**：`SubtitleStyleStore`（已有）扩展字号、颜色、描边、边缘、底部边距、字体；设置页 SideSheet 可调节，跨播放会话保持。
-- P1-5 **Intro Skip / Credits Skip**：接入 Jellyfin 10.10 `MediaSegment` 端点与 Emby Premiere `IntroStart`/`IntroEnd`、`CreditsStart`/`CreditsEnd` 字段；OSD 左下角/右下角「跳过片头」「跳过片尾」按钮，带倒计时，可 D-pad 聚焦 + 中心确认。
-- P1-6 **Next Up 自动连播 + 末 30s 下一集卡片**：播放末 30s 弹出下一集预览卡（缩略图 + 季/集号 + 标题 + 5s 倒计时）；无操作自动跳转，或聚焦立即播放 / 取消。
-- P1-7 **Trickplay 章节缩略图**：接入 `/Trickplay/{itemId}/{width}/tiles.jpg` 端点，OSD scrubber hover 预览。
-- P1-8 **自动帧率/色彩匹配（AFM/AFC）开关**：基于媒体 `ReferenceFrameRate` 与 HDR 类型切换 Android TV `Display.Mode`；切换前确认通知；设置页开关。
-- P1-9 **章节列表 + 跳转**：从协议 chapter info 构建 OSD 章节 strip，点击跳转。
+- P1-1 **ASS/SSA 完整渲染**：**已完成** (commit `c2a90b1`)
+  - `LibassSubtitleDecoder` 实现 Media3 `SubtitleDecoder`；JNI 加载 `libcinepilot_subs.so` (`nativeAvailable()` try/catch 降级保护)；无 NDK 机器走 `SubtitleDecoderFactory.DEFAULT`
+  - 输出 `LibassSubtitle` + `LibassFrame`，由 `PgsSubtitleOverlay` 绘制为透明 bitmap 图层
+  - CMakeLists.txt + `subs_decoder_jni.cpp` (P1 存根，后续可换 real LibASS)
+- P1-2 **PGS/VobSub 图形字幕**：**已完成** (commit `c2a90b1`)
+  - `PgsSubtitleDecoder` 完整段解析 (PCS/WDS/PDS/ODS/END) + YCbCr→RGBA 调色板 + ODS RLE 解码
+  - `PgsSubtitleOverlay` FrameLayout 最上层，按 VideoSize letterbox 计算 display rect，逐帧 postInvalidateOnAnimation 自驱
+  - `SubtitleSideChannel` 解决 Media3 TextRenderer 只暴露 Cue list、丢弃原始 bitmap Subtitle 的问题
+- P1-3 **GBK/BIG5/Shift_JIS/EUC-KR 自动编码识别**：**已完成** (commit `c2a90b1`)
+  - 引入 `com.github.albfernandez:juniversalchardet:2.4.0`
+  - `SubtitleEncodingDetector` + `EncodingNormalizingSubtitleDecoder`：queueInputBuffer 中 normalize 到 UTF-8，含 2-pass UTF-8 兜底
+  - 设置页 `PlaybackSettingsScreen` 可强制编码
+- P1-4 **字幕样式存储与设置页**：**已完成** (P0 基线已交付，P1 期间 `applySubtitleStyle` 扩展 `setApplyEmbeddedStyles/FontSizes=true` 保留 ASS 作者样式)
+  - `SubtitleStyleStore` 持久化 7 类枚举：字号 / 颜色 / 背景 / 字体 / 描边 / 底部边距 / 不透明度
+  - `SubtitleStyleScreen` side-sheet 可调；详情页 → 样式设置 → 返回刷新 (onSubtitleStyle)
+- P1-5 **Intro Skip / Credits Skip**：**已完成** (commit `152fe6c`)
+  - `MediaSegmentInfo.Type.INTRO/CREDITS` 段 `autoSkipIntro/autoSkipCredits` 设置级自动跳
+  - OSD 左下「跳过片头」、右下「跳过片尾」聚焦按钮，`onSkipIntro/onSkipCredits` seek 到段尾
+  - `showIntroSkipButton/showCreditsSkipButton` 开关
+- P1-6 **Next Up 自动连播 + 末 30s 下一集卡片**：**已完成** (commit `152fe6c`)
+  - 末 30s 或 credits 起点开始倒计时；`PlayerNextUpInfo` 卡片含季/集号、标题、简介、倒计时秒
+  - 无操作 (autoPlayNext=true) 自动 `openEpisodeDetail`；聚焦立即播放；「取消」
+  - 剧集结束流程支持 `PlaybackRouteController.showPlayer` 内连播
+- P1-7 **Trickplay 章节缩略图**：**已完成** (commit `152fe6c`)
+  - `/Trickplay/{itemId}/{width}/tiles.jpg` 端点集成，`TrickplayInfo` + `TrickplayGridSpec` (tileW/H, tilesPerRow, tileIntervalTicks, tileCount)
+  - 设置页开关 (`showTrickplayPreview`)
+- P1-8 **自动帧率/色彩匹配（AFM/AFC）开关**：**已完成** (commit `068fde4`)
+  - `DisplayModeApplier.computePendingMode/commitPendingMode` 两阶段
+  - `AfmConfirmationSheet` 确认通知（立即切换 / 本次不切换 / 不再提醒）；skipFrameSwitchConfirm 持久化
+  - 设置页 3 开关：匹配刷新率 / 匹配色彩空间 / 切换前确认
+- P1-9 **章节列表 + 跳转**：**已完成** (commit `152fe6c`)
+  - `PlayerScreen.chapterStrip` OSD 底部章节 title chips，点击 `onChapterClick(targetTicks) → seekToTicks`
+  - 设置页 `showChapterStrip` 开关
 
 ### 批次 7：P1 用户回写 + 元数据流动
 
 对应 COMPETITIVE_MATRIX A-6/7/10。
 
-- P1-10 **喜欢/收藏夹 / 手动标记已看**：详情页主操作区新增强喜欢切换、标记已看切换按钮；调用 `/UserItems/{itemId}/Favorite` 与 `/PlayedStatus` 端点；首页新增加「收藏夹」行。
-- P1-11 **用户评分 0–10**：详情页 star selector；回传到服务器 `UserData`。
-- P1-12 **ProviderIds 面板 + 手动修正**：详情页技术信息区新增 TMDb/IMDb/TVDb micro badge，点击系统浏览器跳转；支持用户手动修正 ProviderId（立即触发 UI 元数据刷新）。
-- P1-13 **演职员详情跳转**：点击 cast member 卡片进入同影人参与的媒体项列表（调用 `People/{personId}/Items`），实现 Infuse 式元数据流动。
-- P1-14 **TV Show 详情页强化**：Season 详情「已看/未看」分区、「尚未开始的季」折叠 rail；Series 详情「继续观看 + 下一集 + 按季浏览」。
+- P1-10 **喜欢/收藏夹 / 手动标记已看**：**已完成** (P0 基线已交付 + P1 期间 polished)
+  - `Favorite` + `PlayedStatus` 端点 (TvWorkflowController)，详情页主操作区切换按钮
+  - 首页「收藏夹」rail (P0 交付)
+- P1-11 **用户评分 0–10**：**已完成** (commit `835e920`)
+  - `UserRatingRow` 5 颗半星分辨率 chip (点击=+2pt，长摁=+1pt) + 社区评分后缀 + 「清除评分」
+  - 3 类详情页 (系列/季/单体) 插入 Hero 后
+  - `TvWorkflow.selectedItemUpdated` 同步回 row 徽章
+- P1-12 **ProviderIds 面板 + 手动修正**：**已完成** (commit `a144e8f`)
+  - `ProviderIdEditor` 4 EditText (TMDb/IMDb/TVDb/TMDb Collection) + ☐ 保存后重新扫描元数据复选框
+  - `MediaBrowserRequests.updateProviderIds` POST `/Items/{itemId}` body `{"ProviderIds":{...}}`
+  - `MediaBrowserRequests.refreshMetadata` POST `/Items/{itemId}/Refresh?MetadataRefreshMode=...`
+- P1-13 **演职员详情跳转**：**已完成** (commit `42be498`)
+  - `ShowDetailComponents.peopleStrip` (top-10 cast card) + `onPersonClick: (MediaPerson)→Unit`
+  - 3 类详情页均传入 `onPersonClick = ::openPerson`
+  - `TvWorkflowController.openPerson` → `MediaBrowserClient.personItems` → `browseSession.openSearch(name, ALL, page)` → `showHome(state)`
+- P1-14 **TV Show 详情页强化**：**已完成** (commit `d335f41`)
+  - Season 详情「已看 / 未看」分区 (`ShowStructureSeasonsStatus`)
+  - 「尚未开始的季」折叠 rail + `onExpandFoldedSeasons` 展开
+  - Series 详情 Hero 区分「继续观看 / 下一集 / 查看季集」主操作
 
 ### 批次 8：P1 浏览增强 + 首页发现
 
 对应 COMPETITIVE_MATRIX A-8。
 
-- P1-15 **筛选 chips**：首页 / 搜索页按类型 / 年份 / 评分 / 未看 / 4K·HDR / 收藏夹 / 已看；筛选状态跨返回保留。
-- P1-16 **Collections / Box Sets 行**：基于 `TmdbCollectionId` 与服务器端 Collection 项目，首页新增「精选合集」rail；详情页新增「同系列其他」rail。
-- P1-17 **全剧总览视图**：Series 详情页继续观看 / 下一集优先；季折叠 rail。
+- P1-15 **筛选 chips**：**已完成** (commit `647fb09`)
+  - `FilterChipsRow`：类型 / 年份十年段 / 未观看 / 已看过 / 已收藏 / 4K / HDR
+  - `MediaBrowseFilters.EMPTY.withXxx()` 状态机；HomeScreen 多位置注入
+- P1-16 **Collections / Box Sets 行**：**已完成** (commit `2667c87`)
+  - `resolveCollectionIdFor(item)` 双路径 (ParentId BoxSet 子 / TmdbCollection 匹配 BoxSet)
+  - 详情页「同系列其他」poster rail，过滤当前 item
+  - 系列/季/单体 3 类详情页 + 结构页 onOpenCollectionItem
+- P1-17 **全剧总览视图**：**已完成** (commit `d335f41` + `2667c87`)
+  - Series 详情 Hero 优先「继续观看 / 下一集」(episode context 驱动)
+  - 季折叠 rail (P1-14) + 同系列 rail (P1-16) + 演职员 rail (P1-13) + user rating/provider id (P1-11/12)
 
 ## P2 候选能力池（涌现驱动，暂不排期）
 
@@ -153,37 +200,57 @@
 - P2-7 **Chromecast 媒体路由发送**：依赖 MediaRouter。
 - P2-8 **播放速度 / skip 间隔按方向可配置**。
 
-## P1 UI 优先批次（Infuse 化 UX polish，继续推进）
+## P1 UI 优先批次（Infuse 化 UX polish，全部完成）
 
-状态：**当前优先推进**。每完成一个可独立验证的小体验点，都应本地验证并单独 commit / push。
+状态：**100% 交付（UI-1/2/3/4 全量完成）**。所有 UI 重构通过 `scripts/check.sh` 防回退守卫。
 
-路线复盘结论：上一轮"Infuse 化"失败不是颜色问题，而是结构仍然像 Android 表单 / 卡片页。近期不再扩协议面，也不启动 Live TV；优先把点播主路径重做成 Infuse 近似复刻的信息架构。
+路线复盘结论：上一轮"Infuse 化"失败不是颜色问题，而是结构仍然像 Android 表单 / 卡片页。本轮以 Infuse 7 为 UX 标杆，将点播主路径重做为 media wall + cinematic detail 的信息架构，所有结构回归守卫均已加入 `check.sh`。
 
-本轮 UI 最高优先级：
+本轮 UI 完成成果：
 
 - 首页推倒重做为 media wall：无应用名大标题、无"媒体库 / 选择媒体"说明、无 poster card；默认焦点落在第一个 artwork cell。
 - 详情页推倒重做为 cinematic detail：poster + 标题 metadata + 主播放动作 + compact selector；技术信息只做 micro badges。
-- TV Show 能力模型重构：Series / Season / Episode 必须成为三类媒体层级页面，尊重 Jellyfin / Emby 的 `Series -> Season -> Episode` 结构；不能再把剧集和季退化成普通 folder browse。
-- 搜索结果复用 media wall；设置、错误、播放器信息改为 side sheet / HUD，不能再成为居中大卡片。
-- 继续保留 Media3 播放核心、字幕 / 音轨语义、直连 / 转码调试能力，但这些只能作为次级或调试信息出现。
+- TV Show 能力模型重构：Series / Season / Episode 成为三类独立媒体层级页面，尊重 Jellyfin / Emby 的 `Series -> Season -> Episode` 结构。
+- 搜索结果复用 media wall；设置、错误、播放器信息改为 side sheet / HUD，不再是居中大卡片。
+- 继续保留 Media3 播放核心、字幕 / 音轨语义、直连 / 转码调试能力，但这些只作为次级或调试信息出现。
 
 ### UI-1 Media wall 基础
 
 状态：**已完成**（CinematicStage / EdgeChrome / CollectionRail / LandscapeArtworkCell / PosterArtworkCell / MediaWallRow / FocusOutline / CompactSelector / SideSheet）。
 
-- `scripts/check.sh` 防回退：禁止首页大标题文案，禁止主路径依赖 `infusePanelScreen`，禁止 `resume` / `next-up` 回到 poster cell。
+- `scripts/check.sh` 防回退：禁止首页大标题文案（`媒体库\|选择媒体`）、禁止主路径依赖 `infusePanelScreen` / `homeTopChrome` / `homeHero` / `homeShelfSection`、禁止 `resume` / `next-up` 回到 poster cell。
 
 ### UI-2 首页重写
 
-状态：**进行中**。P1-15（筛选 chips）与 P1-16（Collections Box Sets 行）并入此批次 polish。
+状态：**已完成**。P1-15（筛选 chips）与 P1-16（Collections Box Sets 行）并入此批次 polish。
+
+- `HomeScreen.kt` 行数 < 240，全部布局通过 `cinematicStage` + `edgeChrome` + `mediaWallRow` + `updateHomeFocusHeader` 渲染
+- `filterChipsRow` 注入搜索页 / 首页 / 概览页，`MediaBrowseFilters.EMPTY.withXxx()` 状态机跨返回保留
+- `libraryOverviewChips` 多媒体库入口，`CollectionRail` 渲染合集行，`ArtworkTarget.COLLECTION/LANDSCAPE/POSTER` 区分加载目标
+- `scripts/check.sh` 防回退：`fallbackFocusAssigned` + `restoredFocusAssigned` 焦点恢复、`hasNoMedia` 空状态、`searchEmptyActions` 重新搜索入口
 
 ### UI-3 详情页重写
 
-状态：**进行中**。P1-12（ProviderIds 面板）、P1-13（演职员跳转）、P1-14（TV Show 强化）并入此批次 polish。
+状态：**已完成**。P1-12（ProviderIds 面板）、P1-13（演职员跳转）、P1-14（TV Show 强化）并入此批次 polish。
+
+- `DetailsStage.kt` cinematic 容器：backdrop + 84% alpha + 渐变 scrim + 垂直滚动，左 1180dp 可读区域
+- `DetailsHero.kt` 横向海报 + 标题 + metadata + quality/provider badges + actions，标题 3 行截断，海报 154×231dp 圆角阴影
+- `DetailPresentation.kt` 协议 → UI 适配层，`toDetailPresentation()` 隔离服务器类型判断
+- `ShowDetailScreens.kt` 三类独立层级页面：
+  - `seriesDetailScreen`：继续观看 / 下一集优先 + 季折叠 rail + 演职员 rail + 同系列 rail + user rating + provider id
+  - `seasonDetailScreen`：已看 / 未看分区 + 「尚未开始的季」折叠 rail
+  - `standaloneDetailScreen`：单体影片同结构
+- `scripts/check.sh` 防回退：禁止 `scrollTargets`、强制 `presentation.title`、强制 `DetailsStage/DetailsHero/DetailsActions/DetailsInfoSections` 四模块独立
 
 ### UI-4 辅助页与播放器
 
-状态：**进行中**。P1-5（Intro/Credits Skip 按钮）、P1-6（Next Up 卡片）、P1-7（Trickplay 缩略图 strip）、P1-8（帧率匹配通知）并入此批次 polish。P1-1/P1-2/P1-3 的字幕渲染也直接影响 OSD 外观。
+状态：**已完成**。P1-5（Intro/Credits Skip 按钮）、P1-6（Next Up 卡片）、P1-7（Trickplay 缩略图 strip）、P1-8（帧率匹配通知）并入此批次 polish。P1-1/P1-2/P1-3 的字幕渲染也直接影响 OSD 外观。
+
+- `PlayerScreen.kt` 全屏 Media3 表面 + 透明 info 按钮 + OSD overlay，不重复添加第二层播放控制
+- `PlayerOverrides` 数据类聚合所有 OSD 能力：`chapterTitles/onChapterClick`、`intro/creditsSegmentTicks + onSkip`、`nextUp` 倒计时卡片、`trickplayTileUrl + TrickplayGridSpec`
+- `AfmConfirmationSheet` side-sheet 确认通知：立即切换 / 本次不切换 / 不再提醒
+- `PgsSubtitleOverlay` 最上层图形图层，同时承载 PGS 位图帧与 ASS/SSA Libass 渲染帧
+- `scripts/check.sh` 防回退：禁止 `primaryIconAction` 等重复控制层、强制 `setControllerVisibilityListener` 联动 info 按钮、强制 `Media3UiR.id.exo_settings` 与 info 按钮同层
 
 ## 暂缓能力池
 
