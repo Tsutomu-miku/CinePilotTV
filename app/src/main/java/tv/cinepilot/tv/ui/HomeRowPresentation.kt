@@ -29,7 +29,7 @@ fun HomeRow.toHomeRowPresentation(): HomeRowPresentation {
 }
 
 private fun HomeRow.displayTitle(): String {
-    return if (id() == "views") {
+    return if (id() == "views" || id().startsWith("overview:title")) {
         ""
     } else {
         title()
@@ -38,16 +38,17 @@ private fun HomeRow.displayTitle(): String {
 
 private fun HomeRow.rowVisualStyle(): RowVisualStyle {
     return when {
-        id() == "views" -> RowVisualStyle.COLLECTION_RAIL
+        id() == "views" || id() == "collections" -> RowVisualStyle.COLLECTION_RAIL
         id() == "resume" || id() == "next-up" -> RowVisualStyle.LANDSCAPE_RAIL
-        id().startsWith("latest:") -> items().majorityStyle()
+        id().startsWith("overview:resume") || id().startsWith("overview:next-up") -> RowVisualStyle.LANDSCAPE_RAIL
+        id().startsWith("latest:") || id().startsWith("filtered:") || id().startsWith("overview:") -> items().majorityStyle()
         id().startsWith("search:") || id().startsWith("folder:") -> items().majorityStyle()
         else -> items().majorityStyle()
     }
 }
 
 private fun HomeRow.shouldWrapItems(): Boolean {
-    return id().startsWith("search:") || id().startsWith("folder:")
+    return id().startsWith("search:") || id().startsWith("folder:") || id().startsWith("overview:unplayed")
 }
 
 private fun List<MediaItemSummary>.majorityStyle(): RowVisualStyle {

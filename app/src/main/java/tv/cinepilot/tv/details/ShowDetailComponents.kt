@@ -5,6 +5,7 @@ import android.text.TextUtils
 import android.view.Gravity
 import android.view.View
 import android.view.ViewGroup
+import android.widget.HorizontalScrollView
 import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.TextView
@@ -105,11 +106,38 @@ internal fun ComponentActivity.seasonRail(
     seasons: List<MediaItemSummary>,
     selectedSeason: MediaItemSummary?,
     onOpenSeason: (MediaItemSummary) -> Unit,
+    onSelectSeason: ((MediaItemSummary) -> Unit)? = null,
 ): View {
-    return showSection("季") {
+    val strip = LinearLayout(this).apply {
+        orientation = LinearLayout.HORIZONTAL
         seasons.forEach { season ->
-            addView(seasonChip(season, selectedSeason?.id() == season.id(), onOpenSeason))
+            addView(seasonChip(
+                season = season,
+                selected = selectedSeason?.id() == season.id(),
+                onClick = {
+                    if (selectedSeason?.id() == season.id()) {
+                        // Re-clicking the already-selected season opens the dedicated detail page.
+                        onOpenSeason(season)
+                    } else {
+                        // Otherwise: in-place selection. If no handler is provided, fall back
+                        // to navigation (matches prior behavior for non-series-detail callers).
+                        if (onSelectSeason != null) onSelectSeason(season) else onOpenSeason(season)
+                    }
+                },
+            ))
         }
+    }
+    return LinearLayout(this).apply {
+        orientation = LinearLayout.VERTICAL
+        setPadding(0, dp(8), 0, dp(14))
+        addView(showSectionTitle("季"))
+        addView(HorizontalScrollView(this@seasonRail).apply {
+            isHorizontalScrollBarEnabled = false
+            isFocusable = false
+            descendantFocusability = ViewGroup.FOCUS_AFTER_DESCENDANTS
+            setPadding(0, 0, 0, dp(2))
+            addView(strip)
+        })
     }
 }
 
@@ -197,7 +225,7 @@ private fun ComponentActivity.showSectionTitle(value: String): TextView {
 private fun ComponentActivity.seasonChip(
     season: MediaItemSummary,
     selected: Boolean,
-    onOpenSeason: (MediaItemSummary) -> Unit,
+    onClick: () -> Unit,
 ): TextView {
     return TextView(this).apply {
         text = season.name().ifBlank { "第 ${season.indexNumber() ?: 1} 季" }
@@ -210,14 +238,17 @@ private fun ComponentActivity.seasonChip(
         setTextColor(if (selected) TvColors.TextPrimary else TvColors.TextSecondary)
         background = rounded(
             if (selected) Color.argb(58, 235, 242, 255) else Color.argb(28, 0, 0, 0),
-            dp(13),
+            dp(MediaWallTokens.SeasonChipRadius),
             dp(1),
             if (selected) TvColors.FocusRing else homeHairlineColor(42),
         )
         setPadding(dp(16), 0, dp(16), 0)
-        setOnClickListener { onOpenSeason(season) }
-        setOnFocusChangeListener { view, focused -> view.applyFocusOutline(focused, 13) }
-        layoutParams = ViewGroup.MarginLayoutParams(dp(128), dp(38)).apply {
+        setOnClickListener { onClick() }
+        setOnFocusChangeListener { view, focused -> view.applyFocusOutline(focused, MediaWallTokens.SeasonChipRadius) }
+        layoutParams = ViewGroup.MarginLayoutParams(
+            dp(MediaWallTokens.SeasonChipWidth),
+            dp(MediaWallTokens.SeasonChipHeight),
+        ).apply {
             rightMargin = dp(MediaWallTokens.CellGap)
             bottomMargin = dp(MediaWallTokens.CellGap)
         }

@@ -89,6 +89,26 @@ public final class ItemQuery {
             return put("PersonIds", value);
         }
 
+        public Builder genres(String value) {
+            return put("Genres", value);
+        }
+
+        public Builder genreIds(String value) {
+            return put("GenreIds", value);
+        }
+
+        public Builder years(String value) {
+            return put("Years", value);
+        }
+
+        public Builder minCommunityRating(float value) {
+            return put("MinCommunityRating", String.format(java.util.Locale.US, "%.1f", value));
+        }
+
+        public Builder officialRatings(String value) {
+            return put("OfficialRatings", value);
+        }
+
         public Builder searchTerm(String value) {
             return put("SearchTerm", value);
         }

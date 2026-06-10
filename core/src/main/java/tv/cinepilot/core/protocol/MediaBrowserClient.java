@@ -382,6 +382,17 @@ public final class MediaBrowserClient {
         return MediaBrowserResponseMapper.itemPage(response.body());
     }
 
+    public List<GenreInfo> genres(AuthenticatedServer authenticated, String parentViewId) {
+        try {
+            ProtocolResponse response = send(authenticated.server().address(),
+                    MediaBrowserRequests.genres(authenticated.session(),
+                            authenticated.server().flavor(), parentViewId));
+            return MediaBrowserResponseMapper.genres(response.body());
+        } catch (MediaBrowserException exception) {
+            return AndroidCollections.emptyList();
+        }
+    }
+
     // ---- Chapters, MediaSegments, Trickplay (P1 batch 6) ----
 
     public List<ChapterInfo> chapters(AuthenticatedServer authenticated, String itemId) {

@@ -2,6 +2,7 @@ package tv.cinepilot.core.tv;
 
 import java.util.ArrayDeque;
 import java.util.Deque;
+import java.util.List;
 import tv.cinepilot.core.AndroidCollections;
 import tv.cinepilot.core.protocol.MediaItemPage;
 
@@ -35,6 +36,19 @@ final class BrowseSession {
                 state,
                 AndroidCollections.singletonList(new HomeRow("search:" + safeFilter.name() + ":" + query, title, page.items()))
         );
+    }
+
+    TvAppState openOverview(TvAppState state, String title, List<HomeRow> rows) {
+        backStack.push(state);
+        folderContext = null;
+        String overviewTitle = title == null || title.isBlank() ? "概览" : title;
+        List<HomeRow> safeRows = rows == null || rows.isEmpty()
+                ? AndroidCollections.emptyList()
+                : rows;
+        return TvWorkflow.homeLoaded(state, AndroidCollections.prepend(
+                new HomeRow("overview:title", overviewTitle, AndroidCollections.emptyList()),
+                safeRows
+        ));
     }
 
     boolean canGoBack() {

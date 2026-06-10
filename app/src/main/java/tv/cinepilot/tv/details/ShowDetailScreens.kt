@@ -21,6 +21,7 @@ import tv.cinepilot.tv.ui.toDetailPresentation
 fun ComponentActivity.seriesDetailScreen(
     structure: ShowStructure,
     onOpenSeason: (MediaItemSummary) -> Unit,
+    onSelectSeason: (MediaItemSummary) -> Unit = onOpenSeason,
     onOpenEpisode: (MediaItemSummary) -> Unit,
     loadPoster: (ImageView, MediaItemSummary, Int, Int) -> Unit,
     loadBackdrop: (ImageView, MediaItemSummary) -> Unit,
@@ -72,13 +73,12 @@ fun ComponentActivity.seriesDetailScreen(
             onProviderBadgeClick = onProviderBadgeClick,
         ))
         if (structure.seasons().isNotEmpty()) {
-            addView(seasonRail(structure.seasons(), structure.selectedSeason(), onOpenSeason))
+            addView(seasonRail(structure.seasons(), structure.selectedSeason(), onOpenSeason, onSelectSeason))
         }
         if (structure.episodes().isNotEmpty()) {
-            addView(showEpisodes(
-                structure.selectedSeason()?.name()?.ifBlank { "当前季" } ?: "当前季",
-                structure.episodes(),
-                wrap = false,
+            addView(groupedEpisodes(
+                sectionTitlePrefix = structure.selectedSeason()?.name()?.ifBlank { "当前季" } ?: "当前季",
+                items = structure.episodes(),
                 onOpenEpisode,
                 loadArtwork,
             ))
@@ -138,7 +138,7 @@ fun ComponentActivity.seasonDetailScreen(
             onProviderBadgeClick = onProviderBadgeClick,
         ))
         if (structure.episodes().isNotEmpty()) {
-            addView(showEpisodes("全部集数", structure.episodes(), true, onOpenEpisode, loadArtwork))
+            addView(groupedEpisodes("全部集数", structure.episodes(), onOpenEpisode, loadArtwork, wrap = true))
         }
         peopleStrip(
             "演职员",
@@ -147,6 +147,34 @@ fun ComponentActivity.seasonDetailScreen(
             onPersonClick,
         )?.let(::addView)
     }
+}
+
+/**
+ * Split episodes into "未观看 / 已看过" subsections. If only one group is non-empty we collapse
+ * the header and just render a single rail. Both groups are always expandable in-place so the
+ * user doesn't have to leave the series detail page to explore a watched section.
+ */
+private fun ComponentActivity.groupedEpisodes(
+    sectionTitlePrefix: String,
+    items: List<MediaItemSummary>,
+    onOpen: (MediaItemSummary) -> Unit,
+    loadArtwork: (ImageView, MediaItemSummary, ArtworkTarget, Int, Int) -> Unit,
+    wrap: Boolean = false,
+): View {
+    val unwatched = items.filterNot { it.userData().played() }
+    val watched = items.filter { it.userData().played() }
+    val root = android.widget.LinearLayout(this).apply {
+        orientation = android.widget.LinearLayout.VERTICAL
+    }
+    if (unwatched.isNotEmpty()) {
+        val title = if (watched.isEmpty()) sectionTitlePrefix else "$sectionTitlePrefix · 未观看"
+        root.addView(showEpisodes(title, unwatched, wrap, onOpen, loadArtwork))
+    }
+    if (watched.isNotEmpty()) {
+        val title = if (unwatched.isEmpty()) sectionTitlePrefix else "$sectionTitlePrefix · 已看过"
+        root.addView(showEpisodes(title, watched, wrap, onOpen, loadArtwork))
+    }
+    return root
 }
 
 private fun ComponentActivity.showEpisodes(

@@ -4,7 +4,6 @@ import android.content.Intent
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
-import android.view.View
 import android.widget.ImageView
 import androidx.activity.ComponentActivity
 import androidx.activity.OnBackPressedCallback
@@ -18,9 +17,8 @@ import tv.cinepilot.core.tv.TvAppState
 import tv.cinepilot.core.tv.TvRoute
 import tv.cinepilot.tv.auth.AuthRouteController
 import tv.cinepilot.tv.error.errorRouteScreen
+import tv.cinepilot.tv.home.HomeRouteController
 import tv.cinepilot.tv.home.SearchRouteController
-import tv.cinepilot.tv.home.activeSearchTerm
-import tv.cinepilot.tv.home.homeRouteScreen
 import tv.cinepilot.tv.player.Media3PlayerHost
 import tv.cinepilot.tv.playback.PlaybackRouteController
 import tv.cinepilot.tv.playback.SubtitleStyleStore
@@ -42,6 +40,7 @@ class MainActivity : ComponentActivity() {
     private lateinit var playbackRoutes: PlaybackRouteController
     private lateinit var searchRoutes: SearchRouteController
     private lateinit var settingsRoutes: SettingsRouteController
+    private lateinit var homeRoutes: HomeRouteController
     private lateinit var primaryImageLoader: PrimaryImageLoader
     private lateinit var artworkLoader: ArtworkLoader
     private lateinit var subtitleStyleStore: SubtitleStyleStore
@@ -114,6 +113,22 @@ class MainActivity : ComponentActivity() {
             settingsStore = settingsStore,
             showHome = ::showHome,
         )
+        homeRoutes = HomeRouteController(
+            activity = this,
+            workflowController = viewModel.workflowController,
+            playbackRoutes = playbackRoutes,
+            runTask = ::runTask,
+            showHome = ::showHome,
+            showAccountSwitcher = ::showAccountSwitcher,
+            showSettings = settingsRoutes::show,
+            showSearch = { term ->
+                accountSwitcherReturnState = null
+                searchRoutes.showSearch(term)
+            },
+            logoutFromHome = authRoutes::logoutFromHome,
+            loadArtwork = ::loadArtworkImage,
+            loadBackdrop = ::loadBackdropImage,
+        )
         onBackPressedDispatcher.addCallback(this, object : OnBackPressedCallback(true) {
             override fun handleOnBackPressed() {
                 handleBackPressed()
@@ -140,15 +155,9 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun handleBackPressed() {
-        if (playbackRoutes.handleAuxiliaryBackPressed()) {
-            return
-        }
-        if (searchRoutes.closeIfVisible()) {
-            return
-        }
-        if (settingsRoutes.closeIfVisible()) {
-            return
-        }
+        if (playbackRoutes.handleAuxiliaryBackPressed()) return
+        if (searchRoutes.closeIfVisible()) return
+        if (settingsRoutes.closeIfVisible()) return
         accountSwitcherReturnState?.let { returnState ->
             if (viewModel.workflowController.state().route() == TvRoute.HOME) {
                 accountSwitcherReturnState = null
@@ -157,35 +166,23 @@ class MainActivity : ComponentActivity() {
             }
         }
         when (viewModel.workflowController.state().route()) {
-            TvRoute.SERVER_ENTRY -> {
-                accountSwitcherReturnState?.let { returnState ->
-                    accountSwitcherReturnState = null
-                    showHome(returnState)
-                } ?: finish()
-            }
+            TvRoute.SERVER_ENTRY -> accountSwitcherReturnState?.let { returnState ->
+                accountSwitcherReturnState = null
+                showHome(returnState)
+            } ?: finish()
             TvRoute.HOME -> {
                 val state = viewModel.workflowController.back()
-                if (state.route() == TvRoute.HOME) {
-                    showHome(state)
-                } else {
-                    authRoutes.showServerEntry()
-                }
+                if (state.route() == TvRoute.HOME) showHome(state) else authRoutes.showServerEntry()
             }
             TvRoute.LOGIN, TvRoute.ERROR -> {
                 val state = viewModel.workflowController.back()
-                if (state.route() == TvRoute.HOME) {
-                    showHome(state)
-                } else {
-                    authRoutes.showServerEntry()
-                }
+                if (state.route() == TvRoute.HOME) showHome(state) else authRoutes.showServerEntry()
             }
             TvRoute.DETAILS -> {
                 viewModel.workflowController.back()
                 showHome(viewModel.workflowController.state())
             }
-            TvRoute.PLAYER -> {
-                playbackRoutes.handlePlaybackBackPressed()
-            }
+            TvRoute.PLAYER -> playbackRoutes.handlePlaybackBackPressed()
         }
     }
 
@@ -194,61 +191,13 @@ class MainActivity : ComponentActivity() {
         searchRoutes.hide()
         settingsRoutes.hide()
         accountSwitcherReturnState = null
-        var focusedCard: View? = null
-        setContentView(homeRouteScreen(
-            state = state,
-            canGoBack = viewModel.workflowController.canGoBackInBrowse(),
-            canPageBackward = viewModel.workflowController.canPageBackwardInBrowse(),
-            canPageForward = viewModel.workflowController.canPageForwardInBrowse(),
-            onSearch = {
-                accountSwitcherReturnState = null
-                searchRoutes.showSearch(state.activeSearchTerm())
-            },
-            onRefresh = ::refreshHome,
-            onSwitchAccount = ::showAccountSwitcher,
-            onSettings = { settingsRoutes.show(state) },
-            onLogout = authRoutes::logoutFromHome,
-            onBackInBrowse = { showHome(viewModel.workflowController.back()) },
-            onPreviousPage = ::previousBrowsePage,
-            onNextPage = ::nextBrowsePage,
-            onOpen = playbackRoutes::openMediaItem,
-            onFocusItem = { row, item -> viewModel.workflowController.focusItem(row.id(), item.id()) },
-            loadArtwork = ::loadArtworkImage,
-            loadBackdrop = ::loadBackdropImage,
-            onFocusedCard = { focusedCard = it },
-        ))
-        focusedCard?.post { focusedCard?.requestFocus() }
+        homeRoutes.render(state)
     }
 
     private fun showAccountSwitcher() {
         searchRoutes.hide()
         accountSwitcherReturnState = viewModel.workflowController.state()
         authRoutes.showServerEntry()
-    }
-
-    private fun refreshHome() {
-        runTask("正在重新加载首页...", {
-            viewModel.workflowController.loadHome()
-        }) {
-            homeEntryFlow.persistCurrentHome()
-            showHome(viewModel.workflowController.state())
-        }
-    }
-
-    private fun previousBrowsePage() {
-        runTask("正在加载上一页...", {
-            viewModel.workflowController.previousBrowsePage()
-        }) {
-            showHome(viewModel.workflowController.state())
-        }
-    }
-
-    private fun nextBrowsePage() {
-        runTask("正在加载下一页...", {
-            viewModel.workflowController.nextBrowsePage()
-        }) {
-            showHome(viewModel.workflowController.state())
-        }
     }
 
     private fun loadPosterImage(target: ImageView, item: MediaItemSummary, width: Int, height: Int) {
@@ -286,11 +235,7 @@ class MainActivity : ComponentActivity() {
             viewModel.workflowController.fail(error.message ?: error::class.java.simpleName)
         }
         val state = viewModel.workflowController.state()
-        val message = if (authenticationExpired) {
-            "会话已过期，请重新登录"
-        } else {
-            tvErrorMessage(error)
-        }
+        val message = if (authenticationExpired) "会话已过期，请重新登录" else tvErrorMessage(error)
         setContentView(errorRouteScreen(
             state = state,
             message = message,

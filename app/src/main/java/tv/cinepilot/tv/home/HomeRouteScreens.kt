@@ -7,6 +7,7 @@ import android.widget.EditText
 import android.widget.ImageView
 import android.widget.LinearLayout
 import androidx.activity.ComponentActivity
+import tv.cinepilot.core.protocol.MediaBrowseFilters
 import tv.cinepilot.core.protocol.MediaItemSummary
 import tv.cinepilot.core.tv.HomeRow
 import tv.cinepilot.core.tv.SearchFilter
@@ -19,6 +20,7 @@ import tv.cinepilot.tv.ui.TvIcon
 import tv.cinepilot.tv.ui.TvOptionSelectItem
 import tv.cinepilot.tv.ui.compactPanelSpacing
 import tv.cinepilot.tv.ui.dp
+import tv.cinepilot.tv.ui.filterChipsRow
 import tv.cinepilot.tv.ui.homeScreen
 import tv.cinepilot.tv.ui.cinematicStage
 import tv.cinepilot.tv.ui.infuseActions
@@ -33,6 +35,8 @@ fun ComponentActivity.homeRouteScreen(
     canGoBack: Boolean,
     canPageBackward: Boolean,
     canPageForward: Boolean,
+    filters: MediaBrowseFilters,
+    availableGenreNames: List<String>,
     onSearch: () -> Unit,
     onRefresh: () -> Unit,
     onSwitchAccount: () -> Unit,
@@ -43,6 +47,8 @@ fun ComponentActivity.homeRouteScreen(
     onNextPage: () -> Unit,
     onOpen: (HomeRow, MediaItemSummary) -> Unit,
     onFocusItem: (HomeRow, MediaItemSummary) -> Unit,
+    onFiltersChanged: (MediaBrowseFilters) -> Unit,
+    onLibraryOverview: (viewId: String, title: String, isSeries: Boolean) -> Unit,
     loadArtwork: (ImageView, MediaItemSummary, ArtworkTarget, Int, Int) -> Unit,
     loadBackdrop: (ImageView, MediaItemSummary, Int, Int) -> Unit,
     onFocusedCard: (View) -> Unit,
@@ -61,8 +67,12 @@ fun ComponentActivity.homeRouteScreen(
         onPreviousPage = onPreviousPage,
         onNextPage = onNextPage,
     ),
+    filters = filters,
+    availableGenreNames = availableGenreNames,
     onOpen = onOpen,
     onFocusItem = onFocusItem,
+    onFiltersChanged = onFiltersChanged,
+    onLibraryOverview = onLibraryOverview,
     loadArtwork = loadArtwork,
     loadBackdrop = loadBackdrop,
     onFocusedCard = onFocusedCard,

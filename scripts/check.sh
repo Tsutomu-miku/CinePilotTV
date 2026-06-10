@@ -352,7 +352,8 @@ fi
 
 if ! grep -q 'onFocusItem' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/ui/HomeScreen.kt" ||
   ! grep -q 'onFocusItem' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/home/HomeRouteScreens.kt" ||
-  ! grep -q 'onFocusItem = { row, item -> viewModel.workflowController.focusItem' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/MainActivity.kt"; then
+  ! ( grep -q 'onFocusItem = { row, item -> viewModel.workflowController.focusItem' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/MainActivity.kt" ||
+      grep -q 'workflowController.focusItem(row.id(), item.id())' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/home/HomeRouteController.kt" ); then
   echo "Home media card focus must update workflow focus as D-pad moves" >&2
   exit 1
 fi
@@ -364,7 +365,8 @@ if ! grep -q 'searchEmptyActions' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/u
 fi
 
 if [[ ! -s "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/home/SearchContext.kt" ]] ||
-  ! grep -q 'activeSearchTerm' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/MainActivity.kt"; then
+  ! ( grep -q 'activeSearchTerm' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/MainActivity.kt" ||
+      grep -q 'activeSearchTerm' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/home/HomeRouteController.kt" ); then
   echo "Search result recovery must preserve the current search term" >&2
   exit 1
 fi
@@ -478,7 +480,8 @@ if ! grep -q 'restoreSession' "$AUTH_ROUTE_CONTROLLER"; then
   exit 1
 fi
 
-if ! grep -q 'requestFocus' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/MainActivity.kt"; then
+if ! ( grep -q 'requestFocus' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/MainActivity.kt" ||
+  grep -q 'requestFocus' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/home/HomeRouteController.kt" ); then
   echo "MainActivity must restore focused home item" >&2
   exit 1
 fi

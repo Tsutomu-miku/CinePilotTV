@@ -4,7 +4,9 @@ import java.util.List;
 import tv.cinepilot.core.AndroidCollections;
 import tv.cinepilot.core.protocol.AuthenticatedServer;
 import tv.cinepilot.core.protocol.ChapterInfo;
+import tv.cinepilot.core.protocol.GenreInfo;
 import tv.cinepilot.core.protocol.ItemQuery;
+import tv.cinepilot.core.protocol.MediaBrowseFilters;
 import tv.cinepilot.core.protocol.MediaBrowserClient;
 import tv.cinepilot.core.protocol.MediaItemPage;
 import tv.cinepilot.core.protocol.MediaItemSummary;
@@ -33,6 +35,8 @@ public final class TvWorkflowController {
     private final BrowseSession browseSession = new BrowseSession();
     private QuickConnectSession pendingQuickConnect;
     private TvAppState state = TvAppState.initial();
+    private MediaBrowseFilters browseFilters = MediaBrowseFilters.EMPTY;
+    private String currentViewId = "";
 
     public TvWorkflowController(MediaBrowserClient client, HomeRowsLoader homeRowsLoader) {
         this(client, homeRowsLoader, null);
@@ -135,9 +139,42 @@ public final class TvWorkflowController {
             throw new IllegalStateException("authenticated session is required before loading home");
         }
         browseSession.clear();
-        List<HomeRow> rows = homeRowsLoader.load(state.authenticated());
+        List<HomeRow> rows = homeRowsLoader.load(state.authenticated(), browseFilters);
+        state = TvWorkflow.homeLoaded(state, rows);
+        currentViewId = "";
+        return state;
+    }
+
+    public MediaBrowseFilters browseFilters() {
+        return browseFilters;
+    }
+
+    /** Replace filter state and immediately refresh home rows. Honors the current focused view. */
+    public TvAppState setBrowseFilters(MediaBrowseFilters next) {
+        if (state.authenticated() == null) {
+            throw new IllegalStateException("authenticated session is required before setting filters");
+        }
+        browseFilters = next == null ? MediaBrowseFilters.EMPTY : next;
+        List<HomeRow> rows = homeRowsLoader.load(state.authenticated(), browseFilters);
         state = TvWorkflow.homeLoaded(state, rows);
         return state;
+    }
+
+    /** Genres filtered to the currently focused user view; empty if none is set. */
+    public List<GenreInfo> genresForCurrentView() {
+        if (state.authenticated() == null) {
+            return AndroidCollections.emptyList();
+        }
+        return AndroidCollections.listCopy(client.genres(state.authenticated(), currentViewId));
+    }
+
+    /**
+     * Pin a specific user-view id as the filter target. Used when the home focus lands on a
+     * per-view latest row: the UI should then present that view's genres as candidate chips.
+     * Passing a blank id clears the pin and falls back to server-wide genres.
+     */
+    public void pinCurrentViewId(String viewId) {
+        currentViewId = viewId == null ? "" : viewId;
     }
 
     /**
@@ -321,6 +358,37 @@ public final class TvWorkflowController {
                 .findFirst()
                 .orElse(nextUp);
         return new ShowStructure(series, seasons, selectedSeason, episodes, nextUp, resume);
+    }
+
+    /**
+     * Recompute just the selected season + its episode list against an already-loaded series
+     * structure. Used by the series detail in-place season chip switcher so we can swap a
+     * season without re-loading series metadata, seasons, or next-up info.
+     */
+    public ShowStructure selectSeasonInStructure(ShowStructure structure, String seasonId) {
+        if (state.authenticated() == null) {
+            throw new IllegalStateException("authenticated session is required before season switch");
+        }
+        if (structure == null || seasonId == null || seasonId.isBlank()) return structure;
+        MediaItemSummary selectedSeason = structure.seasons().stream()
+                .filter(item -> seasonId.equals(item.id()))
+                .findFirst()
+                .orElse(structure.selectedSeason());
+        if (selectedSeason == null) return structure;
+        List<MediaItemSummary> episodes = childPage(selectedSeason.id(), 0, BrowseSession.FOLDER_PAGE_SIZE, false)
+                .items();
+        MediaItemSummary resume = episodes.stream()
+                .filter(MediaItemSummary::hasResumePosition)
+                .findFirst()
+                .orElse(structure.nextUp());
+        return new ShowStructure(
+                structure.series(),
+                structure.seasons(),
+                selectedSeason,
+                episodes,
+                structure.nextUp(),
+                resume
+        );
     }
 
     public ShowStructure loadSeasonStructure(String seasonId) {
@@ -571,5 +639,79 @@ public final class TvWorkflowController {
     private MediaItemSummary requireSelectedItem(String action, @SuppressWarnings("unused") boolean asValue) {
         requireSelectedItem(action);
         return state.selectedItem();
+    }
+
+    // ---- P1-17 all-series / all-movies overview rows --------------------------------
+
+    /**
+     * Build overview rows for either Series or Movies in a given user view. The overview
+     * includes (when available): Continue Watching, Next Up (series only), Unplayed A-Z,
+     * Favorite, and an "All" row honoring the current browse filters.
+     */
+    public TvAppState openLibraryOverview(String viewId, String title, boolean isSeries) {
+        if (state.authenticated() == null) {
+            throw new IllegalStateException("authenticated session is required before opening overview");
+        }
+        MediaItemType type = isSeries ? MediaItemType.SERIES : MediaItemType.MOVIE;
+        String safeViewId = viewId == null ? "" : viewId;
+        List<HomeRow> rows = buildOverviewRows(safeViewId, type);
+        String overviewTitle = title == null || title.isBlank()
+                ? (isSeries ? "全部剧集" : "全部电影")
+                : title;
+        state = browseSession.openOverview(state, overviewTitle, rows);
+        pinCurrentViewId(safeViewId);
+        return state;
+    }
+
+    private List<HomeRow> buildOverviewRows(String parentViewId, MediaItemType type) {
+        AuthenticatedServer authenticated = state.authenticated();
+        List<HomeRow> rows = new java.util.ArrayList<>();
+        String includeType = type == MediaItemType.SERIES ? "Series" : "Movie";
+        if (!browseFilters.isStrict()) {
+            // Continue watching is already filtered by type on the server (it returns video items
+            // of any type, but we want type-targeted rows; fallback: include all).
+            addIfNotEmpty(rows, "overview:resume", "继续观看",
+                    filteredItems(authenticated, parentViewId, "Video", "IsResumable", null, BrowseSession.FOLDER_PAGE_SIZE));
+            if (type == MediaItemType.SERIES) {
+                addIfNotEmpty(rows, "overview:next-up", "下一集",
+                        client.nextUpItems(authenticated, BrowseSession.FOLDER_PAGE_SIZE).items());
+            }
+        }
+        addIfNotEmpty(rows, "overview:unplayed", "未观看 · A-Z",
+                filteredItems(authenticated, parentViewId, includeType,
+                        MediaBrowseFilters.FLAG_IS_UNPLAYED, null, BrowseSession.FOLDER_PAGE_SIZE));
+        addIfNotEmpty(rows, "overview:favorite", "收藏夹",
+                filteredItems(authenticated, parentViewId, includeType,
+                        MediaBrowseFilters.FLAG_IS_FAVORITE, null, BrowseSession.FOLDER_PAGE_SIZE));
+        addIfNotEmpty(rows, "overview:all", "全部",
+                filteredItems(authenticated, parentViewId, includeType, null,
+                        browseFilters, BrowseSession.FOLDER_PAGE_SIZE));
+        return AndroidCollections.listCopy(rows);
+    }
+
+    private List<MediaItemSummary> filteredItems(
+            AuthenticatedServer authenticated,
+            String parentViewId,
+            String includeItemTypes,
+            String forcedFilterFlag,
+            MediaBrowseFilters filters,
+            int limit
+    ) {
+        ItemQuery.Builder builder = ItemQuery.browse()
+                .recursive(true)
+                .includeItemTypes(includeItemTypes)
+                .limit(limit);
+        if (!parentViewId.isBlank()) builder.parentId(parentViewId);
+        if (forcedFilterFlag != null && !forcedFilterFlag.isBlank()) {
+            builder.filters(forcedFilterFlag);
+        }
+        if (filters != null) filters.applyTo(builder);
+        return client.items(authenticated, builder.build()).items();
+    }
+
+    private static void addIfNotEmpty(List<HomeRow> rows, String id, String title, List<MediaItemSummary> items) {
+        if (items != null && !items.isEmpty()) {
+            rows.add(new HomeRow(id, title, items));
+        }
     }
 }

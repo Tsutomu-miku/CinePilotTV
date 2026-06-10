@@ -223,11 +223,22 @@ class PlaybackRouteController(
             mediaBackStack.addLast { showHome(workflowController.state()) }
         }
         val series = structure.series()
+        fun rerender(updated: ShowStructure, pushBackCurrent: Boolean) {
+            showSeriesDetail(updated, pushBackCurrent)
+        }
         activity.setContentView(activity.seriesDetailScreen(
             structure = structure,
             onOpenSeason = { season ->
                 mediaBackStack.addLast { showSeriesDetail(structure, pushBack = false) }
                 openSeasonDetail(season.id(), pushBack = false)
+            },
+            onSelectSeason = { season ->
+                var next: ShowStructure? = null
+                runTask("正在加载${season.name()}...", {
+                    next = workflowController.selectSeasonInStructure(structure, season.id())
+                }) {
+                    next?.let { rerender(it, pushBack) }
+                }
             },
             onOpenEpisode = { episode ->
                 openEpisodeDetail(episode) { showSeriesDetail(structure, pushBack = false) }

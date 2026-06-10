@@ -372,6 +372,25 @@ public final class MediaBrowserRequests {
                 .build();
     }
 
+    /** Genres available inside a given parent view; omit parentId to list all server genres. */
+    public static ProtocolRequest genres(AuthSession session, ServerFlavor flavor, String parentId) {
+        ProtocolRequest.Builder builder = authenticated(
+                ProtocolRequest.get("/Genres"),
+                session,
+                flavor
+        );
+        if (parentId != null && !parentId.isBlank()) {
+            builder.query("ParentId", parentId);
+        }
+        return builder.query("EnableImages", "true")
+                .query("EnableUserData", "true")
+                .query("ImageTypeLimit", "1")
+                .query("EnableImageTypes", "Primary,Thumb")
+                .query("SortBy", "SortName")
+                .query("SortOrder", "Ascending")
+                .build();
+    }
+
     // ---- Chapters, MediaSegments, Trickplay (P1 batch 6) ----
 
     /** Item-level chapter list (also available via Fields=Chapters on item detail). */

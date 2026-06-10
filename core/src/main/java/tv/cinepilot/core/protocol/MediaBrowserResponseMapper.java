@@ -175,6 +175,30 @@ public final class MediaBrowserResponseMapper {
         );
     }
 
+    /** Genres list (Items array wrapper). */
+    public static List<GenreInfo> genres(String json) {
+        List<GenreInfo> out = new ArrayList<>();
+        if (json == null || json.isBlank()) return out;
+        List<Object> array;
+        if (json.stripLeading().startsWith("[")) {
+            array = JsonValue.array(json);
+        } else {
+            Map<String, Object> root = JsonValue.object(json);
+            array = JsonValue.array(root, "Items");
+        }
+        for (Object value : array) {
+            if (!(value instanceof Map<?, ?> map)) continue;
+            @SuppressWarnings("unchecked")
+            Map<String, Object> genre = (Map<String, Object>) map;
+            out.add(new GenreInfo(
+                    valueOrEmpty(JsonValue.string(genre, "Id")),
+                    valueOrEmpty(JsonValue.string(genre, "Name")),
+                    valueOrEmpty(JsonValue.string(genre, "PrimaryImageTag"))
+            ));
+        }
+        return AndroidCollections.listCopy(out);
+    }
+
     private static List<MediaItemSummary> mediaItems(List<Object> values) {
         List<MediaItemSummary> items = new ArrayList<>();
         for (Object value : values) {

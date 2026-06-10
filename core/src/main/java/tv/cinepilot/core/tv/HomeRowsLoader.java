@@ -4,6 +4,8 @@ import java.util.ArrayList;
 import java.util.List;
 import tv.cinepilot.core.AndroidCollections;
 import tv.cinepilot.core.protocol.AuthenticatedServer;
+import tv.cinepilot.core.protocol.ItemQuery;
+import tv.cinepilot.core.protocol.MediaBrowseFilters;
 import tv.cinepilot.core.protocol.MediaBrowserClient;
 import tv.cinepilot.core.protocol.MediaItemPage;
 import tv.cinepilot.core.protocol.MediaItemSummary;
@@ -28,11 +30,18 @@ public final class HomeRowsLoader {
     }
 
     public List<HomeRow> load(AuthenticatedServer authenticated) {
+        return load(authenticated, MediaBrowseFilters.EMPTY);
+    }
+
+    public List<HomeRow> load(AuthenticatedServer authenticated, MediaBrowseFilters filters) {
+        MediaBrowseFilters safeFilters = filters == null ? MediaBrowseFilters.EMPTY : filters;
         List<HomeRow> rows = new ArrayList<>();
         addIfNotEmpty(rows, "views", "媒体库", client.userViews(authenticated).items());
-        addIfNotEmpty(rows, "resume", "继续观看", client.resumeItems(authenticated, rowLimit).items());
-        addIfNotEmpty(rows, "next-up", "下一集", client.nextUpItems(authenticated, rowLimit).items());
-        addIfNotEmpty(rows, "favorites", "收藏夹", client.favoriteItems(authenticated, rowLimit).items());
+        if (!safeFilters.isStrict()) {
+            addIfNotEmpty(rows, "resume", "继续观看", client.resumeItems(authenticated, rowLimit).items());
+            addIfNotEmpty(rows, "next-up", "下一集", client.nextUpItems(authenticated, rowLimit).items());
+            addIfNotEmpty(rows, "favorites", "收藏夹", client.favoriteItems(authenticated, rowLimit).items());
+        }
         addIfNotEmpty(rows, "collections", "精选合集", client.collections(authenticated, rowLimit).items());
 
         MediaItemPage views = client.userViews(authenticated);
@@ -40,12 +49,26 @@ public final class HomeRowsLoader {
             if (view.id().isBlank()) {
                 continue;
             }
-            addIfNotEmpty(
-                    rows,
-                    "latest:" + view.id(),
-                    view.name().isBlank() ? "最新" : "最新 - " + view.name(),
-                    client.latestItems(authenticated, view.id(), rowLimit).items()
-            );
+            MediaItemPage page;
+            String rowId;
+            String title;
+            if (safeFilters.isEmpty()) {
+                page = client.latestItems(authenticated, view.id(), rowLimit);
+                rowId = "latest:" + view.id();
+                title = view.name().isBlank() ? "最新" : "最新 - " + view.name();
+            } else {
+                ItemQuery.Builder query = ItemQuery.browse()
+                        .parentId(view.id())
+                        .recursive(true)
+                        .sortBy("DateCreated,SortName")
+                        .sortOrder("Descending")
+                        .limit(rowLimit);
+                safeFilters.applyTo(query);
+                page = client.items(authenticated, query.build());
+                rowId = "filtered:" + view.id();
+                title = (view.name().isBlank() ? "筛选结果" : view.name()) + " · 筛选";
+            }
+            addIfNotEmpty(rows, rowId, title, page.items());
         }
         return AndroidCollections.listCopy(rows);
     }

@@ -44,6 +44,13 @@ object MediaWallTokens {
     const val DetailTop = 74
     const val DetailGap = 30
     const val SheetWidth = 480
+    const val FilterChipHeight = 34
+    const val FilterChipRadius = 17
+    const val FilterChipGap = 10
+    const val FilterRowBottom = 8
+    const val SeasonChipWidth = 136
+    const val SeasonChipHeight = 40
+    const val SeasonChipRadius = 13
 }
 
 object MediaWallType {
