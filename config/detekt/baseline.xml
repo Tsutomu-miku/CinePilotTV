@@ -1,0 +1,6 @@
+<?xml version="1.0" ?>
+<SmellBaseline>
+  <Blacklist timestamp="placeholder">
+    <!-- Initial baseline: empty. All Detekt issues must be fixed. -->
+  </Blacklist>
+</SmellBaseline>
