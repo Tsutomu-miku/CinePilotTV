@@ -511,6 +511,7 @@ class PlaybackRouteController(
             overlayRebuildScheduled = false
             val playerView = playerHost.createPlayerView(
                 state = state,
+                subtitleEncoding = settings.subtitleEncoding,
                 onPlaybackError = { error ->
                     activity.runOnUiThread {
                         playerHost.release()

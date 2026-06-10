@@ -30,6 +30,37 @@ android {
         buildConfig = true
     }
 
+    // Native subtitle decoders (LibASS / PGS) are only built when the Android NDK
+    // is available on the build machine. Missing NDK falls back to the Java default
+    // subtitle path; the native wrappers guard System.loadLibrary with try/catch.
+    val ndkDir = (findProperty("android.ndkDirectory") as? String)
+        ?: System.getenv("ANDROID_NDK_HOME")
+        ?: ""
+    val ndkAvailable = ndkDir.isNotBlank() && file(ndkDir).isDirectory
+    if (ndkAvailable) {
+        externalNativeBuild {
+            cmake {
+                path = file("src/main/cpp/CMakeLists.txt")
+                version = "3.22.1"
+            }
+        }
+        defaultConfig {
+            externalNativeBuild {
+                cmake {
+                    cppFlags += "-std=c++17 -fexceptions"
+                    abiFilters += listOf("armeabi-v7a", "arm64-v8a", "x86", "x86_64")
+                    arguments += listOf("-DANDROID_STL=c++_shared")
+                }
+            }
+        }
+        packaging {
+            jniLibs {
+                useLegacyPackaging = true
+            }
+        }
+        ndkVersion = "27.0.12077973"
+    }
+
     buildTypes {
         release {
             isMinifyEnabled = true
@@ -77,6 +108,7 @@ dependencies {
     implementation(libs.androidx.media3.exoplayer)
     implementation(libs.androidx.media3.exoplayer.hls)
     implementation(libs.androidx.media3.ui)
+    implementation(libs.juniversalchardet)
     coreLibraryDesugaring(libs.desugar.jdk.libs)
     testImplementation(libs.junit)
     testImplementation(libs.robolectric)

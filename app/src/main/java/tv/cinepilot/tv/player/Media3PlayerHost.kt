@@ -5,6 +5,8 @@ import android.net.Uri
 import android.os.Handler
 import android.os.Looper
 import android.view.View
+import android.view.ViewGroup
+import android.widget.FrameLayout
 import androidx.media3.common.C
 import androidx.media3.common.MediaItem
 import androidx.media3.common.MimeTypes
@@ -23,7 +25,11 @@ import tv.cinepilot.core.protocol.PlaybackSessionController
 import tv.cinepilot.core.tv.TvAppState
 import tv.cinepilot.tv.playback.SubtitleBackground
 import tv.cinepilot.tv.playback.SubtitleEdgeStyle
+import tv.cinepilot.tv.playback.SubtitleEncoding
 import tv.cinepilot.tv.playback.SubtitleStyleStore
+import tv.cinepilot.tv.subtitles.CinePilotSubtitleDecoderFactory
+import tv.cinepilot.tv.subtitles.PgsSubtitleOverlay
+import tv.cinepilot.tv.subtitles.SubtitleSideChannel
 
 class Media3PlayerHost(
     private val context: Context,
@@ -35,11 +41,13 @@ class Media3PlayerHost(
     private var bridge: Media3PlaybackBridge? = null
     private var progressTicker: Runnable? = null
     private var currentPlayerView: PlayerView? = null
+    private var currentOverlay: PgsSubtitleOverlay? = null
     private var positionTickCallback: ((Long, Long) -> Unit)? = null
     private val checkInExecutor = Executors.newSingleThreadExecutor()
 
     fun createPlayerView(
         state: TvAppState,
+        subtitleEncoding: SubtitleEncoding = SubtitleEncoding.AUTO,
         onPlaybackError: (PlaybackException) -> Unit = {},
         onPlaybackEnded: () -> Unit = {},
         onPositionTick: ((positionTicks: Long, durationTicks: Long) -> Unit)? = null,
@@ -67,7 +75,16 @@ class Media3PlayerHost(
             initialAudioStreamIndex = playable.audioStreamIndex(),
             initialSubtitleStreamIndex = playable.subtitleStreamIndex(),
         )
-        val nextPlayer = ExoPlayer.Builder(context).build().apply {
+        val playerBuilder = ExoPlayer.Builder(context)
+        // Install the CinePilot subtitle factory on the builder BEFORE build() so
+        // ExoPlayer constructs its TextRenderer with our ASS / PGS / SubRip decoders
+        // instead of the default ones (P1-1 / P1-2 / P1-3).
+        CinePilotSubtitleDecoderFactory.installOn(
+            builder = playerBuilder,
+            context = context,
+            userPreferredEncoding = subtitleEncoding,
+        )
+        val nextPlayer = playerBuilder.build().apply {
             addListener(playbackBridge)
             applyTrackPreferences(playable)
             setMediaItem(
@@ -104,8 +121,23 @@ class Media3PlayerHost(
             applySubtitleStyle(this)
             hideInlineTransportButtons()
         }
+        // Wrap the PlayerView in a FrameLayout so the PGS / ASS bitmap overlay can
+        // sit above the video surface without relying on RemotePlayerView internals.
+        val surfaceHost = FrameLayout(context).apply {
+            layoutParams = ViewGroup.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                ViewGroup.LayoutParams.MATCH_PARENT,
+            )
+            addView(playerView, FrameLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                ViewGroup.LayoutParams.MATCH_PARENT,
+            ))
+        }
+        val overlay = PgsSubtitleOverlay.injectInto(surfaceHost)
+        overlay.attachToPlayer(nextPlayer)
+        currentOverlay = overlay
         currentPlayerView = playerView
-        return playerView
+        return surfaceHost
     }
 
     fun playerView(): PlayerView? = currentPlayerView
@@ -117,7 +149,7 @@ class Media3PlayerHost(
 
     fun durationTicks(): Long {
         val ms = player?.duration ?: return 0L
-        if (ms == androidx.media3.common.C.TIME_UNSET || ms <= 0L) return 0L
+        if (ms == C.TIME_UNSET || ms <= 0L) return 0L
         return MediaTicks.fromMilliseconds(ms)
     }
 
@@ -152,6 +184,9 @@ class Media3PlayerHost(
     }
 
     fun release() {
+        currentOverlay?.attachToPlayer(null)
+        currentOverlay = null
+        SubtitleSideChannel.clear()
         progressTicker?.let(handler::removeCallbacks)
         progressTicker = null
         player?.let { currentPlayer ->
@@ -238,6 +273,7 @@ class Media3PlayerHost(
             "ass", "ssa" -> MimeTypes.TEXT_SSA
             "vtt", "webvtt" -> MimeTypes.TEXT_VTT
             "ttml", "dfxp" -> MimeTypes.APPLICATION_TTML
+            "pgs", "sup" -> "application/pgs"
             else -> MimeTypes.APPLICATION_SUBRIP
         }
     }
@@ -260,10 +296,10 @@ class Media3PlayerHost(
         }
         val foregroundColor = applyAlpha(style.color.color, style.textOpacity.alpha)
         playerView.subtitleView?.apply {
-            // ASS/SSA embedded styles are respected when the renderer supports them; Media3
-            // otherwise falls back to this CaptionStyleCompat. Setting this off would keep
-            // author-provided fonts/colors/positions intact (P1-1 intent), while the user-
-            // supplied style still governs size, margin and edge fallbacks.
+            // ASS/SSA embedded styles are respected when the renderer supports them;
+            // Media3 otherwise falls back to this CaptionStyleCompat. Author-provided
+            // fonts/colors/positions are preserved by the LibASS native path; user
+            // style here only governs size, margin, and edge fallbacks.
             setApplyEmbeddedStyles(true)
             setApplyEmbeddedFontSizes(true)
             setFractionalTextSize(style.size.fraction)
@@ -292,7 +328,7 @@ class Media3PlayerHost(
                     val callback = positionTickCallback
                     if (callback != null) {
                         val duration = nextPlayer.duration.let {
-                            if (it == androidx.media3.common.C.TIME_UNSET || it < 0L) 0L else it
+                            if (it == C.TIME_UNSET || it < 0L) 0L else it
                         }
                         callback(
                             if (nextPlayer.currentPosition < 0L) 0L else MediaTicks.fromMilliseconds(nextPlayer.currentPosition),
