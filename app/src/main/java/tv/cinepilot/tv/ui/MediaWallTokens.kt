@@ -29,7 +29,15 @@ object MediaWallTokens {
     const val FocusBorder = 1
     const val FocusAlpha = 188
     const val FocusElevation = 6
-    const val FocusOverflow = 6
+    // Horizontal edge padding reserved on row/strip containers so the scaled
+    // focus ring plus the outer shadow spread is never clipped by the parent.
+    // Must be >= ceil(FocusShadowSpread / 2) for the current shadow geometry.
+    const val FocusOverflow = 8
+    // Total half-spread (in dp) of the outermost focus halo. Used by both the
+    // FocusShadowDrawable bounds expansion and the overflow-padding invariant.
+    const val FocusShadowSpread = 14
+    // Inner drawable spread (in dp) used for concentric stroke offsets.
+    const val FocusShadowInnerSpread = 12
     const val HeaderHeight = 54
     const val DetailPosterWidth = 172
     const val DetailPosterHeight = 258
