@@ -31,6 +31,8 @@ import tv.cinepilot.tv.player.DisplayModeApplier
 import tv.cinepilot.tv.player.Media3PlayerHost
 import tv.cinepilot.tv.runtime.ArtworkTarget
 import tv.cinepilot.tv.runtime.DeviceCodecDiagnostics
+import tv.cinepilot.tv.ui.DisplayModeSwitchPrompt
+import tv.cinepilot.tv.ui.afmConfirmationSheet
 import tv.cinepilot.tv.ui.PlayerNextUpInfo
 import tv.cinepilot.tv.ui.PlayerOverrides
 import tv.cinepilot.tv.playback.PlaybackSettingsFocusGroup
@@ -511,14 +513,51 @@ class PlaybackRouteController(
                 },
                 onPositionTick = ::onPlayerPositionTick,
             )
-            displayModeApplier.applyFrameRate(
+            val pending = displayModeApplier.computePendingMode(
                 referenceFrameRate = playerHost.referenceFrameRate(),
                 matchColorSpace = settings.matchColorSpace,
                 enabled = settings.autoFrameMatching,
             )
-            rebuildPlayerOverlay(state, rebuildRoot = true, playerView = playerView)
-            playerView.post { playerView.requestFocus() }
+            fun finalize() {
+                rebuildPlayerOverlay(state, rebuildRoot = true, playerView = playerView)
+                playerView.post { playerView.requestFocus() }
+            }
+            if (pending != null &&
+                settings.confirmBeforeFrameSwitch &&
+                !settings.skipFrameSwitchConfirm
+            ) {
+                showAfmConfirmation(pending, ::finalize)
+            } else {
+                if (pending != null) displayModeApplier.commitPendingMode(pending)
+                finalize()
+            }
         }
+    }
+
+    private fun showAfmConfirmation(
+        pending: android.view.Display.Mode,
+        finalize: () -> Unit,
+    ) {
+        val prompt = DisplayModeSwitchPrompt.from(pending)
+        val current = displayModeApplier.formatCurrentModeForDiagnostics()
+        activity.setContentView(activity.afmConfirmationSheet(
+            prompt = prompt,
+            currentModeLabel = current,
+            onSwitchNow = {
+                displayModeApplier.commitPendingMode(pending)
+                finalize()
+            },
+            onSkipOnce = {
+                finalize()
+            },
+            onAlwaysSkip = {
+                playbackSettingsStore.save(
+                    playbackSettingsStore.current().copy(skipFrameSwitchConfirm = true)
+                )
+                displayModeApplier.commitPendingMode(pending)
+                finalize()
+            },
+        ))
     }
 
     private fun onPlayerPositionTick(positionTicks: Long, durationTicks: Long) {

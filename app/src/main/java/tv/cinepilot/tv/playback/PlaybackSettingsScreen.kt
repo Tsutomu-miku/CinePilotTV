@@ -54,6 +54,31 @@ fun ComponentActivity.playbackSettingsScreen(
                 it.copy(matchColorSpace = checked)
             }
         })
+        addView(toggleRow(
+            label = "切换前确认",
+            description = "在自动切换显示模式前弹出确认通知",
+            checked = current.confirmBeforeFrameSwitch,
+            focus = false,
+        ) { checked ->
+            update(PlaybackSettingsFocusGroup.AFM) {
+                it.copy(
+                    confirmBeforeFrameSwitch = checked,
+                    skipFrameSwitchConfirm = if (checked) false else it.skipFrameSwitchConfirm,
+                )
+            }
+        })
+        if (current.skipFrameSwitchConfirm) {
+            addView(toggleRow(
+                label = "重新启用确认通知",
+                description = "此前已勾选「不再提醒」，打开可恢复显示模式切换提示",
+                checked = false,
+                focus = false,
+            ) { _ ->
+                update(PlaybackSettingsFocusGroup.AFM) {
+                    it.copy(skipFrameSwitchConfirm = false)
+                }
+            })
+        }
         addView(section("自动连播"))
         addView(toggleRow(
             label = "末 30s 弹出下一集",

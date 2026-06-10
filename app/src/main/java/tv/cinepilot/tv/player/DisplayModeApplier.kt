@@ -15,9 +15,16 @@ import tv.cinepilot.core.protocol.MediaTicks
  * multiple Display.Mode entries. Best-effort: older TVs without alternate modes, or
  * devices below API 23, silently no-op.
  *
- * <p>The controller calls {@link #applyFrameRate} before starting playback, supplying the
- * video's reference frame rate (rounded to a common denominator to avoid needless mode
- * switches on non-integer fractional content like 23.976 → 24).
+ * <p>Two-stage usage for callers that want to show a confirmation notice before switching:
+ *
+ * <ol>
+ *     <li>{@link #computePendingMode(Float, boolean, boolean)} returns the candidate
+ *         {@link Display.Mode} that matches the content reference frame rate; {@code null}
+ *         when no switch is needed.</li>
+ *     <li>{@link #commitPendingMode(Display.Mode)} actually applies the mode and shows the
+ *         usual "已切换到" toast. Callers that skip user confirmation can invoke
+ *         {@link #applyFrameRate(Float, boolean, boolean)} directly.</li>
+ * </ol>
  */
 class DisplayModeApplier(
     private val activity: Activity,
@@ -28,29 +35,62 @@ class DisplayModeApplier(
     private var previousMode: Display.Mode? = null
     private var appliedModeId: Int? = null
 
+    /**
+     * One-shot helper for callers that do not want a confirmation step. Identical to
+     * {@code computePendingMode(...)} followed by {@code commitPendingMode(mode)} when
+     * a different mode is found.
+     */
     fun applyFrameRate(
         referenceFrameRate: Float?,
         matchColorSpace: Boolean,
         enabled: Boolean,
     ) {
-        if (!enabled || Build.VERSION.SDK_INT < Build.VERSION_CODES.M) return
-        val frameRate = referenceFrameRate ?: return
-        val display = activity.windowManager.defaultDisplay ?: return
-        val best = pickBestMode(display, normalizeFrameRate(frameRate), matchColorSpace) ?: return
-        if (appliedModeId == best.modeId) return
+        val pending = computePendingMode(referenceFrameRate, matchColorSpace, enabled)
+        if (pending != null) commitPendingMode(pending)
+    }
+
+    /**
+     * Returns the best-matching {@link Display.Mode} for the supplied content, or
+     * {@code null} when AFM is disabled, the API level is too low, the device does not
+     * list alternate modes, or the currently applied mode already matches best.
+     */
+    fun computePendingMode(
+        referenceFrameRate: Float?,
+        matchColorSpace: Boolean,
+        enabled: Boolean,
+    ): Display.Mode? {
+        if (!enabled || Build.VERSION.SDK_INT < Build.VERSION_CODES.M) return null
+        val frameRate = referenceFrameRate ?: return null
+        val display = activity.windowManager.defaultDisplay ?: return null
+        val best = pickBestMode(display, normalizeFrameRate(frameRate), matchColorSpace) ?: return null
+        if (appliedModeId == best.modeId) return null
+        val current = display.mode
+        if (current.modeId == best.modeId && preferredModeIdSafe(activity.window.attributes) == best.modeId) {
+            appliedModeId = best.modeId
+            return null
+        }
+        return best
+    }
+
+    /**
+     * Apply a mode previously returned from {@link #computePendingMode}. Safe to call
+     * multiple times with the same mode (subsequent calls no-op).
+     */
+    fun commitPendingMode(mode: Display.Mode) {
+        if (appliedModeId == mode.modeId) return
         val window = activity.window
         val modeBefore = preferredModeIdSafe(window.attributes)
         if (previousMode == null && modeBefore != 0) {
-            previousMode = display.mode
+            previousMode = activity.windowManager.defaultDisplay?.mode
         }
-        applyModeSafe(window, best)
-        appliedModeId = best.modeId
-        val fpsLabel = String.format("%.0f Hz", best.refreshRate)
+        applyModeSafe(window, mode)
+        appliedModeId = mode.modeId
+        val fpsLabel = String.format("%.0f Hz", mode.refreshRate)
         val colorHint = when {
-            best.physicalHeight >= 2160 -> "4K"
-            best.physicalHeight >= 1080 -> "1080p"
-            best.physicalHeight >= 720 -> "720p"
-            else -> "${best.physicalWidth}p"
+            mode.physicalHeight >= 2160 -> "4K"
+            mode.physicalHeight >= 1080 -> "1080p"
+            mode.physicalHeight >= 720 -> "720p"
+            else -> "${mode.physicalWidth}p"
         }
         Toast.makeText(
             activity,

@@ -6,6 +6,8 @@ import android.content.SharedPreferences
 data class PlaybackSettings(
     val autoFrameMatching: Boolean,
     val matchColorSpace: Boolean,
+    val confirmBeforeFrameSwitch: Boolean,
+    val skipFrameSwitchConfirm: Boolean,
     val autoPlayNext: Boolean,
     val autoSkipIntro: Boolean,
     val autoSkipCredits: Boolean,
@@ -21,6 +23,8 @@ data class PlaybackSettings(
             return PlaybackSettings(
                 autoFrameMatching = true,
                 matchColorSpace = true,
+                confirmBeforeFrameSwitch = true,
+                skipFrameSwitchConfirm = false,
                 autoPlayNext = true,
                 autoSkipIntro = false,
                 autoSkipCredits = false,
@@ -54,6 +58,14 @@ class PlaybackSettingsStore(context: Context) {
         return PlaybackSettings(
             autoFrameMatching = bool("afm", PlaybackSettings.defaults().autoFrameMatching),
             matchColorSpace = bool("matchColor", PlaybackSettings.defaults().matchColorSpace),
+            confirmBeforeFrameSwitch = bool(
+                "confirmBeforeFrameSwitch",
+                PlaybackSettings.defaults().confirmBeforeFrameSwitch,
+            ),
+            skipFrameSwitchConfirm = bool(
+                "skipFrameSwitchConfirm",
+                PlaybackSettings.defaults().skipFrameSwitchConfirm,
+            ),
             autoPlayNext = bool("autoPlayNext", PlaybackSettings.defaults().autoPlayNext),
             autoSkipIntro = bool("autoSkipIntro", PlaybackSettings.defaults().autoSkipIntro),
             autoSkipCredits = bool("autoSkipCredits", PlaybackSettings.defaults().autoSkipCredits),
@@ -76,6 +88,8 @@ class PlaybackSettingsStore(context: Context) {
         preferences.edit()
             .putBoolean("afm", value.autoFrameMatching)
             .putBoolean("matchColor", value.matchColorSpace)
+            .putBoolean("confirmBeforeFrameSwitch", value.confirmBeforeFrameSwitch)
+            .putBoolean("skipFrameSwitchConfirm", value.skipFrameSwitchConfirm)
             .putBoolean("autoPlayNext", value.autoPlayNext)
             .putBoolean("autoSkipIntro", value.autoSkipIntro)
             .putBoolean("autoSkipCredits", value.autoSkipCredits)
