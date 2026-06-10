@@ -414,6 +414,53 @@ public final class TvWorkflowController {
         return new ShowStructure(series, seasons, season, episodes, nextUp, resume);
     }
 
+    /**
+     * Builds a "season started" status map suitable for driving the series-detail season-rail
+     * folding logic. A season is considered "not yet started" when every episode it contains
+     * is unplayed AND has no resume position; the currently-selected season is always shown.
+     *
+     * <p>The returned map key is the season's id; a value of {@code true} means the season
+     * has been watched (at least one episode played or resumed). {@code false} means the
+     * entire season is still unwatched, so it is a candidate for folding behind a compact
+     * "Sx · 尚未开始" chip in the series-detail rail.
+     *
+     * <p>The workflow eagerly probes every non-selected season's episode list so the UI can
+     * make the fold decision without additional round-trips. The call is bounded by the
+     * number of seasons a real-world series typically has.
+     */
+    public java.util.Map<String, Boolean> loadSeasonsStartedStatus(ShowStructure structure) {
+        if (structure == null || state.authenticated() == null) {
+            return java.util.Collections.emptyMap();
+        }
+        java.util.Map<String, Boolean> out = new java.util.LinkedHashMap<>();
+        String selectedId = structure.selectedSeason() == null ? "" : structure.selectedSeason().id();
+        for (MediaItemSummary season : structure.seasons()) {
+            if (season == null || season.id().isBlank()) continue;
+            if (season.id().equals(selectedId)) {
+                out.put(season.id(), true);
+                continue;
+            }
+            // Fall back to the season-level UserData when we have no episodes loaded:
+            // if the server already marked the season played, we treat it as started.
+            boolean started = season.userData() != null
+                    && (season.userData().played() || season.userData().playbackPositionTicks() > 0);
+            if (!started) {
+                List<MediaItemSummary> seasonEpisodes = childPage(
+                        season.id(), 0, BrowseSession.FOLDER_PAGE_SIZE, false
+                ).items();
+                for (MediaItemSummary ep : seasonEpisodes) {
+                    if (ep.userData() == null) continue;
+                    if (ep.userData().played() || ep.hasResumePosition()) {
+                        started = true;
+                        break;
+                    }
+                }
+            }
+            out.put(season.id(), started);
+        }
+        return java.util.Collections.unmodifiableMap(out);
+    }
+
     public ShowStructure loadEpisodeContext(MediaItemSummary episode) {
         if (state.authenticated() == null) {
             throw new IllegalStateException("authenticated session is required before loading episode context");

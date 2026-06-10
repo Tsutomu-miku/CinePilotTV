@@ -13,6 +13,7 @@ import androidx.activity.ComponentActivity
 import tv.cinepilot.core.protocol.MediaItemSummary
 import tv.cinepilot.core.protocol.MediaPerson
 import tv.cinepilot.tv.ui.InfuseAction
+import tv.cinepilot.tv.ui.InfuseActionEmphasis
 import tv.cinepilot.tv.ui.MediaWallType
 import tv.cinepilot.tv.ui.MediaWallTokens
 import tv.cinepilot.tv.ui.TvColors
@@ -107,24 +108,33 @@ internal fun ComponentActivity.seasonRail(
     selectedSeason: MediaItemSummary?,
     onOpenSeason: (MediaItemSummary) -> Unit,
     onSelectSeason: ((MediaItemSummary) -> Unit)? = null,
+    seasonsStartedStatus: Map<String, Boolean> = emptyMap(),
+    onExpandFoldedSeasons: () -> Unit = {},
 ): View {
+    val selectedId = selectedSeason?.id()
+    val (normal, folded) = seasons.partition { season ->
+        val id = season.id()
+        id == selectedId ||
+            !seasonsStartedStatus.getOrDefault(id, false) ||
+            seasonsStartedStatus.isEmpty() // no preloaded status → render all (fallback)
+    }
     val strip = LinearLayout(this).apply {
         orientation = LinearLayout.HORIZONTAL
-        seasons.forEach { season ->
+        normal.forEach { season ->
             addView(seasonChip(
                 season = season,
-                selected = selectedSeason?.id() == season.id(),
+                selected = selectedId == season.id(),
                 onClick = {
-                    if (selectedSeason?.id() == season.id()) {
-                        // Re-clicking the already-selected season opens the dedicated detail page.
+                    if (selectedId == season.id()) {
                         onOpenSeason(season)
                     } else {
-                        // Otherwise: in-place selection. If no handler is provided, fall back
-                        // to navigation (matches prior behavior for non-series-detail callers).
                         if (onSelectSeason != null) onSelectSeason(season) else onOpenSeason(season)
                     }
                 },
             ))
+        }
+        if (folded.isNotEmpty()) {
+            addView(seasonFoldedChip(folded.size, onExpandFoldedSeasons))
         }
     }
     return LinearLayout(this).apply {
@@ -247,6 +257,48 @@ private fun ComponentActivity.seasonChip(
         setOnFocusChangeListener { view, focused -> view.applyFocusOutline(focused, MediaWallTokens.SeasonChipRadius) }
         layoutParams = ViewGroup.MarginLayoutParams(
             dp(MediaWallTokens.SeasonChipWidth),
+            dp(MediaWallTokens.SeasonChipHeight),
+        ).apply {
+            rightMargin = dp(MediaWallTokens.CellGap)
+            bottomMargin = dp(MediaWallTokens.CellGap)
+        }
+    }
+}
+
+private fun ComponentActivity.seasonFoldedChip(
+    foldedCount: Int,
+    onClick: () -> Unit,
+): TextView {
+    val label = if (foldedCount <= 3) {
+        "▶ S${foldedCount} · 尚未开始"
+    } else {
+        "▶ S${foldedCount} · 未开始的季"
+    }
+    return TextView(this).apply {
+        text = label
+        textSize = 13f
+        gravity = Gravity.CENTER
+        isFocusable = true
+        isClickable = true
+        maxLines = 1
+        ellipsize = TextUtils.TruncateAt.END
+        setTextColor(TvColors.TextSecondary)
+        background = rounded(
+            Color.argb(20, 0, 0, 0),
+            dp(MediaWallTokens.SeasonChipRadius),
+            dp(1),
+            homeHairlineColor(38),
+        )
+        setPadding(dp(16), 0, dp(16), 0)
+        setOnClickListener { onClick() }
+        setOnFocusChangeListener { view, focused ->
+            view.applyFocusOutline(focused, MediaWallTokens.SeasonChipRadius)
+            (view as? TextView)?.setTextColor(
+                if (focused) TvColors.TextPrimary else TvColors.TextSecondary
+            )
+        }
+        layoutParams = ViewGroup.MarginLayoutParams(
+            ViewGroup.MarginLayoutParams.WRAP_CONTENT,
             dp(MediaWallTokens.SeasonChipHeight),
         ).apply {
             rightMargin = dp(MediaWallTokens.CellGap)

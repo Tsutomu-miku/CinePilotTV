@@ -22,6 +22,8 @@ fun ComponentActivity.seriesDetailScreen(
     structure: ShowStructure,
     onOpenSeason: (MediaItemSummary) -> Unit,
     onSelectSeason: (MediaItemSummary) -> Unit = onOpenSeason,
+    onExpandFoldedSeasons: () -> Unit = {},
+    seasonStartedStatus: Map<String, Boolean> = emptyMap(),
     onOpenEpisode: (MediaItemSummary) -> Unit,
     loadPoster: (ImageView, MediaItemSummary, Int, Int) -> Unit,
     loadBackdrop: (ImageView, MediaItemSummary) -> Unit,
@@ -73,7 +75,14 @@ fun ComponentActivity.seriesDetailScreen(
             onProviderBadgeClick = onProviderBadgeClick,
         ))
         if (structure.seasons().isNotEmpty()) {
-            addView(seasonRail(structure.seasons(), structure.selectedSeason(), onOpenSeason, onSelectSeason))
+            addView(seasonRail(
+                seasons = structure.seasons(),
+                selectedSeason = structure.selectedSeason(),
+                onOpenSeason = onOpenSeason,
+                onSelectSeason = onSelectSeason,
+                seasonsStartedStatus = seasonStartedStatus,
+                onExpandFoldedSeasons = onExpandFoldedSeasons,
+            ))
         }
         if (structure.episodes().isNotEmpty()) {
             addView(groupedEpisodes(

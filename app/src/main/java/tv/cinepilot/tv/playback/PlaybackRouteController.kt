@@ -218,48 +218,64 @@ class PlaybackRouteController(
         openSeriesDetail(item.seriesId(), pushBack = false)
     }
 
-    private fun showSeriesDetail(structure: ShowStructure, pushBack: Boolean) {
+    private fun showSeriesDetail(structure: ShowStructure, pushBack: Boolean, foldedSeasonsExpanded: Boolean = false) {
         if (pushBack) {
             mediaBackStack.addLast { showHome(workflowController.state()) }
         }
         val series = structure.series()
-        fun rerender(updated: ShowStructure, pushBackCurrent: Boolean) {
-            showSeriesDetail(updated, pushBackCurrent)
+        var seasonStartedCache: Map<String, Boolean> = emptyMap()
+        fun rerender(updated: ShowStructure, pushBackCurrent: Boolean, expanded: Boolean = foldedSeasonsExpanded) {
+            showSeriesDetail(updated, pushBackCurrent, expanded)
         }
-        activity.setContentView(activity.seriesDetailScreen(
-            structure = structure,
-            onOpenSeason = { season ->
-                mediaBackStack.addLast { showSeriesDetail(structure, pushBack = false) }
-                openSeasonDetail(season.id(), pushBack = false)
-            },
-            onSelectSeason = { season ->
-                var next: ShowStructure? = null
-                runTask("正在加载${season.name()}...", {
-                    next = workflowController.selectSeasonInStructure(structure, season.id())
+        fun withStatus(render: (Map<String, Boolean>) -> Unit) {
+            if (seasonStartedCache.isNotEmpty() || foldedSeasonsExpanded) {
+                render(if (foldedSeasonsExpanded) emptyMap() else seasonStartedCache)
+            } else {
+                runTask("正在加载季信息...", {
+                    seasonStartedCache = workflowController.loadSeasonsStartedStatus(structure)
                 }) {
-                    next?.let { rerender(it, pushBack) }
+                    render(seasonStartedCache)
                 }
-            },
-            onOpenEpisode = { episode ->
-                openEpisodeDetail(episode) { showSeriesDetail(structure, pushBack = false) }
-            },
-            loadPoster = loadPosterImage,
-            loadBackdrop = { backdrop, item -> loadBackdropImage(backdrop, item, 1280, 720) },
-            loadArtwork = loadArtworkImage,
-            loadPerson = loadPersonImage,
-            onToggleFavorite = {
-                rerenderStructureItem(series.id(), { workflowController.toggleFavorite() }) {
-                    showSeriesDetail(structure, pushBack)
-                }
-            },
-            onToggleWatched = {
-                rerenderStructureItem(series.id(), { workflowController.toggleWatched() }) {
-                    showSeriesDetail(structure, pushBack)
-                }
-            },
-            onProviderBadgeClick = ::openExternalUrl,
-            onPersonClick = ::openPerson,
-        ))
+            }
+        }
+        withStatus { status ->
+            activity.setContentView(activity.seriesDetailScreen(
+                structure = structure,
+                onOpenSeason = { season ->
+                    mediaBackStack.addLast { showSeriesDetail(structure, pushBack = false, foldedSeasonsExpanded) }
+                    openSeasonDetail(season.id(), pushBack = false)
+                },
+                onSelectSeason = { season ->
+                    var next: ShowStructure? = null
+                    runTask("正在加载${season.name()}...", {
+                        next = workflowController.selectSeasonInStructure(structure, season.id())
+                    }) {
+                        next?.let { rerender(it, pushBack) }
+                    }
+                },
+                onExpandFoldedSeasons = { rerender(structure, pushBack, expanded = true) },
+                seasonStartedStatus = status,
+                onOpenEpisode = { episode ->
+                    openEpisodeDetail(episode) { showSeriesDetail(structure, pushBack = false, foldedSeasonsExpanded) }
+                },
+                loadPoster = loadPosterImage,
+                loadBackdrop = { backdrop, item -> loadBackdropImage(backdrop, item, 1280, 720) },
+                loadArtwork = loadArtworkImage,
+                loadPerson = loadPersonImage,
+                onToggleFavorite = {
+                    rerenderStructureItem(series.id(), { workflowController.toggleFavorite() }) {
+                        showSeriesDetail(structure, pushBack, foldedSeasonsExpanded)
+                    }
+                },
+                onToggleWatched = {
+                    rerenderStructureItem(series.id(), { workflowController.toggleWatched() }) {
+                        showSeriesDetail(structure, pushBack, foldedSeasonsExpanded)
+                    }
+                },
+                onProviderBadgeClick = ::openExternalUrl,
+                onPersonClick = ::openPerson,
+            ))
+        }
     }
 
     private fun showSeasonDetail(structure: ShowStructure, pushBack: Boolean) {
