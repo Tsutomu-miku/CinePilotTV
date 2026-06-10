@@ -14,6 +14,7 @@ import tv.cinepilot.core.protocol.ServerIdentity
 
 class PrimaryImageLoader(
     private val mediaBrowserClient: MediaBrowserClient,
+    private val bitmapCache: BitmapCache,
 ) {
     private val executor = Executors.newFixedThreadPool(2)
 
@@ -54,9 +55,28 @@ class PrimaryImageLoader(
     }
 
     private fun loadUrl(owner: ComponentActivity, target: ImageView, imageUrl: () -> String) {
+        val url = imageUrl()
+        if (url.isBlank()) {
+            return
+        }
+        target.tag = url
+        bitmapCache.get(url)?.let { cached ->
+            target.setImageBitmap(cached)
+            return
+        }
         executor.execute {
+            // Re-check cache: another worker may have written it while we were
+            // sitting in the thread pool queue.
+            bitmapCache.get(url)?.let { cached ->
+                owner.runOnUiThread {
+                    if (!owner.isFinishing && !owner.isDestroyed && target.tag == url) {
+                        target.setImageBitmap(cached)
+                    }
+                }
+                return@execute
+            }
             runCatching {
-                val connection = URL(imageUrl()).openConnection() as HttpURLConnection
+                val connection = URL(url).openConnection() as HttpURLConnection
                 connection.connectTimeout = 3_000
                 connection.readTimeout = 5_000
                 try {
@@ -65,8 +85,9 @@ class PrimaryImageLoader(
                     connection.disconnect()
                 }
             }.getOrNull()?.let { bitmap ->
+                bitmapCache.put(url, bitmap)
                 owner.runOnUiThread {
-                    if (!owner.isFinishing && !owner.isDestroyed) {
+                    if (!owner.isFinishing && !owner.isDestroyed && target.tag == url) {
                         target.setImageBitmap(bitmap)
                     }
                 }
