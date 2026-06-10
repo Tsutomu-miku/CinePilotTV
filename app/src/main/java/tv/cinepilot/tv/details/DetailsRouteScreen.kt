@@ -42,6 +42,7 @@ fun ComponentActivity.detailsRouteScreen(
     onToggleFavorite: () -> Unit,
     onToggleWatched: () -> Unit,
     onSetUserRating: (Double?) -> Unit = {},
+    onOpenProviderIdsEditor: () -> Unit = {},
     onProviderBadgeClick: (String) -> Unit,
 ): View {
     val ratingExtra = listOf(userRatingRow(
@@ -62,6 +63,7 @@ fun ComponentActivity.detailsRouteScreen(
                 onOpenSeries,
                 onToggleFavorite,
                 onToggleWatched,
+                onOpenProviderIdsEditor,
             )
         } else {
             emptyList()
@@ -137,6 +139,7 @@ private fun ComponentActivity.playbackActions(
     onOpenSeries: () -> Unit,
     onToggleFavorite: () -> Unit,
     onToggleWatched: () -> Unit,
+    onOpenProviderIdsEditor: () -> Unit = {},
 ): List<InfuseAction> {
     val actions = mutableListOf<InfuseAction>()
     if (item.hasResumePosition()) {
@@ -169,6 +172,7 @@ private fun ComponentActivity.playbackActions(
     if (item.seriesId().isNotBlank()) {
         actions.add(InfuseAction("本剧下一集", TvIcon.PLAY, InfuseActionEmphasis.QUIET, onSeriesNextUp))
     }
+    actions.add(InfuseAction("修正编号", TvIcon.SETTINGS, InfuseActionEmphasis.QUIET, onOpenProviderIdsEditor))
     return actions
 }
 

@@ -642,6 +642,67 @@ public final class TvWorkflowController {
         return state;
     }
 
+    // ---- P1-12 ProviderId 手动修正 + 元数据刷新 ----
+
+    /**
+     * Writes a single provider id on the currently selected item. The change is
+     * written to the server first, then mirrored into local state so the UI can
+     * repaint instantly. Callers typically follow up with
+     * {@link #refreshMetadataForSelectedItem(boolean)} to pick up any provider-
+     * driven metadata changes (posters, descriptions, etc.).
+     */
+    public TvAppState setProviderId(String key, String value) {
+        requireSelectedItem("provider-id update");
+        if (key == null || key.isBlank()) {
+            throw new IllegalArgumentException("provider key is required");
+        }
+        MediaItemSummary item = state.selectedItem();
+        java.util.Map<String, String> next = new java.util.HashMap<>();
+        for (String k : item.providerIds().keySet()) next.put(k, item.providerIds().get(k));
+        String safeValue = value == null ? "" : value;
+        if (safeValue.isBlank()) {
+            next.remove(key);
+        } else {
+            next.put(key, safeValue);
+        }
+        client.updateProviderIds(state.authenticated(), item.id(), next);
+        MediaItemSummary updated = item.withProviderIds(next);
+        state = TvWorkflow.selectedItemUpdated(state, updated);
+        return state;
+    }
+
+    /**
+     * Bulk variant of {@link #setProviderId(String, String)}. Writes every key in the
+     * supplied map to the server in a single request; keys with blank values are removed.
+     * Useful when the editor produces a complete replacement map.
+     */
+    public TvAppState setProviderIdsForSelectedItem(java.util.Map<String, String> fullMap) {
+        requireSelectedItem("provider-id bulk update");
+        if (fullMap == null) {
+            throw new IllegalArgumentException("provider ids map is required");
+        }
+        MediaItemSummary item = state.selectedItem();
+        client.updateProviderIds(state.authenticated(), item.id(), fullMap);
+        MediaItemSummary updated = item.withProviderIds(fullMap);
+        state = TvWorkflow.selectedItemUpdated(state, updated);
+        return state;
+    }
+
+    /**
+     * Asks the server to refresh metadata for the currently selected item and
+     * then re-opens the item so the UI picks up refreshed poster/overview/etc.
+     * Replaces existing metadata (including images) when {@code replaceAll}
+     * is true; otherwise the refresh is a merge.
+     */
+    public TvAppState refreshMetadataForSelectedItem(boolean replaceAll) {
+        requireSelectedItem("metadata refresh");
+        String itemId = state.selectedItem().id();
+        client.refreshMetadata(state.authenticated(), itemId, replaceAll);
+        // A server-side refresh is a best-effort background task; re-open the item
+        // right now so the UI picks up whatever the server already flushed back.
+        return openItem(itemId);
+    }
+
     // ---- P1-16 same-collection other items rail (detail) ----
 
     /**

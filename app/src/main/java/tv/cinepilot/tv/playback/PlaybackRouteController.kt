@@ -32,7 +32,10 @@ import tv.cinepilot.tv.player.Media3PlayerHost
 import tv.cinepilot.tv.runtime.ArtworkTarget
 import tv.cinepilot.tv.runtime.DeviceCodecDiagnostics
 import tv.cinepilot.tv.ui.DisplayModeSwitchPrompt
+import tv.cinepilot.tv.ui.ProviderIdEditorEntry
 import tv.cinepilot.tv.ui.afmConfirmationSheet
+import tv.cinepilot.tv.ui.buildProviderIdEditorEntries
+import tv.cinepilot.tv.ui.providerIdsEditorSheet
 import tv.cinepilot.tv.ui.PlayerNextUpInfo
 import tv.cinepilot.tv.ui.PlayerOverrides
 import tv.cinepilot.tv.playback.PlaybackSettingsFocusGroup
@@ -146,6 +149,12 @@ class PlaybackRouteController(
                 onSetUserRating = { rating ->
                     rerenderAfterUserAction({ workflowController.setUserRating(rating) }) { newItem ->
                         showDetails(newItem, effectivePlaybackInfo, episodeContext)
+                    }
+                },
+                onOpenProviderIdsEditor = {
+                    openProviderIdsEditor(item) {
+                        val fresh = workflowController.state().selectedItem() ?: item
+                        showDetails(fresh, effectivePlaybackInfo, episodeContext)
                     }
                 },
                 onProviderBadgeClick = ::openExternalUrl,
@@ -321,6 +330,11 @@ class PlaybackRouteController(
                         showSeriesDetail(structure, pushBack, foldedSeasonsExpanded)
                     }
                 },
+                onOpenProviderIdsEditor = {
+                    openProviderIdsEditor(series) {
+                        showSeriesDetail(structure, pushBack, foldedSeasonsExpanded)
+                    }
+                },
                 onProviderBadgeClick = ::openExternalUrl,
                 onPersonClick = ::openPerson,
             ))
@@ -358,6 +372,11 @@ class PlaybackRouteController(
                 },
                 onSetUserRating = { rating ->
                     rerenderStructureItem(season.id(), { workflowController.setUserRating(rating) }) {
+                        showSeasonDetail(structure, pushBack)
+                    }
+                },
+                onOpenProviderIdsEditor = {
+                    openProviderIdsEditor(season) {
                         showSeasonDetail(structure, pushBack)
                     }
                 },
@@ -918,6 +937,52 @@ class PlaybackRouteController(
         }) {
             showHome(workflowController.state())
         }
+    }
+
+    /**
+     * Opens the ProviderIds editor side-sheet. Writes back each edited key on save; optionally
+     * triggers a full server-side metadata refresh (user controls via checkbox). After the
+     * network round-trip re-renders via [rerender] so badges / rail data refresh.
+     */
+    private fun openProviderIdsEditor(
+        currentItem: MediaItemSummary,
+        rerender: () -> Unit,
+    ) {
+        auxiliaryBackAction = rerender
+        val values: Map<String, String> = currentItem.providerIds()?.toMap()
+            ?: emptyMap()
+        val entries: List<ProviderIdEditorEntry> = buildProviderIdEditorEntries(values)
+        activity.setContentView(activity.providerIdsEditorSheet(
+            entries = entries,
+            onCancel = rerender,
+            onSave = { next, refresh ->
+                runTask("正在保存编号...", {
+                    if (workflowController.state().selectedItem()?.id() != currentItem.id()) {
+                        runCatching { workflowController.openItem(currentItem.id()) }
+                    }
+                    // Merge the user-supplied edits into the existing provider-id map; keys
+                    // the user has cleared out of the editor are removed from the full map.
+                    val merged = mutableMapOf<String, String>()
+                    values.forEach { (k, v) -> merged[k] = v }
+                    entries.forEach { entry ->
+                        val newVal = next[entry.key]
+                        if (newVal == null) {
+                            merged.remove(entry.key)
+                        } else {
+                            merged[entry.key] = newVal
+                        }
+                    }
+                    workflowController.setProviderIdsForSelectedItem(merged)
+                    if (refresh) {
+                        runCatching {
+                            workflowController.refreshMetadataForSelectedItem(true)
+                        }
+                    }
+                }) {
+                    rerender()
+                }
+            },
+        ))
     }
 }
 

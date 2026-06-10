@@ -351,6 +351,75 @@ public final class MediaBrowserRequests {
         return builder.build();
     }
 
+    // ---- P1-12 ProviderId 手动修正 + 元数据刷新 ----
+
+    /**
+     * POST /Items/{itemId} with a partial JSON body carrying only the ProviderIds map.
+     * Jellyfin accepts partial item updates through this endpoint; anything outside
+     * ProviderIds is left untouched.
+     */
+    public static ProtocolRequest updateProviderIds(
+            AuthSession session,
+            ServerFlavor flavor,
+            String itemId,
+            java.util.Map<String, String> providerIds
+    ) {
+        require(itemId, "itemId");
+        if (providerIds == null) {
+            throw new IllegalArgumentException("providerIds is required");
+        }
+        String encodedItemId = ProtocolRequest.encodePathSegment(itemId);
+        StringBuilder json = new StringBuilder();
+        json.append("{\"ProviderIds\":{");
+        boolean first = true;
+        for (java.util.Map.Entry<String, String> entry : providerIds.entrySet()) {
+            if (entry.getKey() == null || entry.getValue() == null) continue;
+            if (!first) json.append(',');
+            first = false;
+            json.append('"').append(escapeJson(entry.getKey())).append("\":")
+                    .append('"').append(escapeJson(entry.getValue())).append('"');
+        }
+        json.append("}}");
+        return authenticated(
+                ProtocolRequest.post("/Items/" + encodedItemId),
+                session,
+                flavor
+        ).jsonBody(json.toString()).build();
+    }
+
+    /**
+     * POST /Items/{itemId}/Refresh — instructs the server to re-fetch metadata
+     * for the item (including providers). Replacement mode controls whether
+     * existing metadata is overwritten or merged.
+     */
+    public static ProtocolRequest refreshMetadata(
+            AuthSession session,
+            ServerFlavor flavor,
+            String itemId,
+            boolean replaceAllMetadata
+    ) {
+        require(itemId, "itemId");
+        String encodedItemId = ProtocolRequest.encodePathSegment(itemId);
+        return authenticated(
+                ProtocolRequest.post("/Items/" + encodedItemId + "/Refresh"),
+                session,
+                flavor
+        ).query("MetadataRefreshMode", replaceAllMetadata ? "FullRefresh" : "Default")
+                .query("ImageRefreshMode", replaceAllMetadata ? "FullRefresh" : "Default")
+                .query("ReplaceAllMetadata", replaceAllMetadata ? "true" : "false")
+                .query("ReplaceAllImages", replaceAllMetadata ? "true" : "false")
+                .build();
+    }
+
+    private static String escapeJson(String raw) {
+        return raw
+                .replace("\\", "\\\\")
+                .replace("\"", "\\\"")
+                .replace("\r", "\\r")
+                .replace("\n", "\\n")
+                .replace("\t", "\\t");
+    }
+
     // ---- Collections / BoxSets row (P1-16) ----
 
     public static ProtocolRequest collections(AuthSession session, ServerFlavor flavor, int limit) {

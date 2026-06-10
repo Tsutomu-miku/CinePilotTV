@@ -221,6 +221,31 @@ public final class TvWorkflow {
         );
     }
 
+    /**
+     * Full replacement of the selected item (used after ProviderId edits or
+     * metadata refresh). Propagates the new item to matching cells in home
+     * rows so badges / posters stay consistent.
+     */
+    public static TvAppState selectedItemUpdated(TvAppState state, MediaItemSummary updatedItem) {
+        if (state.selectedItem() == null || updatedItem == null) {
+            return state;
+        }
+        List<HomeRow> updatedRows = replaceItemInRows(state.homeRows(), updatedItem);
+        return state.with(
+                state.route(),
+                state.status(),
+                state.pendingAddress(),
+                state.server(),
+                state.publicUsers(),
+                state.authenticated(),
+                updatedRows,
+                state.focus(),
+                updatedItem,
+                state.playableMedia(),
+                state.errorMessage()
+        );
+    }
+
     private static List<HomeRow> replaceItemInRows(List<HomeRow> rows, MediaItemSummary updated) {
         if (rows == null || rows.isEmpty()) {
             return rows;

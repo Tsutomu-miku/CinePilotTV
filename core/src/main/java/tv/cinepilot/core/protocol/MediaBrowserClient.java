@@ -415,6 +415,43 @@ public final class MediaBrowserClient {
         return null;
     }
 
+    // ---- P1-12 ProviderId 手动修正 + 元数据刷新 ----
+
+    /**
+     * Writes a new ProviderIds map for the supplied item to the server. The update
+     * is partial: only ProviderIds is sent; any other item metadata is preserved.
+     * Throws {@link MediaBrowserException} if the server rejects the update.
+     */
+    public void updateProviderIds(
+            AuthenticatedServer authenticated,
+            String itemId,
+            java.util.Map<String, String> providerIds
+    ) {
+        require(itemId, "itemId");
+        if (providerIds == null) {
+            throw new IllegalArgumentException("providerIds is required");
+        }
+        ProtocolRequest request = MediaBrowserRequests.updateProviderIds(
+                authenticated.session(), authenticated.server().flavor(), itemId, providerIds);
+        send(authenticated.server().address(), request);
+    }
+
+    /**
+     * Triggers a server-side metadata refresh for the given item. Replaces existing
+     * metadata / images when {@code replaceAllMetadata} is true; merges otherwise.
+     * Throws {@link MediaBrowserException} if the server rejects the request.
+     */
+    public void refreshMetadata(
+            AuthenticatedServer authenticated,
+            String itemId,
+            boolean replaceAllMetadata
+    ) {
+        require(itemId, "itemId");
+        ProtocolRequest request = MediaBrowserRequests.refreshMetadata(
+                authenticated.session(), authenticated.server().flavor(), itemId, replaceAllMetadata);
+        send(authenticated.server().address(), request);
+    }
+
     public List<GenreInfo> genres(AuthenticatedServer authenticated, String parentViewId) {
         try {
             ProtocolResponse response = send(authenticated.server().address(),

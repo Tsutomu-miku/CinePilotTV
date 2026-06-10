@@ -120,6 +120,22 @@ public record MediaItemSummary(
         );
     }
 
+    /**
+     * Returns a copy with the provider-ids map replaced. Used by the ProviderId
+     * editor flow to mirror local edits back into the selected-item state before
+     * a server-side write + metadata refresh completes.
+     */
+    public MediaItemSummary withProviderIds(java.util.Map<String, String> newProviderIds) {
+        return new MediaItemSummary(
+                id, parentId, name, type, folder, playable,
+                runTimeTicks, productionYear, indexNumber, parentIndexNumber,
+                seriesName, seriesId, overview, genres, premiereDate,
+                communityRating, officialRating, people, mediaStreams,
+                userData, imageTags, backdropImageTags,
+                AndroidCollections.mapCopy(newProviderIds), chapters
+        );
+    }
+
     // ---- backward-compatible constructors -------------------------------------------------
 
     public MediaItemSummary(

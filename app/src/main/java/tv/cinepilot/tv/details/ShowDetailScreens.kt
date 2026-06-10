@@ -35,6 +35,7 @@ fun ComponentActivity.seriesDetailScreen(
     onToggleFavorite: () -> Unit = {},
     onToggleWatched: () -> Unit = {},
     onSetUserRating: (Double?) -> Unit = {},
+    onOpenProviderIdsEditor: () -> Unit = {},
     onProviderBadgeClick: (String) -> Unit = {},
     onPersonClick: (MediaPerson) -> Unit = {},
 ): View {
@@ -68,6 +69,7 @@ fun ComponentActivity.seriesDetailScreen(
             actions.add(InfuseAction("下一集", TvIcon.PLAY, InfuseActionEmphasis.QUIET) { onOpenEpisode(episode) })
         }
     }
+    actions.add(InfuseAction("修正编号", TvIcon.SETTINGS, InfuseActionEmphasis.QUIET, onOpenProviderIdsEditor))
     return detailsStage(series, loadBackdrop) {
         addView(showHero(
             title = series.name().ifBlank { "剧集详情" },
@@ -128,6 +130,7 @@ fun ComponentActivity.seasonDetailScreen(
     onToggleFavorite: () -> Unit = {},
     onToggleWatched: () -> Unit = {},
     onSetUserRating: (Double?) -> Unit = {},
+    onOpenProviderIdsEditor: () -> Unit = {},
     onProviderBadgeClick: (String) -> Unit = {},
     onPersonClick: (MediaPerson) -> Unit = {},
 ): View {
@@ -154,6 +157,7 @@ fun ComponentActivity.seasonDetailScreen(
         InfuseActionEmphasis.SECONDARY,
         onToggleWatched,
     ))
+    actions.add(InfuseAction("修正编号", TvIcon.SETTINGS, InfuseActionEmphasis.QUIET, onOpenProviderIdsEditor))
     return detailsStage(heroItem, loadBackdrop) {
         addView(showHero(
             title = showHeroTitle(season, featured),
