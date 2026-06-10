@@ -12,16 +12,21 @@ import android.widget.TextView
 import androidx.activity.ComponentActivity
 import tv.cinepilot.core.protocol.MediaItemSummary
 import tv.cinepilot.core.protocol.MediaPerson
+import tv.cinepilot.core.tv.HomeRow
+import tv.cinepilot.tv.runtime.ArtworkTarget
+import tv.cinepilot.tv.ui.HomeRowPresentation
 import tv.cinepilot.tv.ui.InfuseAction
 import tv.cinepilot.tv.ui.InfuseActionEmphasis
 import tv.cinepilot.tv.ui.MediaWallType
 import tv.cinepilot.tv.ui.MediaWallTokens
+import tv.cinepilot.tv.ui.RowVisualStyle
 import tv.cinepilot.tv.ui.TvColors
 import tv.cinepilot.tv.ui.TvFlowLayout
 import tv.cinepilot.tv.ui.applyFocusOutline
 import tv.cinepilot.tv.ui.detailsActions
 import tv.cinepilot.tv.ui.dp
 import tv.cinepilot.tv.ui.homeHairlineColor
+import tv.cinepilot.tv.ui.mediaWallRow
 import tv.cinepilot.tv.ui.metadataPills
 import tv.cinepilot.tv.ui.rounded
 
@@ -173,6 +178,28 @@ internal fun ComponentActivity.peopleStrip(
             }
         })
     }
+}
+
+internal fun ComponentActivity.sameCollectionRail(
+    currentItem: MediaItemSummary,
+    collection: List<MediaItemSummary>,
+    onOpen: (MediaItemSummary) -> Unit,
+    loadArtwork: (ImageView, MediaItemSummary, ArtworkTarget, Int, Int) -> Unit,
+): View? {
+    val items = collection.filterNot { it.id() == currentItem.id() }
+    if (items.isEmpty()) return null
+    return mediaWallRow(
+        presentation = HomeRowPresentation(
+            row = HomeRow("detail:collection:${currentItem.id()}", "同系列其他", items),
+            title = "同系列其他",
+            visualStyle = RowVisualStyle.POSTER_RAIL,
+            wrapItems = false,
+        ),
+        onCell = { _, _ -> },
+        onFocus = { _, _ -> },
+        onOpen = { _, item -> onOpen(item) },
+        loadArtwork = loadArtwork,
+    )
 }
 
 internal fun ComponentActivity.showSection(title: String, content: TvFlowLayout.() -> Unit): View {

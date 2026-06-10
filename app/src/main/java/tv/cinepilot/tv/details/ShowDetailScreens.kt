@@ -25,6 +25,8 @@ fun ComponentActivity.seriesDetailScreen(
     onExpandFoldedSeasons: () -> Unit = {},
     seasonStartedStatus: Map<String, Boolean> = emptyMap(),
     onOpenEpisode: (MediaItemSummary) -> Unit,
+    onOpenCollectionItem: (MediaItemSummary) -> Unit = {},
+    collection: List<MediaItemSummary> = emptyList(),
     loadPoster: (ImageView, MediaItemSummary, Int, Int) -> Unit,
     loadBackdrop: (ImageView, MediaItemSummary) -> Unit,
     loadArtwork: (ImageView, MediaItemSummary, ArtworkTarget, Int, Int) -> Unit,
@@ -92,11 +94,17 @@ fun ComponentActivity.seriesDetailScreen(
                 loadArtwork,
             ))
         }
-        peopleStrip(
+    peopleStrip(
             "演职员",
             peopleSummary(series).ifEmpty { featured?.let(::peopleSummary) ?: emptyList() },
             loadPerson,
             onPersonClick,
+        )?.let(::addView)
+        sameCollectionRail(
+            series,
+            collection = collection,
+            onOpen = onOpenCollectionItem,
+            loadArtwork = loadArtwork,
         )?.let(::addView)
     }
 }
@@ -104,6 +112,8 @@ fun ComponentActivity.seriesDetailScreen(
 fun ComponentActivity.seasonDetailScreen(
     structure: ShowStructure,
     onOpenEpisode: (MediaItemSummary) -> Unit,
+    collection: List<MediaItemSummary> = emptyList(),
+    onOpenCollectionItem: (MediaItemSummary) -> Unit = {},
     loadPoster: (ImageView, MediaItemSummary, Int, Int) -> Unit,
     loadBackdrop: (ImageView, MediaItemSummary) -> Unit,
     loadArtwork: (ImageView, MediaItemSummary, ArtworkTarget, Int, Int) -> Unit,
@@ -154,6 +164,12 @@ fun ComponentActivity.seasonDetailScreen(
             peopleSummary(heroItem).ifEmpty { peopleSummary(structure.series()) },
             loadPerson,
             onPersonClick,
+        )?.let(::addView)
+        sameCollectionRail(
+            season,
+            collection = collection,
+            onOpen = onOpenCollectionItem,
+            loadArtwork = loadArtwork,
         )?.let(::addView)
     }
 }

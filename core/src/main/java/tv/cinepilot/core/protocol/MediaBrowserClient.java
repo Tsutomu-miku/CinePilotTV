@@ -382,6 +382,39 @@ public final class MediaBrowserClient {
         return MediaBrowserResponseMapper.itemPage(response.body());
     }
 
+    /**
+     * Returns the members of a collection / BoxSet by its item id. If the caller does not
+     * know the BoxSet id, use {@link #findBoxSetByTmdbCollectionId(AuthenticatedServer, String)}
+     * first and then call this with the resolved id.
+     */
+    public MediaItemPage collectionChildren(AuthenticatedServer authenticated, String collectionId, int limit) {
+        if (collectionId == null || collectionId.isBlank()) {
+            return new MediaItemPage(AndroidCollections.<MediaItemSummary>emptyList(), 0, 0);
+        }
+        ProtocolRequest request = MediaBrowserRequests.collectionChildren(
+                authenticated.session(), authenticated.server().flavor(), collectionId, limit);
+        try {
+            ProtocolResponse response = send(authenticated.server().address(), request);
+            return MediaBrowserResponseMapper.itemPage(response.body());
+        } catch (MediaBrowserException ignored) {
+            return new MediaItemPage(AndroidCollections.<MediaItemSummary>emptyList(), 0, 0);
+        }
+    }
+
+    /**
+     * Walks all BoxSets on the server and returns the first whose ProviderIds.TmdbCollection
+     * matches the supplied id, or empty when no match is found. The client probes the home
+     * BoxSet page size which is enough for typical library sizes (dozens of collections).
+     */
+    public MediaItemSummary findBoxSetByTmdbCollectionId(AuthenticatedServer authenticated, String tmdbCollectionId) {
+        if (tmdbCollectionId == null || tmdbCollectionId.isBlank()) return null;
+        MediaItemPage page = collections(authenticated, 500);
+        for (MediaItemSummary item : page.items()) {
+            if (tmdbCollectionId.equals(item.tmdbCollectionId())) return item;
+        }
+        return null;
+    }
+
     public List<GenreInfo> genres(AuthenticatedServer authenticated, String parentViewId) {
         try {
             ProtocolResponse response = send(authenticated.server().address(),

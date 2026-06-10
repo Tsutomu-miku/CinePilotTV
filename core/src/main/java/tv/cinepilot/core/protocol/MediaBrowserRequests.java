@@ -372,6 +372,53 @@ public final class MediaBrowserRequests {
                 .build();
     }
 
+    // ---- Collection membership (P1-16, detail "同系列其他") ----
+
+    /**
+     * Returns the children of a BoxSet / Collection item id. Used for the
+     * series-detail "同系列其他" rail which is driven either by the
+     * TmdbCollectionId matched against the server's BoxSet view, or by a
+     * direct BoxSet parent id returned by the server metadata.
+     */
+    public static ProtocolRequest collectionChildren(
+            AuthSession session,
+            ServerFlavor flavor,
+            String collectionId,
+            int limit
+    ) {
+        String userId = ProtocolRequest.encodePathSegment(session.userId());
+        String safe = collectionId == null ? "" : collectionId;
+        return authenticated(
+                ProtocolRequest.get("/Users/" + userId + "/Items"),
+                session,
+                flavor
+        ).query("ParentId", safe)
+                .query("Recursive", "true")
+                .query("Limit", Integer.toString(Math.max(0, limit)))
+                .query("EnableImages", "true")
+                .query("EnableUserData", "true")
+                .query("ImageTypeLimit", "1")
+                .query("EnableImageTypes", "Primary,Backdrop,Thumb")
+                .query("SortBy", "ProductionYear,PremiereDate,SortName")
+                .query("SortOrder", "Ascending")
+                .query("Fields", ITEM_FIELDS)
+                .build();
+    }
+
+    /**
+     * Finds a BoxSet item whose TmdbCollectionId matches the supplied id.
+     * Jellyfin doesn't expose a dedicated endpoint, so we query all BoxSets
+     * recursively and post-filter in {@link MediaBrowserResponseMapper} or
+     * by the caller on the returned page.
+     */
+    public static ProtocolRequest boxSetsByTmdbCollection(
+            AuthSession session,
+            ServerFlavor flavor,
+            int limit
+    ) {
+        return collections(session, flavor, limit);
+    }
+
     /** Genres available inside a given parent view; omit parentId to list all server genres. */
     public static ProtocolRequest genres(AuthSession session, ServerFlavor flavor, String parentId) {
         ProtocolRequest.Builder builder = authenticated(

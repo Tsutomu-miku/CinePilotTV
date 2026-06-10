@@ -26,6 +26,7 @@ fun ComponentActivity.detailsRouteScreen(
     loadBackdropImage: (ImageView, MediaItemSummary, Int, Int) -> Unit,
     loadArtworkImage: (ImageView, MediaItemSummary, ArtworkTarget, Int, Int) -> Unit,
     siblingEpisodes: List<MediaItemSummary>,
+    sameCollectionItems: List<MediaItemSummary> = emptyList(),
     trackSelection: DetailTrackSelection,
     onPreparePlayback: (PlaybackSelectionPreferences?) -> Unit,
     onTrackSelection: (DetailTrackSelection) -> Unit,
@@ -35,6 +36,7 @@ fun ComponentActivity.detailsRouteScreen(
     onOpenEpisodePicker: () -> Unit,
     onOpenSeries: () -> Unit,
     onOpenEpisode: (MediaItemSummary) -> Unit,
+    onOpenCollectionItem: (MediaItemSummary) -> Unit = {},
     onOpenFolder: () -> Unit,
     onToggleFavorite: () -> Unit,
     onToggleWatched: () -> Unit,
@@ -59,7 +61,8 @@ fun ComponentActivity.detailsRouteScreen(
         },
         trackControls = detailTrackControls(playbackInfo, trackSelection, onTrackSelection),
         technicalInfo = mediaTechnicalPills(playbackInfo),
-        extraSections = episodeStrip(item, siblingEpisodes, onOpenEpisode, loadArtworkImage),
+        extraSections = episodeStrip(item, siblingEpisodes, onOpenEpisode, loadArtworkImage) +
+            collectionStrip(item, sameCollectionItems, onOpenCollectionItem, loadArtworkImage),
         folderAction = InfuseAction(folderActionLabel(item), TvIcon.FORWARD, InfuseActionEmphasis.PRIMARY, onOpenFolder),
         onProviderBadgeClick = onProviderBadgeClick,
         loadPoster = { poster, mediaItem, width, height ->
@@ -91,6 +94,28 @@ private fun ComponentActivity.episodeStrip(
         onFocus = { _, _ -> },
         onOpen = { _, episode -> onOpenEpisode(episode) },
         loadArtwork = loadArtworkImage,
+    ))
+}
+
+private fun ComponentActivity.collectionStrip(
+    item: MediaItemSummary,
+    items: List<MediaItemSummary>,
+    onOpen: (MediaItemSummary) -> Unit,
+    loadArtwork: (ImageView, MediaItemSummary, ArtworkTarget, Int, Int) -> Unit,
+): List<View> {
+    val filtered = items.filterNot { it.id() == item.id() }
+    if (filtered.isEmpty()) return emptyList()
+    return listOf(mediaWallRow(
+        presentation = HomeRowPresentation(
+            row = HomeRow("detail:collection:${item.id()}", "同系列其他", filtered),
+            title = "同系列其他",
+            visualStyle = RowVisualStyle.POSTER_RAIL,
+            wrapItems = false,
+        ),
+        onCell = { _, _ -> },
+        onFocus = { _, _ -> },
+        onOpen = { _, entry -> onOpen(entry) },
+        loadArtwork = loadArtwork,
     ))
 }
 

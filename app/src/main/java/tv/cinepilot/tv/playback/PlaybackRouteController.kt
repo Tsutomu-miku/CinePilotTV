@@ -89,49 +89,61 @@ class PlaybackRouteController(
         }
         val effectivePlaybackInfo = playbackInfo ?: selectedPlaybackInfo?.takeIf { it.itemId() == item.id() }
         val effectiveTrackSelection = normalizedTrackSelectionFor(item, effectivePlaybackInfo)
-        activity.setContentView(activity.detailsRouteScreen(
-            item = item,
-            playbackInfo = effectivePlaybackInfo,
-            loadPosterImage = loadPosterImage,
-            loadBackdropImage = loadBackdropImage,
-            loadArtworkImage = loadArtworkImage,
-            siblingEpisodes = episodeContext?.episodes() ?: emptyList(),
-            trackSelection = effectiveTrackSelection,
-            onPreparePlayback = { preferences ->
-                preparePlaybackWith(applyTrackSelection(item, preferences))
-            },
-            onTrackSelection = { selection ->
-                selectedTrackItemId = item.id()
-                selectedTrackSelection = selection
-                showDetails(item, effectivePlaybackInfo, episodeContext)
-            },
-            onSubtitleStyle = { showSubtitleStyleOptions(item) },
-            onPlaybackSpeed = { showPlaybackSpeedOptions(item) },
-            onSeriesNextUp = ::openSeriesNextUp,
-            onOpenEpisodePicker = { openEpisodeSeason(item) },
-            onOpenSeries = { openEpisodeSeries(item) },
-            onOpenEpisode = { episode ->
-                openEpisodeDetail(episode) { showDetails(item, effectivePlaybackInfo, episodeContext) }
-            },
-            onOpenFolder = {
-                runTask("正在打开目录...", {
-                    workflowController.openFolder(item.id(), item.name())
-                }) {
-                    showHome(workflowController.state())
+        var sameCollection: List<MediaItemSummary> = emptyList()
+        runTask("正在加载同系列作品...", {
+            runCatching {
+                if (workflowController.state().selectedItem()?.id() != item.id()) {
+                    workflowController.openItem(item.id())
                 }
-            },
-            onToggleFavorite = {
-                rerenderAfterUserAction({ workflowController.toggleFavorite() }) { newItem ->
-                    showDetails(newItem, effectivePlaybackInfo, episodeContext)
-                }
-            },
-            onToggleWatched = {
-                rerenderAfterUserAction({ workflowController.toggleWatched() }) { newItem ->
-                    showDetails(newItem, effectivePlaybackInfo, episodeContext)
-                }
-            },
-            onProviderBadgeClick = ::openExternalUrl,
-        ))
+                sameCollection = workflowController.loadSameCollectionItemsForSelectedItem()
+            }
+        }) {
+            activity.setContentView(activity.detailsRouteScreen(
+                item = item,
+                playbackInfo = effectivePlaybackInfo,
+                loadPosterImage = loadPosterImage,
+                loadBackdropImage = loadBackdropImage,
+                loadArtworkImage = loadArtworkImage,
+                siblingEpisodes = episodeContext?.episodes() ?: emptyList(),
+                sameCollectionItems = sameCollection,
+                trackSelection = effectiveTrackSelection,
+                onPreparePlayback = { preferences ->
+                    preparePlaybackWith(applyTrackSelection(item, preferences))
+                },
+                onTrackSelection = { selection ->
+                    selectedTrackItemId = item.id()
+                    selectedTrackSelection = selection
+                    showDetails(item, effectivePlaybackInfo, episodeContext)
+                },
+                onSubtitleStyle = { showSubtitleStyleOptions(item) },
+                onPlaybackSpeed = { showPlaybackSpeedOptions(item) },
+                onSeriesNextUp = ::openSeriesNextUp,
+                onOpenEpisodePicker = { openEpisodeSeason(item) },
+                onOpenSeries = { openEpisodeSeries(item) },
+                onOpenEpisode = { episode ->
+                    openEpisodeDetail(episode) { showDetails(item, effectivePlaybackInfo, episodeContext) }
+                },
+                onOpenCollectionItem = ::openCollectionItem,
+                onOpenFolder = {
+                    runTask("正在打开目录...", {
+                        workflowController.openFolder(item.id(), item.name())
+                    }) {
+                        showHome(workflowController.state())
+                    }
+                },
+                onToggleFavorite = {
+                    rerenderAfterUserAction({ workflowController.toggleFavorite() }) { newItem ->
+                        showDetails(newItem, effectivePlaybackInfo, episodeContext)
+                    }
+                },
+                onToggleWatched = {
+                    rerenderAfterUserAction({ workflowController.toggleWatched() }) { newItem ->
+                        showDetails(newItem, effectivePlaybackInfo, episodeContext)
+                    }
+                },
+                onProviderBadgeClick = ::openExternalUrl,
+            ))
+        }
     }
 
     fun handleAuxiliaryBackPressed(): Boolean {
@@ -147,6 +159,10 @@ class PlaybackRouteController(
 
     fun openMediaItem(row: HomeRow, item: MediaItemSummary) {
         workflowController.focusItem(row.id(), item.id())
+        openMediaItem(item)
+    }
+
+    private fun openMediaItem(item: MediaItemSummary) {
         val loadingMessage = if (item.playable() || item.shouldOpenAsDetails()) {
             "正在打开详情..."
         } else {
@@ -183,6 +199,8 @@ class PlaybackRouteController(
             }
         }
     }
+
+    private fun openCollectionItem(item: MediaItemSummary) = openMediaItem(item)
 
     private fun openSeriesDetail(seriesId: String, pushBack: Boolean) {
         var structure: ShowStructure? = null
@@ -224,21 +242,38 @@ class PlaybackRouteController(
         }
         val series = structure.series()
         var seasonStartedCache: Map<String, Boolean> = emptyMap()
+        var sameCollection: List<MediaItemSummary> = emptyList()
+        var collectionLoaded = false
         fun rerender(updated: ShowStructure, pushBackCurrent: Boolean, expanded: Boolean = foldedSeasonsExpanded) {
             showSeriesDetail(updated, pushBackCurrent, expanded)
         }
-        fun withStatus(render: (Map<String, Boolean>) -> Unit) {
-            if (seasonStartedCache.isNotEmpty() || foldedSeasonsExpanded) {
-                render(if (foldedSeasonsExpanded) emptyMap() else seasonStartedCache)
-            } else {
-                runTask("正在加载季信息...", {
-                    seasonStartedCache = workflowController.loadSeasonsStartedStatus(structure)
-                }) {
-                    render(seasonStartedCache)
+        fun withExtras(render: (Map<String, Boolean>, List<MediaItemSummary>) -> Unit) {
+            val needStatus = seasonStartedCache.isEmpty() && !foldedSeasonsExpanded
+            val needCollection = !collectionLoaded
+            if (!needStatus && !needCollection) {
+                render(if (foldedSeasonsExpanded) emptyMap() else seasonStartedCache, sameCollection)
+                return
+            }
+            runTask("正在加载补充信息...", {
+                if (needStatus) {
+                    runCatching {
+                        seasonStartedCache = workflowController.loadSeasonsStartedStatus(structure)
+                    }
                 }
+                if (needCollection) {
+                    runCatching {
+                        if (workflowController.state().selectedItem()?.id() != series.id()) {
+                            workflowController.openItem(series.id())
+                        }
+                        sameCollection = workflowController.loadSameCollectionItemsForSelectedItem()
+                    }
+                    collectionLoaded = true
+                }
+            }) {
+                render(if (foldedSeasonsExpanded) emptyMap() else seasonStartedCache, sameCollection)
             }
         }
-        withStatus { status ->
+        withExtras { status, collection ->
             activity.setContentView(activity.seriesDetailScreen(
                 structure = structure,
                 onOpenSeason = { season ->
@@ -258,6 +293,8 @@ class PlaybackRouteController(
                 onOpenEpisode = { episode ->
                     openEpisodeDetail(episode) { showSeriesDetail(structure, pushBack = false, foldedSeasonsExpanded) }
                 },
+                onOpenCollectionItem = ::openCollectionItem,
+                collection = collection,
                 loadPoster = loadPosterImage,
                 loadBackdrop = { backdrop, item -> loadBackdropImage(backdrop, item, 1280, 720) },
                 loadArtwork = loadArtworkImage,
@@ -283,28 +320,49 @@ class PlaybackRouteController(
             mediaBackStack.addLast { showHome(workflowController.state()) }
         }
         val season = structure.selectedSeason() ?: structure.series()
-        activity.setContentView(activity.seasonDetailScreen(
-            structure = structure,
-            onOpenEpisode = { episode ->
-                openEpisodeDetail(episode) { showSeasonDetail(structure, pushBack = false) }
-            },
-            loadPoster = loadPosterImage,
-            loadBackdrop = { backdrop, item -> loadBackdropImage(backdrop, item, 1280, 720) },
-            loadArtwork = loadArtworkImage,
-            loadPerson = loadPersonImage,
-            onToggleFavorite = {
-                rerenderStructureItem(season.id(), { workflowController.toggleFavorite() }) {
-                    showSeasonDetail(structure, pushBack)
+        var sameCollection: List<MediaItemSummary> = emptyList()
+        var loaded = false
+        fun render(collection: List<MediaItemSummary>) {
+            activity.setContentView(activity.seasonDetailScreen(
+                structure = structure,
+                onOpenEpisode = { episode ->
+                    openEpisodeDetail(episode) { showSeasonDetail(structure, pushBack = false) }
+                },
+                collection = collection,
+                onOpenCollectionItem = ::openCollectionItem,
+                loadPoster = loadPosterImage,
+                loadBackdrop = { backdrop, item -> loadBackdropImage(backdrop, item, 1280, 720) },
+                loadArtwork = loadArtworkImage,
+                loadPerson = loadPersonImage,
+                onToggleFavorite = {
+                    rerenderStructureItem(season.id(), { workflowController.toggleFavorite() }) {
+                        showSeasonDetail(structure, pushBack)
+                    }
+                },
+                onToggleWatched = {
+                    rerenderStructureItem(season.id(), { workflowController.toggleWatched() }) {
+                        showSeasonDetail(structure, pushBack)
+                    }
+                },
+                onProviderBadgeClick = ::openExternalUrl,
+                onPersonClick = ::openPerson,
+            ))
+        }
+        if (loaded) {
+            render(sameCollection)
+        } else {
+            runTask("正在加载同系列作品...", {
+                runCatching {
+                    if (workflowController.state().selectedItem()?.id() != season.id()) {
+                        workflowController.openItem(season.id())
+                    }
+                    sameCollection = workflowController.loadSameCollectionItemsForSelectedItem()
                 }
-            },
-            onToggleWatched = {
-                rerenderStructureItem(season.id(), { workflowController.toggleWatched() }) {
-                    showSeasonDetail(structure, pushBack)
-                }
-            },
-            onProviderBadgeClick = ::openExternalUrl,
-            onPersonClick = ::openPerson,
-        ))
+                loaded = true
+            }) {
+                render(sameCollection)
+            }
+        }
     }
 
     private fun openEpisodeDetail(item: MediaItemSummary, backRenderer: () -> Unit) {
