@@ -3,15 +3,19 @@ package tv.cinepilot.tv.ui
 import android.animation.ArgbEvaluator
 import android.animation.ValueAnimator
 import android.content.res.ColorStateList
+import android.text.TextUtils
+import android.view.Gravity
 import android.view.KeyEvent
 import android.view.View
 import android.view.ViewGroup
+import android.widget.CheckBox
 import android.widget.LinearLayout
 import android.widget.RadioButton
 import android.widget.ScrollView
 import android.widget.TextView
 import androidx.activity.ComponentActivity
 import java.util.WeakHashMap
+import tv.cinepilot.tv.R
 
 fun ComponentActivity.choiceAction(text: String, selected: Boolean, onClick: () -> Unit): android.widget.Button {
     return action(if (selected) "已选 $text" else text, onClick).apply {
@@ -73,6 +77,118 @@ fun ComponentActivity.radioChoice(text: String, selected: Boolean, onClick: () -
             bottomMargin = dp(8)
         }
     }
+}
+
+/**
+ * A label + description + on/off row used for boolean playback settings. Uses a CheckBox
+ * indicator on the trailing end instead of a separate SwitchCompat to stay within the
+ * UseSwitchCompatOrMaterialCode lint suppression already listed in build.gradle.kts.
+ */
+fun ComponentActivity.toggleChoice(
+    label: String,
+    description: String,
+    checked: Boolean,
+    focus: Boolean = false,
+    onClick: (Boolean) -> Unit,
+): View {
+    val row = LinearLayout(this).apply {
+        orientation = LinearLayout.HORIZONTAL
+        gravity = Gravity.CENTER_VERTICAL
+        isFocusable = true
+        isClickable = true
+        background = rounded(
+            if (checked) TvColors.AccentStrong else TvColors.SurfaceControl,
+            dp(TvRadius.Control), dp(1), TvColors.FocusRing)
+        setPadding(dp(16), dp(12), dp(14), dp(12))
+        layoutParams = LinearLayout.LayoutParams(
+            LinearLayout.LayoutParams.MATCH_PARENT,
+            LinearLayout.LayoutParams.WRAP_CONTENT,
+        ).apply { bottomMargin = dp(10) }
+    }
+    val textStack = LinearLayout(this).apply {
+        orientation = LinearLayout.VERTICAL
+        layoutParams = LinearLayout.LayoutParams(
+            0,
+            LinearLayout.LayoutParams.WRAP_CONTENT,
+            1f,
+        )
+    }
+    textStack.addView(TextView(this).apply {
+        text = label
+        textSize = TvType.Metadata
+        maxLines = 1
+        ellipsize = TextUtils.TruncateAt.END
+        includeFontPadding = false
+        setTextColor(if (checked) TvColors.FocusText else TvColors.TextPrimary)
+    })
+    if (description.isNotBlank()) {
+        textStack.addView(TextView(this).apply {
+            text = description
+            textSize = TvType.Label
+            maxLines = 2
+            ellipsize = TextUtils.TruncateAt.END
+            includeFontPadding = false
+            setTextColor(TvColors.TextSecondary)
+            setPadding(0, dp(4), 0, 0)
+        })
+    }
+    row.addView(textStack)
+    val indicator = CheckBox(this).apply {
+        isClickable = false
+        isFocusable = false
+        isChecked = checked
+        buttonTintList = ColorStateList(
+            arrayOf(intArrayOf(android.R.attr.state_checked), intArrayOf()),
+            intArrayOf(TvColors.FocusText, TvColors.TextMuted),
+        )
+        setOnCheckedChangeListener(null)
+        layoutParams = LinearLayout.LayoutParams(
+            LinearLayout.LayoutParams.WRAP_CONTENT,
+            LinearLayout.LayoutParams.WRAP_CONTENT,
+        ).apply { marginStart = dp(12) }
+    }
+    row.addView(indicator)
+    row.setOnClickListener {
+        val next = !row.getTag(R.id.tag_toggle_value).let { raw ->
+            if (raw is Boolean) raw else checked
+        }
+        row.setTag(R.id.tag_toggle_value, next)
+        indicator.isChecked = next
+        onClick(next)
+        row.background = rounded(
+            if (next) TvColors.AccentStrong else TvColors.SurfaceControl,
+            dp(TvRadius.Control), dp(1), TvColors.FocusRing)
+        textStack.getChildAt(0)?.let { labelView ->
+            if (labelView is TextView) {
+                labelView.setTextColor(if (next) TvColors.FocusText else TvColors.TextPrimary)
+            }
+        }
+    }
+    row.setOnFocusChangeListener { focusedView, hasFocus ->
+        applyFocusState(focusedView, hasFocus)
+        val currentlyOn = focusedView.getTag(R.id.tag_toggle_value).let { raw ->
+            if (raw is Boolean) raw else checked
+        }
+        textStack.getChildAt(0)?.let { labelView ->
+            if (labelView is TextView) {
+                labelView.setTextColor(
+                    when {
+                        hasFocus -> TvColors.FocusText
+                        currentlyOn -> TvColors.FocusText
+                        else -> TvColors.TextPrimary
+                    }
+                )
+            }
+        }
+        animateFocusBackground(
+            view = focusedView,
+            hasFocus = hasFocus,
+            focusedColor = TvColors.Focus,
+            normalColor = if (currentlyOn) TvColors.AccentStrong else TvColors.SurfaceControl,
+        )
+    }
+    if (focus) row.requestInitialFocus()
+    return row
 }
 
 fun <T : View> T.requestInitialFocus(): T {

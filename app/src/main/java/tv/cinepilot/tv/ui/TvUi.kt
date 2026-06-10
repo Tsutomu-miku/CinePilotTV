@@ -152,6 +152,8 @@ enum class TvIcon(@DrawableRes val drawableRes: Int) {
     HEART(R.drawable.ic_heart),
     CHECK(R.drawable.ic_check),
     EYE(R.drawable.ic_eye),
+    SKIP_NEXT(R.drawable.ic_skip_next),
+    FAST_FORWARD(R.drawable.ic_fast_forward),
 }
 
 fun ComponentActivity.label(text: String): TextView {
@@ -295,5 +297,13 @@ fun ComponentActivity.rounded(
 }
 
 fun ComponentActivity.dp(value: Int): Int {
+    return (value * resources.displayMetrics.density).toInt()
+}
+
+fun View.dp(value: Int): Int {
+    return (value * resources.displayMetrics.density).toInt()
+}
+
+fun android.content.Context.dp(value: Int): Int {
     return (value * resources.displayMetrics.density).toInt()
 }

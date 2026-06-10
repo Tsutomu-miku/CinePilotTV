@@ -35,6 +35,8 @@ object TvColors {
         private set
     var TextSecondary = Color.rgb(226, 232, 240)
         private set
+    var TextTertiary = Color.rgb(148, 163, 184)
+        private set
     var TextMuted = Color.rgb(148, 163, 184)
         private set
     var PillBorder = Color.rgb(51, 65, 85)
@@ -107,6 +109,7 @@ object TvColors {
         Resume = palette.resume
         TextPrimary = palette.textPrimary
         TextSecondary = palette.textSecondary
+        TextTertiary = palette.textTertiary
         TextMuted = palette.textMuted
         PillBorder = palette.pillBorder
         Overlay = palette.overlay
@@ -131,6 +134,7 @@ object TvColors {
         val resume: Int = Color.rgb(15, 118, 110),
         val textPrimary: Int = Color.WHITE,
         val textSecondary: Int = Color.rgb(226, 232, 240),
+        val textTertiary: Int = Color.rgb(148, 163, 184),
         val textMuted: Int = Color.rgb(148, 163, 184),
         val pillBorder: Int = Color.rgb(51, 65, 85),
         val overlay: Int = Color.argb(230, 8, 13, 24),
@@ -163,6 +167,8 @@ object TvType {
     const val Section = 19f
     const val Body = 16f
     const val Metadata = 13f
+    const val Label = 12f
+    const val Secondary = 14f
     const val CardTitle = 14f
     const val PlayerTitle = 18f
 }

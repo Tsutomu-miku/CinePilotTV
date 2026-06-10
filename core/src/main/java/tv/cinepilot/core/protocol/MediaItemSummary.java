@@ -28,7 +28,8 @@ public record MediaItemSummary(
         UserItemData userData,
         Map<String, String> imageTags,
         List<String> backdropImageTags,
-        Map<String, String> providerIds
+        Map<String, String> providerIds,
+        List<ChapterInfo> chapters
 ) {
     public MediaItemSummary {
         require(id, "id");
@@ -62,6 +63,7 @@ public record MediaItemSummary(
         imageTags = AndroidCollections.mapCopy(imageTags);
         backdropImageTags = AndroidCollections.listCopy(backdropImageTags);
         providerIds = AndroidCollections.mapCopy(providerIds);
+        chapters = AndroidCollections.listCopy(chapters);
     }
 
     public boolean hasResumePosition() {
@@ -103,7 +105,18 @@ public record MediaItemSummary(
                 seriesName, seriesId, overview, genres, premiereDate,
                 communityRating, officialRating, people, mediaStreams,
                 updated == null ? userData : updated,
-                imageTags, backdropImageTags, providerIds
+                imageTags, backdropImageTags, providerIds, chapters
+        );
+    }
+
+    public MediaItemSummary withChapters(List<ChapterInfo> newChapters) {
+        return new MediaItemSummary(
+                id, parentId, name, type, folder, playable,
+                runTimeTicks, productionYear, indexNumber, parentIndexNumber,
+                seriesName, seriesId, overview, genres, premiereDate,
+                communityRating, officialRating, people, mediaStreams,
+                userData, imageTags, backdropImageTags, providerIds,
+                AndroidCollections.listCopy(newChapters)
         );
     }
 
@@ -133,7 +146,8 @@ public record MediaItemSummary(
                 seriesName, seriesId, overview, genres,
                 "", null, "",
                 AndroidCollections.emptyList(), AndroidCollections.emptyList(),
-                userData, imageTags, AndroidCollections.emptyList(), new LinkedHashMap<>()
+                userData, imageTags, AndroidCollections.emptyList(), new LinkedHashMap<>(),
+                AndroidCollections.emptyList()
         );
     }
 
@@ -168,7 +182,48 @@ public record MediaItemSummary(
                 seriesName, seriesId, overview, genres,
                 premiereDate, communityRating, officialRating,
                 people, mediaStreams,
-                userData, imageTags, backdropImageTags, new LinkedHashMap<>()
+                userData, imageTags, backdropImageTags, new LinkedHashMap<>(),
+                AndroidCollections.emptyList()
+        );
+    }
+
+    /**
+     * Backward-compatible 23-arg constructor (providerIds but no chapters, added in P1
+     * batch 6). Used by HomeRowsSerializer and old ProtocolCoreTest constructions.
+     */
+    public MediaItemSummary(
+            String id,
+            String parentId,
+            String name,
+            MediaItemType type,
+            boolean folder,
+            boolean playable,
+            Long runTimeTicks,
+            Integer productionYear,
+            Integer indexNumber,
+            Integer parentIndexNumber,
+            String seriesName,
+            String seriesId,
+            String overview,
+            List<String> genres,
+            String premiereDate,
+            Double communityRating,
+            String officialRating,
+            List<MediaPerson> people,
+            List<MediaStreamInfo> mediaStreams,
+            UserItemData userData,
+            Map<String, String> imageTags,
+            List<String> backdropImageTags,
+            Map<String, String> providerIds
+    ) {
+        this(
+                id, parentId, name, type, folder, playable,
+                runTimeTicks, productionYear, indexNumber, parentIndexNumber,
+                seriesName, seriesId, overview, genres,
+                premiereDate, communityRating, officialRating,
+                people, mediaStreams,
+                userData, imageTags, backdropImageTags, providerIds,
+                AndroidCollections.emptyList()
         );
     }
 
@@ -195,7 +250,8 @@ public record MediaItemSummary(
                 seriesName, "", overview, genres,
                 "", null, "",
                 AndroidCollections.emptyList(), AndroidCollections.emptyList(),
-                userData, imageTags, AndroidCollections.emptyList(), new LinkedHashMap<>()
+                userData, imageTags, AndroidCollections.emptyList(), new LinkedHashMap<>(),
+                AndroidCollections.emptyList()
         );
     }
 

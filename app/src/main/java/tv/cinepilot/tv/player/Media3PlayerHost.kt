@@ -1,7 +1,6 @@
 package tv.cinepilot.tv.player
 
 import android.content.Context
-import android.graphics.Typeface
 import android.net.Uri
 import android.os.Handler
 import android.os.Looper
@@ -23,6 +22,7 @@ import tv.cinepilot.core.protocol.PlaybackUrlAuthorizer
 import tv.cinepilot.core.protocol.PlaybackSessionController
 import tv.cinepilot.core.tv.TvAppState
 import tv.cinepilot.tv.playback.SubtitleBackground
+import tv.cinepilot.tv.playback.SubtitleEdgeStyle
 import tv.cinepilot.tv.playback.SubtitleStyleStore
 
 class Media3PlayerHost(
@@ -34,13 +34,17 @@ class Media3PlayerHost(
     private var player: ExoPlayer? = null
     private var bridge: Media3PlaybackBridge? = null
     private var progressTicker: Runnable? = null
+    private var currentPlayerView: PlayerView? = null
+    private var positionTickCallback: ((Long, Long) -> Unit)? = null
     private val checkInExecutor = Executors.newSingleThreadExecutor()
 
     fun createPlayerView(
         state: TvAppState,
         onPlaybackError: (PlaybackException) -> Unit = {},
         onPlaybackEnded: () -> Unit = {},
+        onPositionTick: ((positionTicks: Long, durationTicks: Long) -> Unit)? = null,
     ): View {
+        this.positionTickCallback = onPositionTick
         val playable = state.playableMedia()
             ?: throw IllegalStateException("playable media is required")
         val authenticated = state.authenticated()
@@ -77,7 +81,7 @@ class Media3PlayerHost(
         bridge = playbackBridge
         player = nextPlayer
         startProgressTicks(nextPlayer, playbackBridge)
-        return RemotePlayerView(
+        val playerView = RemotePlayerView(
             context = context,
             onSeekBack = ::seekBack,
             onSeekForward = ::seekForward,
@@ -100,6 +104,31 @@ class Media3PlayerHost(
             applySubtitleStyle(this)
             hideInlineTransportButtons()
         }
+        currentPlayerView = playerView
+        return playerView
+    }
+
+    fun playerView(): PlayerView? = currentPlayerView
+
+    fun currentPositionTicks(): Long {
+        val positionMs = player?.currentPosition ?: return 0L
+        return if (positionMs <= 0) 0L else MediaTicks.fromMilliseconds(positionMs)
+    }
+
+    fun durationTicks(): Long {
+        val ms = player?.duration ?: return 0L
+        if (ms == androidx.media3.common.C.TIME_UNSET || ms <= 0L) return 0L
+        return MediaTicks.fromMilliseconds(ms)
+    }
+
+    fun seekToTicks(targetTicks: Long) {
+        player?.seekTo(MediaTicks.toMilliseconds(targetTicks.coerceAtLeast(0L)))
+    }
+
+    fun referenceFrameRate(): Float? {
+        val videoFormat = player?.videoFormat ?: return null
+        val frameRate = videoFormat.frameRate
+        return if (frameRate > 0f) frameRate else null
     }
 
     fun seekBack() {
@@ -215,25 +244,44 @@ class Media3PlayerHost(
 
     private fun applySubtitleStyle(playerView: PlayerView) {
         val style = subtitleStyleStore.current()
-        val edgeType = if (style.background == SubtitleBackground.NONE) {
-            CaptionStyleCompat.EDGE_TYPE_NONE
-        } else {
-            CaptionStyleCompat.EDGE_TYPE_OUTLINE
+        val edgeType = when (style.edgeStyle) {
+            SubtitleEdgeStyle.NONE -> CaptionStyleCompat.EDGE_TYPE_NONE
+            SubtitleEdgeStyle.OUTLINE -> CaptionStyleCompat.EDGE_TYPE_OUTLINE
+            SubtitleEdgeStyle.DROP_SHADOW -> CaptionStyleCompat.EDGE_TYPE_DROP_SHADOW
+            SubtitleEdgeStyle.RAISED -> CaptionStyleCompat.EDGE_TYPE_RAISED
+            SubtitleEdgeStyle.DEPRESSED -> CaptionStyleCompat.EDGE_TYPE_DEPRESSED
+            SubtitleEdgeStyle.AUTO -> when (style.background) {
+                SubtitleBackground.OUTLINE -> CaptionStyleCompat.EDGE_TYPE_OUTLINE
+                SubtitleBackground.RAISED -> CaptionStyleCompat.EDGE_TYPE_RAISED
+                SubtitleBackground.NONE -> CaptionStyleCompat.EDGE_TYPE_NONE
+                SubtitleBackground.SHADOW -> CaptionStyleCompat.EDGE_TYPE_DROP_SHADOW
+                SubtitleBackground.TRANSLUCENT -> CaptionStyleCompat.EDGE_TYPE_OUTLINE
+            }
         }
+        val foregroundColor = applyAlpha(style.color.color, style.textOpacity.alpha)
         playerView.subtitleView?.apply {
-            setApplyEmbeddedStyles(false)
-            setApplyEmbeddedFontSizes(false)
+            // ASS/SSA embedded styles are respected when the renderer supports them; Media3
+            // otherwise falls back to this CaptionStyleCompat. Setting this off would keep
+            // author-provided fonts/colors/positions intact (P1-1 intent), while the user-
+            // supplied style still governs size, margin and edge fallbacks.
+            setApplyEmbeddedStyles(true)
+            setApplyEmbeddedFontSizes(true)
             setFractionalTextSize(style.size.fraction)
-            setBottomPaddingFraction(0.08f)
+            setBottomPaddingFraction(style.bottomMargin.fraction)
             setStyle(CaptionStyleCompat(
-                style.color.color,
+                foregroundColor,
                 style.background.backgroundColor,
                 android.graphics.Color.TRANSPARENT,
                 edgeType,
                 style.background.edgeColor,
-                Typeface.DEFAULT_BOLD,
+                style.fontFamily.typeface,
             ))
         }
+    }
+
+    private fun applyAlpha(color: Int, alpha: Int): Int {
+        val clamped = alpha.coerceIn(0, 255)
+        return (clamped shl 24) or (color and 0x00FFFFFF)
     }
 
     private fun startProgressTicks(nextPlayer: ExoPlayer, playbackBridge: Media3PlaybackBridge) {
@@ -241,7 +289,17 @@ class Media3PlayerHost(
             override fun run() {
                 if (player === nextPlayer && bridge === playbackBridge) {
                     playbackBridge.tick(nextPlayer.currentPosition)
-                    handler.postDelayed(this, 1_000L)
+                    val callback = positionTickCallback
+                    if (callback != null) {
+                        val duration = nextPlayer.duration.let {
+                            if (it == androidx.media3.common.C.TIME_UNSET || it < 0L) 0L else it
+                        }
+                        callback(
+                            if (nextPlayer.currentPosition < 0L) 0L else MediaTicks.fromMilliseconds(nextPlayer.currentPosition),
+                            if (duration == 0L) 0L else MediaTicks.fromMilliseconds(duration),
+                        )
+                    }
+                    handler.postDelayed(this, PROGRESS_TICK_INTERVAL_MS)
                 }
             }
         }
@@ -252,5 +310,6 @@ class Media3PlayerHost(
     private companion object {
         private const val PLAYER_CONTROLLER_TIMEOUT_MS = 5_000
         private const val REMOTE_SEEK_STEP_MS = 30_000L
+        private const val PROGRESS_TICK_INTERVAL_MS = 500L
     }
 }

@@ -371,4 +371,47 @@ public final class MediaBrowserRequests {
                 .query("Fields", ITEM_FIELDS)
                 .build();
     }
+
+    // ---- Chapters, MediaSegments, Trickplay (P1 batch 6) ----
+
+    /** Item-level chapter list (also available via Fields=Chapters on item detail). */
+    public static ProtocolRequest chapters(AuthSession session, ServerFlavor flavor, String itemId) {
+        require(itemId, "itemId");
+        String encodedItemId = ProtocolRequest.encodePathSegment(itemId);
+        return authenticated(
+                ProtocolRequest.get("/Items/" + encodedItemId + "/Chapters"),
+                session,
+                flavor
+        ).build();
+    }
+
+    /**
+     * Intro / Credits / Preview / Recap segments (Jellyfin 10.10+).
+     * Emby Premiere keeps these on the item payload as IntroStart/IntroEnd fields,
+     * which are folded by the mapper when this endpoint 404s.
+     */
+    public static ProtocolRequest mediaSegments(AuthSession session, ServerFlavor flavor, String itemId) {
+        require(itemId, "itemId");
+        String encodedItemId = ProtocolRequest.encodePathSegment(itemId);
+        return authenticated(
+                ProtocolRequest.get("/Items/" + encodedItemId + "/MediaSegments"),
+                session,
+                flavor
+        ).build();
+    }
+
+    /**
+     * Trickplay tiles metadata. The returned manifest describes the grid and the
+     * per-tick coverage; callers compute the full tile URL using
+     * {@link #trickplayTileUrl(String, String, int, String, AuthSession, ServerFlavor, String)}.
+     */
+    public static ProtocolRequest trickplayInfo(AuthSession session, ServerFlavor flavor, String itemId) {
+        require(itemId, "itemId");
+        String encodedItemId = ProtocolRequest.encodePathSegment(itemId);
+        return authenticated(
+                ProtocolRequest.get("/Videos/" + encodedItemId + "/Trickplay/HlsTileInfo"),
+                session,
+                flavor
+        ).build();
+    }
 }

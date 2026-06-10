@@ -3,6 +3,7 @@ package tv.cinepilot.core.protocol;
 import java.io.IOException;
 import java.util.List;
 import java.util.Optional;
+import tv.cinepilot.core.AndroidCollections;
 
 public final class MediaBrowserClient {
     private final HttpTransport transport;
@@ -379,6 +380,52 @@ public final class MediaBrowserClient {
                 authenticated.session(), authenticated.server().flavor(), limit);
         ProtocolResponse response = send(authenticated.server().address(), request);
         return MediaBrowserResponseMapper.itemPage(response.body());
+    }
+
+    // ---- Chapters, MediaSegments, Trickplay (P1 batch 6) ----
+
+    public List<ChapterInfo> chapters(AuthenticatedServer authenticated, String itemId) {
+        require(itemId, "itemId");
+        try {
+            ProtocolResponse response = send(authenticated.server().address(),
+                    MediaBrowserRequests.chapters(authenticated.session(),
+                            authenticated.server().flavor(), itemId));
+            return MediaBrowserResponseMapper.chapters(response.body());
+        } catch (MediaBrowserException exception) {
+            return AndroidCollections.emptyList();
+        }
+    }
+
+    public List<MediaSegmentInfo> mediaSegments(AuthenticatedServer authenticated, String itemId) {
+        require(itemId, "itemId");
+        try {
+            ProtocolResponse response = send(authenticated.server().address(),
+                    MediaBrowserRequests.mediaSegments(authenticated.session(),
+                            authenticated.server().flavor(), itemId));
+            return MediaBrowserResponseMapper.mediaSegments(response.body());
+        } catch (MediaBrowserException exception) {
+            return AndroidCollections.emptyList();
+        }
+    }
+
+    public TrickplayInfo trickplayInfo(AuthenticatedServer authenticated, String itemId, int tileWidth) {
+        require(itemId, "itemId");
+        try {
+            ProtocolResponse response = send(authenticated.server().address(),
+                    MediaBrowserRequests.trickplayInfo(authenticated.session(),
+                            authenticated.server().flavor(), itemId));
+            TrickplayInfo info = MediaBrowserResponseMapper.trickplayInfo(
+                    response.body(), itemId, tileWidth);
+            String base = authenticated.server().address().value();
+            String authorized = PlaybackUrlAuthorizer.withAccessToken(
+                    base + info.imageUrl(), authenticated.session());
+            return new TrickplayInfo(
+                    info.tileWidth(), info.tileHeight(), info.tilesPerRow(),
+                    info.tilesPerColumn(), info.tileCount(), info.tileIntervalTicks(),
+                    authorized);
+        } catch (MediaBrowserException exception) {
+            return TrickplayInfo.empty();
+        }
     }
 
     public void forget(AuthenticatedServer authenticated) {

@@ -69,6 +69,98 @@ public final class MediaBrowserResponseMapper {
         return new PlaybackInfo(itemId, playSessionId, mediaSources);
     }
 
+    public static List<ChapterInfo> chapters(String json) {
+        List<ChapterInfo> out = new ArrayList<>();
+        for (Object value : JsonValue.array(json)) {
+            if (!(value instanceof Map<?, ?> map)) continue;
+            @SuppressWarnings("unchecked")
+            Map<String, Object> chapter = (Map<String, Object>) map;
+            out.add(new ChapterInfo(
+                    number(chapter, "StartPositionTicks").longValue(),
+                    valueOrEmpty(JsonValue.string(chapter, "Name")),
+                    valueOrEmpty(JsonValue.string(chapter, "ImageTag"))
+            ));
+        }
+        return AndroidCollections.listCopy(out);
+    }
+
+    public static List<MediaSegmentInfo> mediaSegments(String json) {
+        List<MediaSegmentInfo> out = new ArrayList<>();
+        if (json == null || json.isBlank()) return out;
+        List<Object> array;
+        if (json.stripLeading().startsWith("[")) {
+            array = JsonValue.array(json);
+        } else {
+            Map<String, Object> root = JsonValue.object(json);
+            // Jellyfin 10.10 wraps as {"Items":[...]}; also accept {"Segments":[...]}
+            List<Object> fromKey = JsonValue.array(root, "Items");
+            if (fromKey.isEmpty()) fromKey = JsonValue.array(root, "Segments");
+            array = fromKey;
+        }
+        for (Object value : array) {
+            if (!(value instanceof Map<?, ?> map)) continue;
+            @SuppressWarnings("unchecked")
+            Map<String, Object> seg = (Map<String, Object>) map;
+            MediaSegmentInfo.Type type = MediaSegmentInfo.Type.fromWireName(
+                    firstString(seg, "Type", "SegmentType")
+            );
+            long start = number(seg, "StartPositionTicks").longValue();
+            long end = number(seg, "EndPositionTicks").longValue();
+            // Emby Premiere: IntroStartTicks / IntroEndTicks on the wrapping item.
+            if (start == 0L && end == 0L) {
+                long altStart = number(seg, "IntroStartTicks").longValue();
+                long altEnd = number(seg, "IntroEndTicks").longValue();
+                if (altStart > 0 || altEnd > 0) {
+                    out.add(new MediaSegmentInfo(MediaSegmentInfo.Type.INTRO, altStart, altEnd));
+                }
+                long creditsStart = number(seg, "CreditsStartTicks").longValue();
+                long creditsEnd = number(seg, "CreditsEndTicks").longValue();
+                if (creditsStart > 0 || creditsEnd > 0) {
+                    out.add(new MediaSegmentInfo(MediaSegmentInfo.Type.CREDITS, creditsStart, creditsEnd));
+                }
+                continue;
+            }
+            if (end > start) {
+                out.add(new MediaSegmentInfo(type, start, end));
+            }
+        }
+        return AndroidCollections.listCopy(out);
+    }
+
+    public static TrickplayInfo trickplayInfo(String json, String itemId, int tileWidth) {
+        if (json == null || json.isBlank()) return TrickplayInfo.empty();
+        Map<String, Object> root = JsonValue.object(json);
+        Map<String, Object> selected = null;
+        // Manifest groups resolutions by width.
+        for (Object entry : JsonValue.array(root, "TileResolutions")) {
+            if (!(entry instanceof Map<?, ?> map)) continue;
+            @SuppressWarnings("unchecked")
+            Map<String, Object> resolution = (Map<String, Object>) map;
+            int width = number(resolution, "Width").intValue();
+            if (selected == null) selected = resolution;
+            if (width >= tileWidth && selected != null) {
+                int selectedWidth = number(selected, "Width").intValue();
+                // Prefer the smallest resolution that still meets the request, else the largest.
+                if (selectedWidth < tileWidth || width < selectedWidth) selected = resolution;
+            }
+        }
+        if (selected == null) return TrickplayInfo.empty();
+        int w = number(selected, "Width").intValue();
+        int h = number(selected, "Height").intValue();
+        int tilesPerRow = number(selected, "TileWidth").intValue();
+        int tilesPerCol = number(selected, "TileHeight").intValue();
+        int tileCount = number(selected, "TileCount").intValue();
+        long intervalTicks = number(selected, "IntervalTicks").longValue();
+        String fileName = valueOrEmpty(JsonValue.string(selected, "FileName"));
+        if (fileName.isBlank()) {
+            // Jellyfin convention: {width}p.jpg
+            fileName = w + "p.jpg";
+        }
+        String url = "/Videos/" + ProtocolRequest.encodePathSegment(itemId)
+                + "/Trickplay/" + fileName;
+        return new TrickplayInfo(w, h, tilesPerRow, tilesPerCol, tileCount, intervalTicks, url);
+    }
+
     public static MediaItemPage itemPage(String json) {
         if (json != null && json.stripLeading().startsWith("[")) {
             List<MediaItemSummary> items = mediaItems(JsonValue.array(json));
@@ -168,8 +260,24 @@ public final class MediaBrowserResponseMapper {
                 userData(JsonValue.childObject(item, "UserData")),
                 imageTags(JsonValue.childObject(item, "ImageTags")),
                 stringList(item, "BackdropImageTags"),
-                providerIds(JsonValue.childObject(item, "ProviderIds"))
+                providerIds(JsonValue.childObject(item, "ProviderIds")),
+                chapters(item)
         );
+    }
+
+    private static List<ChapterInfo> chapters(Map<String, Object> item) {
+        List<ChapterInfo> chapters = new ArrayList<>();
+        for (Object value : JsonValue.array(item, "Chapters")) {
+            if (!(value instanceof Map<?, ?> map)) continue;
+            @SuppressWarnings("unchecked")
+            Map<String, Object> chapter = (Map<String, Object>) map;
+            chapters.add(new ChapterInfo(
+                    number(chapter, "StartPositionTicks").longValue(),
+                    valueOrEmpty(JsonValue.string(chapter, "Name")),
+                    valueOrEmpty(JsonValue.string(chapter, "ImageTag"))
+            ));
+        }
+        return AndroidCollections.listCopy(chapters);
     }
 
     private static List<MediaPerson> people(Map<String, Object> item) {

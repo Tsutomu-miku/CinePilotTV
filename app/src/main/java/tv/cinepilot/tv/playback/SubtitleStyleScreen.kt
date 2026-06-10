@@ -27,7 +27,21 @@ fun ComponentActivity.showSubtitleStyleScreen(
         focusGroup = focusGroup,
         onSize = { size -> refresh(SubtitleStyleFocusGroup.SIZE) { it.copy(size = size) } },
         onColor = { color -> refresh(SubtitleStyleFocusGroup.COLOR) { it.copy(color = color) } },
-        onBackground = { background -> refresh(SubtitleStyleFocusGroup.BACKGROUND) { it.copy(background = background) } },
+        onBackground = { background ->
+            refresh(SubtitleStyleFocusGroup.BACKGROUND) { it.copy(background = background) }
+        },
+        onFont = { font ->
+            refresh(SubtitleStyleFocusGroup.FONT) { it.copy(fontFamily = font) }
+        },
+        onEdgeStyle = { edge ->
+            refresh(SubtitleStyleFocusGroup.EDGE) { it.copy(edgeStyle = edge) }
+        },
+        onMargin = { margin ->
+            refresh(SubtitleStyleFocusGroup.MARGIN) { it.copy(bottomMargin = margin) }
+        },
+        onOpacity = { opacity ->
+            refresh(SubtitleStyleFocusGroup.OPACITY) { it.copy(textOpacity = opacity) }
+        },
         onReset = {
             store.save(SubtitleStylePreferences.defaults())
             showSubtitleStyleScreen(store)
@@ -41,6 +55,10 @@ fun ComponentActivity.subtitleStyleScreen(
     onSize: (SubtitleTextSize) -> Unit,
     onColor: (SubtitleTextColor) -> Unit,
     onBackground: (SubtitleBackground) -> Unit,
+    onFont: (SubtitleFontFamily) -> Unit,
+    onEdgeStyle: (SubtitleEdgeStyle) -> Unit,
+    onMargin: (SubtitleBottomMargin) -> Unit,
+    onOpacity: (SubtitleTextOpacity) -> Unit,
     onReset: () -> Unit,
 ): ScrollView {
     return screen("字幕样式") {
@@ -58,12 +76,40 @@ fun ComponentActivity.subtitleStyleScreen(
             onSelected = onColor,
             focusSelected = focusGroup == SubtitleStyleFocusGroup.COLOR,
         ))
-        addView(section("背景"))
+        addView(section("背景 / 投影"))
         addView(subtitleChoiceRow(
             options = SubtitleBackground.entries,
             current = current.background,
             onSelected = onBackground,
             focusSelected = focusGroup == SubtitleStyleFocusGroup.BACKGROUND,
+        ))
+        addView(section("字体"))
+        addView(subtitleChoiceRow(
+            options = SubtitleFontFamily.entries,
+            current = current.fontFamily,
+            onSelected = onFont,
+            focusSelected = focusGroup == SubtitleStyleFocusGroup.FONT,
+        ))
+        addView(section("描边样式"))
+        addView(subtitleChoiceRow(
+            options = SubtitleEdgeStyle.entries,
+            current = current.edgeStyle,
+            onSelected = onEdgeStyle,
+            focusSelected = focusGroup == SubtitleStyleFocusGroup.EDGE,
+        ))
+        addView(section("底部位置"))
+        addView(subtitleChoiceRow(
+            options = SubtitleBottomMargin.entries,
+            current = current.bottomMargin,
+            onSelected = onMargin,
+            focusSelected = focusGroup == SubtitleStyleFocusGroup.MARGIN,
+        ))
+        addView(section("文字不透明度"))
+        addView(subtitleChoiceRow(
+            options = SubtitleTextOpacity.entries,
+            current = current.textOpacity,
+            onSelected = onOpacity,
+            focusSelected = focusGroup == SubtitleStyleFocusGroup.OPACITY,
         ))
         addView(iconAction("恢复默认", TvIcon.REFRESH, onReset))
     }
@@ -73,6 +119,10 @@ enum class SubtitleStyleFocusGroup {
     SIZE,
     COLOR,
     BACKGROUND,
+    FONT,
+    EDGE,
+    MARGIN,
+    OPACITY,
 }
 
 private fun <T> ComponentActivity.subtitleChoiceRow(

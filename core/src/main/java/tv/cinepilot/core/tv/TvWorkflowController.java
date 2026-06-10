@@ -3,11 +3,13 @@ package tv.cinepilot.core.tv;
 import java.util.List;
 import tv.cinepilot.core.AndroidCollections;
 import tv.cinepilot.core.protocol.AuthenticatedServer;
+import tv.cinepilot.core.protocol.ChapterInfo;
 import tv.cinepilot.core.protocol.ItemQuery;
 import tv.cinepilot.core.protocol.MediaBrowserClient;
 import tv.cinepilot.core.protocol.MediaItemPage;
 import tv.cinepilot.core.protocol.MediaItemSummary;
 import tv.cinepilot.core.protocol.MediaItemType;
+import tv.cinepilot.core.protocol.MediaSegmentInfo;
 import tv.cinepilot.core.protocol.MediaServerAddress;
 import tv.cinepilot.core.protocol.PlayableMedia;
 import tv.cinepilot.core.protocol.PlaybackDeviceProfile;
@@ -17,6 +19,7 @@ import tv.cinepilot.core.protocol.PlaybackSelectionPreferences;
 import tv.cinepilot.core.protocol.PublicUserSummary;
 import tv.cinepilot.core.protocol.QuickConnectSession;
 import tv.cinepilot.core.protocol.ServerIdentity;
+import tv.cinepilot.core.protocol.TrickplayInfo;
 
 public final class TvWorkflowController {
     public static final String NO_CHILD_ITEM_MESSAGE = "No child media item is available";
@@ -361,6 +364,67 @@ public final class TvWorkflowController {
         return new ShowStructure(series, seasonsPage.items(), season, episodes, nextUp, episode);
     }
 
+    // ---- Chapters / segments / trickplay (P1 batch 6) -----------------------
+
+    /**
+     * Returns the list of chapters for the currently selected item. When the item payload
+     * already carries chapters (Fields=Chapters) the cached list is returned directly;
+     * otherwise a dedicated endpoint call populates and re-attaches chapters.
+     */
+    public List<ChapterInfo> loadChaptersForSelectedItem() {
+        MediaItemSummary item = requireSelectedItem("chapters", true);
+        if (!item.chapters().isEmpty()) {
+            return item.chapters();
+        }
+        List<ChapterInfo> chapters = client.chapters(state.authenticated(), item.id());
+        if (!chapters.isEmpty()) {
+            state = state.with(
+                    state.route(),
+                    state.status(),
+                    state.pendingAddress(),
+                    state.server(),
+                    state.publicUsers(),
+                    state.authenticated(),
+                    state.homeRows(),
+                    state.focus(),
+                    item.withChapters(chapters),
+                    state.playableMedia(),
+                    state.errorMessage()
+            );
+        }
+        return chapters;
+    }
+
+    public List<MediaSegmentInfo> loadMediaSegmentsForSelectedItem() {
+        MediaItemSummary item = requireSelectedItem("media segments", true);
+        // Prefer the dedicated endpoint; fall back to IntroStartTicks/CreditsStartTicks
+        // fields on the item payload via the mapper when the endpoint 404s.
+        List<MediaSegmentInfo> fromEndpoint = client.mediaSegments(state.authenticated(), item.id());
+        if (!fromEndpoint.isEmpty()) return fromEndpoint;
+        return AndroidCollections.emptyList();
+    }
+
+    public TrickplayInfo loadTrickplayForSelectedItem(int preferredTileWidth) {
+        MediaItemSummary item = requireSelectedItem("trickplay info", true);
+        int safeWidth = preferredTileWidth <= 0 ? 320 : preferredTileWidth;
+        return client.trickplayInfo(state.authenticated(), item.id(), safeWidth);
+    }
+
+    public MediaItemSummary nextUpEpisodeForSelected() {
+        if (state.authenticated() == null || state.selectedItem() == null) {
+            throw new IllegalStateException(NO_CHILD_ITEM_MESSAGE);
+        }
+        String seriesId = state.selectedItem().seriesId();
+        if (seriesId.isBlank()) {
+            throw new IllegalStateException(NO_CHILD_ITEM_MESSAGE);
+        }
+        return client.nextUpItems(state.authenticated(), seriesId, 1)
+                .items()
+                .stream()
+                .findFirst()
+                .orElseThrow(() -> new IllegalStateException(NO_CHILD_ITEM_MESSAGE));
+    }
+
     private PlaybackInfoOptions playbackInfoOptions(
             PlaybackSelectionPreferences preferences,
             boolean useResumePosition
@@ -502,5 +566,10 @@ public final class TvWorkflowController {
         if (state.selectedItem() == null) {
             throw new IllegalStateException("selected item is required before " + action);
         }
+    }
+
+    private MediaItemSummary requireSelectedItem(String action, @SuppressWarnings("unused") boolean asValue) {
+        requireSelectedItem(action);
+        return state.selectedItem();
     }
 }

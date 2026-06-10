@@ -2,15 +2,23 @@ package tv.cinepilot.tv.playback
 
 import android.content.Intent
 import android.net.Uri
+import android.os.Handler
+import android.os.Looper
+import android.view.View
 import android.widget.ImageView
 import android.widget.Toast
 import androidx.activity.ComponentActivity
 import java.util.ArrayDeque
+import java.util.EnumSet
+import tv.cinepilot.core.protocol.ChapterInfo
 import tv.cinepilot.core.protocol.MediaItemSummary
 import tv.cinepilot.core.protocol.MediaPerson
+import tv.cinepilot.core.protocol.MediaSegmentInfo
+import tv.cinepilot.core.protocol.MediaTicks
 import tv.cinepilot.core.protocol.PlaybackInfo
 import tv.cinepilot.core.protocol.PlaybackSelectionPreferences
 import tv.cinepilot.core.tv.HomeRow
+import tv.cinepilot.core.protocol.TrickplayInfo
 import tv.cinepilot.core.tv.ShowStructure
 import tv.cinepilot.core.tv.TvAppState
 import tv.cinepilot.core.tv.TvRoute
@@ -19,9 +27,14 @@ import tv.cinepilot.tv.details.DetailTrackSelection
 import tv.cinepilot.tv.details.detailsRouteScreen
 import tv.cinepilot.tv.details.seasonDetailScreen
 import tv.cinepilot.tv.details.seriesDetailScreen
+import tv.cinepilot.tv.player.DisplayModeApplier
 import tv.cinepilot.tv.player.Media3PlayerHost
 import tv.cinepilot.tv.runtime.ArtworkTarget
 import tv.cinepilot.tv.runtime.DeviceCodecDiagnostics
+import tv.cinepilot.tv.ui.PlayerNextUpInfo
+import tv.cinepilot.tv.ui.PlayerOverrides
+import tv.cinepilot.tv.playback.PlaybackSettingsFocusGroup
+import tv.cinepilot.tv.ui.TrickplayGridSpec
 import tv.cinepilot.tv.ui.isEpisode
 import tv.cinepilot.tv.ui.isSeason
 import tv.cinepilot.tv.ui.isSeries
@@ -41,6 +54,7 @@ class PlaybackRouteController(
     private val loadArtworkImage: (ImageView, MediaItemSummary, ArtworkTarget, Int, Int) -> Unit,
     private val loadBackdropImage: (ImageView, MediaItemSummary, Int, Int) -> Unit,
     private val loadPersonImage: (ImageView, MediaPerson, Int, Int) -> Unit,
+    private val playbackSettingsStore: PlaybackSettingsStore = PlaybackSettingsStore(activity),
 ) {
     private val diagnosticsController = PlaybackDiagnosticsController(activity, deviceCodecDiagnostics)
     private var selectedPlaybackInfo: PlaybackInfo? = null
@@ -49,6 +63,20 @@ class PlaybackRouteController(
     private var lastPlaybackBackPressAt = 0L
     private var auxiliaryBackAction: (() -> Unit)? = null
     private val mediaBackStack = ArrayDeque<() -> Unit>()
+
+    // ---- Player overlay state (P1 batch 6) -----------------------------------
+    private val mainHandler = Handler(Looper.getMainLooper())
+    private val displayModeApplier = DisplayModeApplier(activity)
+    private var playerChapters: List<ChapterInfo> = emptyList()
+    private var playerSegments: List<MediaSegmentInfo> = emptyList()
+    private var playerTrickplay: TrickplayInfo = TrickplayInfo.empty()
+    private var playerNextUp: MediaItemSummary? = null
+    private var playerNextUpCountdownSeconds: Int = 0
+    private var playerNextUpCancelled = false
+    private val playerAutoSkipTypes = EnumSet.noneOf(MediaSegmentInfo.Type::class.java)
+    private var lastOverlayTickKey = ""
+    private var overlayRebuildScheduled = false
+    private val overlayRebuildRunnable = Runnable { rebuildPlayerOverlayIfNeeded() }
 
     fun showDetails(
         item: MediaItemSummary,
@@ -284,6 +312,7 @@ class PlaybackRouteController(
     private fun exitPlaybackToDetails() {
         lastPlaybackBackPressAt = 0L
         playerHost.release()
+        displayModeApplier.restorePrevious()
         workflowController.back()
         workflowController.state().selectedItem()?.let { showDetails(it) }
             ?: showHome(workflowController.state())
@@ -325,31 +354,292 @@ class PlaybackRouteController(
     private fun showPlayer(state: TvAppState) {
         auxiliaryBackAction = null
         lastPlaybackBackPressAt = 0L
-        val playerView = playerHost.createPlayerView(
-            state = state,
-            onPlaybackError = { error ->
-                activity.runOnUiThread {
-                    playerHost.release()
-                    showError(error)
+        val settings = playbackSettingsStore.current()
+        // Load chapters / segments / trickplay / next-up metadata on the worker executor.
+        // Data is cached on workflowController.selectedItem and on controller fields; when
+        // unavailable the overlays simply stay hidden, player continues unblocked.
+        var chapters: List<ChapterInfo> = emptyList()
+        var segments: List<MediaSegmentInfo> = emptyList()
+        var trickplay: TrickplayInfo = TrickplayInfo.empty()
+        var nextUp: MediaItemSummary? = null
+        runTask("正在准备播放器辅助数据...", {
+            val selected = state.selectedItem()
+            if (selected != null) {
+                runCatching { workflowController.loadChaptersForSelectedItem() }
+                    .onSuccess { chapters = it }
+                runCatching { workflowController.loadMediaSegmentsForSelectedItem() }
+                    .onSuccess { segments = it }
+                if (settings.showTrickplayPreview) {
+                    runCatching { workflowController.loadTrickplayForSelectedItem(320) }
+                        .onSuccess { trickplay = it }
                 }
-            },
-            onPlaybackEnded = {
-                activity.runOnUiThread {
-                    if (workflowController.state().route() != TvRoute.PLAYER) {
-                        return@runOnUiThread
+                if (settings.autoPlayNext && selected.isEpisode()) {
+                    runCatching { workflowController.nextUpEpisodeForSelected() }
+                        .onSuccess { nextUp = it }
+                }
+            }
+        }) {
+            playerChapters = chapters
+            playerSegments = segments
+            playerTrickplay = trickplay
+            playerNextUp = nextUp
+            playerNextUpCountdownSeconds = 0
+            playerNextUpCancelled = false
+            playerAutoSkipTypes.clear()
+            lastOverlayTickKey = ""
+            overlayRebuildScheduled = false
+            val playerView = playerHost.createPlayerView(
+                state = state,
+                onPlaybackError = { error ->
+                    activity.runOnUiThread {
+                        playerHost.release()
+                        displayModeApplier.restorePrevious()
+                        showError(error)
                     }
-                    playerHost.release()
-                    workflowController.back()
-                    workflowController.state().selectedItem()?.let { showDetails(it) }
-                        ?: showHome(workflowController.state())
+                },
+                onPlaybackEnded = {
+                    activity.runOnUiThread {
+                        playerHost.release()
+                        displayModeApplier.restorePrevious()
+                        if (workflowController.state().route() != TvRoute.PLAYER) {
+                            return@runOnUiThread
+                        }
+                        // Episode end: honor auto-play if the user never cancelled the Next Up
+                        // banner.  Otherwise fall back to standard "return to details" flow.
+                        val autoPlay = playbackSettingsStore.current().autoPlayNext &&
+                                !playerNextUpCancelled
+                        if (autoPlay) {
+                            val next = playerNextUp
+                            if (next != null && next.id().isNotBlank()) {
+                                openEpisodeDetail(next, backRenderer = {
+                                    workflowController.back()
+                                    workflowController.state().selectedItem()?.let(::showDetails)
+                                        ?: showHome(workflowController.state())
+                                })
+                                return@runOnUiThread
+                            }
+                        }
+                        workflowController.back()
+                        workflowController.state().selectedItem()?.let { showDetails(it) }
+                            ?: showHome(workflowController.state())
+                    }
+                },
+                onPositionTick = ::onPlayerPositionTick,
+            )
+            displayModeApplier.applyFrameRate(
+                referenceFrameRate = playerHost.referenceFrameRate(),
+                matchColorSpace = settings.matchColorSpace,
+                enabled = settings.autoFrameMatching,
+            )
+            rebuildPlayerOverlay(state, rebuildRoot = true, playerView = playerView)
+            playerView.post { playerView.requestFocus() }
+        }
+    }
+
+    private fun onPlayerPositionTick(positionTicks: Long, durationTicks: Long) {
+        val current = workflowController.state()
+        if (current.route() != TvRoute.PLAYER) return
+        val settings = playbackSettingsStore.current()
+
+        // Auto-skip (once per type per playback).
+        for (segment in playerSegments) {
+            if (playerAutoSkipTypes.contains(segment.type())) continue
+            if (!segment.containsTicks(positionTicks)) continue
+            val autoSkip = when (segment.type()) {
+                MediaSegmentInfo.Type.INTRO -> settings.autoSkipIntro
+                MediaSegmentInfo.Type.CREDITS -> settings.autoSkipCredits
+                else -> false
+            }
+            if (autoSkip) {
+                playerAutoSkipTypes.add(segment.type())
+                playerHost.seekToTicks(segment.endPositionTicks())
+                continue
+            }
+        }
+
+        // Next Up countdown window: final 30 seconds of an episode (or of the credits segment
+        // when it exists).
+        if (playerNextUp != null && !playerNextUpCancelled) {
+            val credits = playerSegments.firstOrNull { it.type() == MediaSegmentInfo.Type.CREDITS }
+            val threshold = if (credits != null && credits.startPositionTicks() > 0) {
+                credits.startPositionTicks()
+            } else {
+                (durationTicks - MediaTicks.fromSeconds(30)).coerceAtLeast(0)
+            }
+            if (positionTicks >= threshold && durationTicks > 0) {
+                val remaining = (durationTicks - positionTicks).coerceAtLeast(0L)
+                val countdown = (MediaTicks.toSeconds(remaining)).toInt().coerceAtLeast(1)
+                if (playerNextUpCountdownSeconds != countdown) {
+                    playerNextUpCountdownSeconds = countdown
+                    scheduleOverlayRebuild()
                 }
-            },
-        )
-        activity.setContentView(activity.playerScreen(
+            } else if (playerNextUpCountdownSeconds != 0) {
+                playerNextUpCountdownSeconds = 0
+                scheduleOverlayRebuild()
+            }
+        }
+
+        scheduleOverlayRebuild()
+    }
+
+    private fun scheduleOverlayRebuild() {
+        if (overlayRebuildScheduled) return
+        overlayRebuildScheduled = true
+        mainHandler.post(overlayRebuildRunnable)
+    }
+
+    private fun rebuildPlayerOverlayIfNeeded() {
+        overlayRebuildScheduled = false
+        val state = workflowController.state()
+        if (state.route() != TvRoute.PLAYER) return
+        val currentView = activity.findViewById<View>(android.R.id.content)
+        val playerRoot = (currentView as? android.view.ViewGroup)?.getChildAt(0)
+            ?: return
+        val key = computeOverlayStateKey()
+        if (key == lastOverlayTickKey) return
+        lastOverlayTickKey = key
+        rebuildPlayerOverlay(state, rebuildRoot = false, playerView = playerHost.playerView() ?: playerRoot)
+    }
+
+    private fun computeOverlayStateKey(): String {
+        val position = playerHost.currentPositionTicks()
+        val segments = playerSegments.joinToString("|") {
+            "${it.type()}:${it.startPositionTicks()}-${it.endPositionTicks()}"
+        }
+        val chaptersCount = playerChapters.size
+        val hasNextUp = if (playerNextUp == null) "0" else "1"
+        return "$position|$segments|$chaptersCount|$hasNextUp|$playerNextUpCountdownSeconds|$playerNextUpCancelled"
+    }
+
+    private fun rebuildPlayerOverlay(
+        state: TvAppState,
+        rebuildRoot: Boolean,
+        playerView: View,
+    ) {
+        val settings = playbackSettingsStore.current()
+        val positionTicks = playerHost.currentPositionTicks()
+        val introSegment = playerSegments.firstOrNull { it.type() == MediaSegmentInfo.Type.INTRO }
+            ?.takeIf { it.containsTicks(positionTicks) && settings.showIntroSkipButton }
+            ?.let { it.startPositionTicks()..it.endPositionTicks() }
+        val creditsSegment = playerSegments.firstOrNull { it.type() == MediaSegmentInfo.Type.CREDITS }
+            ?.takeIf { it.containsTicks(positionTicks) && settings.showCreditsSkipButton }
+            ?.let { it.startPositionTicks()..it.endPositionTicks() }
+        val nextUpInfo = playerNextUp?.takeIf { playerNextUpCountdownSeconds > 0 }
+            ?.let { next ->
+                PlayerNextUpInfo(
+                    episodeLabel = next.parentIndexNumber()?.let { s ->
+                        next.indexNumber()?.let { e -> "第 ${s}季 · 第 ${e}集" }
+                    } ?: next.indexNumber()?.let { e -> "第 ${e}集" } ?: "下一集",
+                    title = next.name(),
+                    overview = next.overview(),
+                    artworkUrl = "",
+                    countdownSeconds = playerNextUpCountdownSeconds,
+                    autoPlay = settings.autoPlayNext,
+                )
+            }
+        val chapters = if (settings.showChapterStrip) {
+            playerChapters.map { it.startPositionTicks() to (it.name().ifBlank {
+                MediaTicks.formatShort(it.startPositionTicks())
+            }) }
+        } else {
+            emptyList()
+        }
+        val trickplaySpec = if (settings.showTrickplayPreview && playerTrickplay.isValid()) {
+            TrickplayGridSpec(
+                tileWidth = playerTrickplay.tileWidth(),
+                tileHeight = playerTrickplay.tileHeight(),
+                tilesPerRow = playerTrickplay.tilesPerRow(),
+                tileIntervalTicks = playerTrickplay.tileIntervalTicks(),
+                tileCount = playerTrickplay.tileCount(),
+            )
+        } else {
+            TrickplayGridSpec(0, 0, 0, 0L, 0)
+        }
+        val overlay = activity.playerScreen(
             playerView = playerView,
-            debugInfo = playbackDebugInfo(state),
+            debugInfo = playbackDebugInfo(state) +
+                    "\n显示模式：${displayModeApplier.formatCurrentModeForDiagnostics()}",
+            overlays = PlayerOverrides(
+                chapterTitles = chapters,
+                onChapterClick = { targetTicks ->
+                    playerHost.seekToTicks(targetTicks)
+                    scheduleOverlayRebuild()
+                },
+                introSegmentTicks = introSegment,
+                creditsSegmentTicks = creditsSegment,
+                onSkipIntro = {
+                    playerSegments.firstOrNull { it.type() == MediaSegmentInfo.Type.INTRO }
+                        ?.endPositionTicks()
+                        ?.let { playerHost.seekToTicks(it) }
+                    scheduleOverlayRebuild()
+                },
+                onSkipCredits = {
+                    playerSegments.firstOrNull { it.type() == MediaSegmentInfo.Type.CREDITS }
+                        ?.endPositionTicks()
+                        ?.let { playerHost.seekToTicks(it) }
+                    scheduleOverlayRebuild()
+                },
+                nextUp = nextUpInfo,
+                onPlayNext = lambda@{
+                    val next = playerNextUp ?: return@lambda
+                    playerHost.release()
+                    displayModeApplier.restorePrevious()
+                    openEpisodeDetail(next, backRenderer = {
+                        workflowController.back()
+                        workflowController.state().selectedItem()?.let(::showDetails)
+                            ?: showHome(workflowController.state())
+                    })
+                },
+                onCancelNextUp = {
+                    playerNextUpCancelled = true
+                    scheduleOverlayRebuild()
+                },
+                trickplayTileUrl = playerTrickplay.imageUrl(),
+                trickplayGrid = trickplaySpec,
+                onOpenPlaybackSettings = { openPlaybackSettings(state) },
+            ),
+        )
+        if (rebuildRoot) {
+            activity.setContentView(overlay)
+            overlay.post { overlay.requestFocus() }
+        } else {
+            val content = activity.findViewById<android.view.ViewGroup>(android.R.id.content)
+                ?: return
+            content.removeAllViews()
+            content.addView(overlay)
+            overlay.post { overlay.requestFocus() }
+        }
+    }
+
+    private fun openPlaybackSettings(state: TvAppState) {
+        val target = state
+        auxiliaryBackAction = {
+            activity.setContentView(activity.playerScreen(
+                playerView = playerHost.playerView() ?: error("no player"),
+                debugInfo = playbackDebugInfo(target),
+            ))
+        }
+        showPlaybackSettingsScreen(focus = PlaybackSettingsFocusGroup.AFM, state = target)
+    }
+
+    fun showPlaybackSettingsScreen(
+        focus: PlaybackSettingsFocusGroup = PlaybackSettingsFocusGroup.AFM,
+        state: TvAppState,
+    ) {
+        val current = playbackSettingsStore.current()
+        activity.setContentView(activity.playbackSettingsScreen(
+            current = current,
+            focusGroup = focus,
+            onChanged = { updated ->
+                playbackSettingsStore.save(updated)
+                showPlaybackSettingsScreen(focus, state)
+            },
+            onBack = {
+                val back = auxiliaryBackAction
+                auxiliaryBackAction = null
+                if (back != null) back()
+            },
         ))
-        playerView.post { playerView.requestFocus() }
     }
 
     private fun openSeriesNextUp() {
@@ -393,7 +683,8 @@ class PlaybackRouteController(
     ): PlaybackSelectionPreferences? {
         val selection = trackSelectionFor(item)
             .normalizedFor(selectedPlaybackInfo?.takeIf { it.itemId() == item.id() })
-        if (!selection.hasExplicitChoice()) {
+        val burnGraphic = playbackSettingsStore.current().burnGraphicSubtitleWhenTranscoding
+        if (!selection.hasExplicitChoice() && base != null && burnGraphic == base.alwaysBurnInSubtitleWhenTranscoding()) {
             return base
         }
         return PlaybackSelectionPreferences(
@@ -408,6 +699,8 @@ class PlaybackRouteController(
             base?.playbackRate(),
             if (selection.subtitleSelected) {
                 selection.burnSubtitleWhenTranscoding
+            } else if (burnGraphic) {
+                true
             } else {
                 base?.alwaysBurnInSubtitleWhenTranscoding()
             },
