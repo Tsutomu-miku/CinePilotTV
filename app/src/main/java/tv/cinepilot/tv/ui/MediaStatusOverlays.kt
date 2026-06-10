@@ -7,10 +7,9 @@ import android.widget.FrameLayout
 import android.widget.TextView
 import androidx.activity.ComponentActivity
 import tv.cinepilot.core.protocol.MediaItemSummary
-import tv.cinepilot.core.protocol.MediaItemType
 
 fun ComponentActivity.episodeWatchedBadge(item: MediaItemSummary): View? {
-    if (item.type() != MediaItemType.EPISODE || !item.userData().played()) {
+    if (!item.isEpisode() || !item.userData().played()) {
         return null
     }
     return TextView(this).apply {

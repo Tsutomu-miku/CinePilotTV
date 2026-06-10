@@ -5,7 +5,6 @@ import android.widget.Toast
 import androidx.activity.ComponentActivity
 import java.util.ArrayDeque
 import tv.cinepilot.core.protocol.MediaItemSummary
-import tv.cinepilot.core.protocol.MediaItemType
 import tv.cinepilot.core.protocol.MediaPerson
 import tv.cinepilot.core.protocol.PlaybackInfo
 import tv.cinepilot.core.protocol.PlaybackSelectionPreferences
@@ -21,6 +20,10 @@ import tv.cinepilot.tv.details.seriesDetailScreen
 import tv.cinepilot.tv.player.Media3PlayerHost
 import tv.cinepilot.tv.runtime.ArtworkTarget
 import tv.cinepilot.tv.runtime.DeviceCodecDiagnostics
+import tv.cinepilot.tv.ui.isEpisode
+import tv.cinepilot.tv.ui.isSeason
+import tv.cinepilot.tv.ui.isSeries
+import tv.cinepilot.tv.ui.isSeriesStructureRoot
 import tv.cinepilot.tv.ui.playerScreen
 
 class PlaybackRouteController(
@@ -116,7 +119,7 @@ class PlaybackRouteController(
                 playbackInfo = runCatching {
                     workflowController.loadPlaybackChoices(null)
                 }.getOrNull()
-                if (item.type() == MediaItemType.EPISODE) {
+                if (item.isEpisode()) {
                     episodeContext = runCatching {
                         workflowController.loadEpisodeContext(item)
                     }.getOrNull()
@@ -128,9 +131,9 @@ class PlaybackRouteController(
             }
         }) {
             val state = workflowController.state()
-            if (item.type() == MediaItemType.SERIES) {
+            if (item.isSeries()) {
                 openSeriesDetail(item.id(), pushBack = false)
-            } else if (item.type() == MediaItemType.SEASON) {
+            } else if (item.isSeason()) {
                 openSeasonDetail(item.id(), pushBack = false)
             } else if (item.playable()) {
                 state.selectedItem()?.let { selectedItem -> showDetails(selectedItem, playbackInfo, episodeContext) }
@@ -391,5 +394,5 @@ class PlaybackRouteController(
 }
 
 private fun MediaItemSummary.shouldOpenAsDetails(): Boolean {
-    return type() == MediaItemType.SERIES || type() == MediaItemType.SEASON
+    return isSeriesStructureRoot()
 }

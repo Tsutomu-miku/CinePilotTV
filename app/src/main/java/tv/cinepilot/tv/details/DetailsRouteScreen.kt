@@ -4,7 +4,6 @@ import android.view.View
 import android.widget.ImageView
 import androidx.activity.ComponentActivity
 import tv.cinepilot.core.protocol.MediaItemSummary
-import tv.cinepilot.core.protocol.MediaItemType
 import tv.cinepilot.core.protocol.PlaybackInfo
 import tv.cinepilot.core.protocol.PlaybackSelectionPreferences
 import tv.cinepilot.core.tv.HomeRow
@@ -14,7 +13,9 @@ import tv.cinepilot.tv.ui.InfuseAction
 import tv.cinepilot.tv.ui.InfuseActionEmphasis
 import tv.cinepilot.tv.ui.RowVisualStyle
 import tv.cinepilot.tv.ui.TvIcon
+import tv.cinepilot.tv.ui.browseChildrenLabel
 import tv.cinepilot.tv.ui.detailsScreen
+import tv.cinepilot.tv.ui.isEpisode
 import tv.cinepilot.tv.ui.mediaWallRow
 import tv.cinepilot.tv.ui.mediaTechnicalPills
 
@@ -70,7 +71,7 @@ private fun ComponentActivity.episodeStrip(
     onOpenEpisode: (MediaItemSummary) -> Unit,
     loadArtworkImage: (ImageView, MediaItemSummary, ArtworkTarget, Int, Int) -> Unit,
 ): List<View> {
-    if (item.type() != MediaItemType.EPISODE || episodes.isEmpty()) {
+    if (!item.isEpisode() || episodes.isEmpty()) {
         return emptyList()
     }
     return listOf(mediaWallRow(
@@ -106,7 +107,7 @@ private fun ComponentActivity.playbackActions(
     actions.add(playbackAction("省流量", TvIcon.SPEED, InfuseActionEmphasis.QUIET, lowBitratePreferences(item), onPreparePlayback))
     actions.add(InfuseAction("字幕样式", TvIcon.SUBTITLES, InfuseActionEmphasis.QUIET, onSubtitleStyle))
     actions.add(InfuseAction("速度", TvIcon.SPEED, InfuseActionEmphasis.QUIET, onPlaybackSpeed))
-    if (item.type() == MediaItemType.EPISODE && item.parentId().isNotBlank()) {
+    if (item.isEpisode() && item.parentId().isNotBlank()) {
         actions.add(InfuseAction("选集", TvIcon.FORWARD, InfuseActionEmphasis.QUIET, onOpenEpisodePicker))
     }
     if (item.seriesId().isNotBlank()) {
@@ -136,9 +137,5 @@ private fun lowBitratePreferences(item: MediaItemSummary): PlaybackSelectionPref
 }
 
 private fun folderActionLabel(item: MediaItemSummary): String {
-    return when (item.type()) {
-        MediaItemType.SERIES -> "查看季集"
-        MediaItemType.SEASON -> "选集"
-        else -> "打开子项目"
-    }
+    return item.browseChildrenLabel().ifBlank { "打开子项目" }
 }

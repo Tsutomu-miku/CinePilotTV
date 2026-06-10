@@ -131,3 +131,31 @@ fun durationText(ticks: Long): String {
         else -> "${minutes} 分钟"
     }
 }
+
+// ------ UI/protocol hygiene helpers -----------------------------------------
+//
+// The hygiene rule in scripts/check.sh forbids importing MediaItemType from
+// any UI/home/details/playback/auth/error/settings/player source file EXCEPT
+// the three presentation-adapter files (this one, DetailPresentation.kt,
+// HomeRowPresentation.kt). Anywhere else that needs a type() comparison must
+// call one of these helpers. That keeps the protocol boundary explicit: if
+// we ever port CinePilot TV to another backend, only these adapters must
+// be rewritten.
+
+fun MediaItemSummary.isEpisode(): Boolean = type() == MediaItemType.EPISODE
+fun MediaItemSummary.isSeries(): Boolean = type() == MediaItemType.SERIES
+fun MediaItemSummary.isSeason(): Boolean = type() == MediaItemType.SEASON
+fun MediaItemSummary.isFolderBrowse(): Boolean = type() == MediaItemType.FOLDER ||
+    type() == MediaItemType.COLLECTION_FOLDER
+fun MediaItemSummary.isSeriesStructureRoot(): Boolean = isSeries() || isSeason()
+
+/**
+ * Returns the Chinese label for the "browse children" action shown on the
+ * detail page of a series-root item (SERIES → "查看季集", SEASON → "选集").
+ * Empty string for non-series-root items.
+ */
+fun MediaItemSummary.browseChildrenLabel(): String = when (type()) {
+    MediaItemType.SERIES -> "查看季集"
+    MediaItemType.SEASON -> "选集"
+    else -> ""
+}
