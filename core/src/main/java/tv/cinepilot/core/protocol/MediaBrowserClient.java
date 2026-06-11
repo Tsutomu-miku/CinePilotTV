@@ -568,6 +568,61 @@ public final class MediaBrowserClient {
                 .forEach(s -> sessions.revoke(s.scope()));
     }
 
+    // ---- Playlists (P3-2) ----
+
+    /** List all user-created playlists. Playlists are returned as MediaItemSummary with type=Playlist. */
+    public MediaItemPage playlists(AuthenticatedServer authenticated, int limit) {
+        ProtocolResponse response = send(
+                authenticated.server().address(),
+                MediaBrowserRequests.playlists(authenticated.session(), authenticated.server().flavor(), limit)
+        );
+        return MediaBrowserResponseMapper.playlists(response.body());
+    }
+
+    /** Items inside a specific playlist, in user-arranged order. */
+    public MediaItemPage playlistItems(AuthenticatedServer authenticated, String playlistId, int limit) {
+        ProtocolResponse response = send(
+                authenticated.server().address(),
+                MediaBrowserRequests.playlistItems(authenticated.session(), authenticated.server().flavor(), playlistId, limit)
+        );
+        return MediaBrowserResponseMapper.itemPage(response.body());
+    }
+
+    /** Create a new empty playlist. Returns the id of the created playlist. */
+    public String createPlaylist(AuthenticatedServer authenticated, String name) {
+        ProtocolResponse response = send(
+                authenticated.server().address(),
+                MediaBrowserRequests.createPlaylist(authenticated.session(), authenticated.server().flavor(), name)
+        );
+        Map<String, Object> root = JsonValue.object(response.body());
+        String id = JsonValue.string(root, "Id");
+        return id == null ? "" : id;
+    }
+
+    /** Add one or more items to a playlist by item id. */
+    public void addToPlaylist(AuthenticatedServer authenticated, String playlistId, List<String> itemIds) {
+        send(
+                authenticated.server().address(),
+                MediaBrowserRequests.addToPlaylist(authenticated.session(), authenticated.server().flavor(), playlistId, itemIds)
+        );
+    }
+
+    /** Remove entries from a playlist by entry id (not item id). */
+    public void removeFromPlaylist(AuthenticatedServer authenticated, String playlistId, List<String> entryIds) {
+        send(
+                authenticated.server().address(),
+                MediaBrowserRequests.removeFromPlaylist(authenticated.session(), authenticated.server().flavor(), playlistId, entryIds)
+        );
+    }
+
+    /** Delete a playlist entirely. */
+    public void deletePlaylist(AuthenticatedServer authenticated, String playlistId) {
+        send(
+                authenticated.server().address(),
+                MediaBrowserRequests.deletePlaylist(authenticated.session(), authenticated.server().flavor(), playlistId)
+        );
+    }
+
     private ProtocolResponse send(MediaServerAddress address, ProtocolRequest request) {
         try {
             ProtocolResponse response = transport.send(address, request);

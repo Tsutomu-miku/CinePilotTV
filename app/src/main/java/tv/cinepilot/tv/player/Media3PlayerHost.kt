@@ -11,9 +11,12 @@ import androidx.media3.common.C
 import androidx.media3.common.MediaItem
 import androidx.media3.common.MimeTypes
 import androidx.media3.common.PlaybackException
+import androidx.media3.datasource.DataSource
 import androidx.media3.exoplayer.ExoPlayer
+import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
 import androidx.media3.ui.CaptionStyleCompat
 import androidx.media3.ui.PlayerView
+import java.io.File
 import java.util.concurrent.Executors
 import tv.cinepilot.core.protocol.AuthSession
 import tv.cinepilot.core.protocol.MediaBrowserClient
@@ -45,9 +48,19 @@ class Media3PlayerHost(
     private var positionTickCallback: ((Long, Long) -> Unit)? = null
     private val checkInExecutor = Executors.newSingleThreadExecutor()
 
+    /** An external subtitle file to inject as an additional subtitle track. */
+    data class ExternalSubtitle(
+        val file: File,
+        val mimeType: String,
+        val language: String = "",
+        val label: String = "",
+    )
+
     fun createPlayerView(
         state: TvAppState,
         subtitleEncoding: SubtitleEncoding = SubtitleEncoding.AUTO,
+        dataSourceOverride: DataSource.Factory? = null,
+        externalSubtitles: List<ExternalSubtitle> = emptyList(),
         onPlaybackError: (PlaybackException) -> Unit = {},
         onPlaybackEnded: () -> Unit = {},
         onPositionTick: ((positionTicks: Long, durationTicks: Long) -> Unit)? = null,
@@ -76,6 +89,9 @@ class Media3PlayerHost(
             initialSubtitleStreamIndex = playable.subtitleStreamIndex(),
         )
         val playerBuilder = ExoPlayer.Builder(context)
+        if (dataSourceOverride != null) {
+            playerBuilder.setMediaSourceFactory(DefaultMediaSourceFactory(dataSourceOverride))
+        }
         // Install the CinePilot subtitle factory on the builder BEFORE build() so
         // ExoPlayer constructs its TextRenderer with our ASS / PGS / SubRip decoders
         // instead of the default ones (P1-1 / P1-2 / P1-3).
@@ -88,7 +104,7 @@ class Media3PlayerHost(
             addListener(playbackBridge)
             applyTrackPreferences(playable)
             setMediaItem(
-                mediaItem(playable, authorizedPlaybackUrl, authenticated.session()),
+                mediaItem(playable, authorizedPlaybackUrl, authenticated.session(), externalSubtitles),
                 initialPlayerPositionMillis(playable),
             )
             playable.playbackRate()?.takeIf { it > 0f && it != 1f }?.let(::setPlaybackSpeed)
@@ -163,6 +179,28 @@ class Media3PlayerHost(
         return if (frameRate > 0f) frameRate else null
     }
 
+    /** Returns the HDR format of the currently playing video, or null for SDR. */
+    fun currentHdrFormat(): DisplayCapabilities.HdrFormat? {
+        val videoFormat = player?.videoFormat ?: return null
+        val colorInfo = videoFormat.colorInfo ?: return null
+        val colorTransfer = colorInfo.colorTransfer
+        return when (colorTransfer) {
+            C.COLOR_TRANSFER_ST2084 -> DisplayCapabilities.HdrFormat.HDR10
+            C.COLOR_TRANSFER_HLG -> DisplayCapabilities.HdrFormat.HLG
+            C.COLOR_TRANSFER_SDR -> null
+            else -> null
+        }
+    }
+
+    /**
+     * Returns the audio codec of the currently playing track, or null if unknown.
+     * Can be used to determine if a passthrough-capable codec is in use.
+     */
+    fun currentAudioCodec(): String? {
+        val audioFormat = player?.audioFormat ?: return null
+        return audioFormat.sampleMimeType
+    }
+
     fun seekBack() {
         seekBy(-REMOTE_SEEK_STEP_MS)
     }
@@ -219,8 +257,10 @@ class Media3PlayerHost(
         playable: PlayableMedia,
         authorizedPlaybackUrl: String,
         session: AuthSession,
+        externalSubtitles: List<ExternalSubtitle> = emptyList(),
     ): MediaItem {
         val builder = MediaItem.Builder().setUri(Uri.parse(authorizedPlaybackUrl))
+        val subtitleConfigs = mutableListOf<MediaItem.SubtitleConfiguration>()
         val subtitleDeliveryUrl = playable.subtitleDeliveryUrl()
         val subtitleStreamIndex = playable.subtitleStreamIndex()
         if (
@@ -229,14 +269,30 @@ class Media3PlayerHost(
             !subtitleDeliveryUrl.isNullOrBlank()
         ) {
             val authorizedSubtitleUrl = PlaybackUrlAuthorizer.withAccessToken(subtitleDeliveryUrl, session)
-            builder.setSubtitleConfigurations(listOf(
+            subtitleConfigs.add(
                 MediaItem.SubtitleConfiguration.Builder(Uri.parse(authorizedSubtitleUrl))
                     .setMimeType(subtitleMimeType(playable.subtitleCodec(), authorizedSubtitleUrl))
                     .setLanguage(playable.subtitleLanguage().ifBlank { null })
                     .setLabel(playable.subtitleDisplayTitle().ifBlank { null })
                     .setSelectionFlags(C.SELECTION_FLAG_DEFAULT)
                     .build()
-            ))
+            )
+        }
+        // Add externally-provided subtitle tracks (e.g. downloaded from online subtitle plugins).
+        // External subtitles have SELECTION_FLAG_DEFAULT so they appear in the track selector;
+        // the user can pick them alongside server-side subtitles.
+        externalSubtitles.forEach { ext ->
+            subtitleConfigs.add(
+                MediaItem.SubtitleConfiguration.Builder(Uri.fromFile(ext.file))
+                    .setMimeType(ext.mimeType)
+                    .setLanguage(ext.language.ifBlank { null })
+                    .setLabel(ext.label.ifBlank { null })
+                    .setSelectionFlags(C.SELECTION_FLAG_DEFAULT)
+                    .build()
+            )
+        }
+        if (subtitleConfigs.isNotEmpty()) {
+            builder.setSubtitleConfigurations(subtitleConfigs)
         }
         return builder.build()
     }

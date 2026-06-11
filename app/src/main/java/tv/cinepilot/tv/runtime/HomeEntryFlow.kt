@@ -3,9 +3,14 @@ package tv.cinepilot.tv.runtime
 import android.app.Activity
 import java.util.concurrent.Executor
 import tv.cinepilot.core.protocol.AuthenticatedServer
+import tv.cinepilot.core.protocol.OfflineRepository
 import tv.cinepilot.core.tv.FileHomeRowsCache
+import tv.cinepilot.core.tv.HomeRow
 import tv.cinepilot.core.tv.TvAppState
 import tv.cinepilot.core.tv.TvWorkflowController
+import tv.cinepilot.tv.home.HomeSettingsStore
+import tv.cinepilot.tv.home.channel.HomeChannelSyncWorker
+import tv.cinepilot.tv.offline.OfflineHomeRow
 
 /**
  * Orchestrates the cache-aware home-entry flow used by every authentication
@@ -37,6 +42,9 @@ class HomeEntryFlow(
     private val executor: Executor,
     private val workflowController: TvWorkflowController,
     private val homeRowsCache: FileHomeRowsCache,
+    private val homeSettingsStore: HomeSettingsStore,
+    private val mediaBrowserClient: tv.cinepilot.core.protocol.MediaBrowserClient,
+    private val offlineRepository: OfflineRepository,
     private val showLoading: (String) -> Unit,
     private val showHome: (TvAppState) -> Unit,
     private val showError: (Throwable) -> Unit,
@@ -57,7 +65,7 @@ class HomeEntryFlow(
                 val userId = authenticated.session().userId()
                 val cached = homeRowsCache.load(serverId, userId).orElse(null)
                 val cacheHit = if (cached != null) {
-                    workflowController.restoreHomeFromCache(cached)
+                    workflowController.restoreHomeFromCache(withOfflineRow(authenticated, cached))
                 } else {
                     false
                 }
@@ -74,15 +82,33 @@ class HomeEntryFlow(
                     // is still happening.
                     activity.runOnUiThread { showLoading("正在加载首页...") }
                 }
-                workflowController.loadHome()
+                val includeSmartCollections = homeSettingsStore.load().showSmartCollections
+                workflowController.loadHome(includeSmartCollections)
+                val finalRows = withOfflineRow(
+                    authenticated,
+                    workflowController.state().homeRows(),
+                )
+                val finalState = workflowController.setHomeRows(finalRows)
                 homeRowsCache.save(
                     serverId,
                     userId,
-                    workflowController.state().homeRows(),
+                    finalState.homeRows(),
                 )
+                // Best-effort sync to Android TV preview channels. Writes to the
+                // system TvProvider can fail on non-OEM-signed launchers; we never
+                // want that to prevent the home wall from painting.
+                runCatching {
+                    HomeChannelSyncWorker.syncNow(
+                        activity.applicationContext,
+                        mediaBrowserClient,
+                        authenticated,
+                        homeSettingsStore,
+                    )
+                    HomeChannelSyncWorker.scheduleImmediate(activity.applicationContext)
+                }
                 activity.runOnUiThread {
                     remember()
-                    showHome(workflowController.state())
+                    showHome(finalState)
                 }
             } catch (error: Throwable) {
                 activity.runOnUiThread { fallback(error) }
@@ -114,6 +140,22 @@ class HomeEntryFlow(
                 authenticated.server().serverId(),
                 authenticated.session().userId(),
             )
+        }
+    }
+
+    private fun withOfflineRow(
+        authenticated: AuthenticatedServer,
+        rows: List<HomeRow>,
+    ): List<HomeRow> {
+        val offlineRow = OfflineHomeRow.build(
+            authenticated,
+            mediaBrowserClient,
+            offlineRepository,
+        ) ?: return rows
+        if (rows.any { it.id() == offlineRow.id() }) return rows
+        return buildList {
+            add(offlineRow)
+            addAll(rows)
         }
     }
 }

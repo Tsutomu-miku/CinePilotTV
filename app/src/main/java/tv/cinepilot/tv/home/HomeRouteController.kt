@@ -20,6 +20,8 @@ class HomeRouteController(
     private val activity: ComponentActivity,
     private val workflowController: TvWorkflowController,
     private val playbackRoutes: PlaybackRouteController,
+    private val homeSettingsStore: HomeSettingsStore,
+    private val mediaBrowserClient: tv.cinepilot.core.protocol.MediaBrowserClient,
     private val runTask: (String, () -> Unit, () -> Unit) -> Unit,
     private val showHome: (TvAppState) -> Unit,
     private val showAccountSwitcher: () -> Unit,
@@ -65,9 +67,20 @@ class HomeRouteController(
 
     private fun refreshHome() {
         runTask("正在重新加载首页...", {
-            workflowController.loadHome()
+            workflowController.loadHome(homeSettingsStore.load().showSmartCollections)
         }) {
-            showHome(workflowController.state())
+            val state = workflowController.state()
+            showHome(state)
+            state.authenticated()?.let { authenticated ->
+                tv.cinepilot.tv.home.channel.HomeChannelSyncWorker.syncNow(
+                    activity.applicationContext,
+                    mediaBrowserClient,
+                    authenticated,
+                    homeSettingsStore,
+                )
+            }
+            tv.cinepilot.tv.home.channel.HomeChannelSyncWorker
+                .scheduleImmediate(activity.applicationContext)
         }
     }
 

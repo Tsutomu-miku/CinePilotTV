@@ -200,6 +200,32 @@
 - P2-7 **Chromecast 媒体路由发送**：依赖 MediaRouter。
 - P2-8 **播放速度 / skip 间隔按方向可配置**。
 
+## P3 播放增强批次（2026-06 竞品对比后新增）
+
+> **完成状态：P3 Batch 1 全部交付（3/3）。** 编译、单测、lint、detekt 全绿 (`bash ./scripts/check.sh` 通过)。
+
+### 批次 1：在线字幕 + 播放列表 + HDR/音频直通
+
+对应 COMPETITIVE_MATRIX B-1/2/3/4。
+
+- P3-1 **在线字幕搜索与下载插件**：**已完成**
+  - SPI 层：`SubtitleSearchPlugin` + `SubtitleSearchResult`（`plugin-spi` 纯 Java 模块），ServiceLoader 自动发现
+  - `PluginHost` 同步查询模式：`searchSubtitles()` 聚合多插件结果、`downloadSubtitle()` 按 `providerId` 路由
+  - `SubtitleCache` 本地文件缓存：`cacheDir/subtitles/{serverId}/{itemId}/{providerId}/{subId}.{ext}`
+  - 详情页「搜索字幕」入口（仅当有字幕插件时显示）+ side sheet 搜索结果列表
+  - 选中字幕自动挂载为 Media3 外挂字幕轨（`MediaItem.SubtitleConfiguration`）
+- P3-2 **播放列表 Playlists**：**已完成**
+  - 协议原生支持：`playlists()` / `playlistItems()` / `createPlaylist()` / `addToPlaylist()` / `removeFromPlaylist()` / `deletePlaylist()`
+  - 首页 Playlists rail（`HomeRowsLoader`）+ Smart Collections 展开为独立 rail
+  - 详情页「添加到播放列表」side sheet + 新建播放列表对话框
+  - `PlaylistDetailScreen` 播放列表详情页（海报墙 + 条目列表 + 播放全部）
+- P3-4 **HDR / 音频直通优化**：**已完成**
+  - HDR format 探测：`DisplayCapabilities` 读取 `Display.HdrCapabilities`（DV / HDR10 / HDR10+ / HLG）
+  - 运行时 HDR 格式：`Media3PlayerHost.currentHdrFormat()` 从 `videoFormat.colorInfo.colorTransfer` 检测
+  - TrueHD/DTS-HD MA 能力检测：`DeviceCodecDiagnostics.supportedPassthroughCodecs()`（`AudioDeviceInfo.encodings`）
+  - 播放器 overlay 增强：HDR 格式、显示 HDR 支持、当前音频编码、设备直通能力
+  - 详情页技术 pill 增强：设备 HDR 支持标签、音频直通能力标签、能力感知兼容提示（替换原「可能触发转码」泛化文案）
+
 ## P1 UI 优先批次（Infuse 化 UX polish，全部完成）
 
 状态：**100% 交付（UI-1/2/3/4 全量完成）**。所有 UI 重构通过 `scripts/check.sh` 防回退守卫。

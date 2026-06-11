@@ -2,11 +2,13 @@ package tv.cinepilot.tv.settings
 
 import androidx.activity.ComponentActivity
 import tv.cinepilot.core.tv.TvAppState
+import tv.cinepilot.tv.home.HomeSettingsStore
 import tv.cinepilot.tv.ui.TvColors
 
 class SettingsRouteController(
     private val activity: ComponentActivity,
     private val settingsStore: SettingsStore,
+    private val homeSettingsStore: HomeSettingsStore,
     private val showHome: (TvAppState) -> Unit,
 ) {
     private var returnState: TvAppState? = null
@@ -33,12 +35,18 @@ class SettingsRouteController(
 
     private fun render() {
         val theme = settingsStore.theme()
+        val homeSettings = homeSettingsStore.load()
         TvColors.applyTheme(theme.id)
         activity.setContentView(activity.settingsRouteScreen(
             theme = theme,
             onTheme = { selected ->
                 settingsStore.saveTheme(selected)
                 TvColors.applyTheme(selected.id)
+                render()
+            },
+            homeSettings = homeSettings,
+            onHomeSettings = { next ->
+                homeSettingsStore.save(next)
                 render()
             },
         ))

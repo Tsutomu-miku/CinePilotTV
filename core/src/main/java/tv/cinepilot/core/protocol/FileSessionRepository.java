@@ -67,6 +67,19 @@ public final class FileSessionRepository implements SessionRepository {
     }
 
     @Override
+    public synchronized List<SavedSession> listAll(ClientIdentity client) {
+        List<SavedSession> out = new ArrayList<>();
+        for (Map.Entry<SessionScope, String> entry : sessionOrder.entrySet()) {
+            SessionScope scope = entry.getKey();
+            if (!scope.clientName().equals(client.clientName())) continue;
+            if (!scope.deviceId().equals(client.deviceId())) continue;
+            if (!scope.appVersion().equals(client.version())) continue;
+            out.add(new SavedSession(scope, entry.getValue()));
+        }
+        return out;
+    }
+
+    @Override
     public synchronized void markActive(SessionScope scope) {
         properties.setProperty(
                 activeKey(scope.serverId(), scope.clientName(), scope.deviceId(), scope.appVersion()),

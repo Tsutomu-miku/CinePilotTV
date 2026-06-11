@@ -15,6 +15,8 @@ import tv.cinepilot.core.protocol.MediaItemSummary
 import tv.cinepilot.core.protocol.MediaPerson
 import tv.cinepilot.core.protocol.MediaSegmentInfo
 import tv.cinepilot.core.protocol.MediaTicks
+import tv.cinepilot.core.protocol.OfflineRepository
+import tv.cinepilot.core.protocol.PlayableMedia
 import tv.cinepilot.core.protocol.PlaybackInfo
 import tv.cinepilot.core.protocol.PlaybackSelectionPreferences
 import tv.cinepilot.core.tv.HomeRow
@@ -27,10 +29,17 @@ import tv.cinepilot.tv.details.DetailTrackSelection
 import tv.cinepilot.tv.details.detailsRouteScreen
 import tv.cinepilot.tv.details.seasonDetailScreen
 import tv.cinepilot.tv.details.seriesDetailScreen
+import tv.cinepilot.tv.details.playlistDetailScreen
 import tv.cinepilot.tv.player.DisplayModeApplier
 import tv.cinepilot.tv.player.Media3PlayerHost
+import tv.cinepilot.tv.player.DisplayCapabilities
+import tv.cinepilot.tv.plugin.PluginHost
+import tv.cinepilot.tv.plugin.toSnapshot
 import tv.cinepilot.tv.runtime.ArtworkTarget
 import tv.cinepilot.tv.runtime.DeviceCodecDiagnostics
+import tv.cinepilot.tv.offline.DownloadCoordinator
+import tv.cinepilot.core.protocol.OfflineRepository as CoreOfflineRepo
+import tv.cinepilot.tv.subtitle.SubtitleCache
 import tv.cinepilot.tv.ui.DisplayModeSwitchPrompt
 import tv.cinepilot.tv.ui.ProviderIdEditorEntry
 import tv.cinepilot.tv.ui.afmConfirmationSheet
@@ -44,14 +53,20 @@ import tv.cinepilot.tv.ui.isEpisode
 import tv.cinepilot.tv.ui.isSeason
 import tv.cinepilot.tv.ui.isSeries
 import tv.cinepilot.tv.ui.isSeriesStructureRoot
+import tv.cinepilot.tv.ui.isPlaylist
+import tv.cinepilot.tv.ui.offlineManagerSheet
 import tv.cinepilot.tv.ui.playerScreen
+import tv.cinepilot.tv.ui.playlistPickerSheet
+import tv.cinepilot.tv.ui.createPlaylistSheet
+import tv.cinepilot.tv.ui.qualityPickerSheet
+import tv.cinepilot.tv.ui.subtitleSearchSheet
 
 class PlaybackRouteController(
     private val activity: ComponentActivity,
     private val workflowController: TvWorkflowController,
     private val playerHost: Media3PlayerHost,
     private val subtitleStyleStore: SubtitleStyleStore,
-    deviceCodecDiagnostics: DeviceCodecDiagnostics,
+    private val deviceCodecDiagnostics: DeviceCodecDiagnostics,
     private val runTask: (String, () -> Unit, () -> Unit) -> Unit,
     private val showHome: (TvAppState) -> Unit,
     private val showError: (Throwable) -> Unit,
@@ -59,12 +74,18 @@ class PlaybackRouteController(
     private val loadArtworkImage: (ImageView, MediaItemSummary, ArtworkTarget, Int, Int) -> Unit,
     private val loadBackdropImage: (ImageView, MediaItemSummary, Int, Int) -> Unit,
     private val loadPersonImage: (ImageView, MediaPerson, Int, Int) -> Unit,
+    private val pluginHost: tv.cinepilot.tv.plugin.PluginHost,
+    private val downloadCoordinator: DownloadCoordinator,
     private val playbackSettingsStore: PlaybackSettingsStore = PlaybackSettingsStore(activity),
 ) {
     private val diagnosticsController = PlaybackDiagnosticsController(activity, deviceCodecDiagnostics)
+    private val displayCapabilities = DisplayCapabilities(activity)
+    private val subtitleCache = SubtitleCache(activity)
     private var selectedPlaybackInfo: PlaybackInfo? = null
     private var selectedTrackItemId: String? = null
     private var selectedTrackSelection = DetailTrackSelection()
+    private var selectedExternalSubtitle: tv.cinepilot.plugin.spi.SubtitleSearchResult? = null
+    private var selectedExternalSubtitleItemId: String? = null
     private var lastPlaybackBackPressAt = 0L
     private var auxiliaryBackAction: (() -> Unit)? = null
     private val mediaBackStack = ArrayDeque<() -> Unit>()
@@ -82,6 +103,9 @@ class PlaybackRouteController(
     private var lastOverlayTickKey = ""
     private var overlayRebuildScheduled = false
     private val overlayRebuildRunnable = Runnable { rebuildPlayerOverlayIfNeeded() }
+    private var currentPlaybackSnapshot: MediaItemSummary? = null
+    private var currentPlaybackDurationMs: Long = 0L
+    private var playbackStartedFired = false
 
     fun showDetails(
         item: MediaItemSummary,
@@ -94,6 +118,8 @@ class PlaybackRouteController(
         }
         val effectivePlaybackInfo = playbackInfo ?: selectedPlaybackInfo?.takeIf { it.itemId() == item.id() }
         val effectiveTrackSelection = normalizedTrackSelectionFor(item, effectivePlaybackInfo)
+        // --- compute offline action label/state BEFORE going into runTask
+        val offlineInfo = computeOfflineInfo(item)
         var sameCollection: List<MediaItemSummary> = emptyList()
         runTask("正在加载同系列作品...", {
             runCatching {
@@ -158,8 +184,394 @@ class PlaybackRouteController(
                     }
                 },
                 onProviderBadgeClick = ::openExternalUrl,
+                onChooseDownloadQuality = { quality ->
+                    showDownloadQualityDialog(item, effectivePlaybackInfo, episodeContext, quality)
+                },
+                onManageOffline = {
+                    showOfflineManager(item, effectivePlaybackInfo, episodeContext)
+                },
+                offlineActionLabel = offlineInfo?.label,
+                offlineActionIsReady = offlineInfo?.isReady == true,
+                onAddToPlaylist = { showPlaylistPicker(item, effectivePlaybackInfo, episodeContext) },
+                onSearchSubtitles = { showSubtitleSearch(item, effectivePlaybackInfo, episodeContext) },
+                hasSubtitleSearch = pluginHost.hasSubtitleSearchPlugins(),
+                supportedHdrTypes = supportedHdrLabels(),
+                supportedPassthroughCodecs = supportedPassthroughLabels(),
             ))
         }
+    }
+
+    // --- Offline download UI --------------------------------------------------
+
+    private data class OfflineInfo(val label: String, val isReady: Boolean)
+    private val qualityLabels = arrayOf("自动", "480p", "720p", "1080p", "4K")
+    private val qualityValues = intArrayOf(0, 1, 2, 3, 4)
+
+    private fun computeOfflineInfo(item: MediaItemSummary): OfflineInfo? {
+        val server = workflowController.state().authenticated()?.server() ?: return null
+        val repo = workflowController.offlineRepository()
+        val serverId = server.serverId()
+        val ready = repo.readyFor(serverId, item.id())
+        if (ready != null) {
+            return OfflineInfo("已离线 (${qualityLabelFor(ready.quality())})", true)
+        }
+        for (entry in repo.listForServer(serverId)) {
+            if (entry.itemId() != item.id()) continue
+            return when (entry.state()) {
+                CoreOfflineRepo.State.QUEUED -> OfflineInfo("下载队列中…", false)
+                CoreOfflineRepo.State.DOWNLOADING ->
+                    OfflineInfo("正在下载 ${String.format("%.0f%%", entry.progressPercent())}", false)
+                CoreOfflineRepo.State.PAUSED -> OfflineInfo("下载已暂停", false)
+                CoreOfflineRepo.State.FAILED -> OfflineInfo("下载失败", false)
+                CoreOfflineRepo.State.READY -> OfflineInfo("已离线", true)
+            }
+        }
+        return OfflineInfo("离线下载", false)
+    }
+
+    private fun qualityLabelFor(q: Int): String = qualityLabels.getOrElse(q.coerceIn(0, qualityValues.lastIndex)) { "自动" }
+
+    /**
+     * Displays a quality picker (自动 / 480p / 720p / 1080p / 4K). Once the
+     * user confirms a quality, [TvWorkflowController.preparePlayback] resolves
+     * the final media source + URL, then the result is handed to the
+     * [DownloadCoordinator] for queueing. Rejections (quota / duplicate /
+     * server errors) surface as toast messages.
+     */
+    private fun showDownloadQualityDialog(
+        item: MediaItemSummary,
+        playbackInfo: PlaybackInfo?,
+        episodeContext: ShowStructure?,
+        @Suppress("UNUSED_PARAMETER") requestedQualityHint: Int,
+    ) {
+        val auth = workflowController.state().authenticated()
+        if (auth == null) {
+            toast("请先登录服务器")
+            return
+        }
+        if (playbackInfo == null && selectedPlaybackInfo?.takeIf { it.itemId() == item.id() } == null) {
+            runTask("正在加载片源信息...", {
+                selectedPlaybackInfo = workflowController.loadPlaybackChoices(null)
+            }) {
+                showDownloadQualityDialog(item, selectedPlaybackInfo, episodeContext, 0)
+            }
+            return
+        }
+        showQualityPicker { quality ->
+            val preferences = buildQualityPreferences(quality, item)
+            var resolved: PlayableMedia? = null
+            runTask("正在解析离线地址...", {
+                workflowController.preparePlayback(preferences)
+                resolved = workflowController.state().playableMedia()
+                    ?: throw IllegalStateException("无法解析媒体播放地址")
+            }) {
+                val r = resolved
+                if (r == null) {
+                    toast("解析片源地址失败")
+                } else {
+                    downloadCoordinator.enqueue(auth, item, r, quality) { err ->
+                        if (err != null) toast(err) else toast("已加入下载队列")
+                        showDetails(item, selectedPlaybackInfo?.takeIf { it.itemId() == item.id() }, episodeContext)
+                    }
+                }
+            }
+        }
+    }
+
+    /** Map our quality enum (0=auto..4=4K) to a PlaybackSelectionPreferences hint. */
+    private fun buildQualityPreferences(quality: Int, item: MediaItemSummary): PlaybackSelectionPreferences? {
+        val base = applyTrackSelection(item, null)
+        val (maxHeight, maxBitRate) = when (quality) {
+            1 -> 480 to 2_000_000
+            2 -> 720 to 4_000_000
+            3 -> 1080 to 10_000_000
+            4 -> 2160 to 40_000_000
+            else -> return base // 自动: no caps
+        }
+        return PlaybackSelectionPreferences(
+            base?.startTimeTicks() ?: 0L,
+            base?.audioStreamIndex(),
+            base?.subtitleStreamIndex(),
+            base?.maxAudioChannels(),
+            0,
+            maxHeight,
+            maxBitRate,
+            base?.mediaSourceId(),
+            base?.playbackRate(),
+            base?.alwaysBurnInSubtitleWhenTranscoding() ?: false,
+        )
+    }
+
+    /**
+     * Side sheet that lists every offline entry for this item (one per quality
+     * tier) with progress + pause/resume/delete actions. After user interaction
+     * we re-render details so the "离线下载" action label reflects the new state.
+     */
+    private fun showOfflineManager(
+        item: MediaItemSummary,
+        playbackInfo: PlaybackInfo?,
+        episodeContext: ShowStructure?,
+    ) {
+        val auth = workflowController.state().authenticated() ?: return
+        val repo = workflowController.offlineRepository()
+        val entries: List<OfflineRepository.Entry> = repo.listForServer(auth.server().serverId())
+            .filter { e: OfflineRepository.Entry -> e.itemId() == item.id() }
+        if (entries.isEmpty()) {
+            toast("暂无离线记录")
+            return
+        }
+        val sheet = activity.offlineManagerSheet(
+            entries = entries,
+            onClose = { showDetails(item, playbackInfo, episodeContext) },
+            onPause = { e: OfflineRepository.Entry ->
+                downloadCoordinator.pause(auth.server().serverId(), e.itemId(), e.quality())
+            },
+            onResume = { e: OfflineRepository.Entry ->
+                downloadCoordinator.resume(auth.server().serverId(), e.itemId(), e.quality())
+            },
+            onDelete = { e: OfflineRepository.Entry ->
+                downloadCoordinator.remove(auth.server().serverId(), e.itemId(), e.quality())
+            },
+        )
+        auxiliaryBackAction = { showDetails(item, playbackInfo, episodeContext) }
+        activity.setContentView(sheet)
+    }
+
+    // --- Playlist UI (P3-2) ----------------------------------------------------
+
+    private fun showPlaylistPicker(
+        item: MediaItemSummary,
+        playbackInfo: PlaybackInfo?,
+        episodeContext: ShowStructure?,
+    ) {
+        val auth = workflowController.state().authenticated() ?: return
+        var playlists: List<MediaItemSummary> = emptyList()
+        runTask("正在加载播放列表...", {
+            playlists = workflowController.playlists(50).items()
+        }) {
+            val sheet = activity.playlistPickerSheet(
+                playlists = playlists,
+                onPick = { playlist ->
+                    addItemToPlaylist(item, playlist, playbackInfo, episodeContext)
+                },
+                onCreateNew = {
+                    showCreatePlaylistDialog(item, playbackInfo, episodeContext)
+                },
+                onClose = {
+                    showDetails(item, playbackInfo, episodeContext)
+                },
+            )
+            auxiliaryBackAction = { showDetails(item, playbackInfo, episodeContext) }
+            activity.setContentView(sheet)
+        }
+    }
+
+    private fun addItemToPlaylist(
+        item: MediaItemSummary,
+        playlist: MediaItemSummary,
+        playbackInfo: PlaybackInfo?,
+        episodeContext: ShowStructure?,
+    ) {
+        val auth = workflowController.state().authenticated() ?: return
+        runTask("正在添加到播放列表...", {
+            workflowController.addToPlaylist(playlist.id(), listOf(item.id()))
+        }) {
+            toast("已添加到「${playlist.name()}」")
+            showDetails(item, playbackInfo, episodeContext)
+        }
+    }
+
+    private fun showCreatePlaylistDialog(
+        item: MediaItemSummary,
+        playbackInfo: PlaybackInfo?,
+        episodeContext: ShowStructure?,
+    ) {
+        val sheet = activity.createPlaylistSheet(
+            initialName = item.name(),
+            onConfirm = { name ->
+                createPlaylistAndAddItem(name, item, playbackInfo, episodeContext)
+            },
+            onCancel = {
+                showPlaylistPicker(item, playbackInfo, episodeContext)
+            },
+        )
+        auxiliaryBackAction = { showPlaylistPicker(item, playbackInfo, episodeContext) }
+        activity.setContentView(sheet)
+    }
+
+    private fun createPlaylistAndAddItem(
+        name: String,
+        item: MediaItemSummary,
+        playbackInfo: PlaybackInfo?,
+        episodeContext: ShowStructure?,
+    ) {
+        val auth = workflowController.state().authenticated() ?: return
+        var playlistId = ""
+        runTask("正在创建播放列表...", {
+            playlistId = workflowController.createPlaylist(name)
+            if (playlistId.isNotBlank()) {
+                workflowController.addToPlaylist(playlistId, listOf(item.id()))
+            }
+        }) {
+            if (playlistId.isNotBlank()) {
+                toast("已创建「$name」并添加")
+            } else {
+                toast("创建失败")
+            }
+            showDetails(item, playbackInfo, episodeContext)
+        }
+    }
+
+    private fun openPlaylistDetail(playlist: MediaItemSummary) {
+        var items: List<MediaItemSummary> = emptyList()
+        runTask("正在加载播放列表...", {
+            items = workflowController.playlistItems(playlist.id(), 200).items()
+        }) {
+            showPlaylistDetail(playlist, items)
+        }
+    }
+
+    private fun showPlaylistDetail(
+        playlist: MediaItemSummary,
+        items: List<MediaItemSummary>,
+    ) {
+        val sheet = activity.playlistDetailScreen(
+            playlist = playlist,
+            items = items,
+            onPlayAll = {
+                if (items.isNotEmpty()) {
+                    // TODO: implement playlist continuous playback
+                    openMediaItem(items.first())
+                }
+            },
+            onDelete = {
+                runTask("正在删除播放列表...", {
+                    workflowController.deletePlaylist(playlist.id())
+                }) {
+                    toast("播放列表已删除")
+                    showHome(workflowController.state())
+                }
+            },
+            onOpenItem = { item ->
+                mediaBackStack.addLast { showPlaylistDetail(playlist, items) }
+                openMediaItem(item)
+            },
+            onBack = {
+                showHome(workflowController.state())
+            },
+            loadBackdrop = { view, item -> loadBackdropImage(view, item, 1280, 720) },
+            loadArtwork = loadArtworkImage,
+        )
+        auxiliaryBackAction = null
+        activity.setContentView(sheet)
+    }
+
+    // --- Subtitle search UI (P3-1) ------------------------------------------------
+
+    private fun showSubtitleSearch(
+        item: MediaItemSummary,
+        playbackInfo: PlaybackInfo?,
+        episodeContext: ShowStructure?,
+    ) {
+        val auth = workflowController.state().authenticated() ?: return
+        var results: List<tv.cinepilot.plugin.spi.SubtitleSearchResult> = emptyList()
+        val snapshot = item.toSnapshot(auth)
+
+        fun rerender(loading: Boolean) {
+            val sheet = activity.subtitleSearchSheet(
+                itemName = item.name(),
+                results = results,
+                isLoading = loading,
+                selectedId = selectedExternalSubtitle?.takeIf { selectedExternalSubtitleItemId == item.id() }?.id(),
+                onPick = { result ->
+                    downloadAndSelectSubtitle(item, result, playbackInfo, episodeContext)
+                },
+                onClose = {
+                    showDetails(item, playbackInfo, episodeContext)
+                },
+            )
+            auxiliaryBackAction = { showDetails(item, playbackInfo, episodeContext) }
+            activity.setContentView(sheet)
+        }
+
+        rerender(true)
+        runTask("正在搜索字幕...", {
+            results = pluginHost.searchSubtitles(snapshot)
+        }) {
+            rerender(false)
+        }
+    }
+
+    private fun downloadAndSelectSubtitle(
+        item: MediaItemSummary,
+        result: tv.cinepilot.plugin.spi.SubtitleSearchResult,
+        playbackInfo: PlaybackInfo?,
+        episodeContext: ShowStructure?,
+    ) {
+        val auth = workflowController.state().authenticated() ?: return
+        val serverId = auth.server().serverId()
+        runTask("正在下载字幕...", {
+            val cached = subtitleCache.get(serverId, item.id(), result)
+                ?: run {
+                    val bytes = pluginHost.downloadSubtitle(result)
+                        ?: throw IllegalStateException("字幕下载失败")
+                    subtitleCache.put(serverId, item.id(), result, bytes)
+                }
+            // Verify the file is valid
+            if (!cached.file.exists() || cached.file.length() == 0L) {
+                throw IllegalStateException("字幕文件无效")
+            }
+        }) {
+            selectedExternalSubtitle = result
+            selectedExternalSubtitleItemId = item.id()
+            toast("已选择字幕：${result.name()}")
+            showSubtitleSearch(item, playbackInfo, episodeContext)
+        }
+    }
+
+    private fun subtitleMimeTypeFor(format: tv.cinepilot.plugin.spi.SubtitleSearchResult.Format): String {
+        return when (format) {
+            tv.cinepilot.plugin.spi.SubtitleSearchResult.Format.SRT ->
+                androidx.media3.common.MimeTypes.APPLICATION_SUBRIP
+            tv.cinepilot.plugin.spi.SubtitleSearchResult.Format.ASS,
+            tv.cinepilot.plugin.spi.SubtitleSearchResult.Format.SSA ->
+                androidx.media3.common.MimeTypes.TEXT_SSA
+            tv.cinepilot.plugin.spi.SubtitleSearchResult.Format.VTT ->
+                androidx.media3.common.MimeTypes.TEXT_VTT
+            tv.cinepilot.plugin.spi.SubtitleSearchResult.Format.PGS -> "application/pgs"
+            tv.cinepilot.plugin.spi.SubtitleSearchResult.Format.UNKNOWN ->
+                androidx.media3.common.MimeTypes.APPLICATION_SUBRIP
+        }
+    }
+
+    private fun buildExternalSubtitles(
+        item: MediaItemSummary,
+    ): List<Media3PlayerHost.ExternalSubtitle> {
+        val auth = workflowController.state().authenticated() ?: return emptyList()
+        val result = selectedExternalSubtitle?.takeIf { selectedExternalSubtitleItemId == item.id() }
+            ?: return emptyList()
+        val cached = subtitleCache.get(auth.server().serverId(), item.id(), result)
+            ?: return emptyList()
+        return listOf(Media3PlayerHost.ExternalSubtitle(
+            file = cached.file,
+            mimeType = subtitleMimeTypeFor(result.format()),
+            language = result.language(),
+            label = result.name(),
+        ))
+    }
+
+    private inline fun showQualityPicker(crossinline onChosen: (Int) -> Unit) {
+        val sheet = activity.qualityPickerSheet(
+            labels = qualityLabels.toList(),
+            values = qualityValues.toList(),
+            default = 0,
+            onChosen = { q: Int -> onChosen(q) },
+        )
+        activity.setContentView(sheet)
+    }
+
+    private fun toast(msg: String) {
+        Toast.makeText(activity, msg, Toast.LENGTH_LONG).show()
     }
 
     fun handleAuxiliaryBackPressed(): Boolean {
@@ -179,6 +591,10 @@ class PlaybackRouteController(
     }
 
     private fun openMediaItem(item: MediaItemSummary) {
+        if (item.isPlaylist()) {
+            openPlaylistDetail(item)
+            return
+        }
         val loadingMessage = if (item.playable() || item.shouldOpenAsDetails()) {
             "正在打开详情..."
         } else {
@@ -432,11 +848,25 @@ class PlaybackRouteController(
 
     private fun exitPlaybackToDetails() {
         lastPlaybackBackPressAt = 0L
-        playerHost.release()
+        releasePlayerAndDispatchStop()
         displayModeApplier.restorePrevious()
         workflowController.back()
         workflowController.state().selectedItem()?.let { showDetails(it) }
             ?: showHome(workflowController.state())
+    }
+
+    private fun releasePlayerAndDispatchStop() {
+        val snapshot = currentPlaybackSnapshot
+        val durationMs = currentPlaybackDurationMs
+        val positionMs = ticksToMs(playerHost.currentPositionTicks())
+        playerHost.release()
+        val auth = workflowController.state().authenticated()
+        if (snapshot != null && auth != null && playbackStartedFired) {
+            pluginHost.dispatchPlaybackStopped(snapshot.toSnapshot(auth), positionMs, durationMs)
+        }
+        playbackStartedFired = false
+        currentPlaybackSnapshot = null
+        currentPlaybackDurationMs = 0L
     }
 
     private fun showPlaybackSpeedOptions(item: MediaItemSummary) {
@@ -475,6 +905,10 @@ class PlaybackRouteController(
     private fun showPlayer(state: TvAppState) {
         auxiliaryBackAction = null
         lastPlaybackBackPressAt = 0L
+        val selectedItem = state.selectedItem()
+        currentPlaybackSnapshot = selectedItem
+        currentPlaybackDurationMs = if (selectedItem == null) 0L else ticksToMs(selectedItem.runTimeTicks() ?: 0L)
+        playbackStartedFired = false
         val settings = playbackSettingsStore.current()
         // Load chapters / segments / trickplay / next-up metadata on the worker executor.
         // Data is cached on workflowController.selectedItem and on controller fields; when
@@ -509,19 +943,32 @@ class PlaybackRouteController(
             playerAutoSkipTypes.clear()
             lastOverlayTickKey = ""
             overlayRebuildScheduled = false
+            val offlineFactory = run {
+                val serverId = state.authenticated()?.server()?.serverId()
+                if (serverId != null && selectedItem != null) {
+                    downloadCoordinator.cacheDataSourceFactory.takeIf {
+                        workflowController.offlineRepository().readyFor(serverId, selectedItem.id()) != null
+                    }
+                } else {
+                    null
+                }
+            }
+            val externalSubs = selectedItem?.let { buildExternalSubtitles(it) }.orEmpty()
             val playerView = playerHost.createPlayerView(
                 state = state,
                 subtitleEncoding = settings.subtitleEncoding,
+                dataSourceOverride = offlineFactory,
+                externalSubtitles = externalSubs,
                 onPlaybackError = { error ->
                     activity.runOnUiThread {
-                        playerHost.release()
+                        releasePlayerAndDispatchStop()
                         displayModeApplier.restorePrevious()
                         showError(error)
                     }
                 },
                 onPlaybackEnded = {
                     activity.runOnUiThread {
-                        playerHost.release()
+                        releasePlayerAndDispatchStop()
                         displayModeApplier.restorePrevious()
                         if (workflowController.state().route() != TvRoute.PLAYER) {
                             return@runOnUiThread
@@ -598,6 +1045,20 @@ class PlaybackRouteController(
     private fun onPlayerPositionTick(positionTicks: Long, durationTicks: Long) {
         val current = workflowController.state()
         if (current.route() != TvRoute.PLAYER) return
+        // Plugin playback hooks.
+        val auth = current.authenticated()
+        val item = currentPlaybackSnapshot
+        val durationMs = ticksToMs(durationTicks)
+        val positionMs = ticksToMs(positionTicks)
+        if (item != null && auth != null) {
+            val snapshot = item.toSnapshot(auth)
+            if (!playbackStartedFired) {
+                playbackStartedFired = true
+                if (durationMs > 0) currentPlaybackDurationMs = durationMs
+                pluginHost.dispatchPlaybackStarted(snapshot, currentPlaybackDurationMs.coerceAtLeast(durationMs))
+            }
+            pluginHost.dispatchPlaybackProgress(snapshot, positionMs, currentPlaybackDurationMs.coerceAtLeast(durationMs))
+        }
         val settings = playbackSettingsStore.current()
 
         // Auto-skip (once per type per playback).
@@ -717,7 +1178,10 @@ class PlaybackRouteController(
         val overlay = activity.playerScreen(
             playerView = playerView,
             debugInfo = playbackDebugInfo(state) +
-                    "\n显示模式：${displayModeApplier.formatCurrentModeForDiagnostics()}",
+                    "\n显示模式：${displayModeApplier.formatCurrentModeForDiagnostics()}" +
+                    "\nHDR 格式：${playerHdrLabel()}" +
+                    "\nHDR 支持：${displayCapabilities.describe()}" +
+                    "\n音频直通：${audioPassthroughLabel()}",
             overlays = PlayerOverrides(
                 chapterTitles = chapters,
                 onChapterClick = { targetTicks ->
@@ -741,7 +1205,7 @@ class PlaybackRouteController(
                 nextUp = nextUpInfo,
                 onPlayNext = lambda@{
                     val next = playerNextUp ?: return@lambda
-                    playerHost.release()
+                    releasePlayerAndDispatchStop()
                     displayModeApplier.restorePrevious()
                     openEpisodeDetail(next, backRenderer = {
                         workflowController.back()
@@ -894,12 +1358,18 @@ class PlaybackRouteController(
         action: () -> Unit,
         rerender: (MediaItemSummary) -> Unit,
     ) {
+        val before = workflowController.state().selectedItem()
+        val auth = workflowController.state().authenticated()
         var updated: MediaItemSummary? = null
         runTask("正在更新...", {
             action()
             updated = workflowController.state().selectedItem()
         }) {
-            updated?.let(rerender)
+            val after = updated
+            if (before != null && after != null && auth != null) {
+                dispatchUserDataDeltas(before, after, auth)
+            }
+            after?.let(rerender)
         }
     }
 
@@ -914,20 +1384,122 @@ class PlaybackRouteController(
         action: () -> Unit,
         rerender: () -> Unit,
     ) {
+        val auth = workflowController.state().authenticated()
+        var before: MediaItemSummary? = null
+        var after: MediaItemSummary? = null
         runTask("正在更新...", {
             val current = workflowController.state().selectedItem()
+            before = if (current?.id() == itemId) current else null
             if (current?.id() != itemId) {
                 runCatching { workflowController.openItem(itemId) }
             }
             action()
-        }, rerender)
+            after = workflowController.state().selectedItem()
+        }) {
+            val ref = before ?: after
+            if (ref != null && after != null && auth != null) {
+                dispatchUserDataDeltas(ref, after!!, auth)
+            }
+            rerender()
+        }
     }
+
+    /** Compare before/after user-data and fire matching plugin hooks. */
+    private fun dispatchUserDataDeltas(
+        before: MediaItemSummary,
+        after: MediaItemSummary,
+        auth: tv.cinepilot.core.protocol.AuthenticatedServer,
+    ) {
+        val snapshot = after.toSnapshot(auth)
+        val beforeUd = before.userData()
+        val afterUd = after.userData()
+        if (beforeUd.favorite() != afterUd.favorite()) {
+            pluginHost.dispatchFavorite(snapshot, afterUd.favorite())
+        }
+        if (beforeUd.played() != afterUd.played()) {
+            pluginHost.dispatchWatched(snapshot, afterUd.played())
+        }
+        val beforeRating = beforeUd.userRating()
+        val afterRating = afterUd.userRating()
+        if ((beforeRating ?: -1.0) != (afterRating ?: -1.0) && afterRating != null) {
+            pluginHost.dispatchRating(snapshot, afterRating)
+        }
+    }
+
+    private fun ticksToMs(ticks: Long): Long = if (ticks <= 0L) 0L else ticks / 10_000L
 
     private fun openExternalUrl(url: String) {
         if (url.isBlank()) return
         runCatching {
             activity.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url)))
         }
+    }
+
+    // --- HDR / audio passthrough helpers (P3-4) ---------------------------------------
+
+    private fun playerHdrLabel(): String {
+        val runtimeFormat = playerHost.currentHdrFormat()
+        if (runtimeFormat != null) {
+            return hdrFormatLabel(runtimeFormat) + "（运行时检测）"
+        }
+        // Fallback to metadata-based detection from playable media
+        val playable = workflowController.state().playableMedia() ?: return "SDR"
+        val video = playable.mediaStreams().firstOrNull {
+            it.type() == tv.cinepilot.core.protocol.MediaStreamType.VIDEO
+        } ?: return "SDR"
+        val format = DisplayCapabilities.Companion.detectHdrFormat(
+            video.videoRangeType(),
+            video.videoRange(),
+            video.profile(),
+            video.displayTitle(),
+        )
+        return if (format == DisplayCapabilities.HdrFormat.UNKNOWN) "SDR" else hdrFormatLabel(format) + "（元数据）"
+    }
+
+    private fun hdrFormatLabel(format: DisplayCapabilities.HdrFormat): String = when (format) {
+        DisplayCapabilities.HdrFormat.DOLBY_VISION -> "杜比视界 Dolby Vision"
+        DisplayCapabilities.HdrFormat.HDR10 -> "HDR10"
+        DisplayCapabilities.HdrFormat.HDR10_PLUS -> "HDR10+"
+        DisplayCapabilities.HdrFormat.HLG -> "HLG"
+        DisplayCapabilities.HdrFormat.UNKNOWN -> "未知 HDR"
+    }
+
+    private fun audioPassthroughLabel(): String {
+        val currentCodec = playerHost.currentAudioCodec()
+        val supported = deviceCodecDiagnostics.supportedPassthroughCodecs()
+        val supportedLabels = if (supported.isEmpty()) "无" else supported.joinToString(" / ") { it.label }
+        val codecLabel = currentCodec?.let { codec ->
+            val passthroughName = passthroughCodecName(codec)
+            "当前音频：${passthroughName ?: codec}"
+        } ?: "当前音频：未知"
+        return "$codecLabel\n设备支持直通：$supportedLabels"
+    }
+
+    private fun passthroughCodecName(mimeType: String): String? {
+        return when (mimeType.lowercase()) {
+            "audio/ac3" -> "Dolby Digital"
+            "audio/eac3" -> "Dolby Digital+"
+            "audio/true-hd" -> "Dolby TrueHD"
+            "audio/vnd.dts" -> "DTS"
+            "audio/vnd.dts.hd" -> "DTS-HD MA"
+            else -> null
+        }
+    }
+
+    private fun supportedHdrLabels(): Set<String> {
+        val support = displayCapabilities.hdrSupport()
+        val labels = mutableSetOf<String>()
+        if (support.dolbyVision) labels.add("Dolby Vision")
+        if (support.hdr10) labels.add("HDR10")
+        if (support.hdr10Plus) labels.add("HDR10+")
+        if (support.hlg) labels.add("HLG")
+        return labels
+    }
+
+    private fun supportedPassthroughLabels(): Set<String> {
+        return deviceCodecDiagnostics.supportedPassthroughCodecs()
+            .map { it.label }
+            .toSet()
     }
 
     private fun openPerson(person: MediaPerson) {

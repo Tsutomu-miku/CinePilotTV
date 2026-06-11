@@ -19,6 +19,13 @@ public interface SessionRepository {
     List<SavedSession> listForServer(String serverId, ClientIdentity client);
 
     /**
+     * Return every saved session matching the given client identity, regardless of
+     * server id. Useful for background workers that do not know which server the
+     * user last interacted with.
+     */
+    List<SavedSession> listAll(ClientIdentity client);
+
+    /**
      * Remember which scope was last used to enter the home screen so the app can
      * restore the correct profile at cold start without asking the user to pick.
      */

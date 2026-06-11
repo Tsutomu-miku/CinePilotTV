@@ -40,6 +40,19 @@ public final class InMemorySessionRepository implements SessionRepository {
     }
 
     @Override
+    public List<SavedSession> listAll(ClientIdentity client) {
+        List<SavedSession> out = new ArrayList<>();
+        for (SavedSession saved : sessions.values()) {
+            SessionScope scope = saved.scope();
+            if (!scope.clientName().equals(client.clientName())) continue;
+            if (!scope.deviceId().equals(client.deviceId())) continue;
+            if (!scope.appVersion().equals(client.version())) continue;
+            out.add(saved);
+        }
+        return out;
+    }
+
+    @Override
     public void markActive(SessionScope scope) {
         this.active = scope;
     }

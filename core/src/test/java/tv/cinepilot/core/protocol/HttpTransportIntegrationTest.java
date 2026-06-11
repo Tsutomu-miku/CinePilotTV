@@ -110,6 +110,10 @@ public final class HttpTransportIntegrationTest {
             response = "{\"Items\":[{\"Id\":\"fav-1\",\"Name\":\"Fav\",\"Type\":\"Movie\",\"IsPlayable\":true}],\"TotalRecordCount\":1,\"StartIndex\":0}";
         } else if (path.equals("/Users/user-1/Items") && query.contains("IncludeItemTypes=BoxSet")) {
             response = "{\"Items\":[{\"Id\":\"coll-1\",\"Name\":\"Collection\",\"Type\":\"BoxSet\",\"IsFolder\":true,\"IsPlayable\":false}],\"TotalRecordCount\":1,\"StartIndex\":0}";
+        } else if (path.equals("/Users/user-1/Items") && query.contains("IncludeItemTypes=Playlist")) {
+            response = "{\"Items\":[],\"TotalRecordCount\":0,\"StartIndex\":0}";
+        } else if (path.equals("/Users/user-1/Items") && query.contains("ParentId=coll-1")) {
+            response = "{\"Items\":[],\"TotalRecordCount\":0,\"StartIndex\":0}";
         } else if (path.equals("/Users/user-1/Items/movie-1")) {
             response = "{\"Id\":\"movie-1\",\"Name\":\"Arrival\",\"Type\":\"Movie\",\"IsPlayable\":true}";
         } else if (path.equals("/Items/movie-1/PlaybackInfo")) {

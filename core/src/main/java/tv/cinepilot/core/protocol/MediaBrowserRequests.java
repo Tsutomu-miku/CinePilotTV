@@ -1,6 +1,8 @@
 package tv.cinepilot.core.protocol;
 
+import java.util.ArrayList;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 
 public final class MediaBrowserRequests {
@@ -545,6 +547,127 @@ public final class MediaBrowserRequests {
         String encodedItemId = ProtocolRequest.encodePathSegment(itemId);
         return authenticated(
                 ProtocolRequest.get("/Videos/" + encodedItemId + "/Trickplay/HlsTileInfo"),
+                session,
+                flavor
+        ).build();
+    }
+
+    // ---- Playlists (P3-2) ----
+
+    /** List all user playlists (summary-only: id, name, item count, runtime). */
+    public static ProtocolRequest playlists(AuthSession session, ServerFlavor flavor, int limit) {
+        String userId = ProtocolRequest.encodePathSegment(session.userId());
+        return authenticated(
+                ProtocolRequest.get("/Users/" + userId + "/Items"),
+                session,
+                flavor
+        ).query("IncludeItemTypes", "Playlist")
+                .query("Recursive", "true")
+                .query("Limit", Integer.toString(Math.max(0, limit)))
+                .query("EnableImages", "true")
+                .query("ImageTypeLimit", "1")
+                .query("EnableImageTypes", "Primary,Thumb")
+                .query("SortBy", "DateCreated,SortName")
+                .query("SortOrder", "Descending")
+                .query("Fields", "ChildCount,RunTimeTicks")
+                .build();
+    }
+
+    /** Items inside a specific playlist. Ordered as the user arranged them. */
+    public static ProtocolRequest playlistItems(
+            AuthSession session,
+            ServerFlavor flavor,
+            String playlistId,
+            int limit
+    ) {
+        require(playlistId, "playlistId");
+        String safeId = ProtocolRequest.encodePathSegment(playlistId);
+        return authenticated(
+                ProtocolRequest.get("/Playlists/" + safeId + "/Items"),
+                session,
+                flavor
+        ).query("Limit", Integer.toString(Math.max(0, limit)))
+                .query("EnableImages", "true")
+                .query("EnableUserData", "true")
+                .query("ImageTypeLimit", "1")
+                .query("EnableImageTypes", "Primary,Backdrop,Thumb")
+                .query("Fields", ITEM_FIELDS)
+                .build();
+    }
+
+    /** Create a new empty playlist with the given name. */
+    public static ProtocolRequest createPlaylist(
+            AuthSession session,
+            ServerFlavor flavor,
+            String name
+    ) {
+        if (name == null || name.isBlank()) {
+            throw new IllegalArgumentException("playlist name is required");
+        }
+        String userId = ProtocolRequest.encodePathSegment(session.userId());
+        String body = "{\"Name\":\"" + escapeJson(name) + "\",\"UserId\":\"" + escapeJson(session.userId()) + "\"}";
+        return authenticated(
+                ProtocolRequest.post("/Playlists"),
+                session,
+                flavor
+        ).query("userId", userId)
+                .jsonBody(body)
+                .build();
+    }
+
+    /** Add one or more item ids to an existing playlist. */
+    public static ProtocolRequest addToPlaylist(
+            AuthSession session,
+            ServerFlavor flavor,
+            String playlistId,
+            List<String> itemIds
+    ) {
+        require(playlistId, "playlistId");
+        if (itemIds == null || itemIds.isEmpty()) {
+            throw new IllegalArgumentException("at least one item id is required");
+        }
+        String safeId = ProtocolRequest.encodePathSegment(playlistId);
+        String ids = String.join(",", itemIds);
+        return authenticated(
+                ProtocolRequest.post("/Playlists/" + safeId + "/Items"),
+                session,
+                flavor
+        ).query("ids", ids)
+                .query("userId", session.userId())
+                .build();
+    }
+
+    /** Remove items from a playlist by their playlist-entry ids (not item ids). */
+    public static ProtocolRequest removeFromPlaylist(
+            AuthSession session,
+            ServerFlavor flavor,
+            String playlistId,
+            List<String> entryIds
+    ) {
+        require(playlistId, "playlistId");
+        if (entryIds == null || entryIds.isEmpty()) {
+            throw new IllegalArgumentException("at least one entry id is required");
+        }
+        String safeId = ProtocolRequest.encodePathSegment(playlistId);
+        String ids = String.join(",", entryIds);
+        return authenticated(
+                ProtocolRequest.delete("/Playlists/" + safeId + "/Items"),
+                session,
+                flavor
+        ).query("entryIds", ids)
+                .build();
+    }
+
+    /** Delete a playlist entirely. */
+    public static ProtocolRequest deletePlaylist(
+            AuthSession session,
+            ServerFlavor flavor,
+            String playlistId
+    ) {
+        require(playlistId, "playlistId");
+        String safeId = ProtocolRequest.encodePathSegment(playlistId);
+        return authenticated(
+                ProtocolRequest.delete("/Items/" + safeId),
                 session,
                 flavor
         ).build();

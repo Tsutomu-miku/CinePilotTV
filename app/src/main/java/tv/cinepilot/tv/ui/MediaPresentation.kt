@@ -116,6 +116,7 @@ fun presentationMediaTypeLabel(type: MediaItemType): String = when (type) {
     MediaItemType.SEASON -> "季"
     MediaItemType.EPISODE -> "单集"
     MediaItemType.VIDEO -> "视频"
+    MediaItemType.PLAYLIST -> "播放列表"
     MediaItemType.COLLECTION_FOLDER,
     MediaItemType.FOLDER -> "目录"
     MediaItemType.UNKNOWN -> ""
@@ -145,6 +146,7 @@ fun durationText(ticks: Long): String {
 fun MediaItemSummary.isEpisode(): Boolean = type() == MediaItemType.EPISODE
 fun MediaItemSummary.isSeries(): Boolean = type() == MediaItemType.SERIES
 fun MediaItemSummary.isSeason(): Boolean = type() == MediaItemType.SEASON
+fun MediaItemSummary.isPlaylist(): Boolean = type() == MediaItemType.PLAYLIST
 fun MediaItemSummary.isFolderBrowse(): Boolean = type() == MediaItemType.FOLDER ||
     type() == MediaItemType.COLLECTION_FOLDER
 fun MediaItemSummary.isSeriesStructureRoot(): Boolean = isSeries() || isSeason()
@@ -157,5 +159,6 @@ fun MediaItemSummary.isSeriesStructureRoot(): Boolean = isSeries() || isSeason()
 fun MediaItemSummary.browseChildrenLabel(): String = when (type()) {
     MediaItemType.SERIES -> "查看季集"
     MediaItemType.SEASON -> "选集"
+    MediaItemType.PLAYLIST -> "查看列表"
     else -> ""
 }

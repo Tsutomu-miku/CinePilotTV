@@ -5,7 +5,11 @@ import tv.cinepilot.core.protocol.MediaStreamInfo
 import tv.cinepilot.core.protocol.MediaStreamType
 import tv.cinepilot.core.protocol.PlaybackInfo
 
-fun mediaTechnicalPills(playbackInfo: PlaybackInfo?): List<String> {
+fun mediaTechnicalPills(
+    playbackInfo: PlaybackInfo?,
+    supportedHdrTypes: Set<String> = emptySet(),
+    supportedPassthroughCodecs: Set<String> = emptySet(),
+): List<String> {
     val source = playbackInfo?.mediaSources()?.firstOrNull() ?: return emptyList()
     val video = source.mediaStreams().firstOrNull { it.type() == MediaStreamType.VIDEO }
     val audioStreams = source.mediaStreams().filter { it.type() == MediaStreamType.AUDIO }
@@ -17,11 +21,11 @@ fun mediaTechnicalPills(playbackInfo: PlaybackInfo?): List<String> {
         codecLabel(stream.codec()).takeIf { it.isNotBlank() }?.let(pills::add)
         bitDepthLabel(stream)?.let(pills::add)
         videoRangeLabel(stream)?.let(pills::add)
-        videoCompatibilityLabel(stream)?.let(pills::add)
+        videoCompatibilityLabel(stream, supportedHdrTypes)?.let(pills::add)
     }
     primaryAudio?.let { stream ->
         audioLabel(stream)?.let(pills::add)
-        audioCompatibilityLabel(stream)?.let(pills::add)
+        audioCompatibilityLabel(stream, supportedPassthroughCodecs)?.let(pills::add)
     }
     if (audioStreams.size > 1) {
         pills.add("音轨 ${audioStreams.size} 条")
@@ -38,6 +42,13 @@ fun mediaTechnicalPills(playbackInfo: PlaybackInfo?): List<String> {
         highBitrateLabel(source.bitRate())?.let(pills::add)
     }
     pills.addAll(subtitleLabels(subtitles))
+    // Device capability info (P3-4)
+    if (supportedHdrTypes.isNotEmpty()) {
+        pills.add("设备支持 HDR：${supportedHdrTypes.joinToString(" / ")}")
+    }
+    if (supportedPassthroughCodecs.isNotEmpty()) {
+        pills.add("音频直通：${supportedPassthroughCodecs.joinToString(" / ")}")
+    }
     return pills.distinct()
 }
 
@@ -98,14 +109,25 @@ private fun videoRangeLabel(stream: MediaStreamInfo): String? {
     }
 }
 
-private fun videoCompatibilityLabel(stream: MediaStreamInfo): String? {
+private fun videoCompatibilityLabel(stream: MediaStreamInfo, supportedHdrTypes: Set<String>): String? {
     val value = stream.searchableTechnicalText()
+    val isDolbyVision = value.contains("dovi") || value.contains("dolby vision")
+    val isAv1 = value.contains("av1")
+    val isHevc = value.contains("hevc") || value.contains("h265") || value.contains("h.265")
+
     return when {
-        value.contains("dovi") || value.contains("dolby vision") -> "杜比视界兼容性依赖设备或转码"
-        value.contains("av1") -> "AV1 兼容性依赖设备或转码"
-        value.contains("hevc") || value.contains("h265") || value.contains("h.265") -> {
-            "HEVC 兼容性依赖设备或转码"
+        isDolbyVision -> {
+            val hdrSet = supportedHdrTypes.joinToString(" / ").ifBlank { null }
+            if (hdrSet != null && (supportedHdrTypes.contains("Dolby Vision") || supportedHdrTypes.any { it.contains("dolby", ignoreCase = true) })) {
+                "杜比视界 · 设备支持"
+            } else if (supportedHdrTypes.isNotEmpty()) {
+                "杜比视界 · 设备不支持（需转码）"
+            } else {
+                "杜比视界兼容性依赖设备或转码"
+            }
         }
+        isAv1 -> "AV1 兼容性依赖设备或转码"
+        isHevc -> "HEVC 兼容性依赖设备或转码"
         else -> null
     }
 }
@@ -124,12 +146,25 @@ private fun audioLabel(stream: MediaStreamInfo): String? {
     return listOfNotNull(codec, channels, atmos).takeIf { it.isNotEmpty() }?.joinToString(" / ")
 }
 
-private fun audioCompatibilityLabel(stream: MediaStreamInfo): String? {
+private fun audioCompatibilityLabel(stream: MediaStreamInfo, supportedPassthrough: Set<String>): String? {
     val value = stream.searchableTechnicalText()
+    val isTrueHd = value.contains("truehd")
+    val isDtsHd = value.contains("dts-hd") || value.contains("dtshd")
+    val isAtmos = value.contains("atmos")
+    val isHighDef = isTrueHd || isDtsHd || isAtmos
+
+    if (!isHighDef) return null
+
     return when {
-        value.contains("truehd") || value.contains("dts-hd") || value.contains("dtshd") ||
-            value.contains("atmos") -> "高清音频可能触发转码"
-        else -> null
+        supportedPassthrough.isEmpty() -> "高清音频可能触发转码"
+        isTrueHd && supportedPassthrough.any { it.contains("TrueHD", ignoreCase = true) } ->
+            "TrueHD · 支持直通"
+        isDtsHd && supportedPassthrough.any { it.contains("DTS-HD", ignoreCase = true) } ->
+            "DTS-HD · 支持直通"
+        isAtmos && (supportedPassthrough.any { it.contains("TrueHD", ignoreCase = true) } ||
+                supportedPassthrough.any { it.contains("DTS-HD", ignoreCase = true) }) ->
+            "全景声 · 支持直通"
+        else -> "高清音频 · 设备不支持直通（需转码）"
     }
 }
 

@@ -431,6 +431,18 @@ public final class MediaBrowserResponseMapper {
         return value instanceof Number number ? number.doubleValue() : null;
     }
 
+    // ---- Playlists (P3-2) ----
+
+    /**
+     * Playlists are just another server-side item type (IncludeItemTypes=Playlist).
+     * We reuse the standard item-page parser; playlist-specific metadata
+     * (child count, etc.) arrives via the Fields query parameter and is
+     * accessible through MediaItemSummary fields.
+     */
+    public static MediaItemPage playlists(String json) {
+        return itemPage(json);
+    }
+
     private static String valueOrEmpty(String value) {
         return value == null ? "" : value;
     }

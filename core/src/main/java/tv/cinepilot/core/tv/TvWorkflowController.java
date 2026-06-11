@@ -13,6 +13,7 @@ import tv.cinepilot.core.protocol.MediaItemSummary;
 import tv.cinepilot.core.protocol.MediaItemType;
 import tv.cinepilot.core.protocol.MediaSegmentInfo;
 import tv.cinepilot.core.protocol.MediaServerAddress;
+import tv.cinepilot.core.protocol.OfflineRepository;
 import tv.cinepilot.core.protocol.PlayableMedia;
 import tv.cinepilot.core.protocol.PlaybackDeviceProfile;
 import tv.cinepilot.core.protocol.PlaybackInfo;
@@ -33,6 +34,7 @@ public final class TvWorkflowController {
     private final MediaBrowserClient client;
     private final HomeRowsLoader homeRowsLoader;
     private final PlaybackDeviceProfile deviceProfile;
+    private final OfflineRepository offlineRepository;
     private final BrowseSession browseSession = new BrowseSession();
     private QuickConnectSession pendingQuickConnect;
     private TvAppState state = TvAppState.initial();
@@ -40,13 +42,22 @@ public final class TvWorkflowController {
     private String currentViewId = "";
 
     public TvWorkflowController(MediaBrowserClient client, HomeRowsLoader homeRowsLoader) {
-        this(client, homeRowsLoader, null);
+        this(client, homeRowsLoader, null, null);
     }
 
     public TvWorkflowController(
             MediaBrowserClient client,
             HomeRowsLoader homeRowsLoader,
             PlaybackDeviceProfile deviceProfile
+    ) {
+        this(client, homeRowsLoader, deviceProfile, null);
+    }
+
+    public TvWorkflowController(
+            MediaBrowserClient client,
+            HomeRowsLoader homeRowsLoader,
+            PlaybackDeviceProfile deviceProfile,
+            OfflineRepository offlineRepository
     ) {
         if (client == null) {
             throw new IllegalArgumentException("client is required");
@@ -57,6 +68,11 @@ public final class TvWorkflowController {
         this.client = client;
         this.homeRowsLoader = homeRowsLoader;
         this.deviceProfile = deviceProfile;
+        this.offlineRepository = offlineRepository == null ? new OfflineRepository() : offlineRepository;
+    }
+
+    public OfflineRepository offlineRepository() {
+        return offlineRepository;
     }
 
     public TvAppState state() {
@@ -176,11 +192,21 @@ public final class TvWorkflowController {
     }
 
     public TvAppState loadHome() {
+        return loadHome(true);
+    }
+
+    /**
+     * Variant of {@link #loadHome()} that lets the UI layer opt out of the
+     * server-defined smart-collection dynamic rows. Protocol-layer code
+     * deliberately does NOT read shared preferences -- that responsibility
+     * lives in the Android side via {@code HomeSettingsStore}.
+     */
+    public TvAppState loadHome(boolean includeSmartCollections) {
         if (state.authenticated() == null) {
             throw new IllegalStateException("authenticated session is required before loading home");
         }
         browseSession.clear();
-        List<HomeRow> rows = homeRowsLoader.load(state.authenticated(), browseFilters);
+        List<HomeRow> rows = homeRowsLoader.load(state.authenticated(), browseFilters, includeSmartCollections);
         state = TvWorkflow.homeLoaded(state, rows);
         currentViewId = "";
         return state;
@@ -243,6 +269,19 @@ public final class TvWorkflowController {
     public boolean hasHomeRows() {
         List<HomeRow> rows = state.homeRows();
         return rows != null && !rows.isEmpty();
+    }
+
+    /**
+     * Replace the currently displayed home rows with the given list. Used by
+     * the Android layer to inject dynamic rows (offline rail, plugin rows)
+     * after a successful network {@link #loadHome} has completed.
+     */
+    public TvAppState setHomeRows(List<HomeRow> rows) {
+        if (state.authenticated() == null) {
+            throw new IllegalStateException("authenticated session is required before setting home rows");
+        }
+        state = TvWorkflow.homeLoaded(state, rows);
+        return state;
     }
 
     public TvAppState openItem(String itemId) {
@@ -910,6 +949,51 @@ public final class TvWorkflowController {
         }
         if (filters != null) filters.applyTo(builder);
         return client.items(authenticated, builder.build()).items();
+    }
+
+    // ---- Playlists (P3-2) ----
+
+    /** List all user playlists (summary-only). */
+    public MediaItemPage playlists(int limit) {
+        if (state.authenticated() == null) return MediaItemPage.empty();
+        return client.playlists(state.authenticated(), Math.max(0, limit));
+    }
+
+    /** Items inside a playlist, in user-arranged order. */
+    public MediaItemPage playlistItems(String playlistId, int limit) {
+        if (state.authenticated() == null) return MediaItemPage.empty();
+        if (playlistId == null || playlistId.isBlank()) return MediaItemPage.empty();
+        return client.playlistItems(state.authenticated(), playlistId, Math.max(0, limit));
+    }
+
+    /** Create a new playlist; returns the new playlist id. */
+    public String createPlaylist(String name) {
+        if (state.authenticated() == null) return "";
+        if (name == null || name.isBlank()) return "";
+        return client.createPlaylist(state.authenticated(), name);
+    }
+
+    /** Add one or more items to a playlist. */
+    public void addToPlaylist(String playlistId, List<String> itemIds) {
+        if (state.authenticated() == null) return;
+        if (playlistId == null || playlistId.isBlank()) return;
+        if (itemIds == null || itemIds.isEmpty()) return;
+        client.addToPlaylist(state.authenticated(), playlistId, itemIds);
+    }
+
+    /** Remove entries from a playlist (by entry id, not item id). */
+    public void removeFromPlaylist(String playlistId, List<String> entryIds) {
+        if (state.authenticated() == null) return;
+        if (playlistId == null || playlistId.isBlank()) return;
+        if (entryIds == null || entryIds.isEmpty()) return;
+        client.removeFromPlaylist(state.authenticated(), playlistId, entryIds);
+    }
+
+    /** Delete a playlist entirely. */
+    public void deletePlaylist(String playlistId) {
+        if (state.authenticated() == null) return;
+        if (playlistId == null || playlistId.isBlank()) return;
+        client.deletePlaylist(state.authenticated(), playlistId);
     }
 
     private static void addIfNotEmpty(List<HomeRow> rows, String id, String title, List<MediaItemSummary> items) {

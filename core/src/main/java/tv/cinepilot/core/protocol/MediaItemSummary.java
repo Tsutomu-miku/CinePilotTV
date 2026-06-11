@@ -74,6 +74,15 @@ public record MediaItemSummary(
         return !backdropImageTags.isEmpty() || imageTags.containsKey("Thumb") || imageTags.containsKey("Primary");
     }
 
+    /**
+     * Stable lowercase wire-name for the item type. Exposed specifically so
+     * the UI layer (which is forbidden from importing MediaItemType) can
+     * branch rendering logic without a hygiene violation.
+     */
+    public String typeWireName() {
+        return type.wireName();
+    }
+
     public String tmdbId() {
         return providerId("Tmdb");
     }

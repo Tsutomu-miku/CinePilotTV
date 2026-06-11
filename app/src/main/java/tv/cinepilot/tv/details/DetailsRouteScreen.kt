@@ -16,6 +16,7 @@ import tv.cinepilot.tv.ui.TvIcon
 import tv.cinepilot.tv.ui.browseChildrenLabel
 import tv.cinepilot.tv.ui.detailsScreen
 import tv.cinepilot.tv.ui.isEpisode
+import tv.cinepilot.tv.ui.isEpisode
 import tv.cinepilot.tv.ui.mediaWallRow
 import tv.cinepilot.tv.ui.mediaTechnicalPills
 import tv.cinepilot.tv.ui.userRatingRow
@@ -44,6 +45,15 @@ fun ComponentActivity.detailsRouteScreen(
     onSetUserRating: (Double?) -> Unit = {},
     onOpenProviderIdsEditor: () -> Unit = {},
     onProviderBadgeClick: (String) -> Unit,
+    onChooseDownloadQuality: (Int) -> Unit = {},
+    onManageOffline: () -> Unit = {},
+    offlineActionLabel: String? = null,
+    offlineActionIsReady: Boolean = false,
+    onAddToPlaylist: () -> Unit = {},
+    onSearchSubtitles: () -> Unit = {},
+    hasSubtitleSearch: Boolean = false,
+    supportedHdrTypes: Set<String> = emptySet(),
+    supportedPassthroughCodecs: Set<String> = emptySet(),
 ): View {
     val ratingExtra = listOf(userRatingRow(
         currentRating = item.userData().userRating(),
@@ -64,12 +74,19 @@ fun ComponentActivity.detailsRouteScreen(
                 onToggleFavorite,
                 onToggleWatched,
                 onOpenProviderIdsEditor,
+                onChooseDownloadQuality,
+                onManageOffline,
+                offlineActionLabel,
+                offlineActionIsReady,
+                onAddToPlaylist,
+                onSearchSubtitles,
+                hasSubtitleSearch,
             )
         } else {
             emptyList()
         },
         trackControls = detailTrackControls(playbackInfo, trackSelection, onTrackSelection),
-        technicalInfo = mediaTechnicalPills(playbackInfo),
+        technicalInfo = mediaTechnicalPills(playbackInfo, supportedHdrTypes, supportedPassthroughCodecs),
         extraSections = ratingExtra +
             episodeStrip(item, siblingEpisodes, onOpenEpisode, loadArtworkImage) +
             collectionStrip(item, sameCollectionItems, onOpenCollectionItem, loadArtworkImage),
@@ -140,6 +157,13 @@ private fun ComponentActivity.playbackActions(
     onToggleFavorite: () -> Unit,
     onToggleWatched: () -> Unit,
     onOpenProviderIdsEditor: () -> Unit = {},
+    onChooseDownloadQuality: (Int) -> Unit = {},
+    onManageOffline: () -> Unit = {},
+    offlineActionLabel: String? = null,
+    offlineActionIsReady: Boolean = false,
+    onAddToPlaylist: () -> Unit = {},
+    onSearchSubtitles: () -> Unit = {},
+    hasSubtitleSearch: Boolean = false,
 ): List<InfuseAction> {
     val actions = mutableListOf<InfuseAction>()
     if (item.hasResumePosition()) {
@@ -162,6 +186,9 @@ private fun ComponentActivity.playbackActions(
     ))
     actions.add(playbackAction("省流量", TvIcon.SPEED, InfuseActionEmphasis.QUIET, lowBitratePreferences(item), onPreparePlayback))
     actions.add(InfuseAction("字幕样式", TvIcon.SUBTITLES, InfuseActionEmphasis.QUIET, onSubtitleStyle))
+    if (hasSubtitleSearch) {
+        actions.add(InfuseAction("搜索字幕", TvIcon.SUBTITLES, InfuseActionEmphasis.QUIET, onSearchSubtitles))
+    }
     actions.add(InfuseAction("速度", TvIcon.SPEED, InfuseActionEmphasis.QUIET, onPlaybackSpeed))
     if (item.isEpisode() && item.parentId().isNotBlank()) {
         actions.add(InfuseAction("选集", TvIcon.FORWARD, InfuseActionEmphasis.QUIET, onOpenEpisodePicker))
@@ -173,6 +200,26 @@ private fun ComponentActivity.playbackActions(
         actions.add(InfuseAction("本剧下一集", TvIcon.PLAY, InfuseActionEmphasis.QUIET, onSeriesNextUp))
     }
     actions.add(InfuseAction("修正编号", TvIcon.SETTINGS, InfuseActionEmphasis.QUIET, onOpenProviderIdsEditor))
+    offlineActionLabel?.let { label ->
+        val emphasis = if (offlineActionIsReady) {
+            InfuseActionEmphasis.SECONDARY
+        } else {
+            InfuseActionEmphasis.QUIET
+        }
+        actions.add(InfuseAction(label, TvIcon.DOWNLOAD, emphasis) {
+            if (offlineActionIsReady) {
+                onManageOffline()
+            } else {
+                onChooseDownloadQuality(0)
+            }
+        })
+    }
+    actions.add(InfuseAction(
+        "添加到播放列表",
+        TvIcon.FORWARD,
+        InfuseActionEmphasis.QUIET,
+        onAddToPlaylist,
+    ))
     return actions
 }
 

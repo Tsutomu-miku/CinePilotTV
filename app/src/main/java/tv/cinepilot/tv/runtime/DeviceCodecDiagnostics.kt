@@ -1,11 +1,16 @@
 package tv.cinepilot.tv.runtime
 
+import android.media.AudioDeviceInfo
+import android.media.AudioManager
 import android.media.MediaCodecInfo
 import android.media.MediaCodecList
 import android.os.Build
+import android.content.Context
 import tv.cinepilot.core.protocol.PlaybackDeviceProfile
 
-class DeviceCodecDiagnostics {
+class DeviceCodecDiagnostics(
+    private val context: Context? = null,
+) {
     fun describe(): String {
         val builder = StringBuilder()
         builder.append("deviceModel=").append(Build.MODEL ?: "unknown").append('\n')
@@ -64,6 +69,66 @@ class DeviceCodecDiagnostics {
             else -> "unknown"
         }
         return "$acceleration:${info.name}"
+    }
+
+    // --- Audio passthrough capability detection --------------------------------------
+
+    /**
+     * Returns true if the device supports passthrough (bitstream output) for
+     * the given audio codec. Checks the active audio output device's
+     * [AudioDeviceInfo.getEncodings] on API 23+.
+     */
+    fun supportsPassthrough(codec: PassthroughCodec): Boolean {
+        val ctx = context ?: return false
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.M) return false
+        val audioManager = ctx.getSystemService(Context.AUDIO_SERVICE) as? AudioManager ?: return false
+        val devices = audioManager.getDevices(AudioManager.GET_DEVICES_OUTPUTS)
+        return devices.any { device ->
+            device.encodings?.contains(codec.audioEncoding) == true
+        }
+    }
+
+    /**
+     * Returns the list of passthrough codecs supported by the current
+     * audio output device. Used for capability-aware playback selection
+     * and UI hints.
+     */
+    fun supportedPassthroughCodecs(): List<PassthroughCodec> {
+        val ctx = context ?: return emptyList()
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.M) return emptyList()
+        val audioManager = ctx.getSystemService(Context.AUDIO_SERVICE) as? AudioManager ?: return emptyList()
+        val devices = audioManager.getDevices(AudioManager.GET_DEVICES_OUTPUTS)
+        if (devices.isEmpty()) return emptyList()
+        // Use the first output device as the primary one
+        val primaryEncodings = devices.firstOrNull()?.encodings ?: return emptyList()
+        return PassthroughCodec.values().filter { codec ->
+            primaryEncodings.contains(codec.audioEncoding)
+        }
+    }
+
+    /** Describe passthrough capabilities for display in diagnostics UI. */
+    fun passthroughDescription(): String {
+        val codecs = supportedPassthroughCodecs()
+        if (codecs.isEmpty()) return "不支持音频直通"
+        return codecs.joinToString(" / ") { it.label }
+    }
+
+    enum class PassthroughCodec(
+        val audioEncoding: Int,
+        val label: String,
+        val codecName: String,
+    ) {
+        AC3(android.media.AudioFormat.ENCODING_AC3, "Dolby Digital", "ac3"),
+        E_AC3(android.media.AudioFormat.ENCODING_E_AC3, "Dolby Digital+", "eac3"),
+        DTS(android.media.AudioFormat.ENCODING_DTS, "DTS", "dts"),
+        DTS_HD(android.media.AudioFormat.ENCODING_DTS_HD, "DTS-HD MA", "dtshd"),
+        TRUE_HD(android.media.AudioFormat.ENCODING_DOLBY_TRUEHD, "Dolby TrueHD", "truehd"),
+        ;
+
+        companion object {
+            fun fromCodecName(name: String): PassthroughCodec? =
+                values().firstOrNull { it.codecName.equals(name, ignoreCase = true) }
+        }
     }
 
     private data class TargetCodec(

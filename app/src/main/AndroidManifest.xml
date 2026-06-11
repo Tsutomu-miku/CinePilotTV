@@ -7,6 +7,13 @@
         android:required="false" />
 
     <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC" />
+    <uses-permission android:name="android.permission.WAKE_LOCK" />
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
+    <uses-permission android:name="com.android.providers.tv.permission.READ_EPG_DATA" />
+    <uses-permission android:name="com.android.providers.tv.permission.WRITE_EPG_DATA" />
+    <uses-permission android:name="com.android.providers.tv.permission.ACCESS_ALL_EPG_DATA" />
 
     <application
         android:banner="@drawable/app_banner"
@@ -25,6 +32,13 @@
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LEANBACK_LAUNCHER" />
             </intent-filter>
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data
+                    android:scheme="cinepilot"
+                    android:host="play" />
+            </intent-filter>
         </activity>
         <provider
             android:name="androidx.core.content.FileProvider"
@@ -35,5 +49,29 @@
                 android:name="android.support.FILE_PROVIDER_PATHS"
                 android:resource="@xml/diagnostics_file_paths" />
         </provider>
+        <receiver
+            android:name="tv.cinepilot.tv.home.HomeChannelInitializeReceiver"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.media.tv.action.INITIALIZE_PROGRAMS" />
+                <category android:name="android.intent.category.DEFAULT" />
+            </intent-filter>
+        </receiver>
+        <service
+            android:name="tv.cinepilot.tv.offline.CinePilotDownloadService"
+            android:exported="false"
+            android:foregroundServiceType="dataSync">
+            <intent-filter>
+                <action android:name="androidx.media3.exoplayer.offline.DownloadService.action.SCHEDULE" />
+                <action android:name="androidx.media3.exoplayer.offline.DownloadService.action.INIT" />
+                <action android:name="androidx.media3.exoplayer.offline.DownloadService.action.ADD_DOWNLOAD" />
+                <action android:name="androidx.media3.exoplayer.offline.DownloadService.action.REMOVE_DOWNLOAD" />
+                <action android:name="androidx.media3.exoplayer.offline.DownloadService.action.REMOVE_ALL_DOWNLOADS" />
+                <action android:name="androidx.media3.exoplayer.offline.DownloadService.action.PAUSE_DOWNLOADS" />
+                <action android:name="androidx.media3.exoplayer.offline.DownloadService.action.RESUME_DOWNLOADS" />
+                <action android:name="androidx.media3.exoplayer.offline.DownloadService.action.SET_STOP_REASON" />
+                <action android:name="androidx.media3.exoplayer.offline.DownloadService.action.CLEAR_STOP_REASON" />
+            </intent-filter>
+        </service>
     </application>
 </manifest>

@@ -16,3 +16,5 @@ dependencyResolutionManagement {
 
 rootProject.name = "CinePilotTV"
 include(":app", ":core")
+include(":plugin-spi")
+include(":plugins:bangumi")

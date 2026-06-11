@@ -66,6 +66,7 @@ private fun MediaItemSummary.prefersLandscapeArtwork(): Boolean {
         MediaItemType.SEASON,
         MediaItemType.COLLECTION_FOLDER,
         MediaItemType.FOLDER,
+        MediaItemType.PLAYLIST,
         MediaItemType.UNKNOWN -> false
     }
 }

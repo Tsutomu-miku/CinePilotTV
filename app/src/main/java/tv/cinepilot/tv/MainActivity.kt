@@ -18,10 +18,13 @@ import tv.cinepilot.core.tv.TvRoute
 import tv.cinepilot.tv.auth.AuthRouteController
 import tv.cinepilot.tv.error.errorRouteScreen
 import tv.cinepilot.tv.home.HomeRouteController
+import tv.cinepilot.tv.home.HomeSettingsStore
 import tv.cinepilot.tv.home.SearchRouteController
+import tv.cinepilot.tv.offline.DownloadCoordinator
 import tv.cinepilot.tv.player.Media3PlayerHost
 import tv.cinepilot.tv.playback.PlaybackRouteController
 import tv.cinepilot.tv.playback.SubtitleStyleStore
+import tv.cinepilot.tv.plugin.PluginHost
 import tv.cinepilot.tv.profile.ProfileSwitcherRouteController
 import tv.cinepilot.tv.runtime.ArtworkLoader
 import tv.cinepilot.tv.runtime.ArtworkTarget
@@ -47,7 +50,10 @@ class MainActivity : ComponentActivity() {
     private lateinit var artworkLoader: ArtworkLoader
     private lateinit var subtitleStyleStore: SubtitleStyleStore
     private lateinit var settingsStore: SettingsStore
+    private lateinit var homeSettingsStore: HomeSettingsStore
     private lateinit var homeEntryFlow: HomeEntryFlow
+    private lateinit var pluginHost: PluginHost
+    private lateinit var downloadCoordinator: DownloadCoordinator
     private val executor = Executors.newSingleThreadExecutor()
     private val mainHandler = Handler(Looper.getMainLooper())
     private var accountSwitcherReturnState: TvAppState? = null
@@ -55,8 +61,14 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         settingsStore = SettingsStore(this)
+        homeSettingsStore = HomeSettingsStore(this)
         TvColors.applyTheme(settingsStore.theme().id)
         viewModel = ViewModelProvider(this, CinePilotViewModel.factory(applicationContext))[CinePilotViewModel::class.java]
+        pluginHost = PluginHost.create(this)
+        downloadCoordinator = DownloadCoordinator.getInstance(
+            applicationContext,
+            viewModel.runtime.offlineRepository,
+        )
         subtitleStyleStore = SubtitleStyleStore(this)
         playerHost = Media3PlayerHost(this, viewModel.mediaBrowserClient, subtitleStyleStore)
         primaryImageLoader = PrimaryImageLoader(
@@ -72,10 +84,14 @@ class MainActivity : ComponentActivity() {
             executor = executor,
             workflowController = viewModel.workflowController,
             homeRowsCache = viewModel.runtime.homeRowsCache,
+            homeSettingsStore = homeSettingsStore,
+            mediaBrowserClient = viewModel.mediaBrowserClient,
+            offlineRepository = viewModel.runtime.offlineRepository,
             showLoading = ::showLoading,
             showHome = ::showHome,
             showError = ::showError,
         )
+        tv.cinepilot.tv.home.channel.HomeChannelInitializeReceiver.ensureScheduled(this)
         authRoutes = AuthRouteController(
             activity = this,
             workflowController = viewModel.workflowController,
@@ -103,6 +119,8 @@ class MainActivity : ComponentActivity() {
             loadArtworkImage = ::loadArtworkImage,
             loadBackdropImage = ::loadBackdropImage,
             loadPersonImage = ::loadPersonImage,
+            pluginHost = pluginHost,
+            downloadCoordinator = downloadCoordinator,
         )
         searchRoutes = SearchRouteController(
             activity = this,
@@ -113,6 +131,7 @@ class MainActivity : ComponentActivity() {
         settingsRoutes = SettingsRouteController(
             activity = this,
             settingsStore = settingsStore,
+            homeSettingsStore = homeSettingsStore,
             showHome = ::showHome,
         )
         profileSwitcherRoutes = ProfileSwitcherRouteController(
@@ -127,6 +146,8 @@ class MainActivity : ComponentActivity() {
             activity = this,
             workflowController = viewModel.workflowController,
             playbackRoutes = playbackRoutes,
+            homeSettingsStore = homeSettingsStore,
+            mediaBrowserClient = viewModel.mediaBrowserClient,
             runTask = ::runTask,
             showHome = ::showHome,
             showAccountSwitcher = ::showAccountSwitcher,
@@ -160,6 +181,8 @@ class MainActivity : ComponentActivity() {
         playerHost.shutdown()
         artworkLoader.shutdown()
         primaryImageLoader.shutdown()
+        pluginHost.shutdown()
+        downloadCoordinator.saveNow()
         executor.shutdownNow()
         super.onDestroy()
     }
