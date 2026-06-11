@@ -159,7 +159,7 @@ public final class TvWorkflow {
             case HOME -> state.with(TvRoute.SERVER_ENTRY, TvStatus.IDLE, null, null, AndroidCollections.emptyList(), null, AndroidCollections.emptyList(), null, null, null, "");
             case LOGIN -> state.with(TvRoute.SERVER_ENTRY, TvStatus.IDLE, state.pendingAddress(), null, AndroidCollections.emptyList(), null, AndroidCollections.emptyList(), null, null, null, "");
             case ERROR -> state.with(TvRoute.SERVER_ENTRY, TvStatus.IDLE, null, null, AndroidCollections.emptyList(), null, AndroidCollections.emptyList(), null, null, null, "");
-            case SERVER_ENTRY -> state;
+            case PROFILE_SWITCHER, SERVER_ENTRY -> state;
         };
     }
 
@@ -269,5 +269,27 @@ public final class TvWorkflow {
             }
         }
         return null;
+    }
+
+    /**
+     * Return to the server-entry screen after the current authenticated user was
+     * removed from the session store (e.g. profile switcher -> remove active
+     * profile). Home rows, focus and playable media are cleared to avoid stale
+     * state leaking to the next login.
+     */
+    public static TvAppState loggedOut(TvAppState state) {
+        return state.with(
+                TvRoute.SERVER_ENTRY,
+                TvStatus.IDLE,
+                null,
+                null,
+                AndroidCollections.emptyList(),
+                null,
+                AndroidCollections.emptyList(),
+                null,
+                null,
+                null,
+                ""
+        );
     }
 }

@@ -18,6 +18,7 @@ import tv.cinepilot.core.protocol.PlaybackDeviceProfile;
 import tv.cinepilot.core.protocol.PlaybackInfo;
 import tv.cinepilot.core.protocol.PlaybackInfoOptions;
 import tv.cinepilot.core.protocol.PlaybackSelectionPreferences;
+import tv.cinepilot.core.protocol.ProfileSummary;
 import tv.cinepilot.core.protocol.PublicUserSummary;
 import tv.cinepilot.core.protocol.QuickConnectSession;
 import tv.cinepilot.core.protocol.ServerIdentity;
@@ -130,8 +131,48 @@ public final class TvWorkflowController {
         AuthenticatedServer authenticated = client.restore(state.server(), userId)
                 .map(session -> new AuthenticatedServer(state.server(), session))
                 .orElseThrow(() -> new IllegalStateException("saved session was not found"));
+        client.markActiveProfile(state.server(), userId);
         state = TvWorkflow.loginSucceeded(state, authenticated);
         return loadHome();
+    }
+
+    /**
+     * List saved profiles for the current server. The active profile is flagged so the
+     * UI can highlight it; tokens are never exposed. Call this from the account
+     * switcher screen or the settings route.
+     */
+    public List<ProfileSummary> profiles() {
+        if (state.server() == null) {
+            return AndroidCollections.emptyList();
+        }
+        return client.profiles(state.server());
+    }
+
+    /**
+     * Switch to the profile identified by the given user id on the current server.
+     * Invalid ids (no matching saved session) throw, so callers should only pass in
+     * ids returned by {@link #profiles()}.
+     */
+    public TvAppState switchProfile(String userId) {
+        return restoreSession(userId);
+    }
+
+    /**
+     * Remove a saved profile from the sessions store. If the removed profile was
+     * the active one the app returns to the SERVER_ENTRY route; otherwise the
+     * current session remains untouched.
+     */
+    public TvAppState removeProfile(String userId) {
+        if (state.server() == null) {
+            throw new IllegalStateException("server must be discovered before removing a profile");
+        }
+        boolean removedActive = state.authenticated() != null
+                && state.authenticated().session().userId().equals(userId);
+        client.forgetProfile(state.server(), userId);
+        if (removedActive) {
+            state = TvWorkflow.loggedOut(state);
+        }
+        return state;
     }
 
     public TvAppState loadHome() {

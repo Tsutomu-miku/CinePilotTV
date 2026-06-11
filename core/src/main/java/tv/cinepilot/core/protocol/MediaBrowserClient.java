@@ -1,7 +1,9 @@
 package tv.cinepilot.core.protocol;
 
 import java.io.IOException;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import tv.cinepilot.core.AndroidCollections;
 
@@ -514,6 +516,56 @@ public final class MediaBrowserClient {
             return;
         }
         sessions.revoke(SessionScope.from(authenticated.server(), authenticated.session()));
+    }
+
+    /**
+     * Return every profile (session) saved for the given server, augmented with
+     * display-friendly identity metadata. Profiles come back in a stable
+     * insertion order and the currently-active profile is flagged so the
+     * switcher UI can highlight it. The access token is NOT exposed in
+     * {@link ProfileSummary} -- only id/name/image.
+     */
+    public List<ProfileSummary> profiles(ServerIdentity server) {
+        List<PublicUserSummary> publicUsers = publicUsers(server);
+        Map<String, PublicUserSummary> byId = new HashMap<>();
+        for (PublicUserSummary summary : publicUsers) {
+            byId.put(summary.id(), summary);
+        }
+        Optional<SessionScope> active = sessions.activeScope(
+                server.serverId(), client);
+        List<SavedSession> saved = sessions.listForServer(server.serverId(), client);
+        List<ProfileSummary> out = new java.util.ArrayList<>(saved.size());
+        for (SavedSession session : saved) {
+            SessionScope scope = session.scope();
+            PublicUserSummary meta = byId.get(scope.userId());
+            String name = meta != null && !meta.name().isBlank() ? meta.name() : scope.userId();
+            String image = meta != null ? meta.primaryImageTag() : "";
+            boolean isActive = active.map(a -> a.userId().equals(scope.userId())).orElse(false);
+            out.add(new ProfileSummary(scope.userId(), name, image, isActive));
+        }
+        return out;
+    }
+
+    /** Restore a previously-authenticated profile session for the same server. */
+    public Optional<AuthSession> restoreProfile(ServerIdentity server, String userId) {
+        return restore(server, userId);
+    }
+
+    /** Mark the given profile as the currently-active one for cold-start restore. */
+    public void markActiveProfile(ServerIdentity server, String userId) {
+        Optional<SavedSession> existing = sessions.listForServer(server.serverId(), client)
+                .stream()
+                .filter(s -> s.scope().userId().equals(userId))
+                .findFirst();
+        existing.ifPresent(saved -> sessions.markActive(saved.scope()));
+    }
+
+    /** Forget all saved sessions for a given profile id on the server. */
+    public void forgetProfile(ServerIdentity server, String userId) {
+        sessions.listForServer(server.serverId(), client)
+                .stream()
+                .filter(s -> s.scope().userId().equals(userId))
+                .forEach(s -> sessions.revoke(s.scope()));
     }
 
     private ProtocolResponse send(MediaServerAddress address, ProtocolRequest request) {

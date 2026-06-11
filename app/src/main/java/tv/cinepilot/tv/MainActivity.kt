@@ -22,6 +22,7 @@ import tv.cinepilot.tv.home.SearchRouteController
 import tv.cinepilot.tv.player.Media3PlayerHost
 import tv.cinepilot.tv.playback.PlaybackRouteController
 import tv.cinepilot.tv.playback.SubtitleStyleStore
+import tv.cinepilot.tv.profile.ProfileSwitcherRouteController
 import tv.cinepilot.tv.runtime.ArtworkLoader
 import tv.cinepilot.tv.runtime.ArtworkTarget
 import tv.cinepilot.tv.runtime.HomeEntryFlow
@@ -40,6 +41,7 @@ class MainActivity : ComponentActivity() {
     private lateinit var playbackRoutes: PlaybackRouteController
     private lateinit var searchRoutes: SearchRouteController
     private lateinit var settingsRoutes: SettingsRouteController
+    private lateinit var profileSwitcherRoutes: ProfileSwitcherRouteController
     private lateinit var homeRoutes: HomeRouteController
     private lateinit var primaryImageLoader: PrimaryImageLoader
     private lateinit var artworkLoader: ArtworkLoader
@@ -113,6 +115,14 @@ class MainActivity : ComponentActivity() {
             settingsStore = settingsStore,
             showHome = ::showHome,
         )
+        profileSwitcherRoutes = ProfileSwitcherRouteController(
+            activity = this,
+            workflowController = viewModel.workflowController,
+            imageLoader = primaryImageLoader,
+            runTask = ::runTask,
+            showHome = ::showHome,
+            showServerEntry = authRoutes::showServerEntry,
+        )
         homeRoutes = HomeRouteController(
             activity = this,
             workflowController = viewModel.workflowController,
@@ -158,6 +168,7 @@ class MainActivity : ComponentActivity() {
         if (playbackRoutes.handleAuxiliaryBackPressed()) return
         if (searchRoutes.closeIfVisible()) return
         if (settingsRoutes.closeIfVisible()) return
+        if (profileSwitcherRoutes.closeIfVisible()) return
         accountSwitcherReturnState?.let { returnState ->
             if (viewModel.workflowController.state().route() == TvRoute.HOME) {
                 accountSwitcherReturnState = null
@@ -183,6 +194,7 @@ class MainActivity : ComponentActivity() {
                 showHome(viewModel.workflowController.state())
             }
             TvRoute.PLAYER -> playbackRoutes.handlePlaybackBackPressed()
+            TvRoute.PROFILE_SWITCHER -> profileSwitcherRoutes.closeIfVisible()
         }
     }
 
@@ -196,8 +208,9 @@ class MainActivity : ComponentActivity() {
 
     private fun showAccountSwitcher() {
         searchRoutes.hide()
+        settingsRoutes.hide()
         accountSwitcherReturnState = viewModel.workflowController.state()
-        authRoutes.showServerEntry()
+        profileSwitcherRoutes.show(viewModel.workflowController.state())
     }
 
     private fun loadPosterImage(target: ImageView, item: MediaItemSummary, width: Int, height: Int) {
