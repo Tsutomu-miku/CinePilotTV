@@ -26,10 +26,9 @@ import tv.cinepilot.core.tv.TvAppState
 import tv.cinepilot.core.tv.TvRoute
 import tv.cinepilot.core.tv.TvWorkflowController
 import tv.cinepilot.tv.details.DetailTrackSelection
-import tv.cinepilot.tv.details.detailsRouteScreen
 import tv.cinepilot.tv.details.seasonDetailScreen
 import tv.cinepilot.tv.details.seriesDetailScreen
-import tv.cinepilot.tv.details.playlistDetailScreen
+import tv.cinepilot.tv.details.detailsRouteScreen
 import tv.cinepilot.tv.player.DisplayModeApplier
 import tv.cinepilot.tv.player.Media3PlayerHost
 import tv.cinepilot.tv.player.DisplayCapabilities
@@ -56,10 +55,7 @@ import tv.cinepilot.tv.ui.isSeriesStructureRoot
 import tv.cinepilot.tv.ui.isPlaylist
 import tv.cinepilot.tv.ui.offlineManagerSheet
 import tv.cinepilot.tv.ui.playerScreen
-import tv.cinepilot.tv.ui.playlistPickerSheet
-import tv.cinepilot.tv.ui.createPlaylistSheet
 import tv.cinepilot.tv.ui.qualityPickerSheet
-import tv.cinepilot.tv.ui.subtitleSearchSheet
 
 class PlaybackRouteController(
     private val activity: ComponentActivity,
@@ -80,12 +76,30 @@ class PlaybackRouteController(
 ) {
     private val diagnosticsController = PlaybackDiagnosticsController(activity, deviceCodecDiagnostics)
     private val displayCapabilities = DisplayCapabilities(activity)
-    private val subtitleCache = SubtitleCache(activity)
+    private val subtitleSearch = SubtitleSearchController(
+        activity = activity,
+        workflowController = workflowController,
+        pluginHost = pluginHost,
+        subtitleCache = SubtitleCache(activity),
+        runTask = runTask,
+        setAuxiliaryBackAction = { action -> auxiliaryBackAction = action },
+    )
+    private val playlists = PlaylistController(
+        activity = activity,
+        workflowController = workflowController,
+        runTask = runTask,
+        showHome = showHome,
+        loadBackdropImage = loadBackdropImage,
+        loadArtworkImage = loadArtworkImage,
+        setAuxiliaryBackAction = { action -> auxiliaryBackAction = action },
+        onOpenItem = { item, onBack ->
+            mediaBackStack.addLast(onBack)
+            openMediaItem(item)
+        },
+    )
     private var selectedPlaybackInfo: PlaybackInfo? = null
     private var selectedTrackItemId: String? = null
     private var selectedTrackSelection = DetailTrackSelection()
-    private var selectedExternalSubtitle: tv.cinepilot.plugin.spi.SubtitleSearchResult? = null
-    private var selectedExternalSubtitleItemId: String? = null
     private var lastPlaybackBackPressAt = 0L
     private var auxiliaryBackAction: (() -> Unit)? = null
     private val mediaBackStack = ArrayDeque<() -> Unit>()
@@ -192,9 +206,17 @@ class PlaybackRouteController(
                 },
                 offlineActionLabel = offlineInfo?.label,
                 offlineActionIsReady = offlineInfo?.isReady == true,
-                onAddToPlaylist = { showPlaylistPicker(item, effectivePlaybackInfo, episodeContext) },
-                onSearchSubtitles = { showSubtitleSearch(item, effectivePlaybackInfo, episodeContext) },
-                hasSubtitleSearch = pluginHost.hasSubtitleSearchPlugins(),
+                onAddToPlaylist = {
+                    playlists.showPicker(item, effectivePlaybackInfo, episodeContext) {
+                        showDetails(item, effectivePlaybackInfo, episodeContext)
+                    }
+                },
+                onSearchSubtitles = {
+                    subtitleSearch.showSearchSheet(item, effectivePlaybackInfo, episodeContext) {
+                        showDetails(item, effectivePlaybackInfo, episodeContext)
+                    }
+                },
+                hasSubtitleSearch = subtitleSearch.hasSubtitleSearch(),
                 supportedHdrTypes = supportedHdrLabels(),
                 supportedPassthroughCodecs = supportedPassthroughLabels(),
             ))
@@ -337,228 +359,11 @@ class PlaybackRouteController(
         activity.setContentView(sheet)
     }
 
-    // --- Playlist UI (P3-2) ----------------------------------------------------
+    // --- Playlist UI (delegated to PlaylistController) ---------------------------
+    // P3-2: see PlaylistController.kt for picker, create, and detail flows.
 
-    private fun showPlaylistPicker(
-        item: MediaItemSummary,
-        playbackInfo: PlaybackInfo?,
-        episodeContext: ShowStructure?,
-    ) {
-        val auth = workflowController.state().authenticated() ?: return
-        var playlists: List<MediaItemSummary> = emptyList()
-        runTask("正在加载播放列表...", {
-            playlists = workflowController.playlists(50).items()
-        }) {
-            val sheet = activity.playlistPickerSheet(
-                playlists = playlists,
-                onPick = { playlist ->
-                    addItemToPlaylist(item, playlist, playbackInfo, episodeContext)
-                },
-                onCreateNew = {
-                    showCreatePlaylistDialog(item, playbackInfo, episodeContext)
-                },
-                onClose = {
-                    showDetails(item, playbackInfo, episodeContext)
-                },
-            )
-            auxiliaryBackAction = { showDetails(item, playbackInfo, episodeContext) }
-            activity.setContentView(sheet)
-        }
-    }
-
-    private fun addItemToPlaylist(
-        item: MediaItemSummary,
-        playlist: MediaItemSummary,
-        playbackInfo: PlaybackInfo?,
-        episodeContext: ShowStructure?,
-    ) {
-        val auth = workflowController.state().authenticated() ?: return
-        runTask("正在添加到播放列表...", {
-            workflowController.addToPlaylist(playlist.id(), listOf(item.id()))
-        }) {
-            toast("已添加到「${playlist.name()}」")
-            showDetails(item, playbackInfo, episodeContext)
-        }
-    }
-
-    private fun showCreatePlaylistDialog(
-        item: MediaItemSummary,
-        playbackInfo: PlaybackInfo?,
-        episodeContext: ShowStructure?,
-    ) {
-        val sheet = activity.createPlaylistSheet(
-            initialName = item.name(),
-            onConfirm = { name ->
-                createPlaylistAndAddItem(name, item, playbackInfo, episodeContext)
-            },
-            onCancel = {
-                showPlaylistPicker(item, playbackInfo, episodeContext)
-            },
-        )
-        auxiliaryBackAction = { showPlaylistPicker(item, playbackInfo, episodeContext) }
-        activity.setContentView(sheet)
-    }
-
-    private fun createPlaylistAndAddItem(
-        name: String,
-        item: MediaItemSummary,
-        playbackInfo: PlaybackInfo?,
-        episodeContext: ShowStructure?,
-    ) {
-        val auth = workflowController.state().authenticated() ?: return
-        var playlistId = ""
-        runTask("正在创建播放列表...", {
-            playlistId = workflowController.createPlaylist(name)
-            if (playlistId.isNotBlank()) {
-                workflowController.addToPlaylist(playlistId, listOf(item.id()))
-            }
-        }) {
-            if (playlistId.isNotBlank()) {
-                toast("已创建「$name」并添加")
-            } else {
-                toast("创建失败")
-            }
-            showDetails(item, playbackInfo, episodeContext)
-        }
-    }
-
-    private fun openPlaylistDetail(playlist: MediaItemSummary) {
-        var items: List<MediaItemSummary> = emptyList()
-        runTask("正在加载播放列表...", {
-            items = workflowController.playlistItems(playlist.id(), 200).items()
-        }) {
-            showPlaylistDetail(playlist, items)
-        }
-    }
-
-    private fun showPlaylistDetail(
-        playlist: MediaItemSummary,
-        items: List<MediaItemSummary>,
-    ) {
-        val sheet = activity.playlistDetailScreen(
-            playlist = playlist,
-            items = items,
-            onPlayAll = {
-                if (items.isNotEmpty()) {
-                    // TODO: implement playlist continuous playback
-                    openMediaItem(items.first())
-                }
-            },
-            onDelete = {
-                runTask("正在删除播放列表...", {
-                    workflowController.deletePlaylist(playlist.id())
-                }) {
-                    toast("播放列表已删除")
-                    showHome(workflowController.state())
-                }
-            },
-            onOpenItem = { item ->
-                mediaBackStack.addLast { showPlaylistDetail(playlist, items) }
-                openMediaItem(item)
-            },
-            onBack = {
-                showHome(workflowController.state())
-            },
-            loadBackdrop = { view, item -> loadBackdropImage(view, item, 1280, 720) },
-            loadArtwork = loadArtworkImage,
-        )
-        auxiliaryBackAction = null
-        activity.setContentView(sheet)
-    }
-
-    // --- Subtitle search UI (P3-1) ------------------------------------------------
-
-    private fun showSubtitleSearch(
-        item: MediaItemSummary,
-        playbackInfo: PlaybackInfo?,
-        episodeContext: ShowStructure?,
-    ) {
-        val auth = workflowController.state().authenticated() ?: return
-        var results: List<tv.cinepilot.plugin.spi.SubtitleSearchResult> = emptyList()
-        val snapshot = item.toSnapshot(auth)
-
-        fun rerender(loading: Boolean) {
-            val sheet = activity.subtitleSearchSheet(
-                itemName = item.name(),
-                results = results,
-                isLoading = loading,
-                selectedId = selectedExternalSubtitle?.takeIf { selectedExternalSubtitleItemId == item.id() }?.id(),
-                onPick = { result ->
-                    downloadAndSelectSubtitle(item, result, playbackInfo, episodeContext)
-                },
-                onClose = {
-                    showDetails(item, playbackInfo, episodeContext)
-                },
-            )
-            auxiliaryBackAction = { showDetails(item, playbackInfo, episodeContext) }
-            activity.setContentView(sheet)
-        }
-
-        rerender(true)
-        runTask("正在搜索字幕...", {
-            results = pluginHost.searchSubtitles(snapshot)
-        }) {
-            rerender(false)
-        }
-    }
-
-    private fun downloadAndSelectSubtitle(
-        item: MediaItemSummary,
-        result: tv.cinepilot.plugin.spi.SubtitleSearchResult,
-        playbackInfo: PlaybackInfo?,
-        episodeContext: ShowStructure?,
-    ) {
-        val auth = workflowController.state().authenticated() ?: return
-        val serverId = auth.server().serverId()
-        runTask("正在下载字幕...", {
-            val cached = subtitleCache.get(serverId, item.id(), result)
-                ?: run {
-                    val bytes = pluginHost.downloadSubtitle(result)
-                        ?: throw IllegalStateException("字幕下载失败")
-                    subtitleCache.put(serverId, item.id(), result, bytes)
-                }
-            // Verify the file is valid
-            if (!cached.file.exists() || cached.file.length() == 0L) {
-                throw IllegalStateException("字幕文件无效")
-            }
-        }) {
-            selectedExternalSubtitle = result
-            selectedExternalSubtitleItemId = item.id()
-            toast("已选择字幕：${result.name()}")
-            showSubtitleSearch(item, playbackInfo, episodeContext)
-        }
-    }
-
-    private fun subtitleMimeTypeFor(format: tv.cinepilot.plugin.spi.SubtitleSearchResult.Format): String {
-        return when (format) {
-            tv.cinepilot.plugin.spi.SubtitleSearchResult.Format.SRT ->
-                androidx.media3.common.MimeTypes.APPLICATION_SUBRIP
-            tv.cinepilot.plugin.spi.SubtitleSearchResult.Format.ASS,
-            tv.cinepilot.plugin.spi.SubtitleSearchResult.Format.SSA ->
-                androidx.media3.common.MimeTypes.TEXT_SSA
-            tv.cinepilot.plugin.spi.SubtitleSearchResult.Format.VTT ->
-                androidx.media3.common.MimeTypes.TEXT_VTT
-            tv.cinepilot.plugin.spi.SubtitleSearchResult.Format.PGS -> "application/pgs"
-            tv.cinepilot.plugin.spi.SubtitleSearchResult.Format.UNKNOWN ->
-                androidx.media3.common.MimeTypes.APPLICATION_SUBRIP
-        }
-    }
-
-    private fun buildExternalSubtitles(
-        item: MediaItemSummary,
-    ): List<Media3PlayerHost.ExternalSubtitle> {
-        val auth = workflowController.state().authenticated() ?: return emptyList()
-        val result = selectedExternalSubtitle?.takeIf { selectedExternalSubtitleItemId == item.id() }
-            ?: return emptyList()
-        val cached = subtitleCache.get(auth.server().serverId(), item.id(), result)
-            ?: return emptyList()
-        return listOf(Media3PlayerHost.ExternalSubtitle(
-            file = cached.file,
-            mimeType = subtitleMimeTypeFor(result.format()),
-            language = result.language(),
-            label = result.name(),
-        ))
-    }
+    // --- Subtitle search UI (delegated to SubtitleSearchController) ---------
+    // P3-1: see SubtitleSearchController.kt for search, download, and caching.
 
     private inline fun showQualityPicker(crossinline onChosen: (Int) -> Unit) {
         val sheet = activity.qualityPickerSheet(
@@ -592,7 +397,7 @@ class PlaybackRouteController(
 
     private fun openMediaItem(item: MediaItemSummary) {
         if (item.isPlaylist()) {
-            openPlaylistDetail(item)
+            playlists.openDetail(item)
             return
         }
         val loadingMessage = if (item.playable() || item.shouldOpenAsDetails()) {
@@ -953,7 +758,7 @@ class PlaybackRouteController(
                     null
                 }
             }
-            val externalSubs = selectedItem?.let { buildExternalSubtitles(it) }.orEmpty()
+            val externalSubs = selectedItem?.let { subtitleSearch.buildExternalSubtitles(it) }.orEmpty()
             val playerView = playerHost.createPlayerView(
                 state = state,
                 subtitleEncoding = settings.subtitleEncoding,
