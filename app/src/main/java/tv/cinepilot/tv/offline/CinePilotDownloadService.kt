@@ -30,7 +30,9 @@ class CinePilotDownloadService : DownloadService(
 ) {
 
     override fun getDownloadManager(): DownloadManager {
-        val runtime = tv.cinepilot.tv.runtime.CinePilotRuntimeHolder.await()
+        // Use ensure() rather than await() so the runtime is created even if the
+        // process was restarted by the download service (no Activity has started).
+        val runtime = tv.cinepilot.tv.runtime.CinePilotRuntimeHolder.ensure(applicationContext)
         return DownloadCoordinator.getInstance(
             applicationContext,
             runtime.offlineRepository,

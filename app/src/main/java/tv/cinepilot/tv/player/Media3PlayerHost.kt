@@ -44,6 +44,7 @@ class Media3PlayerHost(
     private var bridge: Media3PlaybackBridge? = null
     private var progressTicker: Runnable? = null
     private var currentPlayerView: PlayerView? = null
+    private var currentSurfaceView: View? = null
     private var currentOverlay: PgsSubtitleOverlay? = null
     private var positionTickCallback: ((Long, Long) -> Unit)? = null
     private val checkInExecutor = Executors.newSingleThreadExecutor()
@@ -61,6 +62,7 @@ class Media3PlayerHost(
         subtitleEncoding: SubtitleEncoding = SubtitleEncoding.AUTO,
         dataSourceOverride: DataSource.Factory? = null,
         externalSubtitles: List<ExternalSubtitle> = emptyList(),
+        offlineCacheKey: String? = null,
         onPlaybackError: (PlaybackException) -> Unit = {},
         onPlaybackEnded: () -> Unit = {},
         onPositionTick: ((positionTicks: Long, durationTicks: Long) -> Unit)? = null,
@@ -104,7 +106,7 @@ class Media3PlayerHost(
             addListener(playbackBridge)
             applyTrackPreferences(playable)
             setMediaItem(
-                mediaItem(playable, authorizedPlaybackUrl, authenticated.session(), externalSubtitles),
+                mediaItem(playable, authorizedPlaybackUrl, authenticated.session(), externalSubtitles, offlineCacheKey),
                 initialPlayerPositionMillis(playable),
             )
             playable.playbackRate()?.takeIf { it > 0f && it != 1f }?.let(::setPlaybackSpeed)
@@ -153,10 +155,14 @@ class Media3PlayerHost(
         overlay.attachToPlayer(nextPlayer)
         currentOverlay = overlay
         currentPlayerView = playerView
+        currentSurfaceView = surfaceHost
         return surfaceHost
     }
 
     fun playerView(): PlayerView? = currentPlayerView
+
+    /** Returns the outermost view of the player surface (FrameLayout wrapper). */
+    fun playerSurfaceView(): View? = currentSurfaceView
 
     fun currentPositionTicks(): Long {
         val positionMs = player?.currentPosition ?: return 0L
@@ -224,6 +230,8 @@ class Media3PlayerHost(
     fun release() {
         currentOverlay?.attachToPlayer(null)
         currentOverlay = null
+        currentPlayerView = null
+        currentSurfaceView = null
         SubtitleSideChannel.clear()
         progressTicker?.let(handler::removeCallbacks)
         progressTicker = null
@@ -258,8 +266,12 @@ class Media3PlayerHost(
         authorizedPlaybackUrl: String,
         session: AuthSession,
         externalSubtitles: List<ExternalSubtitle> = emptyList(),
+        customCacheKey: String? = null,
     ): MediaItem {
         val builder = MediaItem.Builder().setUri(Uri.parse(authorizedPlaybackUrl))
+        if (customCacheKey != null) {
+            builder.setCustomCacheKey(customCacheKey)
+        }
         val subtitleConfigs = mutableListOf<MediaItem.SubtitleConfiguration>()
         val subtitleDeliveryUrl = playable.subtitleDeliveryUrl()
         val subtitleStreamIndex = playable.subtitleStreamIndex()

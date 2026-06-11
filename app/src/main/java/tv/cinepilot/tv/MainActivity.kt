@@ -16,6 +16,7 @@ import tv.cinepilot.core.protocol.PublicUserSummary
 import tv.cinepilot.core.tv.TvAppState
 import tv.cinepilot.core.tv.TvRoute
 import tv.cinepilot.tv.auth.AuthRouteController
+import tv.cinepilot.tv.deeplink.DeepLinkRouter
 import tv.cinepilot.tv.error.errorRouteScreen
 import tv.cinepilot.tv.home.HomeRouteController
 import tv.cinepilot.tv.home.HomeSettingsStore
@@ -54,6 +55,7 @@ class MainActivity : ComponentActivity() {
     private lateinit var homeEntryFlow: HomeEntryFlow
     private lateinit var pluginHost: PluginHost
     private lateinit var downloadCoordinator: DownloadCoordinator
+    private lateinit var deepLinkRouter: DeepLinkRouter
     private val executor = Executors.newSingleThreadExecutor()
     private val mainHandler = Handler(Looper.getMainLooper())
     private var accountSwitcherReturnState: TvAppState? = null
@@ -122,6 +124,12 @@ class MainActivity : ComponentActivity() {
             pluginHost = pluginHost,
             downloadCoordinator = downloadCoordinator,
         )
+        deepLinkRouter = DeepLinkRouter(
+            workflowController = viewModel.workflowController,
+            runTask = ::runTask,
+            showDetails = playbackRoutes::showDetails,
+            showHome = ::showHome,
+        )
         searchRoutes = SearchRouteController(
             activity = this,
             workflowController = viewModel.workflowController,
@@ -169,11 +177,13 @@ class MainActivity : ComponentActivity() {
             return
         }
         authRoutes.restoreRecentAccountOnLaunch()
+        deepLinkRouter.handleIntent(intent)
     }
 
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
-        authRoutes.handleQaLoginIntent(intent)
+        if (authRoutes.handleQaLoginIntent(intent)) return
+        deepLinkRouter.handleIntent(intent)
     }
 
     override fun onDestroy() {

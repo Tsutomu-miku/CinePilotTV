@@ -78,13 +78,17 @@ fun ComponentActivity.playerScreen(
         infoPanel.visibility = if (infoPanel.visibility == View.VISIBLE) View.GONE else View.VISIBLE
     }
     infoButton.visibility = View.GONE
-    if (playerView is PlayerView) {
-        playerView.installPlayerInfoButton(infoButton, infoPanel)
+    // The player surface might be wrapped in a FrameLayout (e.g. for PGS subtitle
+    // overlay). Look through the hierarchy for the actual PlayerView so we can install
+    // the settings / info buttons in the controller bar.
+    val actualPlayerView = playerView.findPlayerView()
+    if (actualPlayerView != null) {
+        actualPlayerView.installPlayerInfoButton(infoButton, infoPanel)
         if (overlays.playbackSettingsButton) {
-            playerView.installPlaybackSettingsButton { overlays.onOpenPlaybackSettings() }
+            actualPlayerView.installPlaybackSettingsButton { overlays.onOpenPlaybackSettings() }
         }
-        playerView.addView(infoPanel, playerInfoPanelParams())
-        playerView.setControllerVisibilityListener(PlayerView.ControllerVisibilityListener { visibility ->
+        actualPlayerView.addView(infoPanel, playerInfoPanelParams())
+        actualPlayerView.setControllerVisibilityListener(PlayerView.ControllerVisibilityListener { visibility ->
             infoButton.visibility = visibility
             if (visibility != View.VISIBLE) {
                 infoPanel.visibility = View.GONE
@@ -93,6 +97,10 @@ fun ComponentActivity.playerScreen(
     } else {
         root.addView(infoButton, playerInfoOverlayButtonParams())
         root.addView(infoPanel, playerInfoPanelParams())
+        if (overlays.playbackSettingsButton) {
+            root.addView(playbackSettingsOverlayButton { overlays.onOpenPlaybackSettings() },
+                playbackSettingsOverlayButtonParams())
+        }
     }
     overlays.introSegmentTicks?.let { range ->
         root.addView(
@@ -376,6 +384,18 @@ private fun PlayerView.installPlaybackSettingsButton(onClick: () -> Unit) {
 
 // ---- Reused helpers ----------------------------------------------------------
 
+/** Recursively searches the view hierarchy for a [PlayerView]. */
+private fun View.findPlayerView(): PlayerView? {
+    if (this is PlayerView) return this
+    if (this is ViewGroup) {
+        for (i in 0 until childCount) {
+            val found = getChildAt(i).findPlayerView()
+            if (found != null) return found
+        }
+    }
+    return null
+}
+
 private fun ComponentActivity.roundRectDrawable(radiusDp: Int, fill: Int): Drawable {
     return GradientDrawableBuilder()
         .corner(dp(radiusDp).toFloat())
@@ -419,6 +439,31 @@ private fun ComponentActivity.playerInfoOverlayButtonParams(): FrameLayout.Layou
         Gravity.BOTTOM or Gravity.END,
     ).apply {
         rightMargin = dp(32)
+        bottomMargin = dp(96)
+    }
+}
+
+private fun ComponentActivity.playbackSettingsOverlayButton(onClick: () -> Unit): ImageButton {
+    return ImageButton(this).apply {
+        contentDescription = "播放设置"
+        setImageResource(R.drawable.ic_settings)
+        setColorFilter(Color.WHITE)
+        background = glassDrawable(GlassTokens.ControlRadius)
+        isFocusable = true
+        isClickable = true
+        scaleType = ImageView.ScaleType.CENTER
+        setPadding(dp(10), dp(10), dp(10), dp(10))
+        setOnClickListener { onClick() }
+    }
+}
+
+private fun ComponentActivity.playbackSettingsOverlayButtonParams(): FrameLayout.LayoutParams {
+    return FrameLayout.LayoutParams(
+        dp(48),
+        dp(48),
+        Gravity.BOTTOM or Gravity.END,
+    ).apply {
+        rightMargin = dp(96)
         bottomMargin = dp(96)
     }
 }

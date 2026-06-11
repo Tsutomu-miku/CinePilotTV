@@ -50,7 +50,7 @@
                 android:resource="@xml/diagnostics_file_paths" />
         </provider>
         <receiver
-            android:name="tv.cinepilot.tv.home.HomeChannelInitializeReceiver"
+            android:name="tv.cinepilot.tv.home.channel.HomeChannelInitializeReceiver"
             android:exported="true">
             <intent-filter>
                 <action android:name="android.media.tv.action.INITIALIZE_PROGRAMS" />

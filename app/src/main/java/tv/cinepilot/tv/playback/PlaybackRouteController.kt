@@ -5,6 +5,7 @@ import android.net.Uri
 import android.os.Handler
 import android.os.Looper
 import android.view.View
+import android.view.ViewGroup
 import android.widget.ImageView
 import android.widget.Toast
 import androidx.activity.ComponentActivity
@@ -748,14 +749,20 @@ class PlaybackRouteController(
             playerAutoSkipTypes.clear()
             lastOverlayTickKey = ""
             overlayRebuildScheduled = false
-            val offlineFactory = run {
+            val (offlineFactory, offlineCacheKey) = run {
                 val serverId = state.authenticated()?.server()?.serverId()
                 if (serverId != null && selectedItem != null) {
-                    downloadCoordinator.cacheDataSourceFactory.takeIf {
-                        workflowController.offlineRepository().readyFor(serverId, selectedItem.id()) != null
+                    val ready = workflowController.offlineRepository().readyFor(serverId, selectedItem.id())
+                    if (ready != null) {
+                        val key = tv.cinepilot.tv.offline.DownloadCoordinator.mediaSourceContentId(
+                            serverId, selectedItem.id(), ready.quality(),
+                        )
+                        downloadCoordinator.cacheDataSourceFactory to key
+                    } else {
+                        null to null
                     }
                 } else {
-                    null
+                    null to null
                 }
             }
             val externalSubs = selectedItem?.let { subtitleSearch.buildExternalSubtitles(it) }.orEmpty()
@@ -764,6 +771,7 @@ class PlaybackRouteController(
                 subtitleEncoding = settings.subtitleEncoding,
                 dataSourceOverride = offlineFactory,
                 externalSubtitles = externalSubs,
+                offlineCacheKey = offlineCacheKey,
                 onPlaybackError = { error ->
                     activity.runOnUiThread {
                         releasePlayerAndDispatchStop()
@@ -847,9 +855,30 @@ class PlaybackRouteController(
         ))
     }
 
+    /**
+     * Retries AFM once if the video format wasn't available at prepare() time.
+     * Called from the position-tick callback so we pick up the real frame rate
+     * as soon as the demuxer has parsed the stream.
+     */
+    private fun maybeDeferredFrameMatch() {
+        if (displayModeApplier.hasAppliedMode()) return
+        val frameRate = playerHost.referenceFrameRate() ?: return
+        val settings = playbackSettingsStore.current()
+        if (!settings.autoFrameMatching) return
+        val pending = displayModeApplier.computePendingMode(
+            referenceFrameRate = frameRate,
+            matchColorSpace = settings.matchColorSpace,
+            enabled = settings.autoFrameMatching,
+        ) ?: return
+        displayModeApplier.commitPendingMode(pending)
+    }
+
     private fun onPlayerPositionTick(positionTicks: Long, durationTicks: Long) {
         val current = workflowController.state()
         if (current.route() != TvRoute.PLAYER) return
+        // Deferred AFM: if the video format wasn't available at prepare() time, retry
+        // once the actual frame rate is known (detected via position ticks).
+        maybeDeferredFrameMatch()
         // Plugin playback hooks.
         val auth = current.authenticated()
         val item = currentPlaybackSnapshot
@@ -917,13 +946,11 @@ class PlaybackRouteController(
         overlayRebuildScheduled = false
         val state = workflowController.state()
         if (state.route() != TvRoute.PLAYER) return
-        val currentView = activity.findViewById<View>(android.R.id.content)
-        val playerRoot = (currentView as? android.view.ViewGroup)?.getChildAt(0)
-            ?: return
+        val surfaceView = playerHost.playerSurfaceView() ?: return
         val key = computeOverlayStateKey()
         if (key == lastOverlayTickKey) return
         lastOverlayTickKey = key
-        rebuildPlayerOverlay(state, rebuildRoot = false, playerView = playerHost.playerView() ?: playerRoot)
+        rebuildPlayerOverlay(state, rebuildRoot = false, playerView = surfaceView)
     }
 
     private fun computeOverlayStateKey(): String {
@@ -941,6 +968,9 @@ class PlaybackRouteController(
         rebuildRoot: Boolean,
         playerView: View,
     ) {
+        // Detach the player surface from its current parent before reusing it in a new
+        // layout, otherwise addView() throws "child already has a parent".
+        (playerView.parent as? ViewGroup)?.removeView(playerView)
         val settings = playbackSettingsStore.current()
         val positionTicks = playerHost.currentPositionTicks()
         val introSegment = playerSegments.firstOrNull { it.type() == MediaSegmentInfo.Type.INTRO }
@@ -1041,9 +1071,12 @@ class PlaybackRouteController(
 
     private fun openPlaybackSettings(state: TvAppState) {
         val target = state
+        val surfaceView = playerHost.playerSurfaceView() ?: return
         auxiliaryBackAction = {
+            // Detach and reuse the player surface when returning from settings.
+            (surfaceView.parent as? ViewGroup)?.removeView(surfaceView)
             activity.setContentView(activity.playerScreen(
-                playerView = playerHost.playerView() ?: error("no player"),
+                playerView = surfaceView,
                 debugInfo = playbackDebugInfo(target),
             ))
         }

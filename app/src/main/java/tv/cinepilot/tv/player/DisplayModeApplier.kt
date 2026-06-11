@@ -35,6 +35,9 @@ class DisplayModeApplier(
     private var previousMode: Display.Mode? = null
     private var appliedModeId: Int? = null
 
+    /** Returns true if we have explicitly applied a display mode during this session. */
+    fun hasAppliedMode(): Boolean = appliedModeId != null
+
     /**
      * One-shot helper for callers that do not want a confirmation step. Identical to
      * {@code computePendingMode(...)} followed by {@code commitPendingMode(mode)} when
@@ -79,8 +82,10 @@ class DisplayModeApplier(
     fun commitPendingMode(mode: Display.Mode) {
         if (appliedModeId == mode.modeId) return
         val window = activity.window
-        val modeBefore = preferredModeIdSafe(window.attributes)
-        if (previousMode == null && modeBefore != 0) {
+        // Capture the current display mode on first switch so restorePrevious() can
+        // always return to the pre-playback mode, even when starting from the default
+        // (where preferredDisplayModeId is 0).
+        if (previousMode == null) {
             previousMode = activity.windowManager.defaultDisplay?.mode
         }
         applyModeSafe(window, mode)
@@ -136,7 +141,9 @@ class DisplayModeApplier(
         data class Score(val mode: Display.Mode, val score: Int)
         val scored = modes.map { mode ->
             var score = 0
-            val rate = mode.refreshRate.toInt()
+            // Round the mode refresh rate before comparing — fractional rates like
+            // 23.976 Hz / 59.94 Hz should match content at 24 fps / 60 fps.
+            val rate = Math.round(mode.refreshRate).toInt()
             if (rate == targetFrameRate) score += 10
             else if (targetFrameRate > 0 && rate % targetFrameRate == 0) score += 4
             if (mode.physicalHeight >= current.physicalHeight &&
