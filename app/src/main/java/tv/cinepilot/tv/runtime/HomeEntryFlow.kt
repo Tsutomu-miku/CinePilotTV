@@ -83,38 +83,41 @@ class HomeEntryFlow(
                     // is still happening.
                     activity.runOnUiThread { showLoading("正在加载首页...") }
                 }
+                // Refresh from the network. When there's a cache hit, refresh
+                // failures are best-effort — we keep the cached UI visible
+                // instead of yanking the user to an error screen during the
+                // exact offline / slow-server scenario the cache is for.
                 val includeSmartCollections = homeSettingsStore.load().showSmartCollections
-                workflowController.loadHome(includeSmartCollections)
-                val finalRows = withOfflineRow(
-                    authenticated,
-                    workflowController.state().homeRows(),
-                )
-                val finalState = workflowController.setHomeRows(finalRows)
-                homeRowsCache.save(
-                    serverId,
-                    userId,
-                    finalState.homeRows(),
-                )
-                // Best-effort sync to Android TV preview channels. Writes to the
-                // system TvProvider can fail on non-OEM-signed launchers; we never
-                // want that to prevent the home wall from painting.
-                runCatching {
-                    HomeChannelSyncWorker.syncNow(
-                        activity.applicationContext,
-                        mediaBrowserClient,
+                val refreshSuccess = runCatching {
+                    workflowController.loadHome(includeSmartCollections)
+                    val finalRows = withOfflineRow(
                         authenticated,
-                        homeSettingsStore,
+                        workflowController.state().homeRows(),
                     )
-                    HomeChannelSyncWorker.scheduleImmediate(activity.applicationContext)
-                }
-                activity.runOnUiThread {
-                    remember()
-                    // Only repaint home if the user is still on the home route.
-                    // If they navigated into details, playback, or settings during
-                    // the background refresh, we must not yank them back.
-                    if (workflowController.state().route() == TvRoute.HOME) {
-                        showHome(finalState)
+                    val finalState = workflowController.setHomeRows(finalRows)
+                    homeRowsCache.save(serverId, userId, finalState.homeRows())
+                    // Best-effort sync to Android TV preview channels.
+                    runCatching {
+                        HomeChannelSyncWorker.syncNow(
+                            activity.applicationContext,
+                            mediaBrowserClient,
+                            authenticated,
+                            homeSettingsStore,
+                        )
+                        HomeChannelSyncWorker.scheduleImmediate(activity.applicationContext)
                     }
+                    finalState
+                }
+                if (refreshSuccess.isSuccess) {
+                    activity.runOnUiThread {
+                        remember()
+                        if (workflowController.state().route() == TvRoute.HOME) {
+                            showHome(refreshSuccess.getOrThrow())
+                        }
+                    }
+                } else if (!cacheHit) {
+                    // No cache to fall back on — propagate the error.
+                    throw refreshSuccess.exceptionOrNull()!!
                 }
             } catch (error: Throwable) {
                 activity.runOnUiThread { fallback(error) }

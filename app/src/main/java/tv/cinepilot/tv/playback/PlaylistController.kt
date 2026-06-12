@@ -151,7 +151,7 @@ class PlaylistController(
             loadBackdrop = { view, item -> loadBackdropImage(view, item, 1280, 720) },
             loadArtwork = loadArtworkImage,
         )
-        setAuxiliaryBackAction({})
+        setAuxiliaryBackAction { showHome(workflowController.state()) }
         activity.setContentView(sheet)
     }
 

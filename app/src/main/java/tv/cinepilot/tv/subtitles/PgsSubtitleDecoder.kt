@@ -209,6 +209,15 @@ class PgsSubtitleDecoder : SubtitleDecoder {
                 durationUs = C.TIME_UNSET,
             )
         }
+        // Set each frame's duration to the start of the next frame. PGS subtitles
+        // are replaced by the next composition; without explicit durations every
+        // frame stays visible forever and stacks up on the overlay.
+        for (i in 0 until frames.size - 1) {
+            val nextStart = frames[i + 1].timeUs
+            if (nextStart > frames[i].timeUs) {
+                frames[i] = frames[i].copy(durationUs = nextStart - frames[i].timeUs)
+            }
+        }
         return frames
     }
 
