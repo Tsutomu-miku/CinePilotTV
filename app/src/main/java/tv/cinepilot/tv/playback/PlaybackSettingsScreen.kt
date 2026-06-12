@@ -2,17 +2,23 @@ package tv.cinepilot.tv.playback
 
 import android.widget.ScrollView
 import androidx.activity.ComponentActivity
+import tv.cinepilot.core.protocol.MediaStreamInfo
 import tv.cinepilot.tv.ui.TvIcon
+import tv.cinepilot.tv.ui.TvOptionSelectItem
 import tv.cinepilot.tv.ui.iconAction
+import tv.cinepilot.tv.ui.optionSelect
 import tv.cinepilot.tv.ui.radioChoice
 import tv.cinepilot.tv.ui.requestInitialFocus
 import tv.cinepilot.tv.ui.screen
 import tv.cinepilot.tv.ui.section
 import tv.cinepilot.tv.ui.settingChoiceRow
+import tv.cinepilot.tv.ui.streamLabel
 import tv.cinepilot.tv.ui.toggleChoice
 
 enum class PlaybackSettingsFocusGroup {
     AFM,
+    AUDIO_TRACK,
+    SUBTITLE_TRACK,
     AUTO_PLAY,
     INTRO_SKIP,
     TRICKPLAY,
@@ -24,7 +30,13 @@ enum class PlaybackSettingsFocusGroup {
 fun ComponentActivity.playbackSettingsScreen(
     current: PlaybackSettings,
     focusGroup: PlaybackSettingsFocusGroup = PlaybackSettingsFocusGroup.AFM,
+    audioStreams: List<MediaStreamInfo>? = null,
+    currentAudioStreamIndex: Int? = null,
+    subtitleStreams: List<MediaStreamInfo>? = null,
+    currentSubtitleStreamIndex: Int? = null,
     onChanged: (PlaybackSettings) -> Unit,
+    onAudioStreamChanged: (Int?) -> Unit = {},
+    onSubtitleStreamChanged: (Int?) -> Unit = {},
     onBack: () -> Unit,
 ): ScrollView {
     fun update(
@@ -78,6 +90,48 @@ fun ComponentActivity.playbackSettingsScreen(
                     it.copy(skipFrameSwitchConfirm = false)
                 }
             })
+        }
+        if (!audioStreams.isNullOrEmpty() || !subtitleStreams.isNullOrEmpty()) {
+            addView(section("音轨与字幕"))
+        }
+        if (!audioStreams.isNullOrEmpty()) {
+            val currentAudio = audioStreams.firstOrNull { it.index() == currentAudioStreamIndex }
+            addView(optionSelect(
+                title = "音轨",
+                selectedLabel = currentAudio?.let { streamLabel(it) } ?: "默认",
+                options = audioStreams.map { stream ->
+                    TvOptionSelectItem(
+                        label = streamLabel(stream),
+                        selected = stream.index() == currentAudioStreamIndex,
+                    ) {
+                        onAudioStreamChanged(stream.index())
+                    }
+                },
+                requestFocus = focusGroup == PlaybackSettingsFocusGroup.AUDIO_TRACK,
+            ))
+        }
+        if (!subtitleStreams.isNullOrEmpty()) {
+            val currentSubtitle = subtitleStreams.firstOrNull { it.index() == currentSubtitleStreamIndex }
+            val subtitlesOff = currentSubtitleStreamIndex == -1
+            addView(optionSelect(
+                title = "字幕",
+                selectedLabel = when {
+                    subtitlesOff -> "关闭字幕"
+                    currentSubtitle != null -> streamLabel(currentSubtitle)
+                    else -> "默认"
+                },
+                options = listOf(TvOptionSelectItem("关闭字幕", subtitlesOff) {
+                    onSubtitleStreamChanged(-1)
+                }) + subtitleStreams.map { stream ->
+                    TvOptionSelectItem(
+                        label = streamLabel(stream),
+                        selected = stream.index() == currentSubtitleStreamIndex && !subtitlesOff,
+                    ) {
+                        onSubtitleStreamChanged(stream.index())
+                    }
+                },
+                requestFocus = focusGroup == PlaybackSettingsFocusGroup.SUBTITLE_TRACK,
+            ))
         }
         addView(section("自动连播"))
         addView(toggleRow(

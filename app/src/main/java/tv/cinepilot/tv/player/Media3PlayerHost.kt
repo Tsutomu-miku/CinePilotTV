@@ -11,6 +11,8 @@ import androidx.media3.common.C
 import androidx.media3.common.MediaItem
 import androidx.media3.common.MimeTypes
 import androidx.media3.common.PlaybackException
+import androidx.media3.common.TrackSelectionOverride
+import androidx.media3.common.Tracks
 import androidx.media3.datasource.DataSource
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
@@ -20,6 +22,7 @@ import java.io.File
 import java.util.concurrent.Executors
 import tv.cinepilot.core.protocol.AuthSession
 import tv.cinepilot.core.protocol.MediaBrowserClient
+import tv.cinepilot.core.protocol.MediaStreamInfo
 import tv.cinepilot.core.protocol.MediaTicks
 import tv.cinepilot.core.protocol.PlayMethod
 import tv.cinepilot.core.protocol.PlayableMedia
@@ -47,6 +50,7 @@ class Media3PlayerHost(
     private var currentSurfaceView: View? = null
     private var currentOverlay: PgsSubtitleOverlay? = null
     private var positionTickCallback: ((Long, Long) -> Unit)? = null
+    private var trackResolver: Media3StreamIndexResolver? = null
     private val checkInExecutor = Executors.newSingleThreadExecutor()
 
     /** An external subtitle file to inject as an additional subtitle track. */
@@ -115,6 +119,7 @@ class Media3PlayerHost(
         }
         bridge = playbackBridge
         player = nextPlayer
+        trackResolver = Media3StreamIndexResolver(playable.mediaStreams())
         startProgressTicks(nextPlayer, playbackBridge)
         val playerView = RemotePlayerView(
             context = context,
@@ -205,6 +210,129 @@ class Media3PlayerHost(
     fun currentAudioCodec(): String? {
         val audioFormat = player?.audioFormat ?: return null
         return audioFormat.sampleMimeType
+    }
+
+    // ---- Track switching (in-player quick selectors) ----
+
+    fun currentAudioStreamIndex(): Int? {
+        val player = player ?: return null
+        val resolver = trackResolver ?: return null
+        val tracks = player.currentTracks
+        tracks.groups.forEach { group ->
+            if (group.type == C.TRACK_TYPE_AUDIO && group.isSelected) {
+                for (i in 0 until group.length) {
+                    if (group.isTrackSelected(i)) {
+                        return resolver.audioStreamIndex(group.getTrackFormat(i))
+                    }
+                }
+            }
+        }
+        return null
+    }
+
+    fun currentSubtitleStreamIndex(): Int? {
+        val player = player ?: return null
+        val resolver = trackResolver ?: return null
+        val tracks = player.currentTracks
+        var hasTextGroup = false
+        tracks.groups.forEach { group ->
+            if (group.type == C.TRACK_TYPE_TEXT) {
+                hasTextGroup = true
+                if (group.isSelected) {
+                    for (i in 0 until group.length) {
+                        if (group.isTrackSelected(i)) {
+                            return resolver.subtitleStreamIndex(group.getTrackFormat(i))
+                        }
+                    }
+                }
+            }
+        }
+        // No selected subtitle track found. Return -1 (off) if text tracks exist but none
+        // are selected, or null if we can't determine the state.
+        return if (hasTextGroup) -1 else null
+    }
+
+    fun subtitlesEnabled(): Boolean {
+        val player = player ?: return false
+        val tracks = player.currentTracks
+        tracks.groups.forEach { group ->
+            if (group.type == C.TRACK_TYPE_TEXT && group.isSelected) {
+                for (i in 0 until group.length) {
+                    if (group.isTrackSelected(i)) return true
+                }
+            }
+        }
+        return false
+    }
+
+    fun setAudioStreamIndex(streamIndex: Int?) {
+        val player = player ?: return
+        trackResolver ?: return
+        streamIndex ?: return
+        val target = findAudioTrackGroup(streamIndex) ?: return
+        val builder = player.trackSelectionParameters.buildUpon()
+            .setTrackTypeDisabled(C.TRACK_TYPE_AUDIO, false)
+            .clearOverridesOfType(C.TRACK_TYPE_AUDIO)
+        builder.addOverride(TrackSelectionOverride(target.first, target.second))
+        player.trackSelectionParameters = builder.build()
+    }
+
+    fun setSubtitleStreamIndex(streamIndex: Int?) {
+        val player = player ?: return
+        trackResolver ?: return
+        if (streamIndex == null || streamIndex < 0) {
+            player.trackSelectionParameters = player.trackSelectionParameters.buildUpon()
+                .setTrackTypeDisabled(C.TRACK_TYPE_TEXT, true)
+                .clearOverridesOfType(C.TRACK_TYPE_TEXT)
+                .build()
+            return
+        }
+        val target = findSubtitleTrackGroup(streamIndex) ?: return
+        val builder = player.trackSelectionParameters.buildUpon()
+            .setTrackTypeDisabled(C.TRACK_TYPE_TEXT, false)
+            .setSelectUndeterminedTextLanguage(true)
+            .setIgnoredTextSelectionFlags(C.SELECTION_FLAG_DEFAULT)
+            .clearOverridesOfType(C.TRACK_TYPE_TEXT)
+        builder.addOverride(TrackSelectionOverride(target.first, target.second))
+        player.trackSelectionParameters = builder.build()
+    }
+
+    fun availableAudioStreams(): List<MediaStreamInfo> {
+        return trackResolver?.allAudioStreams().orEmpty()
+    }
+
+    fun availableSubtitleStreams(): List<MediaStreamInfo> {
+        return trackResolver?.allSubtitleStreams().orEmpty()
+    }
+
+    private fun findAudioTrackGroup(streamIndex: Int): Pair<androidx.media3.common.TrackGroup, Int>? {
+        val player = player ?: return null
+        val resolver = trackResolver ?: return null
+        val tracks = player.currentTracks
+        for (group in tracks.groups) {
+            if (group.type != C.TRACK_TYPE_AUDIO) continue
+            for (i in 0 until group.length) {
+                if (resolver.audioStreamIndex(group.getTrackFormat(i)) == streamIndex) {
+                    return group.mediaTrackGroup to i
+                }
+            }
+        }
+        return null
+    }
+
+    private fun findSubtitleTrackGroup(streamIndex: Int): Pair<androidx.media3.common.TrackGroup, Int>? {
+        val player = player ?: return null
+        val resolver = trackResolver ?: return null
+        val tracks = player.currentTracks
+        for (group in tracks.groups) {
+            if (group.type != C.TRACK_TYPE_TEXT) continue
+            for (i in 0 until group.length) {
+                if (resolver.subtitleStreamIndex(group.getTrackFormat(i)) == streamIndex) {
+                    return group.mediaTrackGroup to i
+                }
+            }
+        }
+        return null
     }
 
     fun seekBack() {

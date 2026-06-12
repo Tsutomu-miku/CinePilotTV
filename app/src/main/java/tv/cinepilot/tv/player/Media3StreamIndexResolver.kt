@@ -18,6 +18,18 @@ class Media3StreamIndexResolver(
         return selectedIndex(format, subtitleStreams)
     }
 
+    fun findAudioStream(streamIndex: Int): MediaStreamInfo? {
+        return audioStreams.firstOrNull { it.index() == streamIndex }
+    }
+
+    fun findSubtitleStream(streamIndex: Int): MediaStreamInfo? {
+        return subtitleStreams.firstOrNull { it.index() == streamIndex }
+    }
+
+    fun allAudioStreams(): List<MediaStreamInfo> = audioStreams
+
+    fun allSubtitleStreams(): List<MediaStreamInfo> = subtitleStreams
+
     private fun selectedIndex(format: Format, candidates: List<MediaStreamInfo>): Int? {
         val label = normalized(format.label)
         if (label.isNotBlank()) {
