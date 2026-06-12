@@ -793,11 +793,7 @@ class PlaybackRouteController(
                         if (autoPlay) {
                             val next = playerNextUp
                             if (next != null && next.id().isNotBlank()) {
-                                openEpisodeDetail(next, backRenderer = {
-                                    workflowController.back()
-                                    workflowController.state().selectedItem()?.let(::showDetails)
-                                        ?: showHome(workflowController.state())
-                                })
+                                playNextEpisode(next)
                                 return@runOnUiThread
                             }
                         }
@@ -954,13 +950,45 @@ class PlaybackRouteController(
     }
 
     private fun computeOverlayStateKey(): String {
-        val position = playerHost.currentPositionTicks()
+        // Only key on *discrete* overlay state changes, not the continuously moving
+        // playback position. Rebuilding the overlay every ~500ms would detach/re-add
+        // the player surface and steal focus from controls / Next Up actions.
         val segments = playerSegments.joinToString("|") {
             "${it.type()}:${it.startPositionTicks()}-${it.endPositionTicks()}"
         }
         val chaptersCount = playerChapters.size
         val hasNextUp = if (playerNextUp == null) "0" else "1"
-        return "$position|$segments|$chaptersCount|$hasNextUp|$playerNextUpCountdownSeconds|$playerNextUpCancelled"
+        val introVisible = playerHasVisibleIntroSkip()
+        val creditsVisible = playerHasVisibleCreditsSkip()
+        val currentChapterIndex = playerCurrentChapterIndex()
+        return "$segments|$chaptersCount|$hasNextUp|$playerNextUpCountdownSeconds|$playerNextUpCancelled|$introVisible|$creditsVisible|$currentChapterIndex"
+    }
+
+    private fun playerHasVisibleIntroSkip(): Boolean {
+        val settings = playbackSettingsStore.current()
+        if (!settings.showIntroSkipButton) return false
+        val position = playerHost.currentPositionTicks()
+        return playerSegments.any {
+            it.type() == MediaSegmentInfo.Type.INTRO && it.containsTicks(position)
+        }
+    }
+
+    private fun playerHasVisibleCreditsSkip(): Boolean {
+        val settings = playbackSettingsStore.current()
+        if (!settings.showCreditsSkipButton) return false
+        val position = playerHost.currentPositionTicks()
+        return playerSegments.any {
+            it.type() == MediaSegmentInfo.Type.CREDITS && it.containsTicks(position)
+        }
+    }
+
+    private fun playerCurrentChapterIndex(): Int {
+        val position = playerHost.currentPositionTicks()
+        return playerChapters.indexOfFirst { it.startPositionTicks() > position }
+            .takeIf { it >= 0 }
+            ?.minus(1)
+            ?.coerceAtLeast(0)
+            ?: (playerChapters.size - 1).coerceAtLeast(0)
     }
 
     private fun rebuildPlayerOverlay(
@@ -1042,14 +1070,11 @@ class PlaybackRouteController(
                     val next = playerNextUp ?: return@lambda
                     releasePlayerAndDispatchStop()
                     displayModeApplier.restorePrevious()
-                    openEpisodeDetail(next, backRenderer = {
-                        workflowController.back()
-                        workflowController.state().selectedItem()?.let(::showDetails)
-                            ?: showHome(workflowController.state())
-                    })
+                    playNextEpisode(next)
                 },
                 onCancelNextUp = {
                     playerNextUpCancelled = true
+                    playerNextUpCountdownSeconds = 0
                     scheduleOverlayRebuild()
                 },
                 trickplayTileUrl = playerTrickplay.imageUrl(),
@@ -1125,6 +1150,20 @@ class PlaybackRouteController(
     private fun preparePlaybackWith(preferences: PlaybackSelectionPreferences?) {
         runTask("正在准备播放...", {
             workflowController.preparePlayback(preferences)
+        }) {
+            showPlayer(workflowController.state())
+        }
+    }
+
+    /**
+     * Start playback of the next episode directly (used by auto-play on end
+     * and the Next Up "立即播放" button). Opens the item, loads playback
+     * choices, and enters the player in one flow.
+     */
+    private fun playNextEpisode(next: MediaItemSummary) {
+        runTask("正在播放下一集...", {
+            workflowController.openItem(next.id())
+            workflowController.preparePlayback(null)
         }) {
             showPlayer(workflowController.state())
         }
