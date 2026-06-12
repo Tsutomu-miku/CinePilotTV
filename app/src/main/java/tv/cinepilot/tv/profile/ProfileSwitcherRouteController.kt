@@ -24,15 +24,19 @@ class ProfileSwitcherRouteController(
     fun show(state: TvAppState) {
         returnState = state
         visible = true
-        val profiles = workflowController.profiles()
         val server = state.server()
-        activity.setContentView(activity.profileSwitcherScreen(
-            profiles = profiles,
-            loadImage = { target, profile, w, h -> loadProfileAvatar(server, profile, target, w, h) },
-            onSwitch = ::switchTo,
-            onRemove = ::removeProfile,
-            onClose = ::close,
-        ))
+        var profiles: List<ProfileSummary> = emptyList()
+        runTask("正在加载账号列表...", {
+            profiles = workflowController.profiles()
+        }) {
+            activity.setContentView(activity.profileSwitcherScreen(
+                profiles = profiles,
+                loadImage = { target, profile, w, h -> loadProfileAvatar(server, profile, target, w, h) },
+                onSwitch = ::switchTo,
+                onRemove = ::removeProfile,
+                onClose = ::close,
+            ))
+        }
     }
 
     fun hide() {

@@ -298,9 +298,15 @@ class PlaybackRouteController(
             val preferences = buildQualityPreferences(quality, item)
             var resolved: PlayableMedia? = null
             runTask("正在解析离线地址...", {
+                // preparePlayback() transitions the workflow route to PLAYER, but
+                // we only need the resolved PlayableMedia for the download queue.
+                // Pop back to DETAILS immediately so the global route stays in
+                // sync with the visible UI — otherwise hardware Back key would go
+                // through the playback back path while the screen still shows details.
                 workflowController.preparePlayback(preferences)
                 resolved = workflowController.state().playableMedia()
                     ?: throw IllegalStateException("无法解析媒体播放地址")
+                workflowController.back()
             }) {
                 val r = resolved
                 if (r == null) {
