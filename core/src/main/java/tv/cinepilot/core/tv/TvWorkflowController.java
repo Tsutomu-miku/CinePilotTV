@@ -218,11 +218,19 @@ public final class TvWorkflowController {
 
     /** Replace filter state and immediately refresh home rows. Honors the current focused view. */
     public TvAppState setBrowseFilters(MediaBrowseFilters next) {
+        return setBrowseFilters(next, true);
+    }
+
+    /**
+     * Variant of {@link #setBrowseFilters(MediaBrowseFilters)} that lets the UI layer
+     * opt out of the smart-collections rows, matching {@link #loadHome(boolean)}.
+     */
+    public TvAppState setBrowseFilters(MediaBrowseFilters next, boolean includeSmartCollections) {
         if (state.authenticated() == null) {
             throw new IllegalStateException("authenticated session is required before setting filters");
         }
         browseFilters = next == null ? MediaBrowseFilters.EMPTY : next;
-        List<HomeRow> rows = homeRowsLoader.load(state.authenticated(), browseFilters);
+        List<HomeRow> rows = homeRowsLoader.load(state.authenticated(), browseFilters, includeSmartCollections);
         state = TvWorkflow.homeLoaded(state, rows);
         return state;
     }

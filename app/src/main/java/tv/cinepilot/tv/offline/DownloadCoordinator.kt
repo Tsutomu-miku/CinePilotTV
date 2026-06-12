@@ -129,7 +129,7 @@ class DownloadCoordinator private constructor(
                 post(onResult, reject)
                 return@execute
             }
-            runCatching {
+            val result = runCatching {
                 val url = playbackUrl(authenticated, playable)
                 val request = buildDownloadRequest(playable, url, serverId, itemId, quality)
                 DownloadService.sendAddDownload(
@@ -138,14 +138,14 @@ class DownloadCoordinator private constructor(
                     request,
                     true,
                 )
-            }.onFailure { err ->
-                offlineRepository.markFailed(
-                    serverId, itemId, quality,
-                    "启动下载失败: ${err.message ?: err::class.java.simpleName}",
-                )
+            }
+            val errorMsg = result.exceptionOrNull()?.let { err ->
+                val msg = "启动下载失败: ${err.message ?: err::class.java.simpleName}"
+                offlineRepository.markFailed(serverId, itemId, quality, msg)
+                msg
             }
             schedulePersist()
-            post(onResult, null)
+            post(onResult, errorMsg)
         }
     }
 

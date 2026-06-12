@@ -1125,12 +1125,15 @@ class PlaybackRouteController(
         val target = state
         val surfaceView = playerHost.playerSurfaceView() ?: return
         auxiliaryBackAction = {
-            // Detach and reuse the player surface when returning from settings.
-            (surfaceView.parent as? ViewGroup)?.removeView(surfaceView)
-            activity.setContentView(activity.playerScreen(
+            // Reset the overlay key so the next position tick doesn't skip
+            // the rebuild, and re-build with full interactive overlays
+            // (skip buttons, Next Up, settings callback, etc.).
+            lastOverlayTickKey = ""
+            rebuildPlayerOverlay(
+                workflowController.state(),
+                rebuildRoot = true,
                 playerView = surfaceView,
-                debugInfo = playbackDebugInfo(target),
-            ))
+            )
         }
         showPlaybackSettingsScreen(focus = PlaybackSettingsFocusGroup.AFM, state = target)
     }

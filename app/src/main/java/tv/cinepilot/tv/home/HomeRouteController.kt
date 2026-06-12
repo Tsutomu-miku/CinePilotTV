@@ -96,12 +96,17 @@ class HomeRouteController(
             refreshGenres()
             showHome(state)
             state.authenticated()?.let { authenticated ->
-                tv.cinepilot.tv.home.channel.HomeChannelSyncWorker.syncNow(
-                    activity.applicationContext,
-                    mediaBrowserClient,
-                    authenticated,
-                    homeSettingsStore,
-                )
+                // Channel sync hits the network and writes to the TV provider
+                // synchronously — run it on the background executor so it
+                // doesn't freeze the home UI after refresh completes.
+                executor.execute {
+                    tv.cinepilot.tv.home.channel.HomeChannelSyncWorker.syncNow(
+                        activity.applicationContext,
+                        mediaBrowserClient,
+                        authenticated,
+                        homeSettingsStore,
+                    )
+                }
             }
             tv.cinepilot.tv.home.channel.HomeChannelSyncWorker
                 .scheduleImmediate(activity.applicationContext)
@@ -130,7 +135,10 @@ class HomeRouteController(
 
     private fun applyFilters(nextFilters: MediaBrowseFilters) {
         runTask("正在应用筛选...", {
-            workflowController.setBrowseFilters(nextFilters)
+            workflowController.setBrowseFilters(
+                nextFilters,
+                homeSettingsStore.load().showSmartCollections,
+            )
         }) {
             refreshGenres()
             showHome(workflowController.state())
