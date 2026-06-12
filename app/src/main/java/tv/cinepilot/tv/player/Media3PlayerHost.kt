@@ -298,11 +298,29 @@ class Media3PlayerHost(
     }
 
     fun availableAudioStreams(): List<MediaStreamInfo> {
-        return trackResolver?.allAudioStreams().orEmpty()
+        val player = player ?: return emptyList()
+        val resolver = trackResolver ?: return emptyList()
+        val indices = mutableSetOf<Int>()
+        for (group in player.currentTracks.groups) {
+            if (group.type != C.TRACK_TYPE_AUDIO) continue
+            for (i in 0 until group.length) {
+                resolver.audioStreamIndex(group.getTrackFormat(i))?.let { indices.add(it) }
+            }
+        }
+        return resolver.allAudioStreams().filter { it.index() in indices }
     }
 
     fun availableSubtitleStreams(): List<MediaStreamInfo> {
-        return trackResolver?.allSubtitleStreams().orEmpty()
+        val player = player ?: return emptyList()
+        val resolver = trackResolver ?: return emptyList()
+        val indices = mutableSetOf<Int>()
+        for (group in player.currentTracks.groups) {
+            if (group.type != C.TRACK_TYPE_TEXT) continue
+            for (i in 0 until group.length) {
+                resolver.subtitleStreamIndex(group.getTrackFormat(i))?.let { indices.add(it) }
+            }
+        }
+        return resolver.allSubtitleStreams().filter { it.index() in indices }
     }
 
     private fun findAudioTrackGroup(streamIndex: Int): Pair<androidx.media3.common.TrackGroup, Int>? {
