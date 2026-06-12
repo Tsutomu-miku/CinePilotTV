@@ -87,14 +87,23 @@ class HomeEntryFlow(
                 // failures are best-effort — we keep the cached UI visible
                 // instead of yanking the user to an error screen during the
                 // exact offline / slow-server scenario the cache is for.
+                //
+                // Capture the current route before refreshing so we can tell
+                // whether the user has navigated away from home (e.g. opened
+                // details or playback) while the cached wall was displayed.
+                // loadHome() internally resets the route to HOME via
+                // TvWorkflow.homeLoaded, so a post-refresh route check would
+                // always pass — we must snapshot the route beforehand.
+                val routeBeforeRefresh = workflowController.state().route()
+                val refreshIsBackground = routeBeforeRefresh != TvRoute.HOME
                 val includeSmartCollections = homeSettingsStore.load().showSmartCollections
                 val refreshSuccess = runCatching {
-                    workflowController.loadHome(includeSmartCollections)
+                    workflowController.loadHome(includeSmartCollections, refreshIsBackground)
                     val finalRows = withOfflineRow(
                         authenticated,
                         workflowController.state().homeRows(),
                     )
-                    val finalState = workflowController.setHomeRows(finalRows)
+                    val finalState = workflowController.setHomeRows(finalRows, refreshIsBackground)
                     homeRowsCache.save(serverId, userId, finalState.homeRows())
                     // Best-effort sync to Android TV preview channels.
                     runCatching {
@@ -111,7 +120,10 @@ class HomeEntryFlow(
                 if (refreshSuccess.isSuccess) {
                     activity.runOnUiThread {
                         remember()
-                        if (workflowController.state().route() == TvRoute.HOME) {
+                        // Only repaint the home UI if the user was still on
+                        // the home wall when the refresh started; otherwise
+                        // leave them wherever they navigated to.
+                        if (!refreshIsBackground) {
                             showHome(refreshSuccess.getOrThrow())
                         }
                     }

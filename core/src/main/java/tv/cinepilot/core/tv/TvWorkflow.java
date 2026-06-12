@@ -95,6 +95,37 @@ public final class TvWorkflow {
         );
     }
 
+    /**
+     * Replace home rows without touching the current navigation state.
+     * Use this for background refreshes when the user may have navigated
+     * away from the home wall (details, playback, …) so we do not yank
+     * them back or clobber their selected-item / playable-media state.
+     *
+     * <p>Focus is preserved when the previously focused item still exists
+     * in the new rows; otherwise it falls back to the first focusable
+     * element so the home wall is never left without a focus target.
+     */
+    public static TvAppState homeRowsRefreshed(TvAppState state, List<HomeRow> rows) {
+        List<HomeRow> safeRows = AndroidCollections.listCopy(rows);
+        FocusedItem focus = state.focus();
+        if (focus == null || !focusExists(safeRows, focus)) {
+            focus = firstFocusable(safeRows);
+        }
+        return state.with(
+                state.route(),
+                state.status(),
+                state.pendingAddress(),
+                state.server(),
+                state.publicUsers(),
+                state.authenticated(),
+                safeRows,
+                focus,
+                state.selectedItem(),
+                state.playableMedia(),
+                state.errorMessage()
+        );
+    }
+
     public static TvAppState focusItem(TvAppState state, String rowId, String itemId) {
         if (state.homeRows().stream().noneMatch(row -> row.id().equals(rowId) && row.containsItem(itemId))) {
             throw new IllegalArgumentException("Focused item must exist in home rows");
@@ -269,6 +300,16 @@ public final class TvWorkflow {
             }
         }
         return null;
+    }
+
+    private static boolean focusExists(List<HomeRow> rows, FocusedItem focus) {
+        if (focus == null) return false;
+        for (HomeRow row : rows) {
+            if (row.id().equals(focus.rowId()) && row.containsItem(focus.itemId())) {
+                return true;
+            }
+        }
+        return false;
     }
 
     /**

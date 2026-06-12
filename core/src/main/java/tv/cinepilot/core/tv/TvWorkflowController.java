@@ -141,6 +141,15 @@ public final class TvWorkflowController {
     }
 
     public TvAppState restoreSession(String userId) {
+        return restoreSession(userId, true);
+    }
+
+    /**
+     * Variant of {@link #restoreSession(String)} that lets the caller thread
+     * the smart-collection preference through to the initial home load,
+     * matching the behavior of {@link #loadHome(boolean)}.
+     */
+    public TvAppState restoreSession(String userId, boolean includeSmartCollections) {
         if (state.server() == null) {
             throw new IllegalStateException("server must be discovered before restoring a session");
         }
@@ -149,7 +158,7 @@ public final class TvWorkflowController {
                 .orElseThrow(() -> new IllegalStateException("saved session was not found"));
         client.markActiveProfile(state.server(), userId);
         state = TvWorkflow.loginSucceeded(state, authenticated);
-        return loadHome();
+        return loadHome(includeSmartCollections);
     }
 
     /**
@@ -170,7 +179,15 @@ public final class TvWorkflowController {
      * ids returned by {@link #profiles()}.
      */
     public TvAppState switchProfile(String userId) {
-        return restoreSession(userId);
+        return switchProfile(userId, true);
+    }
+
+    /**
+     * Variant of {@link #switchProfile(String)} that lets the caller thread the
+     * smart-collection preference through to the initial home load.
+     */
+    public TvAppState switchProfile(String userId, boolean includeSmartCollections) {
+        return restoreSession(userId, includeSmartCollections);
     }
 
     /**
@@ -202,12 +219,28 @@ public final class TvWorkflowController {
      * lives in the Android side via {@code HomeSettingsStore}.
      */
     public TvAppState loadHome(boolean includeSmartCollections) {
+        return loadHome(includeSmartCollections, false);
+    }
+
+    /**
+     * Variant of {@link #loadHome(boolean)} that optionally preserves the
+     * current navigation state (route, selected item, playable media) when
+     * set to true. Use this for background refreshes where the user may
+     * have navigated away from the home wall and we do not want to yank
+     * them back. The browse session is still cleared and currentViewId
+     * reset since a full data refresh invalidates in-flight browse state.
+     */
+    public TvAppState loadHome(boolean includeSmartCollections, boolean preserveNavigation) {
         if (state.authenticated() == null) {
             throw new IllegalStateException("authenticated session is required before loading home");
         }
         browseSession.clear();
         List<HomeRow> rows = homeRowsLoader.load(state.authenticated(), browseFilters, includeSmartCollections);
-        state = TvWorkflow.homeLoaded(state, rows);
+        if (preserveNavigation) {
+            state = TvWorkflow.homeRowsRefreshed(state, rows);
+        } else {
+            state = TvWorkflow.homeLoaded(state, rows);
+        }
         currentViewId = "";
         return state;
     }
@@ -285,10 +318,23 @@ public final class TvWorkflowController {
      * after a successful network {@link #loadHome} has completed.
      */
     public TvAppState setHomeRows(List<HomeRow> rows) {
+        return setHomeRows(rows, false);
+    }
+
+    /**
+     * Variant of {@link #setHomeRows(List)} that optionally preserves the
+     * current navigation state when set to true. See
+     * {@link #loadHome(boolean, boolean)} for background-refresh usage.
+     */
+    public TvAppState setHomeRows(List<HomeRow> rows, boolean preserveNavigation) {
         if (state.authenticated() == null) {
             throw new IllegalStateException("authenticated session is required before setting home rows");
         }
-        state = TvWorkflow.homeLoaded(state, rows);
+        if (preserveNavigation) {
+            state = TvWorkflow.homeRowsRefreshed(state, rows);
+        } else {
+            state = TvWorkflow.homeLoaded(state, rows);
+        }
         return state;
     }
 

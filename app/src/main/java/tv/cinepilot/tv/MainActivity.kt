@@ -145,6 +145,7 @@ class MainActivity : ComponentActivity() {
         profileSwitcherRoutes = ProfileSwitcherRouteController(
             activity = this,
             workflowController = viewModel.workflowController,
+            homeSettingsStore = homeSettingsStore,
             imageLoader = primaryImageLoader,
             runTask = ::runTask,
             showHome = ::showHome,
