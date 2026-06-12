@@ -306,6 +306,7 @@ class Media3PlayerHost(
         for (group in player.currentTracks.groups) {
             if (group.type != C.TRACK_TYPE_AUDIO) continue
             for (i in 0 until group.length) {
+                if (!group.isTrackSupported(i)) continue
                 // Use first-match (not unique-match) so ambiguous tracks still show up
                 // in the switcher. Selection via setAudioStreamIndex falls back to the
                 // first matching player track for ambiguous cases.
@@ -322,6 +323,7 @@ class Media3PlayerHost(
         for (group in player.currentTracks.groups) {
             if (group.type != C.TRACK_TYPE_TEXT) continue
             for (i in 0 until group.length) {
+                if (!group.isTrackSupported(i)) continue
                 resolver.firstSubtitleStreamIndex(group.getTrackFormat(i))?.let { indices.add(it) }
             }
         }
@@ -335,6 +337,7 @@ class Media3PlayerHost(
         for (group in tracks.groups) {
             if (group.type != C.TRACK_TYPE_AUDIO) continue
             for (i in 0 until group.length) {
+                if (!group.isTrackSupported(i)) continue
                 // Use first-match so ambiguous tracks (e.g. duplicate language) can still
                 // be selected. When multiple player tracks map to the same server stream
                 // index, we pick the first one — acceptable for same-language/codec tracks.
@@ -353,6 +356,7 @@ class Media3PlayerHost(
         for (group in tracks.groups) {
             if (group.type != C.TRACK_TYPE_TEXT) continue
             for (i in 0 until group.length) {
+                if (!group.isTrackSupported(i)) continue
                 if (resolver.firstSubtitleStreamIndex(group.getTrackFormat(i)) == streamIndex) {
                     return group.mediaTrackGroup to i
                 }
