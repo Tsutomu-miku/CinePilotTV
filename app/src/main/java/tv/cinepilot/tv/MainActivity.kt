@@ -237,6 +237,9 @@ class MainActivity : ComponentActivity() {
         settingsRoutes.hide()
         accountSwitcherReturnState = null
         homeRoutes.render(state)
+        // Replay any queued launcher deep link (e.g. cold start from a
+        // preview program) now that an authenticated session is available.
+        deepLinkRouter.replayPending()
     }
 
     private fun showAccountSwitcher() {

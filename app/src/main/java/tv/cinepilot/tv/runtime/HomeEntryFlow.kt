@@ -7,6 +7,7 @@ import tv.cinepilot.core.protocol.OfflineRepository
 import tv.cinepilot.core.tv.FileHomeRowsCache
 import tv.cinepilot.core.tv.HomeRow
 import tv.cinepilot.core.tv.TvAppState
+import tv.cinepilot.core.tv.TvRoute
 import tv.cinepilot.core.tv.TvWorkflowController
 import tv.cinepilot.tv.home.HomeSettingsStore
 import tv.cinepilot.tv.home.channel.HomeChannelSyncWorker
@@ -108,7 +109,12 @@ class HomeEntryFlow(
                 }
                 activity.runOnUiThread {
                     remember()
-                    showHome(finalState)
+                    // Only repaint home if the user is still on the home route.
+                    // If they navigated into details, playback, or settings during
+                    // the background refresh, we must not yank them back.
+                    if (workflowController.state().route() == TvRoute.HOME) {
+                        showHome(finalState)
+                    }
                 }
             } catch (error: Throwable) {
                 activity.runOnUiThread { fallback(error) }

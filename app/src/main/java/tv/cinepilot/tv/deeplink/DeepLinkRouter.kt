@@ -18,9 +18,29 @@ class DeepLinkRouter(
     private val showDetails: (MediaItemSummary) -> Unit,
     private val showHome: (TvAppState) -> Unit,
 ) {
+    private var pendingUri: android.net.Uri? = null
+
     fun handleIntent(intent: Intent) {
         val uri = intent.data ?: return
         if (uri.scheme != SCHEME) return
+        if (workflowController.state().authenticated() == null) {
+            // Session isn't ready yet (e.g. cold start from a launcher preview
+            // program). Queue the URI and replay it once account restore finishes.
+            pendingUri = uri
+            return
+        }
+        dispatch(uri)
+    }
+
+    /** Replay a queued deep link if one exists and we are now authenticated. */
+    fun replayPending() {
+        val uri = pendingUri ?: return
+        if (workflowController.state().authenticated() == null) return
+        pendingUri = null
+        dispatch(uri)
+    }
+
+    private fun dispatch(uri: android.net.Uri) {
         when (uri.host) {
             HOST_PLAY -> handlePlay(uri.getQueryParameter(PARAM_ITEM))
             HOST_HOME -> { /* No-op: default launch goes to home anyway. */ }
@@ -29,10 +49,6 @@ class DeepLinkRouter(
 
     private fun handlePlay(itemId: String?) {
         if (itemId.isNullOrBlank()) return
-        // Only handle the deep link if we already have an authenticated session.
-        // Otherwise the normal login / home flow will run and the user can
-        // navigate to the item manually.
-        if (workflowController.state().authenticated() == null) return
         runTask("正在打开...", {
             workflowController.openItem(itemId)
         }) {
