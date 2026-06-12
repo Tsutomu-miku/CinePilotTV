@@ -77,6 +77,10 @@ public final class ProtocolRequest {
         return new Builder(HttpMethod.POST, path);
     }
 
+    public static Builder delete(String path) {
+        return new Builder(HttpMethod.DELETE, path);
+    }
+
     public static String encodePathSegment(String value) {
         return encode(value);
     }

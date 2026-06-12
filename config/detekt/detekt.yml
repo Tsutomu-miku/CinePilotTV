@@ -1,0 +1,86 @@
+# Detekt configuration for CinePilot TV.
+#
+# Two project-specific hygiene rules are enforced via scripts/check.sh grep
+# guards (they are simple text-level checks that don't need the full Detekt
+# AST):
+#
+#   Rule A — UI/protocol separation:
+#     UI source (app/src/.../tv/ui/, tv/home, tv/details, tv/auth,
+#     tv/playback, tv/error, tv/settings, tv/player) must NOT import the
+#     raw tv.cinepilot.core.protocol.MediaItemType enum. Presentation logic
+#     should route through MediaPresentation.toHomeRowPresentation and
+#     DetailPresentation.toDetailPresentation adapters. Rationale: raw
+#     protocol types used directly in UI make a later port of the UI to
+#     another media backend very painful.
+#
+#   Rule B — UI must not embed Jellyfin/Emby server path literals:
+#     UI code must NOT contain "/Items", "/Users", "/Sessions" or other
+#     raw Jellyfin server path strings. Server paths belong in
+#     tv.cinepilot.core.protocol.MediaBrowserRequests (Java, :core module).
+#     Rationale: keeps the protocol boundary honest; UI should not know
+#     REST endpoint details.
+#
+# Both guards are exercised by the `--verify-hygiene` subcommand in
+# scripts/check.sh and run as part of every `./scripts/check.sh` pass.
+
+build:
+  maxIssues: 0
+  excludeCorrectable: false
+
+style:
+  WildcardImport:
+    active: true
+    excludeImports: []
+  MagicNumber:
+    active: false
+  MaxLineLength:
+    active: false
+  ForbiddenComment:
+    active: true
+    comments: ['TODO:', 'FIXME:', 'STOPSHIP:']
+  ThrowsCount:
+    active: false
+
+complexity:
+  CyclomaticComplexMethod:
+    active: false
+  TooManyFunctions:
+    active: false
+  LongMethod:
+    active: false
+  LongParameterList:
+    active: false
+
+coroutines:
+  GlobalCoroutineUsage:
+    active: false
+
+performance:
+  SpreadOperator:
+    active: false
+
+exceptions:
+  TooGenericExceptionCaught:
+    active: false
+  TooGenericExceptionThrown:
+    active: false
+
+empty-blocks:
+  EmptyFunctionBlock:
+    active: false
+  EmptyClassBlock:
+    active: false
+
+potential-bugs:
+  EqualsAlwaysReturnsTrueOrFalse:
+    active: true
+  HasPlatformType:
+    active: true
+  InvalidRange:
+    active: true
+  Deprecation:
+    active: true
+  LateinitUsage:
+    active: false
+  UnsafeCast:
+    active: true

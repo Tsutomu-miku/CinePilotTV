@@ -32,6 +32,9 @@ object InfuseTypeTokens {
     const val Metadata = 13f
     const val Action = 14f
     const val CardTitle = 12f
+    const val Label = 12f
+    const val Primary = 16f
+    const val Secondary = 14f
 }
 
 object InfuseFocusTokens {

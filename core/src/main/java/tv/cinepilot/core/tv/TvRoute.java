@@ -6,6 +6,7 @@ public enum TvRoute {
     HOME,
     DETAILS,
     PLAYER,
+    PROFILE_SWITCHER,
     ERROR
 }
 

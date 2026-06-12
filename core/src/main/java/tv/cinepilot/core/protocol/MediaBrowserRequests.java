@@ -1,11 +1,14 @@
 package tv.cinepilot.core.protocol;
 
+import java.util.ArrayList;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 
 public final class MediaBrowserRequests {
     private static final String ITEM_FIELDS = "PrimaryImageAspectRatio,MediaSources,MediaStreams,Overview,"
-            + "ParentId,Genres,ProductionYear,SeriesId,PremiereDate,CommunityRating,OfficialRating,People";
+            + "ParentId,Genres,ProductionYear,SeriesId,PremiereDate,CommunityRating,OfficialRating,People,"
+            + "ProviderIds,Chapters,ExtraType";
 
     private MediaBrowserRequests() {
     }
@@ -279,5 +282,394 @@ public final class MediaBrowserRequests {
         if (value == null || value.isBlank()) {
             throw new IllegalArgumentException(name + " is required");
         }
+    }
+
+    // ---- User data state endpoints (P1-10 favorite / played / rating) ----
+
+    public static ProtocolRequest addFavorite(AuthSession session, ServerFlavor flavor, String itemId) {
+        require(itemId, "itemId");
+        String userId = ProtocolRequest.encodePathSegment(session.userId());
+        String encodedItemId = ProtocolRequest.encodePathSegment(itemId);
+        return authenticated(
+                ProtocolRequest.post("/Users/" + userId + "/FavoriteItems/" + encodedItemId),
+                session,
+                flavor
+        ).build();
+    }
+
+    public static ProtocolRequest removeFavorite(AuthSession session, ServerFlavor flavor, String itemId) {
+        require(itemId, "itemId");
+        String userId = ProtocolRequest.encodePathSegment(session.userId());
+        String encodedItemId = ProtocolRequest.encodePathSegment(itemId);
+        return authenticated(
+                ProtocolRequest.delete("/Users/" + userId + "/FavoriteItems/" + encodedItemId),
+                session,
+                flavor
+        ).build();
+    }
+
+    public static ProtocolRequest markPlayed(AuthSession session, ServerFlavor flavor, String itemId) {
+        require(itemId, "itemId");
+        String userId = ProtocolRequest.encodePathSegment(session.userId());
+        String encodedItemId = ProtocolRequest.encodePathSegment(itemId);
+        return authenticated(
+                ProtocolRequest.post("/Users/" + userId + "/PlayedItems/" + encodedItemId),
+                session,
+                flavor
+        ).build();
+    }
+
+    public static ProtocolRequest markUnplayed(AuthSession session, ServerFlavor flavor, String itemId) {
+        require(itemId, "itemId");
+        String userId = ProtocolRequest.encodePathSegment(session.userId());
+        String encodedItemId = ProtocolRequest.encodePathSegment(itemId);
+        return authenticated(
+                ProtocolRequest.delete("/Users/" + userId + "/PlayedItems/" + encodedItemId),
+                session,
+                flavor
+        ).build();
+    }
+
+    public static ProtocolRequest setRating(
+            AuthSession session,
+            ServerFlavor flavor,
+            String itemId,
+            Double ratingZeroToTen
+    ) {
+        require(itemId, "itemId");
+        String encodedItemId = ProtocolRequest.encodePathSegment(itemId);
+        ProtocolRequest.Builder builder = authenticated(
+                ProtocolRequest.post("/Users/" + session.userId() + "/Items/" + encodedItemId + "/Rating"),
+                session,
+                flavor
+        );
+        if (ratingZeroToTen == null) {
+            builder.query("DeleteRating", "true");
+        } else {
+            double clamped = Math.max(0.0, Math.min(10.0, ratingZeroToTen));
+            builder.query("Likes", "true");
+            builder.query("Rating", Double.toString(clamped));
+        }
+        return builder.build();
+    }
+
+    // ---- P1-12 ProviderId 手动修正 + 元数据刷新 ----
+
+    /**
+     * POST /Items/{itemId} with a partial JSON body carrying only the ProviderIds map.
+     * Jellyfin accepts partial item updates through this endpoint; anything outside
+     * ProviderIds is left untouched.
+     */
+    public static ProtocolRequest updateProviderIds(
+            AuthSession session,
+            ServerFlavor flavor,
+            String itemId,
+            java.util.Map<String, String> providerIds
+    ) {
+        require(itemId, "itemId");
+        if (providerIds == null) {
+            throw new IllegalArgumentException("providerIds is required");
+        }
+        String encodedItemId = ProtocolRequest.encodePathSegment(itemId);
+        StringBuilder json = new StringBuilder();
+        json.append("{\"ProviderIds\":{");
+        boolean first = true;
+        for (java.util.Map.Entry<String, String> entry : providerIds.entrySet()) {
+            if (entry.getKey() == null || entry.getValue() == null) continue;
+            if (!first) json.append(',');
+            first = false;
+            json.append('"').append(escapeJson(entry.getKey())).append("\":")
+                    .append('"').append(escapeJson(entry.getValue())).append('"');
+        }
+        json.append("}}");
+        return authenticated(
+                ProtocolRequest.post("/Items/" + encodedItemId),
+                session,
+                flavor
+        ).jsonBody(json.toString()).build();
+    }
+
+    /**
+     * POST /Items/{itemId}/Refresh — instructs the server to re-fetch metadata
+     * for the item (including providers). Replacement mode controls whether
+     * existing metadata is overwritten or merged.
+     */
+    public static ProtocolRequest refreshMetadata(
+            AuthSession session,
+            ServerFlavor flavor,
+            String itemId,
+            boolean replaceAllMetadata
+    ) {
+        require(itemId, "itemId");
+        String encodedItemId = ProtocolRequest.encodePathSegment(itemId);
+        return authenticated(
+                ProtocolRequest.post("/Items/" + encodedItemId + "/Refresh"),
+                session,
+                flavor
+        ).query("MetadataRefreshMode", replaceAllMetadata ? "FullRefresh" : "Default")
+                .query("ImageRefreshMode", replaceAllMetadata ? "FullRefresh" : "Default")
+                .query("ReplaceAllMetadata", replaceAllMetadata ? "true" : "false")
+                .query("ReplaceAllImages", replaceAllMetadata ? "true" : "false")
+                .build();
+    }
+
+    private static String escapeJson(String raw) {
+        return raw
+                .replace("\\", "\\\\")
+                .replace("\"", "\\\"")
+                .replace("\r", "\\r")
+                .replace("\n", "\\n")
+                .replace("\t", "\\t");
+    }
+
+    // ---- Collections / BoxSets row (P1-16) ----
+
+    public static ProtocolRequest collections(AuthSession session, ServerFlavor flavor, int limit) {
+        String userId = ProtocolRequest.encodePathSegment(session.userId());
+        return authenticated(
+                ProtocolRequest.get("/Users/" + userId + "/Items"),
+                session,
+                flavor
+        ).query("IncludeItemTypes", "BoxSet")
+                .query("Recursive", "true")
+                .query("Limit", Integer.toString(Math.max(0, limit)))
+                .query("EnableImages", "true")
+                .query("EnableUserData", "true")
+                .query("ImageTypeLimit", "1")
+                .query("EnableImageTypes", "Primary,Backdrop,Thumb")
+                .query("SortBy", "SortName")
+                .query("SortOrder", "Ascending")
+                .query("Fields", ITEM_FIELDS)
+                .build();
+    }
+
+    // ---- Collection membership (P1-16, detail "同系列其他") ----
+
+    /**
+     * Returns the children of a BoxSet / Collection item id. Used for the
+     * series-detail "同系列其他" rail which is driven either by the
+     * TmdbCollectionId matched against the server's BoxSet view, or by a
+     * direct BoxSet parent id returned by the server metadata.
+     */
+    public static ProtocolRequest collectionChildren(
+            AuthSession session,
+            ServerFlavor flavor,
+            String collectionId,
+            int limit
+    ) {
+        String userId = ProtocolRequest.encodePathSegment(session.userId());
+        String safe = collectionId == null ? "" : collectionId;
+        return authenticated(
+                ProtocolRequest.get("/Users/" + userId + "/Items"),
+                session,
+                flavor
+        ).query("ParentId", safe)
+                .query("Recursive", "true")
+                .query("Limit", Integer.toString(Math.max(0, limit)))
+                .query("EnableImages", "true")
+                .query("EnableUserData", "true")
+                .query("ImageTypeLimit", "1")
+                .query("EnableImageTypes", "Primary,Backdrop,Thumb")
+                .query("SortBy", "ProductionYear,PremiereDate,SortName")
+                .query("SortOrder", "Ascending")
+                .query("Fields", ITEM_FIELDS)
+                .build();
+    }
+
+    /**
+     * Finds a BoxSet item whose TmdbCollectionId matches the supplied id.
+     * Jellyfin doesn't expose a dedicated endpoint, so we query all BoxSets
+     * recursively and post-filter in {@link MediaBrowserResponseMapper} or
+     * by the caller on the returned page.
+     */
+    public static ProtocolRequest boxSetsByTmdbCollection(
+            AuthSession session,
+            ServerFlavor flavor,
+            int limit
+    ) {
+        return collections(session, flavor, limit);
+    }
+
+    /** Genres available inside a given parent view; omit parentId to list all server genres. */
+    public static ProtocolRequest genres(AuthSession session, ServerFlavor flavor, String parentId) {
+        ProtocolRequest.Builder builder = authenticated(
+                ProtocolRequest.get("/Genres"),
+                session,
+                flavor
+        );
+        if (parentId != null && !parentId.isBlank()) {
+            builder.query("ParentId", parentId);
+        }
+        return builder.query("EnableImages", "true")
+                .query("EnableUserData", "true")
+                .query("ImageTypeLimit", "1")
+                .query("EnableImageTypes", "Primary,Thumb")
+                .query("SortBy", "SortName")
+                .query("SortOrder", "Ascending")
+                .build();
+    }
+
+    // ---- Chapters, MediaSegments, Trickplay (P1 batch 6) ----
+
+    /** Item-level chapter list (also available via Fields=Chapters on item detail). */
+    public static ProtocolRequest chapters(AuthSession session, ServerFlavor flavor, String itemId) {
+        require(itemId, "itemId");
+        String encodedItemId = ProtocolRequest.encodePathSegment(itemId);
+        return authenticated(
+                ProtocolRequest.get("/Items/" + encodedItemId + "/Chapters"),
+                session,
+                flavor
+        ).build();
+    }
+
+    /**
+     * Intro / Credits / Preview / Recap segments (Jellyfin 10.10+).
+     * Emby Premiere keeps these on the item payload as IntroStart/IntroEnd fields,
+     * which are folded by the mapper when this endpoint 404s.
+     */
+    public static ProtocolRequest mediaSegments(AuthSession session, ServerFlavor flavor, String itemId) {
+        require(itemId, "itemId");
+        String encodedItemId = ProtocolRequest.encodePathSegment(itemId);
+        return authenticated(
+                ProtocolRequest.get("/Items/" + encodedItemId + "/MediaSegments"),
+                session,
+                flavor
+        ).build();
+    }
+
+    /**
+     * Trickplay tiles metadata. The returned manifest describes the grid and the
+     * per-tick coverage; callers compute the full tile URL using
+     * {@link #trickplayTileUrl(String, String, int, String, AuthSession, ServerFlavor, String)}.
+     */
+    public static ProtocolRequest trickplayInfo(AuthSession session, ServerFlavor flavor, String itemId) {
+        require(itemId, "itemId");
+        String encodedItemId = ProtocolRequest.encodePathSegment(itemId);
+        return authenticated(
+                ProtocolRequest.get("/Videos/" + encodedItemId + "/Trickplay/HlsTileInfo"),
+                session,
+                flavor
+        ).build();
+    }
+
+    // ---- Playlists (P3-2) ----
+
+    /** List all user playlists (summary-only: id, name, item count, runtime). */
+    public static ProtocolRequest playlists(AuthSession session, ServerFlavor flavor, int limit) {
+        String userId = ProtocolRequest.encodePathSegment(session.userId());
+        return authenticated(
+                ProtocolRequest.get("/Users/" + userId + "/Items"),
+                session,
+                flavor
+        ).query("IncludeItemTypes", "Playlist")
+                .query("Recursive", "true")
+                .query("Limit", Integer.toString(Math.max(0, limit)))
+                .query("EnableImages", "true")
+                .query("ImageTypeLimit", "1")
+                .query("EnableImageTypes", "Primary,Thumb")
+                .query("SortBy", "DateCreated,SortName")
+                .query("SortOrder", "Descending")
+                .query("Fields", "ChildCount,RunTimeTicks")
+                .build();
+    }
+
+    /** Items inside a specific playlist. Ordered as the user arranged them. */
+    public static ProtocolRequest playlistItems(
+            AuthSession session,
+            ServerFlavor flavor,
+            String playlistId,
+            int limit
+    ) {
+        require(playlistId, "playlistId");
+        String safeId = ProtocolRequest.encodePathSegment(playlistId);
+        return authenticated(
+                ProtocolRequest.get("/Playlists/" + safeId + "/Items"),
+                session,
+                flavor
+        ).query("Limit", Integer.toString(Math.max(0, limit)))
+                .query("EnableImages", "true")
+                .query("EnableUserData", "true")
+                .query("ImageTypeLimit", "1")
+                .query("EnableImageTypes", "Primary,Backdrop,Thumb")
+                .query("Fields", ITEM_FIELDS)
+                .build();
+    }
+
+    /** Create a new empty playlist with the given name. */
+    public static ProtocolRequest createPlaylist(
+            AuthSession session,
+            ServerFlavor flavor,
+            String name
+    ) {
+        if (name == null || name.isBlank()) {
+            throw new IllegalArgumentException("playlist name is required");
+        }
+        String userId = ProtocolRequest.encodePathSegment(session.userId());
+        String body = "{\"Name\":\"" + escapeJson(name) + "\",\"UserId\":\"" + escapeJson(session.userId()) + "\"}";
+        return authenticated(
+                ProtocolRequest.post("/Playlists"),
+                session,
+                flavor
+        ).query("userId", userId)
+                .jsonBody(body)
+                .build();
+    }
+
+    /** Add one or more item ids to an existing playlist. */
+    public static ProtocolRequest addToPlaylist(
+            AuthSession session,
+            ServerFlavor flavor,
+            String playlistId,
+            List<String> itemIds
+    ) {
+        require(playlistId, "playlistId");
+        if (itemIds == null || itemIds.isEmpty()) {
+            throw new IllegalArgumentException("at least one item id is required");
+        }
+        String safeId = ProtocolRequest.encodePathSegment(playlistId);
+        String ids = String.join(",", itemIds);
+        return authenticated(
+                ProtocolRequest.post("/Playlists/" + safeId + "/Items"),
+                session,
+                flavor
+        ).query("ids", ids)
+                .query("userId", session.userId())
+                .build();
+    }
+
+    /** Remove items from a playlist by their playlist-entry ids (not item ids). */
+    public static ProtocolRequest removeFromPlaylist(
+            AuthSession session,
+            ServerFlavor flavor,
+            String playlistId,
+            List<String> entryIds
+    ) {
+        require(playlistId, "playlistId");
+        if (entryIds == null || entryIds.isEmpty()) {
+            throw new IllegalArgumentException("at least one entry id is required");
+        }
+        String safeId = ProtocolRequest.encodePathSegment(playlistId);
+        String ids = String.join(",", entryIds);
+        return authenticated(
+                ProtocolRequest.delete("/Playlists/" + safeId + "/Items"),
+                session,
+                flavor
+        ).query("entryIds", ids)
+                .build();
+    }
+
+    /** Delete a playlist entirely. */
+    public static ProtocolRequest deletePlaylist(
+            AuthSession session,
+            ServerFlavor flavor,
+            String playlistId
+    ) {
+        require(playlistId, "playlistId");
+        String safeId = ProtocolRequest.encodePathSegment(playlistId);
+        return authenticated(
+                ProtocolRequest.delete("/Items/" + safeId),
+                session,
+                flavor
+        ).build();
     }
 }

@@ -26,6 +26,16 @@ public final class AndroidCollections {
         return Collections.unmodifiableList(new ArrayList<>(values));
     }
 
+    public static <T> List<T> prepend(T first, List<? extends T> rest) {
+        if (first == null) {
+            return listCopy(rest);
+        }
+        ArrayList<T> result = new ArrayList<>();
+        result.add(first);
+        if (rest != null && !rest.isEmpty()) result.addAll(rest);
+        return Collections.unmodifiableList(result);
+    }
+
     public static <K, V> Map<K, V> emptyMap() {
         return Collections.emptyMap();
     }

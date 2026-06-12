@@ -11,6 +11,12 @@ data class DetailPresentation(
     val trackSummaries: List<String>,
     val overview: String,
     val nextUpAction: InfuseAction?,
+    val providerBadges: List<ProviderBadge>,
+)
+
+data class ProviderBadge(
+    val label: String,
+    val externalUrl: String,
 )
 
 fun MediaItemSummary.toDetailPresentation(
@@ -27,7 +33,22 @@ fun MediaItemSummary.toDetailPresentation(
         trackSummaries = detailTrackSummaries(technicalTags),
         overview = overview(),
         nextUpAction = nextUpAction,
+        providerBadges = providerBadgesFor(this),
     )
+}
+
+private fun providerBadgesFor(item: MediaItemSummary): List<ProviderBadge> {
+    val badges = mutableListOf<ProviderBadge>()
+    item.tmdbId().takeIf { it.isNotBlank() }?.let { id ->
+        badges.add(ProviderBadge("TMDb", "https://www.themoviedb.org/movie/$id"))
+    }
+    item.imdbId().takeIf { it.isNotBlank() }?.let { id ->
+        badges.add(ProviderBadge("IMDb", "https://www.imdb.com/title/$id/"))
+    }
+    item.tvdbId().takeIf { it.isNotBlank() }?.let { id ->
+        badges.add(ProviderBadge("TVDb", "https://thetvdb.com/?id=$id&tab=series"))
+    }
+    return badges
 }
 
 private fun detailContextValues(item: MediaItemSummary, episode: String): List<String> {

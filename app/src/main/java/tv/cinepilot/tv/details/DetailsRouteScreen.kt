@@ -4,7 +4,6 @@ import android.view.View
 import android.widget.ImageView
 import androidx.activity.ComponentActivity
 import tv.cinepilot.core.protocol.MediaItemSummary
-import tv.cinepilot.core.protocol.MediaItemType
 import tv.cinepilot.core.protocol.PlaybackInfo
 import tv.cinepilot.core.protocol.PlaybackSelectionPreferences
 import tv.cinepilot.core.tv.HomeRow
@@ -14,9 +13,13 @@ import tv.cinepilot.tv.ui.InfuseAction
 import tv.cinepilot.tv.ui.InfuseActionEmphasis
 import tv.cinepilot.tv.ui.RowVisualStyle
 import tv.cinepilot.tv.ui.TvIcon
+import tv.cinepilot.tv.ui.browseChildrenLabel
 import tv.cinepilot.tv.ui.detailsScreen
+import tv.cinepilot.tv.ui.isEpisode
+import tv.cinepilot.tv.ui.isEpisode
 import tv.cinepilot.tv.ui.mediaWallRow
 import tv.cinepilot.tv.ui.mediaTechnicalPills
+import tv.cinepilot.tv.ui.userRatingRow
 
 fun ComponentActivity.detailsRouteScreen(
     item: MediaItemSummary,
@@ -25,6 +28,7 @@ fun ComponentActivity.detailsRouteScreen(
     loadBackdropImage: (ImageView, MediaItemSummary, Int, Int) -> Unit,
     loadArtworkImage: (ImageView, MediaItemSummary, ArtworkTarget, Int, Int) -> Unit,
     siblingEpisodes: List<MediaItemSummary>,
+    sameCollectionItems: List<MediaItemSummary> = emptyList(),
     trackSelection: DetailTrackSelection,
     onPreparePlayback: (PlaybackSelectionPreferences?) -> Unit,
     onTrackSelection: (DetailTrackSelection) -> Unit,
@@ -34,8 +38,28 @@ fun ComponentActivity.detailsRouteScreen(
     onOpenEpisodePicker: () -> Unit,
     onOpenSeries: () -> Unit,
     onOpenEpisode: (MediaItemSummary) -> Unit,
+    onOpenCollectionItem: (MediaItemSummary) -> Unit = {},
     onOpenFolder: () -> Unit,
+    onToggleFavorite: () -> Unit,
+    onToggleWatched: () -> Unit,
+    onSetUserRating: (Double?) -> Unit = {},
+    onOpenProviderIdsEditor: () -> Unit = {},
+    onProviderBadgeClick: (String) -> Unit,
+    onChooseDownloadQuality: (Int) -> Unit = {},
+    onManageOffline: () -> Unit = {},
+    offlineActionLabel: String? = null,
+    offlineActionIsReady: Boolean = false,
+    onAddToPlaylist: () -> Unit = {},
+    onSearchSubtitles: () -> Unit = {},
+    hasSubtitleSearch: Boolean = false,
+    supportedHdrTypes: Set<String> = emptySet(),
+    supportedPassthroughCodecs: Set<String> = emptySet(),
 ): View {
+    val ratingExtra = listOf(userRatingRow(
+        currentRating = item.userData().userRating(),
+        onChange = onSetUserRating,
+        communityRating = item.communityRating(),
+    ))
     return detailsScreen(
         item = item,
         playbackActions = if (item.playable()) {
@@ -47,14 +71,27 @@ fun ComponentActivity.detailsRouteScreen(
                 onSeriesNextUp,
                 onOpenEpisodePicker,
                 onOpenSeries,
+                onToggleFavorite,
+                onToggleWatched,
+                onOpenProviderIdsEditor,
+                onChooseDownloadQuality,
+                onManageOffline,
+                offlineActionLabel,
+                offlineActionIsReady,
+                onAddToPlaylist,
+                onSearchSubtitles,
+                hasSubtitleSearch,
             )
         } else {
             emptyList()
         },
         trackControls = detailTrackControls(playbackInfo, trackSelection, onTrackSelection),
-        technicalInfo = mediaTechnicalPills(playbackInfo),
-        extraSections = episodeStrip(item, siblingEpisodes, onOpenEpisode, loadArtworkImage),
+        technicalInfo = mediaTechnicalPills(playbackInfo, supportedHdrTypes, supportedPassthroughCodecs),
+        extraSections = ratingExtra +
+            episodeStrip(item, siblingEpisodes, onOpenEpisode, loadArtworkImage) +
+            collectionStrip(item, sameCollectionItems, onOpenCollectionItem, loadArtworkImage),
         folderAction = InfuseAction(folderActionLabel(item), TvIcon.FORWARD, InfuseActionEmphasis.PRIMARY, onOpenFolder),
+        onProviderBadgeClick = onProviderBadgeClick,
         loadPoster = { poster, mediaItem, width, height ->
             loadPosterImage(poster, mediaItem, width, height)
         },
@@ -70,7 +107,7 @@ private fun ComponentActivity.episodeStrip(
     onOpenEpisode: (MediaItemSummary) -> Unit,
     loadArtworkImage: (ImageView, MediaItemSummary, ArtworkTarget, Int, Int) -> Unit,
 ): List<View> {
-    if (item.type() != MediaItemType.EPISODE || episodes.isEmpty()) {
+    if (!item.isEpisode() || episodes.isEmpty()) {
         return emptyList()
     }
     return listOf(mediaWallRow(
@@ -87,6 +124,28 @@ private fun ComponentActivity.episodeStrip(
     ))
 }
 
+private fun ComponentActivity.collectionStrip(
+    item: MediaItemSummary,
+    items: List<MediaItemSummary>,
+    onOpen: (MediaItemSummary) -> Unit,
+    loadArtwork: (ImageView, MediaItemSummary, ArtworkTarget, Int, Int) -> Unit,
+): List<View> {
+    val filtered = items.filterNot { it.id() == item.id() }
+    if (filtered.isEmpty()) return emptyList()
+    return listOf(mediaWallRow(
+        presentation = HomeRowPresentation(
+            row = HomeRow("detail:collection:${item.id()}", "同系列其他", filtered),
+            title = "同系列其他",
+            visualStyle = RowVisualStyle.POSTER_RAIL,
+            wrapItems = false,
+        ),
+        onCell = { _, _ -> },
+        onFocus = { _, _ -> },
+        onOpen = { _, entry -> onOpen(entry) },
+        loadArtwork = loadArtwork,
+    ))
+}
+
 private fun ComponentActivity.playbackActions(
     item: MediaItemSummary,
     onPreparePlayback: (PlaybackSelectionPreferences?) -> Unit,
@@ -95,6 +154,16 @@ private fun ComponentActivity.playbackActions(
     onSeriesNextUp: () -> Unit,
     onOpenEpisodePicker: () -> Unit,
     onOpenSeries: () -> Unit,
+    onToggleFavorite: () -> Unit,
+    onToggleWatched: () -> Unit,
+    onOpenProviderIdsEditor: () -> Unit = {},
+    onChooseDownloadQuality: (Int) -> Unit = {},
+    onManageOffline: () -> Unit = {},
+    offlineActionLabel: String? = null,
+    offlineActionIsReady: Boolean = false,
+    onAddToPlaylist: () -> Unit = {},
+    onSearchSubtitles: () -> Unit = {},
+    hasSubtitleSearch: Boolean = false,
 ): List<InfuseAction> {
     val actions = mutableListOf<InfuseAction>()
     if (item.hasResumePosition()) {
@@ -103,10 +172,25 @@ private fun ComponentActivity.playbackActions(
     } else {
         actions.add(playbackAction("播放", TvIcon.PLAY, InfuseActionEmphasis.PRIMARY, null, onPreparePlayback))
     }
+    actions.add(InfuseAction(
+        if (item.userData().favorite()) "已收藏" else "收藏",
+        TvIcon.HEART,
+        InfuseActionEmphasis.SECONDARY,
+        onToggleFavorite,
+    ))
+    actions.add(InfuseAction(
+        if (item.userData().played()) "取消已看" else "标记已看",
+        TvIcon.CHECK,
+        InfuseActionEmphasis.SECONDARY,
+        onToggleWatched,
+    ))
     actions.add(playbackAction("省流量", TvIcon.SPEED, InfuseActionEmphasis.QUIET, lowBitratePreferences(item), onPreparePlayback))
     actions.add(InfuseAction("字幕样式", TvIcon.SUBTITLES, InfuseActionEmphasis.QUIET, onSubtitleStyle))
+    if (hasSubtitleSearch) {
+        actions.add(InfuseAction("搜索字幕", TvIcon.SUBTITLES, InfuseActionEmphasis.QUIET, onSearchSubtitles))
+    }
     actions.add(InfuseAction("速度", TvIcon.SPEED, InfuseActionEmphasis.QUIET, onPlaybackSpeed))
-    if (item.type() == MediaItemType.EPISODE && item.parentId().isNotBlank()) {
+    if (item.isEpisode() && item.parentId().isNotBlank()) {
         actions.add(InfuseAction("选集", TvIcon.FORWARD, InfuseActionEmphasis.QUIET, onOpenEpisodePicker))
     }
     if (item.seriesId().isNotBlank()) {
@@ -115,6 +199,27 @@ private fun ComponentActivity.playbackActions(
     if (item.seriesId().isNotBlank()) {
         actions.add(InfuseAction("本剧下一集", TvIcon.PLAY, InfuseActionEmphasis.QUIET, onSeriesNextUp))
     }
+    actions.add(InfuseAction("修正编号", TvIcon.SETTINGS, InfuseActionEmphasis.QUIET, onOpenProviderIdsEditor))
+    offlineActionLabel?.let { label ->
+        val emphasis = if (offlineActionIsReady) {
+            InfuseActionEmphasis.SECONDARY
+        } else {
+            InfuseActionEmphasis.QUIET
+        }
+        actions.add(InfuseAction(label, TvIcon.DOWNLOAD, emphasis) {
+            if (offlineActionIsReady) {
+                onManageOffline()
+            } else {
+                onChooseDownloadQuality(0)
+            }
+        })
+    }
+    actions.add(InfuseAction(
+        "添加到播放列表",
+        TvIcon.FORWARD,
+        InfuseActionEmphasis.QUIET,
+        onAddToPlaylist,
+    ))
     return actions
 }
 
@@ -136,9 +241,5 @@ private fun lowBitratePreferences(item: MediaItemSummary): PlaybackSelectionPref
 }
 
 private fun folderActionLabel(item: MediaItemSummary): String {
-    return when (item.type()) {
-        MediaItemType.SERIES -> "查看季集"
-        MediaItemType.SEASON -> "选集"
-        else -> "打开子项目"
-    }
+    return item.browseChildrenLabel().ifBlank { "打开子项目" }
 }

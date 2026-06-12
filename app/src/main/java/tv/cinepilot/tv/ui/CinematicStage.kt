@@ -24,6 +24,8 @@ fun ComponentActivity.cinematicStage(
     content: FrameLayout.() -> Unit,
 ): FrameLayout {
     return FrameLayout(this).apply {
+        clipChildren = false
+        clipToPadding = false
         setBackgroundColor(Color.BLACK)
         addView(backdrop, FrameLayout.LayoutParams(
             FrameLayout.LayoutParams.MATCH_PARENT,
@@ -43,6 +45,8 @@ fun ComponentActivity.cinematicStage(
 
 private fun ComponentActivity.cinematicScrollContainer(content: FrameLayout.() -> Unit): ScrollView {
     val frame = FrameLayout(this).apply {
+        clipChildren = false
+        clipToPadding = false
         setPadding(
             dp(MediaWallTokens.ScreenX),
             dp(MediaWallTokens.ScreenTop),
@@ -55,6 +59,8 @@ private fun ComponentActivity.cinematicScrollContainer(content: FrameLayout.() -
         isFillViewport = true
         isFocusable = false
         descendantFocusability = ViewGroup.FOCUS_AFTER_DESCENDANTS
+        clipChildren = false
+        clipToPadding = false
         addView(frame, LinearLayout.LayoutParams(
             LinearLayout.LayoutParams.MATCH_PARENT,
             LinearLayout.LayoutParams.WRAP_CONTENT,

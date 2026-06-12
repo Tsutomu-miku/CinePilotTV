@@ -9,6 +9,7 @@ import android.widget.LinearLayout
 import android.widget.ScrollView
 import android.widget.TextView
 import androidx.activity.ComponentActivity
+import tv.cinepilot.core.protocol.MediaBrowseFilters
 import tv.cinepilot.core.protocol.MediaItemSummary
 import tv.cinepilot.core.tv.HomeRow
 import tv.cinepilot.core.tv.TvAppState
@@ -17,8 +18,12 @@ import tv.cinepilot.tv.runtime.ArtworkTarget
 fun ComponentActivity.homeScreen(
     state: TvAppState,
     navigation: HomeNavigation,
+    filters: MediaBrowseFilters,
+    availableGenreNames: List<String>,
     onOpen: (HomeRow, MediaItemSummary) -> Unit,
     onFocusItem: (HomeRow, MediaItemSummary) -> Unit,
+    onFiltersChanged: (MediaBrowseFilters) -> Unit,
+    onLibraryOverview: (viewId: String, title: String, isSeries: Boolean) -> Unit,
     loadArtwork: (ImageView, MediaItemSummary, ArtworkTarget, Int, Int) -> Unit,
     loadBackdrop: (ImageView, MediaItemSummary, Int, Int) -> Unit,
     onFocusedCard: (View) -> Unit,
@@ -26,6 +31,7 @@ fun ComponentActivity.homeScreen(
     val homeRows = state.homeRows()
     val hasNoMedia = homeRows.isEmpty() || homeRows.all { it.items().isEmpty() }
     val isSearchResults = homeRows.any { it.id().startsWith("search:") }
+    val isOverview = homeRows.any { it.id().startsWith("overview:") }
     val isEmptySearch = hasNoMedia && isSearchResults
     val backdrop = cinematicBackdrop()
     val header = homeFocusHeader()
@@ -52,6 +58,13 @@ fun ComponentActivity.homeScreen(
         addView(mediaWallContent {
             if (isSearchResults) {
                 addView(searchResultHint())
+                addView(filterChipsRow(filters, availableGenreNames, onChanged = onFiltersChanged))
+            }
+            if (!isSearchResults && !isOverview) {
+                addView(filterChipsRow(filters, availableGenreNames, onChanged = onFiltersChanged))
+                libraryOverviewChips(homeRows, onLibraryOverview)?.let(::addView)
+            } else if (isOverview) {
+                addView(filterChipsRow(filters, availableGenreNames, onChanged = onFiltersChanged))
             }
             homeRows.forEach { row ->
                 if (row.items().isNotEmpty()) {
@@ -101,6 +114,8 @@ private fun updateHomeFocus(
 private fun ComponentActivity.mediaWallContent(content: LinearLayout.() -> Unit): View {
     val wall = LinearLayout(this).apply {
         orientation = LinearLayout.VERTICAL
+        clipChildren = false
+        clipToPadding = false
         setPadding(
             dp(MediaWallTokens.ScreenX),
             dp(MediaWallTokens.ScreenTop + MediaWallTokens.HeaderHeight + 10),
@@ -113,6 +128,8 @@ private fun ComponentActivity.mediaWallContent(content: LinearLayout.() -> Unit)
         isFillViewport = true
         isFocusable = false
         descendantFocusability = ViewGroup.FOCUS_AFTER_DESCENDANTS
+        clipChildren = false
+        clipToPadding = false
         addView(wall, LinearLayout.LayoutParams(
             LinearLayout.LayoutParams.MATCH_PARENT,
             LinearLayout.LayoutParams.WRAP_CONTENT,

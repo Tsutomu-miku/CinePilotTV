@@ -95,6 +95,37 @@ public final class TvWorkflow {
         );
     }
 
+    /**
+     * Replace home rows without touching the current navigation state.
+     * Use this for background refreshes when the user may have navigated
+     * away from the home wall (details, playback, …) so we do not yank
+     * them back or clobber their selected-item / playable-media state.
+     *
+     * <p>Focus is preserved when the previously focused item still exists
+     * in the new rows; otherwise it falls back to the first focusable
+     * element so the home wall is never left without a focus target.
+     */
+    public static TvAppState homeRowsRefreshed(TvAppState state, List<HomeRow> rows) {
+        List<HomeRow> safeRows = AndroidCollections.listCopy(rows);
+        FocusedItem focus = state.focus();
+        if (focus == null || !focusExists(safeRows, focus)) {
+            focus = firstFocusable(safeRows);
+        }
+        return state.with(
+                state.route(),
+                state.status(),
+                state.pendingAddress(),
+                state.server(),
+                state.publicUsers(),
+                state.authenticated(),
+                safeRows,
+                focus,
+                state.selectedItem(),
+                state.playableMedia(),
+                state.errorMessage()
+        );
+    }
+
     public static TvAppState focusItem(TvAppState state, String rowId, String itemId) {
         if (state.homeRows().stream().noneMatch(row -> row.id().equals(rowId) && row.containsItem(itemId))) {
             throw new IllegalArgumentException("Focused item must exist in home rows");
@@ -159,7 +190,7 @@ public final class TvWorkflow {
             case HOME -> state.with(TvRoute.SERVER_ENTRY, TvStatus.IDLE, null, null, AndroidCollections.emptyList(), null, AndroidCollections.emptyList(), null, null, null, "");
             case LOGIN -> state.with(TvRoute.SERVER_ENTRY, TvStatus.IDLE, state.pendingAddress(), null, AndroidCollections.emptyList(), null, AndroidCollections.emptyList(), null, null, null, "");
             case ERROR -> state.with(TvRoute.SERVER_ENTRY, TvStatus.IDLE, null, null, AndroidCollections.emptyList(), null, AndroidCollections.emptyList(), null, null, null, "");
-            case SERVER_ENTRY -> state;
+            case PROFILE_SWITCHER, SERVER_ENTRY -> state;
         };
     }
 
@@ -195,6 +226,73 @@ public final class TvWorkflow {
         );
     }
 
+    /**
+     * Replaces the user data on the currently selected item (and any matching
+     * cell in the home rows so badges / progress stay in sync) while keeping
+     * focus identity, route, and the rest of the state untouched.
+     */
+    public static TvAppState selectedItemUserDataUpdated(TvAppState state, tv.cinepilot.core.protocol.UserItemData updated) {
+        if (state.selectedItem() == null || updated == null) {
+            return state;
+        }
+        MediaItemSummary updatedItem = state.selectedItem().withUserData(updated);
+        List<HomeRow> updatedRows = replaceItemInRows(state.homeRows(), updatedItem);
+        return state.with(
+                state.route(),
+                state.status(),
+                state.pendingAddress(),
+                state.server(),
+                state.publicUsers(),
+                state.authenticated(),
+                updatedRows,
+                state.focus(),
+                updatedItem,
+                state.playableMedia(),
+                state.errorMessage()
+        );
+    }
+
+    /**
+     * Full replacement of the selected item (used after ProviderId edits or
+     * metadata refresh). Propagates the new item to matching cells in home
+     * rows so badges / posters stay consistent.
+     */
+    public static TvAppState selectedItemUpdated(TvAppState state, MediaItemSummary updatedItem) {
+        if (state.selectedItem() == null || updatedItem == null) {
+            return state;
+        }
+        List<HomeRow> updatedRows = replaceItemInRows(state.homeRows(), updatedItem);
+        return state.with(
+                state.route(),
+                state.status(),
+                state.pendingAddress(),
+                state.server(),
+                state.publicUsers(),
+                state.authenticated(),
+                updatedRows,
+                state.focus(),
+                updatedItem,
+                state.playableMedia(),
+                state.errorMessage()
+        );
+    }
+
+    private static List<HomeRow> replaceItemInRows(List<HomeRow> rows, MediaItemSummary updated) {
+        if (rows == null || rows.isEmpty()) {
+            return rows;
+        }
+        boolean changed = false;
+        List<HomeRow> out = new java.util.ArrayList<>(rows.size());
+        for (HomeRow row : rows) {
+            HomeRow next = row.replaceItem(updated);
+            if (next != row) {
+                changed = true;
+            }
+            out.add(next);
+        }
+        return changed ? AndroidCollections.listCopy(out) : rows;
+    }
+
     private static FocusedItem firstFocusable(List<HomeRow> rows) {
         for (HomeRow row : rows) {
             if (!row.items().isEmpty()) {
@@ -202,5 +300,37 @@ public final class TvWorkflow {
             }
         }
         return null;
+    }
+
+    private static boolean focusExists(List<HomeRow> rows, FocusedItem focus) {
+        if (focus == null) return false;
+        for (HomeRow row : rows) {
+            if (row.id().equals(focus.rowId()) && row.containsItem(focus.itemId())) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
+     * Return to the server-entry screen after the current authenticated user was
+     * removed from the session store (e.g. profile switcher -> remove active
+     * profile). Home rows, focus and playable media are cleared to avoid stale
+     * state leaking to the next login.
+     */
+    public static TvAppState loggedOut(TvAppState state) {
+        return state.with(
+                TvRoute.SERVER_ENTRY,
+                TvStatus.IDLE,
+                null,
+                null,
+                AndroidCollections.emptyList(),
+                null,
+                AndroidCollections.emptyList(),
+                null,
+                null,
+                null,
+                ""
+        );
     }
 }

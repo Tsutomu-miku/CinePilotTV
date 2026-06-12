@@ -17,4 +17,9 @@ public record MediaItemPage(
             throw new IllegalArgumentException("startIndex must be zero or greater");
         }
     }
+
+    /** Returns an empty page with zero items. */
+    public static MediaItemPage empty() {
+        return new MediaItemPage(AndroidCollections.emptyList(), 0, 0);
+    }
 }

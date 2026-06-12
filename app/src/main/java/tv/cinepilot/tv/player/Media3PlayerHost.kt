@@ -1,18 +1,22 @@
 package tv.cinepilot.tv.player
 
 import android.content.Context
-import android.graphics.Typeface
 import android.net.Uri
 import android.os.Handler
 import android.os.Looper
 import android.view.View
+import android.view.ViewGroup
+import android.widget.FrameLayout
 import androidx.media3.common.C
 import androidx.media3.common.MediaItem
 import androidx.media3.common.MimeTypes
 import androidx.media3.common.PlaybackException
+import androidx.media3.datasource.DataSource
 import androidx.media3.exoplayer.ExoPlayer
+import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
 import androidx.media3.ui.CaptionStyleCompat
 import androidx.media3.ui.PlayerView
+import java.io.File
 import java.util.concurrent.Executors
 import tv.cinepilot.core.protocol.AuthSession
 import tv.cinepilot.core.protocol.MediaBrowserClient
@@ -23,7 +27,12 @@ import tv.cinepilot.core.protocol.PlaybackUrlAuthorizer
 import tv.cinepilot.core.protocol.PlaybackSessionController
 import tv.cinepilot.core.tv.TvAppState
 import tv.cinepilot.tv.playback.SubtitleBackground
+import tv.cinepilot.tv.playback.SubtitleEdgeStyle
+import tv.cinepilot.tv.playback.SubtitleEncoding
 import tv.cinepilot.tv.playback.SubtitleStyleStore
+import tv.cinepilot.tv.subtitles.CinePilotSubtitleDecoderFactory
+import tv.cinepilot.tv.subtitles.PgsSubtitleOverlay
+import tv.cinepilot.tv.subtitles.SubtitleSideChannel
 
 class Media3PlayerHost(
     private val context: Context,
@@ -34,13 +43,31 @@ class Media3PlayerHost(
     private var player: ExoPlayer? = null
     private var bridge: Media3PlaybackBridge? = null
     private var progressTicker: Runnable? = null
+    private var currentPlayerView: PlayerView? = null
+    private var currentSurfaceView: View? = null
+    private var currentOverlay: PgsSubtitleOverlay? = null
+    private var positionTickCallback: ((Long, Long) -> Unit)? = null
     private val checkInExecutor = Executors.newSingleThreadExecutor()
+
+    /** An external subtitle file to inject as an additional subtitle track. */
+    data class ExternalSubtitle(
+        val file: File,
+        val mimeType: String,
+        val language: String = "",
+        val label: String = "",
+    )
 
     fun createPlayerView(
         state: TvAppState,
+        subtitleEncoding: SubtitleEncoding = SubtitleEncoding.AUTO,
+        dataSourceOverride: DataSource.Factory? = null,
+        externalSubtitles: List<ExternalSubtitle> = emptyList(),
+        offlineCacheKey: String? = null,
         onPlaybackError: (PlaybackException) -> Unit = {},
         onPlaybackEnded: () -> Unit = {},
+        onPositionTick: ((positionTicks: Long, durationTicks: Long) -> Unit)? = null,
     ): View {
+        this.positionTickCallback = onPositionTick
         val playable = state.playableMedia()
             ?: throw IllegalStateException("playable media is required")
         val authenticated = state.authenticated()
@@ -63,11 +90,23 @@ class Media3PlayerHost(
             initialAudioStreamIndex = playable.audioStreamIndex(),
             initialSubtitleStreamIndex = playable.subtitleStreamIndex(),
         )
-        val nextPlayer = ExoPlayer.Builder(context).build().apply {
+        val playerBuilder = ExoPlayer.Builder(context)
+        if (dataSourceOverride != null) {
+            playerBuilder.setMediaSourceFactory(DefaultMediaSourceFactory(dataSourceOverride))
+        }
+        // Install the CinePilot subtitle factory on the builder BEFORE build() so
+        // ExoPlayer constructs its TextRenderer with our ASS / PGS / SubRip decoders
+        // instead of the default ones (P1-1 / P1-2 / P1-3).
+        CinePilotSubtitleDecoderFactory.installOn(
+            builder = playerBuilder,
+            context = context,
+            userPreferredEncoding = subtitleEncoding,
+        )
+        val nextPlayer = playerBuilder.build().apply {
             addListener(playbackBridge)
             applyTrackPreferences(playable)
             setMediaItem(
-                mediaItem(playable, authorizedPlaybackUrl, authenticated.session()),
+                mediaItem(playable, authorizedPlaybackUrl, authenticated.session(), externalSubtitles, offlineCacheKey),
                 initialPlayerPositionMillis(playable),
             )
             playable.playbackRate()?.takeIf { it > 0f && it != 1f }?.let(::setPlaybackSpeed)
@@ -77,7 +116,7 @@ class Media3PlayerHost(
         bridge = playbackBridge
         player = nextPlayer
         startProgressTicks(nextPlayer, playbackBridge)
-        return RemotePlayerView(
+        val playerView = RemotePlayerView(
             context = context,
             onSeekBack = ::seekBack,
             onSeekForward = ::seekForward,
@@ -100,6 +139,72 @@ class Media3PlayerHost(
             applySubtitleStyle(this)
             hideInlineTransportButtons()
         }
+        // Wrap the PlayerView in a FrameLayout so the PGS / ASS bitmap overlay can
+        // sit above the video surface without relying on RemotePlayerView internals.
+        val surfaceHost = FrameLayout(context).apply {
+            layoutParams = ViewGroup.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                ViewGroup.LayoutParams.MATCH_PARENT,
+            )
+            addView(playerView, FrameLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                ViewGroup.LayoutParams.MATCH_PARENT,
+            ))
+        }
+        val overlay = PgsSubtitleOverlay.injectInto(surfaceHost)
+        overlay.attachToPlayer(nextPlayer)
+        currentOverlay = overlay
+        currentPlayerView = playerView
+        currentSurfaceView = surfaceHost
+        return surfaceHost
+    }
+
+    fun playerView(): PlayerView? = currentPlayerView
+
+    /** Returns the outermost view of the player surface (FrameLayout wrapper). */
+    fun playerSurfaceView(): View? = currentSurfaceView
+
+    fun currentPositionTicks(): Long {
+        val positionMs = player?.currentPosition ?: return 0L
+        return if (positionMs <= 0) 0L else MediaTicks.fromMilliseconds(positionMs)
+    }
+
+    fun durationTicks(): Long {
+        val ms = player?.duration ?: return 0L
+        if (ms == C.TIME_UNSET || ms <= 0L) return 0L
+        return MediaTicks.fromMilliseconds(ms)
+    }
+
+    fun seekToTicks(targetTicks: Long) {
+        player?.seekTo(MediaTicks.toMilliseconds(targetTicks.coerceAtLeast(0L)))
+    }
+
+    fun referenceFrameRate(): Float? {
+        val videoFormat = player?.videoFormat ?: return null
+        val frameRate = videoFormat.frameRate
+        return if (frameRate > 0f) frameRate else null
+    }
+
+    /** Returns the HDR format of the currently playing video, or null for SDR. */
+    fun currentHdrFormat(): DisplayCapabilities.HdrFormat? {
+        val videoFormat = player?.videoFormat ?: return null
+        val colorInfo = videoFormat.colorInfo ?: return null
+        val colorTransfer = colorInfo.colorTransfer
+        return when (colorTransfer) {
+            C.COLOR_TRANSFER_ST2084 -> DisplayCapabilities.HdrFormat.HDR10
+            C.COLOR_TRANSFER_HLG -> DisplayCapabilities.HdrFormat.HLG
+            C.COLOR_TRANSFER_SDR -> null
+            else -> null
+        }
+    }
+
+    /**
+     * Returns the audio codec of the currently playing track, or null if unknown.
+     * Can be used to determine if a passthrough-capable codec is in use.
+     */
+    fun currentAudioCodec(): String? {
+        val audioFormat = player?.audioFormat ?: return null
+        return audioFormat.sampleMimeType
     }
 
     fun seekBack() {
@@ -123,6 +228,11 @@ class Media3PlayerHost(
     }
 
     fun release() {
+        currentOverlay?.attachToPlayer(null)
+        currentOverlay = null
+        currentPlayerView = null
+        currentSurfaceView = null
+        SubtitleSideChannel.clear()
         progressTicker?.let(handler::removeCallbacks)
         progressTicker = null
         player?.let { currentPlayer ->
@@ -155,8 +265,14 @@ class Media3PlayerHost(
         playable: PlayableMedia,
         authorizedPlaybackUrl: String,
         session: AuthSession,
+        externalSubtitles: List<ExternalSubtitle> = emptyList(),
+        customCacheKey: String? = null,
     ): MediaItem {
         val builder = MediaItem.Builder().setUri(Uri.parse(authorizedPlaybackUrl))
+        if (customCacheKey != null) {
+            builder.setCustomCacheKey(customCacheKey)
+        }
+        val subtitleConfigs = mutableListOf<MediaItem.SubtitleConfiguration>()
         val subtitleDeliveryUrl = playable.subtitleDeliveryUrl()
         val subtitleStreamIndex = playable.subtitleStreamIndex()
         if (
@@ -165,14 +281,30 @@ class Media3PlayerHost(
             !subtitleDeliveryUrl.isNullOrBlank()
         ) {
             val authorizedSubtitleUrl = PlaybackUrlAuthorizer.withAccessToken(subtitleDeliveryUrl, session)
-            builder.setSubtitleConfigurations(listOf(
+            subtitleConfigs.add(
                 MediaItem.SubtitleConfiguration.Builder(Uri.parse(authorizedSubtitleUrl))
                     .setMimeType(subtitleMimeType(playable.subtitleCodec(), authorizedSubtitleUrl))
                     .setLanguage(playable.subtitleLanguage().ifBlank { null })
                     .setLabel(playable.subtitleDisplayTitle().ifBlank { null })
                     .setSelectionFlags(C.SELECTION_FLAG_DEFAULT)
                     .build()
-            ))
+            )
+        }
+        // Add externally-provided subtitle tracks (e.g. downloaded from online subtitle plugins).
+        // External subtitles have SELECTION_FLAG_DEFAULT so they appear in the track selector;
+        // the user can pick them alongside server-side subtitles.
+        externalSubtitles.forEach { ext ->
+            subtitleConfigs.add(
+                MediaItem.SubtitleConfiguration.Builder(Uri.fromFile(ext.file))
+                    .setMimeType(ext.mimeType)
+                    .setLanguage(ext.language.ifBlank { null })
+                    .setLabel(ext.label.ifBlank { null })
+                    .setSelectionFlags(C.SELECTION_FLAG_DEFAULT)
+                    .build()
+            )
+        }
+        if (subtitleConfigs.isNotEmpty()) {
+            builder.setSubtitleConfigurations(subtitleConfigs)
         }
         return builder.build()
     }
@@ -209,31 +341,51 @@ class Media3PlayerHost(
             "ass", "ssa" -> MimeTypes.TEXT_SSA
             "vtt", "webvtt" -> MimeTypes.TEXT_VTT
             "ttml", "dfxp" -> MimeTypes.APPLICATION_TTML
+            "pgs", "sup" -> "application/pgs"
             else -> MimeTypes.APPLICATION_SUBRIP
         }
     }
 
     private fun applySubtitleStyle(playerView: PlayerView) {
         val style = subtitleStyleStore.current()
-        val edgeType = if (style.background == SubtitleBackground.NONE) {
-            CaptionStyleCompat.EDGE_TYPE_NONE
-        } else {
-            CaptionStyleCompat.EDGE_TYPE_OUTLINE
+        val edgeType = when (style.edgeStyle) {
+            SubtitleEdgeStyle.NONE -> CaptionStyleCompat.EDGE_TYPE_NONE
+            SubtitleEdgeStyle.OUTLINE -> CaptionStyleCompat.EDGE_TYPE_OUTLINE
+            SubtitleEdgeStyle.DROP_SHADOW -> CaptionStyleCompat.EDGE_TYPE_DROP_SHADOW
+            SubtitleEdgeStyle.RAISED -> CaptionStyleCompat.EDGE_TYPE_RAISED
+            SubtitleEdgeStyle.DEPRESSED -> CaptionStyleCompat.EDGE_TYPE_DEPRESSED
+            SubtitleEdgeStyle.AUTO -> when (style.background) {
+                SubtitleBackground.OUTLINE -> CaptionStyleCompat.EDGE_TYPE_OUTLINE
+                SubtitleBackground.RAISED -> CaptionStyleCompat.EDGE_TYPE_RAISED
+                SubtitleBackground.NONE -> CaptionStyleCompat.EDGE_TYPE_NONE
+                SubtitleBackground.SHADOW -> CaptionStyleCompat.EDGE_TYPE_DROP_SHADOW
+                SubtitleBackground.TRANSLUCENT -> CaptionStyleCompat.EDGE_TYPE_OUTLINE
+            }
         }
+        val foregroundColor = applyAlpha(style.color.color, style.textOpacity.alpha)
         playerView.subtitleView?.apply {
-            setApplyEmbeddedStyles(false)
-            setApplyEmbeddedFontSizes(false)
+            // ASS/SSA embedded styles are respected when the renderer supports them;
+            // Media3 otherwise falls back to this CaptionStyleCompat. Author-provided
+            // fonts/colors/positions are preserved by the LibASS native path; user
+            // style here only governs size, margin, and edge fallbacks.
+            setApplyEmbeddedStyles(true)
+            setApplyEmbeddedFontSizes(true)
             setFractionalTextSize(style.size.fraction)
-            setBottomPaddingFraction(0.08f)
+            setBottomPaddingFraction(style.bottomMargin.fraction)
             setStyle(CaptionStyleCompat(
-                style.color.color,
+                foregroundColor,
                 style.background.backgroundColor,
                 android.graphics.Color.TRANSPARENT,
                 edgeType,
                 style.background.edgeColor,
-                Typeface.DEFAULT_BOLD,
+                style.fontFamily.typeface,
             ))
         }
+    }
+
+    private fun applyAlpha(color: Int, alpha: Int): Int {
+        val clamped = alpha.coerceIn(0, 255)
+        return (clamped shl 24) or (color and 0x00FFFFFF)
     }
 
     private fun startProgressTicks(nextPlayer: ExoPlayer, playbackBridge: Media3PlaybackBridge) {
@@ -241,7 +393,17 @@ class Media3PlayerHost(
             override fun run() {
                 if (player === nextPlayer && bridge === playbackBridge) {
                     playbackBridge.tick(nextPlayer.currentPosition)
-                    handler.postDelayed(this, 1_000L)
+                    val callback = positionTickCallback
+                    if (callback != null) {
+                        val duration = nextPlayer.duration.let {
+                            if (it == C.TIME_UNSET || it < 0L) 0L else it
+                        }
+                        callback(
+                            if (nextPlayer.currentPosition < 0L) 0L else MediaTicks.fromMilliseconds(nextPlayer.currentPosition),
+                            if (duration == 0L) 0L else MediaTicks.fromMilliseconds(duration),
+                        )
+                    }
+                    handler.postDelayed(this, PROGRESS_TICK_INTERVAL_MS)
                 }
             }
         }
@@ -252,5 +414,6 @@ class Media3PlayerHost(
     private companion object {
         private const val PLAYER_CONTROLLER_TIMEOUT_MS = 5_000
         private const val REMOTE_SEEK_STEP_MS = 30_000L
+        private const val PROGRESS_TICK_INTERVAL_MS = 500L
     }
 }

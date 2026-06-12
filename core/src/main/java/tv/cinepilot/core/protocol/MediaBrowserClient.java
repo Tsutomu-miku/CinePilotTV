@@ -1,8 +1,11 @@
 package tv.cinepilot.core.protocol;
 
 import java.io.IOException;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
+import tv.cinepilot.core.AndroidCollections;
 
 public final class MediaBrowserClient {
     private final HttpTransport transport;
@@ -318,11 +321,306 @@ public final class MediaBrowserClient {
         }
     }
 
+    // ---- User state (P1-10 favorite / played / rating) ----
+
+    public void toggleFavorite(AuthenticatedServer authenticated, String itemId, boolean shouldBeFavorite) {
+        require(itemId, "itemId");
+        ProtocolRequest request = shouldBeFavorite
+                ? MediaBrowserRequests.addFavorite(
+                        authenticated.session(), authenticated.server().flavor(), itemId)
+                : MediaBrowserRequests.removeFavorite(
+                        authenticated.session(), authenticated.server().flavor(), itemId);
+        send(authenticated.server().address(), request);
+    }
+
+    public void markWatched(AuthenticatedServer authenticated, String itemId, boolean shouldBeWatched) {
+        require(itemId, "itemId");
+        ProtocolRequest request = shouldBeWatched
+                ? MediaBrowserRequests.markPlayed(
+                        authenticated.session(), authenticated.server().flavor(), itemId)
+                : MediaBrowserRequests.markUnplayed(
+                        authenticated.session(), authenticated.server().flavor(), itemId);
+        send(authenticated.server().address(), request);
+    }
+
+    public void setRating(AuthenticatedServer authenticated, String itemId, Double ratingZeroToTen) {
+        require(itemId, "itemId");
+        ProtocolRequest request = MediaBrowserRequests.setRating(
+                authenticated.session(), authenticated.server().flavor(), itemId, ratingZeroToTen);
+        send(authenticated.server().address(), request);
+    }
+
+    public MediaItemPage personItems(AuthenticatedServer authenticated, String personId, int limit) {
+        require(personId, "personId");
+        ItemQuery query = ItemQuery.browse()
+                .recursive(true)
+                .personIds(personId)
+                .includeItemTypes("Movie,Series,Episode,Video")
+                .mediaTypes("Video")
+                .limit(Math.max(0, limit))
+                .sortBy("ProductionYear,SortName")
+                .sortOrder("Descending,Ascending")
+                .build();
+        return items(authenticated, query);
+    }
+
+    public MediaItemPage favoriteItems(AuthenticatedServer authenticated, int limit) {
+        ItemQuery query = ItemQuery.browse()
+                .recursive(true)
+                .filters("IsFavorite")
+                .mediaTypes("Video")
+                .includeItemTypes("Movie,Series,Episode,Video")
+                .limit(Math.max(0, limit))
+                .sortBy("DatePlayed,CommunityRating,SortName")
+                .sortOrder("Descending,Descending,Ascending")
+                .build();
+        return items(authenticated, query);
+    }
+
+    public MediaItemPage collections(AuthenticatedServer authenticated, int limit) {
+        ProtocolRequest request = MediaBrowserRequests.collections(
+                authenticated.session(), authenticated.server().flavor(), limit);
+        ProtocolResponse response = send(authenticated.server().address(), request);
+        return MediaBrowserResponseMapper.itemPage(response.body());
+    }
+
+    /**
+     * Returns the members of a collection / BoxSet by its item id. If the caller does not
+     * know the BoxSet id, use {@link #findBoxSetByTmdbCollectionId(AuthenticatedServer, String)}
+     * first and then call this with the resolved id.
+     */
+    public MediaItemPage collectionChildren(AuthenticatedServer authenticated, String collectionId, int limit) {
+        if (collectionId == null || collectionId.isBlank()) {
+            return new MediaItemPage(AndroidCollections.<MediaItemSummary>emptyList(), 0, 0);
+        }
+        ProtocolRequest request = MediaBrowserRequests.collectionChildren(
+                authenticated.session(), authenticated.server().flavor(), collectionId, limit);
+        try {
+            ProtocolResponse response = send(authenticated.server().address(), request);
+            return MediaBrowserResponseMapper.itemPage(response.body());
+        } catch (MediaBrowserException ignored) {
+            return new MediaItemPage(AndroidCollections.<MediaItemSummary>emptyList(), 0, 0);
+        }
+    }
+
+    /**
+     * Walks all BoxSets on the server and returns the first whose ProviderIds.TmdbCollection
+     * matches the supplied id, or empty when no match is found. The client probes the home
+     * BoxSet page size which is enough for typical library sizes (dozens of collections).
+     */
+    public MediaItemSummary findBoxSetByTmdbCollectionId(AuthenticatedServer authenticated, String tmdbCollectionId) {
+        if (tmdbCollectionId == null || tmdbCollectionId.isBlank()) return null;
+        MediaItemPage page = collections(authenticated, 500);
+        for (MediaItemSummary item : page.items()) {
+            if (tmdbCollectionId.equals(item.tmdbCollectionId())) return item;
+        }
+        return null;
+    }
+
+    // ---- P1-12 ProviderId 手动修正 + 元数据刷新 ----
+
+    /**
+     * Writes a new ProviderIds map for the supplied item to the server. The update
+     * is partial: only ProviderIds is sent; any other item metadata is preserved.
+     * Throws {@link MediaBrowserException} if the server rejects the update.
+     */
+    public void updateProviderIds(
+            AuthenticatedServer authenticated,
+            String itemId,
+            java.util.Map<String, String> providerIds
+    ) {
+        require(itemId, "itemId");
+        if (providerIds == null) {
+            throw new IllegalArgumentException("providerIds is required");
+        }
+        ProtocolRequest request = MediaBrowserRequests.updateProviderIds(
+                authenticated.session(), authenticated.server().flavor(), itemId, providerIds);
+        send(authenticated.server().address(), request);
+    }
+
+    /**
+     * Triggers a server-side metadata refresh for the given item. Replaces existing
+     * metadata / images when {@code replaceAllMetadata} is true; merges otherwise.
+     * Throws {@link MediaBrowserException} if the server rejects the request.
+     */
+    public void refreshMetadata(
+            AuthenticatedServer authenticated,
+            String itemId,
+            boolean replaceAllMetadata
+    ) {
+        require(itemId, "itemId");
+        ProtocolRequest request = MediaBrowserRequests.refreshMetadata(
+                authenticated.session(), authenticated.server().flavor(), itemId, replaceAllMetadata);
+        send(authenticated.server().address(), request);
+    }
+
+    public List<GenreInfo> genres(AuthenticatedServer authenticated, String parentViewId) {
+        try {
+            ProtocolResponse response = send(authenticated.server().address(),
+                    MediaBrowserRequests.genres(authenticated.session(),
+                            authenticated.server().flavor(), parentViewId));
+            return MediaBrowserResponseMapper.genres(response.body());
+        } catch (MediaBrowserException exception) {
+            return AndroidCollections.emptyList();
+        }
+    }
+
+    // ---- Chapters, MediaSegments, Trickplay (P1 batch 6) ----
+
+    public List<ChapterInfo> chapters(AuthenticatedServer authenticated, String itemId) {
+        require(itemId, "itemId");
+        try {
+            ProtocolResponse response = send(authenticated.server().address(),
+                    MediaBrowserRequests.chapters(authenticated.session(),
+                            authenticated.server().flavor(), itemId));
+            return MediaBrowserResponseMapper.chapters(response.body());
+        } catch (MediaBrowserException exception) {
+            return AndroidCollections.emptyList();
+        }
+    }
+
+    public List<MediaSegmentInfo> mediaSegments(AuthenticatedServer authenticated, String itemId) {
+        require(itemId, "itemId");
+        try {
+            ProtocolResponse response = send(authenticated.server().address(),
+                    MediaBrowserRequests.mediaSegments(authenticated.session(),
+                            authenticated.server().flavor(), itemId));
+            return MediaBrowserResponseMapper.mediaSegments(response.body());
+        } catch (MediaBrowserException exception) {
+            return AndroidCollections.emptyList();
+        }
+    }
+
+    public TrickplayInfo trickplayInfo(AuthenticatedServer authenticated, String itemId, int tileWidth) {
+        require(itemId, "itemId");
+        try {
+            ProtocolResponse response = send(authenticated.server().address(),
+                    MediaBrowserRequests.trickplayInfo(authenticated.session(),
+                            authenticated.server().flavor(), itemId));
+            TrickplayInfo info = MediaBrowserResponseMapper.trickplayInfo(
+                    response.body(), itemId, tileWidth);
+            String base = authenticated.server().address().value();
+            String authorized = PlaybackUrlAuthorizer.withAccessToken(
+                    base + info.imageUrl(), authenticated.session());
+            return new TrickplayInfo(
+                    info.tileWidth(), info.tileHeight(), info.tilesPerRow(),
+                    info.tilesPerColumn(), info.tileCount(), info.tileIntervalTicks(),
+                    authorized);
+        } catch (MediaBrowserException exception) {
+            return TrickplayInfo.empty();
+        }
+    }
+
     public void forget(AuthenticatedServer authenticated) {
         if (authenticated == null) {
             return;
         }
         sessions.revoke(SessionScope.from(authenticated.server(), authenticated.session()));
+    }
+
+    /**
+     * Return every profile (session) saved for the given server, augmented with
+     * display-friendly identity metadata. Profiles come back in a stable
+     * insertion order and the currently-active profile is flagged so the
+     * switcher UI can highlight it. The access token is NOT exposed in
+     * {@link ProfileSummary} -- only id/name/image.
+     */
+    public List<ProfileSummary> profiles(ServerIdentity server) {
+        List<PublicUserSummary> publicUsers = publicUsers(server);
+        Map<String, PublicUserSummary> byId = new HashMap<>();
+        for (PublicUserSummary summary : publicUsers) {
+            byId.put(summary.id(), summary);
+        }
+        Optional<SessionScope> active = sessions.activeScope(
+                server.serverId(), client);
+        List<SavedSession> saved = sessions.listForServer(server.serverId(), client);
+        List<ProfileSummary> out = new java.util.ArrayList<>(saved.size());
+        for (SavedSession session : saved) {
+            SessionScope scope = session.scope();
+            PublicUserSummary meta = byId.get(scope.userId());
+            String name = meta != null && !meta.name().isBlank() ? meta.name() : scope.userId();
+            String image = meta != null ? meta.primaryImageTag() : "";
+            boolean isActive = active.map(a -> a.userId().equals(scope.userId())).orElse(false);
+            out.add(new ProfileSummary(scope.userId(), name, image, isActive));
+        }
+        return out;
+    }
+
+    /** Restore a previously-authenticated profile session for the same server. */
+    public Optional<AuthSession> restoreProfile(ServerIdentity server, String userId) {
+        return restore(server, userId);
+    }
+
+    /** Mark the given profile as the currently-active one for cold-start restore. */
+    public void markActiveProfile(ServerIdentity server, String userId) {
+        Optional<SavedSession> existing = sessions.listForServer(server.serverId(), client)
+                .stream()
+                .filter(s -> s.scope().userId().equals(userId))
+                .findFirst();
+        existing.ifPresent(saved -> sessions.markActive(saved.scope()));
+    }
+
+    /** Forget all saved sessions for a given profile id on the server. */
+    public void forgetProfile(ServerIdentity server, String userId) {
+        sessions.listForServer(server.serverId(), client)
+                .stream()
+                .filter(s -> s.scope().userId().equals(userId))
+                .forEach(s -> sessions.revoke(s.scope()));
+    }
+
+    // ---- Playlists (P3-2) ----
+
+    /** List all user-created playlists. Playlists are returned as MediaItemSummary with type=Playlist. */
+    public MediaItemPage playlists(AuthenticatedServer authenticated, int limit) {
+        ProtocolResponse response = send(
+                authenticated.server().address(),
+                MediaBrowserRequests.playlists(authenticated.session(), authenticated.server().flavor(), limit)
+        );
+        return MediaBrowserResponseMapper.playlists(response.body());
+    }
+
+    /** Items inside a specific playlist, in user-arranged order. */
+    public MediaItemPage playlistItems(AuthenticatedServer authenticated, String playlistId, int limit) {
+        ProtocolResponse response = send(
+                authenticated.server().address(),
+                MediaBrowserRequests.playlistItems(authenticated.session(), authenticated.server().flavor(), playlistId, limit)
+        );
+        return MediaBrowserResponseMapper.itemPage(response.body());
+    }
+
+    /** Create a new empty playlist. Returns the id of the created playlist. */
+    public String createPlaylist(AuthenticatedServer authenticated, String name) {
+        ProtocolResponse response = send(
+                authenticated.server().address(),
+                MediaBrowserRequests.createPlaylist(authenticated.session(), authenticated.server().flavor(), name)
+        );
+        Map<String, Object> root = JsonValue.object(response.body());
+        String id = JsonValue.string(root, "Id");
+        return id == null ? "" : id;
+    }
+
+    /** Add one or more items to a playlist by item id. */
+    public void addToPlaylist(AuthenticatedServer authenticated, String playlistId, List<String> itemIds) {
+        send(
+                authenticated.server().address(),
+                MediaBrowserRequests.addToPlaylist(authenticated.session(), authenticated.server().flavor(), playlistId, itemIds)
+        );
+    }
+
+    /** Remove entries from a playlist by entry id (not item id). */
+    public void removeFromPlaylist(AuthenticatedServer authenticated, String playlistId, List<String> entryIds) {
+        send(
+                authenticated.server().address(),
+                MediaBrowserRequests.removeFromPlaylist(authenticated.session(), authenticated.server().flavor(), playlistId, entryIds)
+        );
+    }
+
+    /** Delete a playlist entirely. */
+    public void deletePlaylist(AuthenticatedServer authenticated, String playlistId) {
+        send(
+                authenticated.server().address(),
+                MediaBrowserRequests.deletePlaylist(authenticated.session(), authenticated.server().flavor(), playlistId)
+        );
     }
 
     private ProtocolResponse send(MediaServerAddress address, ProtocolRequest request) {
@@ -340,6 +638,12 @@ public final class MediaBrowserClient {
         } catch (InterruptedException exception) {
             Thread.currentThread().interrupt();
             throw new MediaBrowserException("Media server request was interrupted", exception);
+        }
+    }
+
+    private static void require(String value, String name) {
+        if (value == null || value.isBlank()) {
+            throw new IllegalArgumentException(name + " is required");
         }
     }
 }

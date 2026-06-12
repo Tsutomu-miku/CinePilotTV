@@ -1,4 +1,6 @@
 <resources>
     <string name="app_name">CinePilot TV</string>
+    <string name="cinepilot_download_channel_name">离线下载</string>
+    <string name="cinepilot_download_channel_desc">CinePilot TV 正在将影视缓存到本地，用于无网络时播放。</string>
 </resources>
 

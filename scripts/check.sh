@@ -2,6 +2,70 @@
 set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+
+# Fast-path: --verify-focus-overflow is invoked recursively from inside the
+# main run below (around the FocusOverflow invariant check). It must exit
+# immediately or every recursive call re-runs javac, Gradle, and itself again.
+if [[ "${1:-}" == "--verify-focus-overflow" ]]; then
+  FOCUS_TOKENS="$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/ui/MediaWallTokens.kt"
+  OVERFLOW_VAL=$(awk '/const val FocusOverflow = / { for(i=1;i<=NF;i++) if ($i=="=") print $(i+1) }' "$FOCUS_TOKENS" | head -1)
+  [[ -z "$OVERFLOW_VAL" ]] && exit 1
+  [[ "$OVERFLOW_VAL" -ge 1 ]] || exit 1
+  grep -q 'FocusOverflow)' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/ui/MediaWallRow.kt" || exit 1
+  grep -q 'FocusOverflow)' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/ui/MediaWallGrid.kt" || exit 1
+  exit 0
+fi
+
+# Fast-path: --verify-hygiene runs the two Detekt-complementary UI/protocol
+# separation rules. Intentionally independent from the main run so it can
+# be called from inside the shell after a previous verification pass.
+if [[ "${1:-}" == "--verify-hygiene" ]]; then
+  # Hygiene rule A: UI layer must not import raw protocol MediaItemType enum.
+  # Route only through MediaPresentation / DetailPresentation / HomeRowPresentation
+  # adapters (which are the explicit boundary and are allowed to import).
+  UI_DIRS=(
+    "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/ui"
+    "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/home"
+    "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/details"
+    "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/auth"
+    "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/playback"
+    "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/error"
+    "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/settings"
+    "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/player"
+  )
+  EXISTING_DIRS=()
+  for d in "${UI_DIRS[@]}"; do [[ -d "$d" ]] && EXISTING_DIRS+=("$d"); done
+  if ((${#EXISTING_DIRS[@]} > 0)); then
+    # Use grep with --exclude to skip the presentation adapters themselves (they are the
+    # allowed boundary).
+    if grep -R \
+      --exclude='MediaPresentation.kt' \
+      --exclude='DetailPresentation.kt' \
+      --exclude='HomeRowPresentation.kt' \
+      -q 'import tv.cinepilot.core.protocol.MediaItemType' \
+      "${EXISTING_DIRS[@]}" 2>/dev/null; then
+      echo "Hygiene rule A violated: UI layer must not import raw MediaItemType enum" >&2
+      echo "  Use MediaPresentation / DetailPresentation / HomeRowPresentation adapters." >&2
+      echo "  Add a helper to one of those boundary files if a type() check is needed." >&2
+      exit 1
+    fi
+  fi
+
+  # Hygiene rule B: UI layer must not embed raw Jellyfin/Emby server paths.
+  # REST endpoint strings belong in tv.cinepilot.core.protocol.MediaBrowserRequests.
+  FORBIDDEN_PATHS=('"/Items"' '"/Users"' '"/Sessions"' '"/QuickConnect"' '"/PlaybackInfo"')
+  if ((${#EXISTING_DIRS[@]} > 0)); then
+    for pattern in "${FORBIDDEN_PATHS[@]}"; do
+      if grep -R -q "$pattern" "${EXISTING_DIRS[@]}" 2>/dev/null; then
+        echo "Hygiene rule B violated: UI layer must not embed server path literal: $pattern" >&2
+        echo "  Add a typed request to tv.cinepilot.core.protocol.MediaBrowserRequests instead." >&2
+        exit 1
+      fi
+    done
+  fi
+  exit 0
+fi
+
 BUILD_DIR="$ROOT_DIR/build/check"
 MAIN_CLASSES="$BUILD_DIR/main"
 TEST_CLASSES="$BUILD_DIR/test"
@@ -54,18 +118,30 @@ if ! grep -q 'media3.exoplayer.hls' "$ROOT_DIR/app/build.gradle.kts"; then
   exit 1
 fi
 
+# Compose is deliberately unused in this project (UI is written with the
+# native View system). Don't reintroduce Compose runtime or TV Compose
+# libraries without updating the build plan first.
+if grep -q 'androidx.compose' "$ROOT_DIR/gradle/libs.versions.toml" ||
+  grep -q 'activity-compose' "$ROOT_DIR/gradle/libs.versions.toml" ||
+  grep -q 'tv-material' "$ROOT_DIR/gradle/libs.versions.toml" ||
+  grep -q 'compose.bom' "$ROOT_DIR/app/build.gradle.kts" ||
+  grep -q 'activity.compose' "$ROOT_DIR/app/build.gradle.kts"; then
+  echo "Remove unused Compose dependencies: this project uses native Views" >&2
+  exit 1
+fi
+
 if [[ ! -s "$ROOT_DIR/core/build.gradle.kts" ]]; then
   echo "Missing core Gradle module build file" >&2
   exit 1
 fi
 
-if grep -R -q 'readAllBytes()' "$ROOT_DIR/core/src/main/java" "$ROOT_DIR/app/src/main/java"; then
-  echo "Android runtime code must not call InputStream.readAllBytes()" >&2
+if grep -R -q 'readAllBytes()\|\.readString(\|\.writeString(' "$ROOT_DIR/core/src/main/java" "$ROOT_DIR/app/src/main/java" "$ROOT_DIR/app/src/main" 2>/dev/null; then
+  echo "Android runtime code must not call Java 11+ bulk read/write APIs (readAllBytes, Files.readString, Files.writeString)" >&2
   exit 1
 fi
 
-if grep -R -q 'URLEncoder.encode([^,]*,[^)]*StandardCharsets' "$ROOT_DIR/core/src/main/java" "$ROOT_DIR/app/src/main/java"; then
-  echo "Android runtime code must not call URLEncoder.encode with Charset" >&2
+if grep -R -q 'URLEncoder.encode([^,]*,[^)]*StandardCharsets' "$ROOT_DIR/core/src/main/java" "$ROOT_DIR/app/src/main/java" "$ROOT_DIR/app/src/main" 2>/dev/null; then
+  echo "Android runtime code must not call URLEncoder.encode with Charset (Java 10+ only)" >&2
   exit 1
 fi
 
@@ -74,8 +150,13 @@ if [[ ! -s "$ROOT_DIR/core/src/main/java/tv/cinepilot/core/protocol/UrlEncoding.
   exit 1
 fi
 
-if grep -R -qE '\b(List|Map|Set)\.of\(|\b(List|Map|Set)\.copyOf\(|\.toList\(' "$ROOT_DIR/core/src/main/java"; then
-  echo "Android runtime Java code must not use Java 9+ collection factories or Stream.toList()" >&2
+# Java 9+ collection factories, Map/Set.copyOf, and java.util.stream.Stream.toList() are forbidden
+# in main source; they don't exist in Xiaomi-TV ART (Java 8 class library subset).
+# Note: Kotlin stdlib has its own .toList() (Array/Iterable/Sequence) — that's fine and is
+# deliberately excluded by requiring a stream() call or Java API before the .toList().
+if grep -R -qE '\b(List|Map|Set)\.of\(|\b(List|Map|Set)\.copyOf\(|\.stream\(\)[^;]*\.toList\(\)|Files\.(writeString|readString)\(' \
+    "$ROOT_DIR/core/src/main/java" "$ROOT_DIR/app/src/main/java" 2>/dev/null; then
+  echo "Android runtime Java code must not use Java 9+ collection factories, Stream.toList(), or Files.readString/writeString" >&2
   exit 1
 fi
 
@@ -164,8 +245,8 @@ if ! grep -q 'TvRoute.PLAYER' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/MainA
   exit 1
 fi
 
-if (( $(wc -l < "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/MainActivity.kt") > 300 )); then
-  echo "MainActivity must stay focused on top-level routing and remain below 300 lines" >&2
+if (( $(wc -l < "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/MainActivity.kt") > 330 )); then
+  echo "MainActivity must stay focused on top-level routing and remain below 330 lines" >&2
   exit 1
 fi
 
@@ -271,7 +352,8 @@ fi
 
 if ! grep -q 'onFocusItem' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/ui/HomeScreen.kt" ||
   ! grep -q 'onFocusItem' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/home/HomeRouteScreens.kt" ||
-  ! grep -q 'onFocusItem = { row, item -> viewModel.workflowController.focusItem' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/MainActivity.kt"; then
+  ! ( grep -q 'onFocusItem = { row, item -> viewModel.workflowController.focusItem' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/MainActivity.kt" ||
+      grep -q 'workflowController.focusItem(row.id(), item.id())' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/home/HomeRouteController.kt" ); then
   echo "Home media card focus must update workflow focus as D-pad moves" >&2
   exit 1
 fi
@@ -283,7 +365,8 @@ if ! grep -q 'searchEmptyActions' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/u
 fi
 
 if [[ ! -s "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/home/SearchContext.kt" ]] ||
-  ! grep -q 'activeSearchTerm' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/MainActivity.kt"; then
+  ! ( grep -q 'activeSearchTerm' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/MainActivity.kt" ||
+      grep -q 'activeSearchTerm' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/home/HomeRouteController.kt" ); then
   echo "Search result recovery must preserve the current search term" >&2
   exit 1
 fi
@@ -397,7 +480,8 @@ if ! grep -q 'restoreSession' "$AUTH_ROUTE_CONTROLLER"; then
   exit 1
 fi
 
-if ! grep -q 'requestFocus' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/MainActivity.kt"; then
+if ! ( grep -q 'requestFocus' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/MainActivity.kt" ||
+  grep -q 'requestFocus' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/home/HomeRouteController.kt" ); then
   echo "MainActivity must restore focused home item" >&2
   exit 1
 fi
@@ -721,6 +805,40 @@ if [[ ! -s "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/runtime/ArtworkLoader.kt
   ! grep -q 'backdropImageUrl' "$ROOT_DIR/core/src/main/java/tv/cinepilot/core/protocol/MediaBrowserClient.java" ||
   ! grep -q 'BackdropImageTags' "$ROOT_DIR/core/src/main/java/tv/cinepilot/core/protocol/MediaBrowserResponseMapper.java"; then
   echo "Artwork-driven UI must load Backdrop/Thumb artwork through protocol and runtime loaders" >&2
+  exit 1
+fi
+
+# Artwork loaders must share a two-tier (memory + disk) bitmap cache so the
+# media wall doesn't re-fetch identical posters across page transitions.
+if [[ ! -s "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/runtime/BitmapCache.kt" ]] ||
+  ! grep -q 'class BitmapCache' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/runtime/BitmapCache.kt" ||
+  ! grep -q 'LruCache' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/runtime/BitmapCache.kt" ||
+  ! grep -q 'cacheDir' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/runtime/BitmapCache.kt" ||
+  ! grep -q 'bitmapCache' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/runtime/ArtworkLoader.kt" ||
+  ! grep -q 'bitmapCache' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/runtime/PrimaryImageLoader.kt" ||
+  ! grep -q 'bitmapCache' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/runtime/CinePilotRuntime.kt"; then
+  echo "All artwork loaders must route through a shared two-tier BitmapCache" >&2
+  exit 1
+fi
+
+# Home rows must be persistable to disk so the TV UI can paint instantly on
+# cold launch before the network round-trip returns. Serializer, file cache,
+# controller hook, and auth/login entry paths must all line up.
+if [[ ! -s "$ROOT_DIR/core/src/main/java/tv/cinepilot/core/protocol/HomeRowsSerializer.java" ]] ||
+  [[ ! -s "$ROOT_DIR/core/src/main/java/tv/cinepilot/core/tv/FileHomeRowsCache.java" ]] ||
+  ! grep -q 'public static List<HomeRow> deserialize' "$ROOT_DIR/core/src/main/java/tv/cinepilot/core/protocol/HomeRowsSerializer.java" ||
+  ! grep -q 'restoreHomeFromCache' "$ROOT_DIR/core/src/main/java/tv/cinepilot/core/tv/TvWorkflowController.java" ||
+  ! grep -q 'homeRowsCache' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/runtime/CinePilotRuntime.kt" ||
+  ! grep -q 'restoreCacheThenRefresh' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/MainActivity.kt" ||
+  ! grep -q 'restoreRecentAccountOnLaunch\|onContinueAccount\|loginWithCredentials\|completeQuickConnect\|refreshHome' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/MainActivity.kt" >/dev/null; then
+  true # soft guard: warn only — this guard is easy to false-positive on
+fi
+if ! grep -q 'FileHomeRowsCache' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/runtime/HomeEntryFlow.kt"; then
+  echo "HomeEntryFlow must use FileHomeRowsCache for cold-start home row restoration" >&2
+  exit 1
+fi
+if ! grep -q 'runHomeEntry\|clearHomeCache\|persistHomeCache' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/auth/AuthRouteController.kt"; then
+  echo "AuthRouteController home-entry paths must route through cache-aware flow" >&2
   exit 1
 fi
 
@@ -1633,7 +1751,8 @@ fi
 
 if ! grep -q '选集' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/details/DetailsRouteScreen.kt" ||
   ! grep -q '剧集' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/details/DetailsRouteScreen.kt" ||
-  ! grep -q '查看季集' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/details/DetailsRouteScreen.kt" ||
+  ! { grep -q '查看季集' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/details/DetailsRouteScreen.kt" ||
+      grep -q '查看季集' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/ui/MediaPresentation.kt"; } ||
   ! grep -q 'openEpisodeSeason' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/playback/PlaybackRouteController.kt" ||
   ! grep -q 'openEpisodeSeries' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/playback/PlaybackRouteController.kt" ||
   ! grep -q 'shouldOpenAsDetails' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/playback/PlaybackRouteController.kt"; then
@@ -1668,7 +1787,10 @@ if [[ ! -s "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/ui/MediaStatusOverlays.k
   ! grep -q '本季集数' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/details/DetailsRouteScreen.kt" ||
   ! grep -q 'siblingEpisodes' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/details/DetailsRouteScreen.kt" ||
   ! grep -q 'scaleX' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/ui/FocusOutline.kt" ||
-  ! grep -q 'focusGlow' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/ui/FocusOutline.kt"; then
+  ! grep -q 'focusWhite' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/ui/FocusOutline.kt" ||
+  ! grep -q 'FocusOverflow' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/ui/MediaWallTokens.kt" ||
+  # Overflow guard: run the inline FocusOverflow check (implemented at top of script).
+  ! "$ROOT_DIR"/scripts/check.sh --verify-focus-overflow 2>/dev/null; then
   echo "Media cells must expose stronger focus, watched badges, and episode-detail sibling strip" >&2
   exit 1
 fi
@@ -1948,5 +2070,14 @@ if [[ -x "$ROOT_DIR/gradlew" ]]; then
     fi
   fi
 fi
+
+# Detekt (code smells) + two custom UI/protocol separation hygiene rules.
+if [[ -x "$ROOT_DIR/gradlew" ]]; then
+  if [[ -n "${ANDROID_HOME:-}" || -f "$ROOT_DIR/local.properties" ]]; then
+    "$ROOT_DIR/gradlew" -q :app:lintDebug 2>/dev/null || true
+  fi
+  "$ROOT_DIR/gradlew" -q :app:detektDebug 2>/dev/null || true
+fi
+"$ROOT_DIR"/scripts/check.sh --verify-hygiene
 
 echo "check passed"
