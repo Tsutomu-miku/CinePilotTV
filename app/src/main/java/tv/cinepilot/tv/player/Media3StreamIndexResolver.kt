@@ -18,6 +18,23 @@ class Media3StreamIndexResolver(
         return selectedIndex(format, subtitleStreams)
     }
 
+    /**
+     * Returns the first audio stream index that matches [format], even if the match
+     * is ambiguous (multiple streams match). Use this for availability checks where
+     * we only need to know whether a playable track exists, not which exact one.
+     */
+    fun firstAudioStreamIndex(format: Format): Int? {
+        return firstMatchingIndex(format, audioStreams)
+    }
+
+    /**
+     * Returns the first subtitle stream index that matches [format], even if the match
+     * is ambiguous. See [firstAudioStreamIndex].
+     */
+    fun firstSubtitleStreamIndex(format: Format): Int? {
+        return firstMatchingIndex(format, subtitleStreams)
+    }
+
     fun findAudioStream(streamIndex: Int): MediaStreamInfo? {
         return audioStreams.firstOrNull { it.index() == streamIndex }
     }
@@ -45,6 +62,29 @@ class Media3StreamIndexResolver(
         }
         if (language.isNotBlank()) {
             candidates.uniqueBy { normalized(it.language()) == language }?.let { return it.index() }
+        }
+        return null
+    }
+
+    /**
+     * Like [selectedIndex], but returns the first match instead of requiring a unique match.
+     * Used for availability checks where we just need to know a matching track exists.
+     */
+    private fun firstMatchingIndex(format: Format, candidates: List<MediaStreamInfo>): Int? {
+        val label = normalized(format.label)
+        if (label.isNotBlank()) {
+            candidates.firstOrNull { normalized(it.displayTitle()) == label }?.let { return it.index() }
+        }
+
+        val language = normalized(format.language)
+        val codec = normalizedCodec(format)
+        if (language.isNotBlank() && codec.isNotBlank()) {
+            candidates.firstOrNull {
+                normalized(it.language()) == language && normalizedCodec(it.codec()) == codec
+            }?.let { return it.index() }
+        }
+        if (language.isNotBlank()) {
+            candidates.firstOrNull { normalized(it.language()) == language }?.let { return it.index() }
         }
         return null
     }

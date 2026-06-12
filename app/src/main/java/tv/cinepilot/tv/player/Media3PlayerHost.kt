@@ -222,7 +222,9 @@ class Media3PlayerHost(
             if (group.type == C.TRACK_TYPE_AUDIO && group.isSelected) {
                 for (i in 0 until group.length) {
                     if (group.isTrackSelected(i)) {
-                        return resolver.audioStreamIndex(group.getTrackFormat(i))
+                        // Use first-match so ambiguous tracks (e.g. duplicate language)
+                        // still show as selected in the switcher UI.
+                        return resolver.firstAudioStreamIndex(group.getTrackFormat(i))
                     }
                 }
             }
@@ -241,7 +243,7 @@ class Media3PlayerHost(
                 if (group.isSelected) {
                     for (i in 0 until group.length) {
                         if (group.isTrackSelected(i)) {
-                            return resolver.subtitleStreamIndex(group.getTrackFormat(i))
+                            return resolver.firstSubtitleStreamIndex(group.getTrackFormat(i))
                         }
                     }
                 }
@@ -304,7 +306,10 @@ class Media3PlayerHost(
         for (group in player.currentTracks.groups) {
             if (group.type != C.TRACK_TYPE_AUDIO) continue
             for (i in 0 until group.length) {
-                resolver.audioStreamIndex(group.getTrackFormat(i))?.let { indices.add(it) }
+                // Use first-match (not unique-match) so ambiguous tracks still show up
+                // in the switcher. Selection via setAudioStreamIndex falls back to the
+                // first matching player track for ambiguous cases.
+                resolver.firstAudioStreamIndex(group.getTrackFormat(i))?.let { indices.add(it) }
             }
         }
         return resolver.allAudioStreams().filter { it.index() in indices }
@@ -317,7 +322,7 @@ class Media3PlayerHost(
         for (group in player.currentTracks.groups) {
             if (group.type != C.TRACK_TYPE_TEXT) continue
             for (i in 0 until group.length) {
-                resolver.subtitleStreamIndex(group.getTrackFormat(i))?.let { indices.add(it) }
+                resolver.firstSubtitleStreamIndex(group.getTrackFormat(i))?.let { indices.add(it) }
             }
         }
         return resolver.allSubtitleStreams().filter { it.index() in indices }
@@ -330,7 +335,10 @@ class Media3PlayerHost(
         for (group in tracks.groups) {
             if (group.type != C.TRACK_TYPE_AUDIO) continue
             for (i in 0 until group.length) {
-                if (resolver.audioStreamIndex(group.getTrackFormat(i)) == streamIndex) {
+                // Use first-match so ambiguous tracks (e.g. duplicate language) can still
+                // be selected. When multiple player tracks map to the same server stream
+                // index, we pick the first one — acceptable for same-language/codec tracks.
+                if (resolver.firstAudioStreamIndex(group.getTrackFormat(i)) == streamIndex) {
                     return group.mediaTrackGroup to i
                 }
             }
@@ -345,7 +353,7 @@ class Media3PlayerHost(
         for (group in tracks.groups) {
             if (group.type != C.TRACK_TYPE_TEXT) continue
             for (i in 0 until group.length) {
-                if (resolver.subtitleStreamIndex(group.getTrackFormat(i)) == streamIndex) {
+                if (resolver.firstSubtitleStreamIndex(group.getTrackFormat(i)) == streamIndex) {
                     return group.mediaTrackGroup to i
                 }
             }
