@@ -152,17 +152,22 @@ class LibassSubtitleDecoder(
     companion object {
         private var nativeLoadAttempted = false
         private var nativeLoaded = false
+        private var hasRenderer = false
 
         fun nativeAvailable(): Boolean {
             if (!nativeLoadAttempted) {
                 nativeLoadAttempted = true
                 nativeLoaded = runCatching {
                     System.loadLibrary("cinepilot_subs")
+                    hasRenderer = nativeHasAssRenderer()
                     true
                 }.getOrDefault(false)
             }
-            return nativeLoaded
+            return nativeLoaded && hasRenderer
         }
+
+        @JvmStatic
+        private external fun nativeHasAssRenderer(): Boolean
     }
 
     /**

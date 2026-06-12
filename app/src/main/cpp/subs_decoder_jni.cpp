@@ -61,6 +61,15 @@ Java_tv_cinepilot_tv_subtitles_LibassSubtitleDecoder_nativeDecodeAss(
     return nullptr;
 }
 
+// Returns JNI_FALSE for the stub renderer — Kotlin's nativeAvailable() uses
+// this to fall back to Media3's default SSA/ASS text decoder when no real
+// LibASS implementation is linked in.
+extern "C" JNIEXPORT jboolean JNICALL
+Java_tv_cinepilot_tv_subtitles_LibassSubtitleDecoder_nativeHasAssRenderer(
+    JNIEnv* /*env*/, jclass /*cls*/) {
+    return JNI_FALSE;
+}
+
 jint JNI_OnLoad(JavaVM* vm, void* /*reserved*/) {
     JNIEnv* env = nullptr;
     if (vm->GetEnv(reinterpret_cast<void**>(&env), JNI_VERSION_1_6) != JNI_OK) {

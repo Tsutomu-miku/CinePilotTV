@@ -285,7 +285,7 @@ class PgsSubtitleDecoder : SubtitleDecoder {
         val r = (yy * 298 + crr * 409 + 128) shr 8
         val g = (yy * 298 - cbb * 100 - crr * 208 + 128) shr 8
         val b = (yy * 298 + cbb * 516 + 128) shr 8
-        val a = 255 - t
+        val a = t
         return (a.coerceIn(0, 255) shl 24) or
             (r.coerceIn(0, 255) shl 16) or
             (g.coerceIn(0, 255) shl 8) or
