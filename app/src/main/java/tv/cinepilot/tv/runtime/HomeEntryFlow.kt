@@ -88,22 +88,21 @@ class HomeEntryFlow(
                 // instead of yanking the user to an error screen during the
                 // exact offline / slow-server scenario the cache is for.
                 //
-                // Capture the current route before refreshing so we can tell
-                // whether the user has navigated away from home (e.g. opened
-                // details or playback) while the cached wall was displayed.
-                // loadHome() internally resets the route to HOME via
-                // TvWorkflow.homeLoaded, so a post-refresh route check would
-                // always pass — we must snapshot the route beforehand.
-                val routeBeforeRefresh = workflowController.state().route()
-                val refreshIsBackground = routeBeforeRefresh != TvRoute.HOME
+                // Always apply the refresh with preserveNavigation=true
+                // because this is a background refresh: we never want to
+                // mutate the user's navigation state (route, selected item,
+                // playable media) just because new rows arrived. The route
+                // check is deferred to the UI-thread repaint guard so we
+                // correctly handle the case where the user opens details or
+                // playback while loadHome() is still waiting on the server.
                 val includeSmartCollections = homeSettingsStore.load().showSmartCollections
                 val refreshSuccess = runCatching {
-                    workflowController.loadHome(includeSmartCollections, refreshIsBackground)
+                    workflowController.loadHome(includeSmartCollections, true)
                     val finalRows = withOfflineRow(
                         authenticated,
                         workflowController.state().homeRows(),
                     )
-                    val finalState = workflowController.setHomeRows(finalRows, refreshIsBackground)
+                    val finalState = workflowController.setHomeRows(finalRows, true)
                     homeRowsCache.save(serverId, userId, finalState.homeRows())
                     // Best-effort sync to Android TV preview channels.
                     runCatching {
@@ -120,10 +119,13 @@ class HomeEntryFlow(
                 if (refreshSuccess.isSuccess) {
                     activity.runOnUiThread {
                         remember()
-                        // Only repaint the home UI if the user was still on
-                        // the home wall when the refresh started; otherwise
-                        // leave them wherever they navigated to.
-                        if (!refreshIsBackground) {
+                        // Only repaint the home UI if the user is still on the
+                        // home wall when the refresh completes; otherwise leave
+                        // them wherever they navigated to (details, playback, …).
+                        // We check the *current* route rather than a snapshot
+                        // from before the network call, because the user can
+                        // navigate away while loadHome() is blocked on the server.
+                        if (workflowController.state().route() == TvRoute.HOME) {
                             showHome(refreshSuccess.getOrThrow())
                         }
                     }

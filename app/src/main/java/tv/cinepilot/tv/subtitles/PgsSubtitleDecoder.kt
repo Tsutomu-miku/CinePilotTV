@@ -107,6 +107,7 @@ class PgsSubtitleDecoder : SubtitleDecoder {
         val frames = mutableListOf<PgsFrame>()
         var currentPalette: PgsPalette? = null
         var pendingCompositions: List<CompositionObject> = emptyList()
+        var hasPendingComposition = false
         var pendingPts: Long = 0L
         var width = 0
         var height = 0
@@ -148,6 +149,7 @@ class PgsSubtitleDecoder : SubtitleDecoder {
                         comps += CompositionObject(objectId, x, y, objW, objH)
                     }
                     pendingCompositions = comps
+                    hasPendingComposition = true
                     pendingPts = safePtsUs
                     objectBitmaps.clear()
                 }
@@ -193,7 +195,7 @@ class PgsSubtitleDecoder : SubtitleDecoder {
                     }
                 }
                 0x80 -> { // END segment — emit composited frame
-                    if (pendingCompositions.isNotEmpty()) {
+                    if (hasPendingComposition) {
                         frames += PgsFrame(
                             bitmap = composite(width, height, pendingCompositions, objectBitmaps),
                             x = 0,
@@ -202,6 +204,7 @@ class PgsSubtitleDecoder : SubtitleDecoder {
                             durationUs = C.TIME_UNSET,
                         )
                     }
+                    hasPendingComposition = false
                     pendingCompositions = emptyList()
                     objectBitmaps.clear()
                 }
@@ -209,7 +212,7 @@ class PgsSubtitleDecoder : SubtitleDecoder {
             }
             buf.position(payloadStart + segSize)
         }
-        if (frames.isEmpty() && pendingCompositions.isNotEmpty()) {
+        if (frames.isEmpty() && hasPendingComposition) {
             frames += PgsFrame(
                 bitmap = composite(width, height, pendingCompositions, objectBitmaps),
                 x = 0,
