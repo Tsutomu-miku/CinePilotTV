@@ -18,6 +18,11 @@ import tv.cinepilot.tv.ui.playlistPickerSheet
  *
  * Navigation into individual playlist items is delegated back to the caller via
  * [onOpenItem] so the main playback controller retains ownership of player lifecycle.
+ *
+ * The "Play All" action is also delegated via [onPlayAll] so the caller can start
+ * playback from the top of the playlist. The caller receives the list of playable
+ * items plus an [onBack] callback that returns to the playlist detail page, so it
+ * can push the return action onto its own media back stack.
  */
 class PlaylistController(
     private val activity: ComponentActivity,
@@ -28,6 +33,7 @@ class PlaylistController(
     private val loadArtworkImage: (ImageView, MediaItemSummary, ArtworkTarget, Int, Int) -> Unit,
     private val setAuxiliaryBackAction: (() -> Unit) -> Unit,
     private val onOpenItem: (MediaItemSummary, () -> Unit) -> Unit,
+    private val onPlayAll: (List<MediaItemSummary>, () -> Unit) -> Unit,
 ) {
 
     /** Show the playlist picker for adding an item to a playlist. */
@@ -130,8 +136,9 @@ class PlaylistController(
             playlist = playlist,
             items = items,
             onPlayAll = {
-                if (items.isNotEmpty()) {
-                    // 连续播放功能待实现
+                val playable = items.filter { it.playable() }
+                if (playable.isNotEmpty()) {
+                    onPlayAll(playable) { showDetail(playlist, items) }
                 }
             },
             onDelete = {

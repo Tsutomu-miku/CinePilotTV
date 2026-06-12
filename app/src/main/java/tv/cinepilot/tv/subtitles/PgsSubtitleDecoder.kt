@@ -138,8 +138,8 @@ class PgsSubtitleDecoder : SubtitleDecoder {
                         val objectCroppedFlag = buf.get().toInt() and 0xFF
                         val x = buf.short.toInt() and 0xFFFF
                         val y = buf.short.toInt() and 0xFFFF
-                        var objW = width
-                        var objH = height
+                        var objW = 0
+                        var objH = 0
                         if (objectCroppedFlag == 0x40 && buf.position() - payloadStart + 8 <= segSize) {
                             buf.position(buf.position() + 4)
                             objW = (buf.short.toInt() and 0xFFFF) + 1

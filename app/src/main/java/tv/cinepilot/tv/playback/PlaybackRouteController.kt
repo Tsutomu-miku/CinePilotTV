@@ -97,6 +97,19 @@ class PlaybackRouteController(
             mediaBackStack.addLast(onBack)
             openMediaItem(item)
         },
+        onPlayAll = { items, onBack ->
+            // Play the first playable item right away. Full playlist queuing /
+            // continuous playback is a larger feature; for now the Play All
+            // button at least starts playback from the top of the list.
+            val first = items.firstOrNull() ?: return@PlaylistController
+            mediaBackStack.addLast(onBack)
+            runTask("正在准备播放...", {
+                workflowController.openItem(first.id())
+                workflowController.preparePlayback(null)
+            }) {
+                showPlayer(workflowController.state())
+            }
+        },
     )
     private var selectedPlaybackInfo: PlaybackInfo? = null
     private var selectedTrackItemId: String? = null
