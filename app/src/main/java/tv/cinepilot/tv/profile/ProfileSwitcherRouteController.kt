@@ -29,6 +29,9 @@ class ProfileSwitcherRouteController(
         runTask("正在加载账号列表...", {
             profiles = workflowController.profiles()
         }) {
+            // Guard against stale callbacks: if the user dismissed the switcher
+            // while the profiles request was in flight, don't re-open it.
+            if (!visible) return@runTask
             activity.setContentView(activity.profileSwitcherScreen(
                 profiles = profiles,
                 loadImage = { target, profile, w, h -> loadProfileAvatar(server, profile, target, w, h) },

@@ -324,8 +324,10 @@ class DownloadCoordinator private constructor(
         fun getExisting(): DownloadCoordinator? = instance
 
         // Content id format: serverId$itemId$quality
+        // Note: ${'$'} inserts a literal $ so the following identifier
+        // is treated as a template variable, not plain text.
         internal fun mediaSourceContentId(serverId: String, itemId: String, quality: Int): String =
-            "$serverId$$itemId$$quality"
+            "$serverId${'$'}$itemId${'$'}$quality"
 
         internal fun parseContentId(id: String): Triple<String, String, Int>? {
             val parts = id.split('$', limit = 3)
