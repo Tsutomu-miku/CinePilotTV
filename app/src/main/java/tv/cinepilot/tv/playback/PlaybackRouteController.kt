@@ -108,6 +108,7 @@ class PlaybackRouteController(
     // ---- Player overlay state (P1 batch 6) -----------------------------------
     private val mainHandler = Handler(Looper.getMainLooper())
     private val displayModeApplier = DisplayModeApplier(activity)
+    private var deferredAfmPromptShown = false
     private var playerChapters: List<ChapterInfo> = emptyList()
     private var playerSegments: List<MediaSegmentInfo> = emptyList()
     private var playerTrickplay: TrickplayInfo = TrickplayInfo.empty()
@@ -538,18 +539,33 @@ class PlaybackRouteController(
                 loadArtwork = loadArtworkImage,
                 loadPerson = loadPersonImage,
                 onToggleFavorite = {
-                    rerenderStructureItem(series.id(), { workflowController.toggleFavorite() }) {
-                        showSeriesDetail(structure, pushBack, foldedSeasonsExpanded)
+                    rerenderStructureItem(series.id(), { workflowController.toggleFavorite() }) { updated ->
+                        showSeriesDetail(
+                            ShowStructure(updated, structure.seasons(),
+                                structure.selectedSeason(), structure.episodes(),
+                                structure.nextUp(), structure.resumeEpisode()),
+                            pushBack, foldedSeasonsExpanded
+                        )
                     }
                 },
                 onToggleWatched = {
-                    rerenderStructureItem(series.id(), { workflowController.toggleWatched() }) {
-                        showSeriesDetail(structure, pushBack, foldedSeasonsExpanded)
+                    rerenderStructureItem(series.id(), { workflowController.toggleWatched() }) { updated ->
+                        showSeriesDetail(
+                            ShowStructure(updated, structure.seasons(),
+                                structure.selectedSeason(), structure.episodes(),
+                                structure.nextUp(), structure.resumeEpisode()),
+                            pushBack, foldedSeasonsExpanded
+                        )
                     }
                 },
                 onSetUserRating = { rating ->
-                    rerenderStructureItem(series.id(), { workflowController.setUserRating(rating) }) {
-                        showSeriesDetail(structure, pushBack, foldedSeasonsExpanded)
+                    rerenderStructureItem(series.id(), { workflowController.setUserRating(rating) }) { updated ->
+                        showSeriesDetail(
+                            ShowStructure(updated, structure.seasons(),
+                                structure.selectedSeason(), structure.episodes(),
+                                structure.nextUp(), structure.resumeEpisode()),
+                            pushBack, foldedSeasonsExpanded
+                        )
                     }
                 },
                 onOpenProviderIdsEditor = {
@@ -583,18 +599,18 @@ class PlaybackRouteController(
                 loadArtwork = loadArtworkImage,
                 loadPerson = loadPersonImage,
                 onToggleFavorite = {
-                    rerenderStructureItem(season.id(), { workflowController.toggleFavorite() }) {
-                        showSeasonDetail(structure, pushBack)
+                    rerenderStructureItem(season.id(), { workflowController.toggleFavorite() }) { updated ->
+                        showSeasonDetail(updateSeasonInStructure(structure, updated), pushBack)
                     }
                 },
                 onToggleWatched = {
-                    rerenderStructureItem(season.id(), { workflowController.toggleWatched() }) {
-                        showSeasonDetail(structure, pushBack)
+                    rerenderStructureItem(season.id(), { workflowController.toggleWatched() }) { updated ->
+                        showSeasonDetail(updateSeasonInStructure(structure, updated), pushBack)
                     }
                 },
                 onSetUserRating = { rating ->
-                    rerenderStructureItem(season.id(), { workflowController.setUserRating(rating) }) {
-                        showSeasonDetail(structure, pushBack)
+                    rerenderStructureItem(season.id(), { workflowController.setUserRating(rating) }) { updated ->
+                        showSeasonDetail(updateSeasonInStructure(structure, updated), pushBack)
                     }
                 },
                 onOpenProviderIdsEditor = {
@@ -747,6 +763,7 @@ class PlaybackRouteController(
             playerNextUpCountdownSeconds = 0
             playerNextUpCancelled = false
             playerAutoSkipTypes.clear()
+            deferredAfmPromptShown = false
             lastOverlayTickKey = ""
             overlayRebuildScheduled = false
             val (offlineFactory, offlineCacheKey) = run {
@@ -855,9 +872,12 @@ class PlaybackRouteController(
      * Retries AFM once if the video format wasn't available at prepare() time.
      * Called from the position-tick callback so we pick up the real frame rate
      * as soon as the demuxer has parsed the stream.
+     *
+     * Uses the same confirmation / skip logic as the immediate path so users
+     * aren't surprised by an unprompted mode switch mid-playback.
      */
     private fun maybeDeferredFrameMatch() {
-        if (displayModeApplier.hasAppliedMode()) return
+        if (displayModeApplier.hasAppliedMode() || deferredAfmPromptShown) return
         val frameRate = playerHost.referenceFrameRate() ?: return
         val settings = playbackSettingsStore.current()
         if (!settings.autoFrameMatching) return
@@ -866,7 +886,14 @@ class PlaybackRouteController(
             matchColorSpace = settings.matchColorSpace,
             enabled = settings.autoFrameMatching,
         ) ?: return
-        displayModeApplier.commitPendingMode(pending)
+        if (settings.confirmBeforeFrameSwitch && !settings.skipFrameSwitchConfirm) {
+            deferredAfmPromptShown = true
+            showAfmConfirmation(pending) {
+                rebuildPlayerOverlayIfNeeded()
+            }
+        } else {
+            displayModeApplier.commitPendingMode(pending)
+        }
     }
 
     private fun onPlayerPositionTick(positionTicks: Long, durationTicks: Long) {
@@ -1259,7 +1286,7 @@ class PlaybackRouteController(
     private fun rerenderStructureItem(
         itemId: String,
         action: () -> Unit,
-        rerender: () -> Unit,
+        rerender: (MediaItemSummary) -> Unit,
     ) {
         val auth = workflowController.state().authenticated()
         var before: MediaItemSummary? = null
@@ -1277,7 +1304,7 @@ class PlaybackRouteController(
             if (ref != null && after != null && auth != null) {
                 dispatchUserDataDeltas(ref, after!!, auth)
             }
-            rerender()
+            after?.let(rerender)
         }
     }
 
@@ -1301,6 +1328,32 @@ class PlaybackRouteController(
         if ((beforeRating ?: -1.0) != (afterRating ?: -1.0) && afterRating != null) {
             pluginHost.dispatchRating(snapshot, afterRating)
         }
+    }
+
+    /**
+     * Returns a copy of [structure] with the season item that matches [updated]'s id
+     * replaced by [updated]. Both the seasons list and selectedSeason are updated.
+     */
+    private fun updateSeasonInStructure(
+        structure: ShowStructure,
+        updated: MediaItemSummary,
+    ): ShowStructure {
+        val updatedSeasons = structure.seasons().map { s ->
+            if (s.id() == updated.id()) updated else s
+        }
+        val newSelected = if (structure.selectedSeason()?.id() == updated.id()) {
+            updated
+        } else {
+            structure.selectedSeason()
+        }
+        return ShowStructure(
+            structure.series(),
+            updatedSeasons,
+            newSelected,
+            structure.episodes(),
+            structure.nextUp(),
+            structure.resumeEpisode(),
+        )
     }
 
     private fun ticksToMs(ticks: Long): Long = if (ticks <= 0L) 0L else ticks / 10_000L

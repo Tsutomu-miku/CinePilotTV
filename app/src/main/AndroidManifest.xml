@@ -38,6 +38,9 @@
                 <data
                     android:scheme="cinepilot"
                     android:host="play" />
+                <data
+                    android:scheme="cinepilot"
+                    android:host="home" />
             </intent-filter>
         </activity>
         <provider
