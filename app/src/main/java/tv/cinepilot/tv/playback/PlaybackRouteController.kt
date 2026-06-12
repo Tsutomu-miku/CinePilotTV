@@ -1162,12 +1162,28 @@ class PlaybackRouteController(
         state: TvAppState,
     ) {
         val current = playbackSettingsStore.current()
+        val audioStreams = playerHost.availableAudioStreams()
+        val subtitleStreams = playerHost.availableSubtitleStreams()
+        val currentAudioIndex = playerHost.currentAudioStreamIndex()
+        val currentSubtitleIndex = playerHost.currentSubtitleStreamIndex()
         activity.setContentView(activity.playbackSettingsScreen(
             current = current,
             focusGroup = focus,
+            audioStreams = audioStreams.takeIf { it.isNotEmpty() },
+            currentAudioStreamIndex = currentAudioIndex,
+            subtitleStreams = subtitleStreams.takeIf { it.isNotEmpty() },
+            currentSubtitleStreamIndex = currentSubtitleIndex,
             onChanged = { updated ->
                 playbackSettingsStore.save(updated)
                 showPlaybackSettingsScreen(focus, state)
+            },
+            onAudioStreamChanged = { index ->
+                playerHost.setAudioStreamIndex(index)
+                showPlaybackSettingsScreen(PlaybackSettingsFocusGroup.AUDIO_TRACK, state)
+            },
+            onSubtitleStreamChanged = { index ->
+                playerHost.setSubtitleStreamIndex(index)
+                showPlaybackSettingsScreen(PlaybackSettingsFocusGroup.SUBTITLE_TRACK, state)
             },
             onBack = {
                 val back = auxiliaryBackAction
