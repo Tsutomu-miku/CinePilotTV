@@ -166,15 +166,22 @@ class PgsSubtitleDecoder : SubtitleDecoder {
                     currentPalette = PgsPalette(entries)
                 }
                 0x15 -> { // ODS — Object Definition Segment
-                    if (segSize < 4) { buf.position(payloadStart + segSize); continue }
+                    if (segSize < 11) { buf.position(payloadStart + segSize); continue }
                     buf.position(payloadStart)
                     val objectId = buf.short.toInt() and 0xFFFF
                     buf.position(buf.position() + 2) // version + flags
                     buf.position(buf.position() + 3) // skip data_length (24-bit)
+                    // ODS payload: object_width (2 bytes) + object_height (2 bytes) + RLE data
+                    val objectWidth = buf.short.toInt() and 0xFFFF
+                    val objectHeight = buf.short.toInt() and 0xFFFF
                     val palette = currentPalette
                     val comp = pendingCompositions.firstOrNull { it.objectId == objectId }
-                    val w = comp?.width ?: 0
-                    val h = comp?.height ?: 0
+                    // Prefer composition dimensions when set (e.g. cropped objects),
+                    // fall back to the ODS native dimensions for unscaled glyphs.
+                    val compW = comp?.width ?: 0
+                    val compH = comp?.height ?: 0
+                    val w = if (compW > 0) compW else objectWidth
+                    val h = if (compH > 0) compH else objectHeight
                     val remaining = (segSize - (buf.position() - payloadStart)).coerceAtLeast(0)
                     if (remaining > 0 && palette != null && w > 0 && h > 0) {
                         val slice = ByteArray(remaining)
@@ -244,20 +251,34 @@ class PgsSubtitleDecoder : SubtitleDecoder {
                             line++
                             px = line * width
                         }
+                        (next and 0x80) != 0 -> {
+                            // Colored run: bit 7 set.
+                            if (next and 0x40 != 0) {
+                                // Extended colored run (0xC0..0xFF): 2-byte length + 1 color byte.
+                                if (buf.remaining() < 2) break
+                                val third = buf.get().toInt() and 0xFF
+                                val color = buf.get().toInt() and 0xFF
+                                val run = ((next and 0x3F) shl 8) or third
+                                val argb = palette.entries[color]
+                                repeat(run) { if (px < pixels.size) pixels[px++] = argb }
+                            } else {
+                                // Short colored run (0x80..0xBF): 6-bit length + 1 color byte.
+                                if (!buf.hasRemaining()) break
+                                val color = buf.get().toInt() and 0xFF
+                                val run = next and 0x3F
+                                val argb = palette.entries[color]
+                                repeat(run) { if (px < pixels.size) pixels[px++] = argb }
+                            }
+                        }
                         (next and 0x40) != 0 -> {
+                            // Extended transparent run (0x40..0x7F): 2-byte length.
                             if (!buf.hasRemaining()) break
                             val third = buf.get().toInt() and 0xFF
                             val run = ((next and 0x3F) shl 8) or third
                             repeat(run) { if (px < pixels.size) pixels[px++] = 0 }
                         }
-                        (next and 0x80) != 0 -> {
-                            if (!buf.hasRemaining()) break
-                            val color = buf.get().toInt() and 0xFF
-                            val run = next and 0x3F
-                            val argb = palette.entries[color]
-                            repeat(run) { if (px < pixels.size) pixels[px++] = argb }
-                        }
                         else -> {
+                            // Short transparent run (0x01..0x3F): 6-bit length.
                             repeat(next) { if (px < pixels.size) pixels[px++] = 0 }
                         }
                     }

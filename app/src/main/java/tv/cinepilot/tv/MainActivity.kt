@@ -156,6 +156,7 @@ class MainActivity : ComponentActivity() {
             playbackRoutes = playbackRoutes,
             homeSettingsStore = homeSettingsStore,
             mediaBrowserClient = viewModel.mediaBrowserClient,
+            executor = executor,
             runTask = ::runTask,
             showHome = ::showHome,
             showAccountSwitcher = ::showAccountSwitcher,
@@ -237,6 +238,7 @@ class MainActivity : ComponentActivity() {
         settingsRoutes.hide()
         accountSwitcherReturnState = null
         homeRoutes.render(state)
+        homeRoutes.refreshGenres()
         // Replay any queued launcher deep link (e.g. cold start from a
         // preview program) now that an authenticated session is available.
         deepLinkRouter.replayPending()

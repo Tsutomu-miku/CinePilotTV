@@ -3,6 +3,7 @@ package tv.cinepilot.tv.home
 import android.view.View
 import android.widget.ImageView
 import androidx.activity.ComponentActivity
+import java.util.concurrent.Executor
 import tv.cinepilot.core.protocol.GenreInfo
 import tv.cinepilot.core.protocol.MediaBrowseFilters
 import tv.cinepilot.core.protocol.MediaItemSummary
@@ -22,6 +23,7 @@ class HomeRouteController(
     private val playbackRoutes: PlaybackRouteController,
     private val homeSettingsStore: HomeSettingsStore,
     private val mediaBrowserClient: tv.cinepilot.core.protocol.MediaBrowserClient,
+    private val executor: Executor,
     private val runTask: (String, () -> Unit, () -> Unit) -> Unit,
     private val showHome: (TvAppState) -> Unit,
     private val showAccountSwitcher: () -> Unit,
@@ -32,11 +34,23 @@ class HomeRouteController(
     private val loadBackdrop: (ImageView, MediaItemSummary, Int, Int) -> Unit,
 ) {
     private var lastFocusedCard: View? = null
+    private var cachedGenreNames: List<String> = emptyList()
+
+    /**
+     * Reloads the genre list for the current view on a background thread.
+     * `genresForCurrentView()` hits the network and must not be called on the UI thread.
+     */
+    fun refreshGenres() {
+        executor.execute {
+            val genres: List<GenreInfo> = runCatching { workflowController.genresForCurrentView() }
+                .getOrDefault(emptyList())
+            val names = genres.map { it.displayName() }
+            activity.runOnUiThread { cachedGenreNames = names }
+        }
+    }
 
     fun render(state: TvAppState) {
         val filters = workflowController.browseFilters()
-        val genres: List<GenreInfo> = workflowController.genresForCurrentView()
-        val availableGenreNames = genres.map { it.displayName() }
         var focusedCard: View? = null
         activity.setContentView(activity.homeRouteScreen(
             state = state,
@@ -44,7 +58,7 @@ class HomeRouteController(
             canPageBackward = workflowController.canPageBackwardInBrowse(),
             canPageForward = workflowController.canPageForwardInBrowse(),
             filters = filters,
-            availableGenreNames = availableGenreNames,
+            availableGenreNames = cachedGenreNames,
             onSearch = { showSearch(state.activeSearchTerm()) },
             onRefresh = ::refreshHome,
             onSwitchAccount = showAccountSwitcher,
@@ -70,6 +84,7 @@ class HomeRouteController(
             workflowController.loadHome(homeSettingsStore.load().showSmartCollections)
         }) {
             val state = workflowController.state()
+            refreshGenres()
             showHome(state)
             state.authenticated()?.let { authenticated ->
                 tv.cinepilot.tv.home.channel.HomeChannelSyncWorker.syncNow(
@@ -108,6 +123,7 @@ class HomeRouteController(
         runTask("正在应用筛选...", {
             workflowController.setBrowseFilters(nextFilters)
         }) {
+            refreshGenres()
             showHome(workflowController.state())
         }
     }
@@ -123,6 +139,7 @@ class HomeRouteController(
     /** Pin view id when focus lands on a scoped row so genre chips are scoped to that view. */
     private fun handleFocusItem(row: HomeRow, item: MediaItemSummary) {
         pinViewIdFromRow(row)
+        refreshGenres()
         workflowController.focusItem(row.id(), item.id())
     }
 
