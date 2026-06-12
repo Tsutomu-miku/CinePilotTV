@@ -126,8 +126,10 @@ class PgsSubtitleDecoder : SubtitleDecoder {
                     if (segSize < 11) { buf.position(payloadStart + segSize); continue }
                     width = buf.short.toInt() and 0xFFFF
                     height = buf.short.toInt() and 0xFFFF
-                    buf.position(buf.position() + 4)
-                    val numObjects = buf.short.toInt() and 0xFFFF
+                    // Skip frame_rate (1) + composition_number (2) + composition_state (1)
+                    // + palette_update_flag (1) + palette_id_ref (1) = 6 bytes.
+                    buf.position(buf.position() + 6)
+                    val numObjects = buf.get().toInt() and 0xFF
                     val comps = mutableListOf<CompositionObject>()
                     repeat(numObjects) {
                         if (buf.position() - payloadStart + 8 > segSize) return@repeat

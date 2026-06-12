@@ -43,7 +43,7 @@ class DeepLinkRouter(
     private fun dispatch(uri: android.net.Uri) {
         when (uri.host) {
             HOST_PLAY -> handlePlay(uri.getQueryParameter(PARAM_ITEM))
-            HOST_HOME -> { /* No-op: default launch goes to home anyway. */ }
+            HOST_HOME -> showHome(workflowController.state())
         }
     }
 

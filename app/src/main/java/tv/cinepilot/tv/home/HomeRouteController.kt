@@ -9,6 +9,7 @@ import tv.cinepilot.core.protocol.MediaBrowseFilters
 import tv.cinepilot.core.protocol.MediaItemSummary
 import tv.cinepilot.core.tv.HomeRow
 import tv.cinepilot.core.tv.TvAppState
+import tv.cinepilot.core.tv.TvRoute
 import tv.cinepilot.core.tv.TvWorkflowController
 import tv.cinepilot.tv.playback.PlaybackRouteController
 import tv.cinepilot.tv.runtime.ArtworkTarget
@@ -39,13 +40,21 @@ class HomeRouteController(
     /**
      * Reloads the genre list for the current view on a background thread.
      * `genresForCurrentView()` hits the network and must not be called on the UI thread.
+     * Re-renders the home screen when the list changes, so chips don't stay stale
+     * after a cold load or when switching to a different view scope.
      */
     fun refreshGenres() {
         executor.execute {
             val genres: List<GenreInfo> = runCatching { workflowController.genresForCurrentView() }
                 .getOrDefault(emptyList())
             val names = genres.map { it.displayName() }
-            activity.runOnUiThread { cachedGenreNames = names }
+            activity.runOnUiThread {
+                if (cachedGenreNames == names) return@runOnUiThread
+                cachedGenreNames = names
+                if (workflowController.state().route() == TvRoute.HOME) {
+                    render(workflowController.state())
+                }
+            }
         }
     }
 
