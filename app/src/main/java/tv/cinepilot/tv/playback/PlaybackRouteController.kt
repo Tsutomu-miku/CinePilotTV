@@ -53,11 +53,13 @@ import tv.cinepilot.tv.ui.isSeason
 import tv.cinepilot.tv.ui.isSeries
 import tv.cinepilot.tv.ui.isSeriesStructureRoot
 import tv.cinepilot.tv.ui.isPlaylist
+import tv.cinepilot.tv.compose.screens.ComposeAfmConfirmationScreen
 import tv.cinepilot.tv.compose.screens.ComposeNextUpInfo
 import tv.cinepilot.tv.compose.screens.ComposeOfflineManagerScreen
 import tv.cinepilot.tv.compose.screens.ComposePlaybackSettingsScreen
 import tv.cinepilot.tv.compose.screens.ComposePlayerScreen
 import tv.cinepilot.tv.compose.screens.ComposeQualityPickerScreen
+import tv.cinepilot.tv.ui.DisplayModeSwitchPrompt
 
 class PlaybackRouteController(
     private val activity: ComponentActivity,
@@ -833,8 +835,8 @@ class PlaybackRouteController(
             },
             onPositionTick = ::onPlayerPositionTick,
         )
-        applyDisplayModeIfNonBlocking(settings, playerHost.referenceFrameRate())
         rebuildPlayerOverlay(state, rebuildRoot = true, playerView = playerView)
+        applyDisplayModeIfNonBlocking(settings, playerHost.referenceFrameRate())
         requestPlayerFocus()
         loadPlayerAuxiliaryDataAsync(selectedItem, settings)
     }
@@ -876,11 +878,62 @@ class PlaybackRouteController(
             enabled = settings.autoFrameMatching,
         ) ?: return
         if (settings.confirmBeforeFrameSwitch && !settings.skipFrameSwitchConfirm) {
-            deferredAfmPromptShown = true
-            toast("已暂不切换显示模式，可在播放设置中关闭确认后自动匹配")
+            showAfmConfirmationSheet(pending)
             return
         }
         displayModeApplier.commitPendingMode(pending)
+    }
+
+    private fun showAfmConfirmationSheet(pending: android.view.Display.Mode) {
+        deferredAfmPromptShown = true
+        val current = playbackSettingsStore.stateFlow.value
+        val currentMode = activity.windowManager.defaultDisplay?.mode ?: return
+        val prompt = DisplayModeSwitchPrompt.from(pending)
+        val currentLabel = buildString {
+            val height = currentMode.physicalHeight
+            when {
+                height >= 2160 -> append("4K")
+                height >= 1080 -> append("1080p")
+                height >= 720 -> append("720p")
+                else -> append("${currentMode.physicalWidth}×${currentMode.physicalHeight}")
+            }
+            append(" ")
+            append(String.format("%.0f Hz", currentMode.refreshRate))
+        }
+
+        fun returnToPlayer() {
+            auxiliaryBackAction = null
+            lastOverlayTickKey = ""
+            playerHost.playerSurfaceView()?.let { playerView ->
+                rebuildPlayerOverlay(workflowController.state(), rebuildRoot = true, playerView = playerView)
+            }
+        }
+
+        auxiliaryBackAction = {
+            returnToPlayer()
+        }
+
+        renderCompose("切换显示模式") { palette ->
+            ComposeAfmConfirmationScreen(
+                palette = palette,
+                prompt = prompt,
+                currentModeLabel = currentLabel,
+                onSwitchNow = {
+                    displayModeApplier.commitPendingMode(pending)
+                    returnToPlayer()
+                },
+                onSkipOnce = {
+                    returnToPlayer()
+                },
+                onAlwaysSkip = {
+                    activity.lifecycleScope.launch {
+                        playbackSettingsStore.saveAsync(current.copy(skipFrameSwitchConfirm = true))
+                    }
+                    displayModeApplier.commitPendingMode(pending)
+                    returnToPlayer()
+                },
+            )
+        }
     }
 
     private fun requestPlayerFocus() {
