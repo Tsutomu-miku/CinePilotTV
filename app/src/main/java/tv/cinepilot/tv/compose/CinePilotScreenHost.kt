@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.text.BasicText
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -17,6 +18,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.viewinterop.AndroidView
+import kotlinx.coroutines.flow.StateFlow
 import tv.cinepilot.tv.compose.components.ImmersiveStage
 import tv.cinepilot.tv.compose.theme.CinePilotComposeTheme
 import tv.cinepilot.tv.compose.theme.CinePilotPalette
@@ -26,16 +28,17 @@ import tv.cinepilot.tv.settings.AppTheme
 
 class CinePilotScreenHost(
     private val activity: ComponentActivity,
-    private val currentTheme: () -> AppTheme,
+    private val themeFlow: StateFlow<AppTheme>,
 ) {
     private var screen by mutableStateOf<CinePilotScreen>(CinePilotScreen.Loading("正在启动..."))
     private var legacyKey by mutableIntStateOf(0)
 
     fun install() {
         activity.setContent {
+            val theme by themeFlow.collectAsState()
             CinePilotApp(
                 screen = screen,
-                theme = currentTheme(),
+                theme = theme,
             )
         }
     }
