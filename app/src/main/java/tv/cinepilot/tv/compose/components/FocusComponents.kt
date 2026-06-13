@@ -45,8 +45,10 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.text.BasicText
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.Image
+import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.res.painterResource
@@ -306,9 +308,27 @@ fun TvTextField(
     hint: String,
     modifier: Modifier = Modifier,
     password: Boolean = false,
+    requestInitialFocus: Boolean = false,
+    selectAllOnFocus: Boolean = false,
     onValueChange: (String) -> Unit,
 ) {
     var focused by remember { mutableStateOf(false) }
+    val focusRequester = remember { FocusRequester() }
+    var textFieldValue by remember(value) { mutableStateOf(TextFieldValue(value)) }
+
+    // Keep internal TextFieldValue in sync with external String value (preserve selection).
+    LaunchedEffect(value) {
+        if (textFieldValue.text != value) {
+            textFieldValue = textFieldValue.copy(text = value)
+        }
+    }
+
+    LaunchedEffect(Unit) {
+        if (requestInitialFocus) {
+            focusRequester.requestFocus()
+        }
+    }
+
     val shape = RoundedCornerShape(TvDp.ControlRadius)
     Box(
         modifier = modifier
@@ -317,11 +337,18 @@ fun TvTextField(
             .clip(shape)
             .background(if (focused) palette.glassFocus else palette.glass, shape)
             .border(BorderStroke(if (focused) 2.dp else 1.dp, if (focused) palette.focusRing else palette.glassBorder), shape)
-            .onFocusChanged { focused = it.isFocused }
+            .onFocusChanged {
+                focused = it.isFocused
+                if (it.isFocused && selectAllOnFocus && textFieldValue.text.isNotEmpty()) {
+                    textFieldValue = textFieldValue.copy(
+                        selection = TextRange(0, textFieldValue.text.length),
+                    )
+                }
+            }
             .padding(horizontal = 16.dp),
         contentAlignment = Alignment.CenterStart,
     ) {
-        if (value.isBlank()) {
+        if (textFieldValue.text.isBlank()) {
             BasicText(
                 text = hint,
                 maxLines = 1,
@@ -330,12 +357,17 @@ fun TvTextField(
             )
         }
         BasicTextField(
-            value = value,
-            onValueChange = onValueChange,
+            value = textFieldValue,
+            onValueChange = {
+                textFieldValue = it
+                onValueChange(it.text)
+            },
             singleLine = true,
             textStyle = TextStyle(color = palette.textPrimary, fontSize = TvText.Body),
             visualTransformation = if (password) PasswordVisualTransformation() else VisualTransformation.None,
-            modifier = Modifier.fillMaxWidth(),
+            modifier = Modifier
+                .fillMaxWidth()
+                .focusRequester(focusRequester),
         )
     }
 }

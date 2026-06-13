@@ -44,9 +44,9 @@ import tv.cinepilot.tv.runtime.DeviceCodecDiagnostics
 import tv.cinepilot.tv.offline.DownloadCoordinator
 import tv.cinepilot.core.protocol.OfflineRepository as CoreOfflineRepo
 import tv.cinepilot.tv.subtitle.SubtitleCache
+import tv.cinepilot.tv.compose.screens.ComposeProviderIdEditorScreen
 import tv.cinepilot.tv.ui.ProviderIdEditorEntry
 import tv.cinepilot.tv.ui.buildProviderIdEditorEntries
-import tv.cinepilot.tv.ui.providerIdsEditorSheet
 import tv.cinepilot.tv.playback.PlaybackSettingsFocusGroup
 import tv.cinepilot.tv.ui.isEpisode
 import tv.cinepilot.tv.ui.isSeason
@@ -1500,37 +1500,40 @@ class PlaybackRouteController(
         val values: Map<String, String> = currentItem.providerIds()?.toMap()
             ?: emptyMap()
         val entries: List<ProviderIdEditorEntry> = buildProviderIdEditorEntries(values)
-        renderView(activity.providerIdsEditorSheet(
-            entries = entries,
-            onCancel = rerender,
-            onSave = { next, refresh ->
-                runTask("正在保存编号...", {
-                    if (workflowController.state().selectedItem()?.id() != currentItem.id()) {
-                        runCatching { workflowController.openItem(currentItem.id()) }
-                    }
-                    // Merge the user-supplied edits into the existing provider-id map; keys
-                    // the user has cleared out of the editor are removed from the full map.
-                    val merged = mutableMapOf<String, String>()
-                    values.forEach { (k, v) -> merged[k] = v }
-                    entries.forEach { entry ->
-                        val newVal = next[entry.key]
-                        if (newVal == null) {
-                            merged.remove(entry.key)
-                        } else {
-                            merged[entry.key] = newVal
+        renderCompose("修正 Provider Id") { palette ->
+            ComposeProviderIdEditorScreen(
+                palette = palette,
+                entries = entries,
+                onCancel = rerender,
+                onSave = { next, refresh ->
+                    runTask("正在保存编号...", {
+                        if (workflowController.state().selectedItem()?.id() != currentItem.id()) {
+                            runCatching { workflowController.openItem(currentItem.id()) }
                         }
-                    }
-                    workflowController.setProviderIdsForSelectedItem(merged)
-                    if (refresh) {
-                        runCatching {
-                            workflowController.refreshMetadataForSelectedItem(true)
+                        // Merge the user-supplied edits into the existing provider-id map; keys
+                        // the user has cleared out of the editor are removed from the full map.
+                        val merged = mutableMapOf<String, String>()
+                        values.forEach { (k, v) -> merged[k] = v }
+                        entries.forEach { entry ->
+                            val newVal = next[entry.key]
+                            if (newVal == null) {
+                                merged.remove(entry.key)
+                            } else {
+                                merged[entry.key] = newVal
+                            }
                         }
+                        workflowController.setProviderIdsForSelectedItem(merged)
+                        if (refresh) {
+                            runCatching {
+                                workflowController.refreshMetadataForSelectedItem(true)
+                            }
+                        }
+                    }) {
+                        rerender()
                     }
-                }) {
-                    rerender()
-                }
-            },
-        ))
+                },
+            )
+        }
     }
 }
 
