@@ -91,7 +91,7 @@ class PlaybackRouteController(
         pluginHost = pluginHost,
         subtitleCache = SubtitleCache(activity),
         runTask = runTask,
-        renderView = renderView,
+        renderCompose = renderCompose,
         setAuxiliaryBackAction = { action -> auxiliaryBackAction = action },
     )
     private val playlists = PlaylistController(

@@ -98,9 +98,11 @@ class HomeSettingsStore(context: Context) {
         )
     }
 
-    val stateFlow: StateFlow<HomeSettings> by lazy {
-        flow.stateIn(storeScope, SharingStarted.Eagerly, load())
-    }
+    val stateFlow: StateFlow<HomeSettings> = flow.stateIn(
+        scope = storeScope,
+        started = SharingStarted.Eagerly,
+        initialValue = HomeSettings.defaults(),
+    )
 
     private fun <T> read(block: (Preferences) -> T): T = runBlocking(Dispatchers.IO) {
         dataStore.data.map(block).first()

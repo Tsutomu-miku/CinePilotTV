@@ -161,9 +161,11 @@ class PlaybackSettingsStore(context: Context) {
         )
     }
 
-    val stateFlow: StateFlow<PlaybackSettings> by lazy {
-        flow.stateIn(storeScope, SharingStarted.Eagerly, current())
-    }
+    val stateFlow: StateFlow<PlaybackSettings> = flow.stateIn(
+        scope = storeScope,
+        started = SharingStarted.Eagerly,
+        initialValue = PlaybackSettings.defaults(),
+    )
 
     private fun <T> read(block: (Preferences) -> T): T = runBlocking(Dispatchers.IO) {
         dataStore.data.map(block).first()

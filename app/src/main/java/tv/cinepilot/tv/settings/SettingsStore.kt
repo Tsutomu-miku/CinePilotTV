@@ -54,9 +54,11 @@ class SettingsStore(context: Context) {
         AppTheme.fromId(prefs[KEY_THEME])
     }
 
-    val stateFlow: StateFlow<AppTheme> by lazy {
-        flow.stateIn(storeScope, SharingStarted.Eagerly, theme())
-    }
+    val stateFlow: StateFlow<AppTheme> = flow.stateIn(
+        scope = storeScope,
+        started = SharingStarted.Eagerly,
+        initialValue = AppTheme.defaults(),
+    )
 
     private fun <T> read(block: (Preferences) -> T): T = runBlocking(Dispatchers.IO) {
         dataStore.data.map(block).first()

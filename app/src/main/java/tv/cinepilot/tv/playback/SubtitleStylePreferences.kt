@@ -179,9 +179,11 @@ class SubtitleStyleStore(context: Context) {
         )
     }
 
-    val stateFlow: StateFlow<SubtitleStylePreferences> by lazy {
-        flow.stateIn(storeScope, SharingStarted.Eagerly, current())
-    }
+    val stateFlow: StateFlow<SubtitleStylePreferences> = flow.stateIn(
+        scope = storeScope,
+        started = SharingStarted.Eagerly,
+        initialValue = SubtitleStylePreferences.defaults(),
+    )
 
     private fun <T> read(block: (Preferences) -> T): T = runBlocking(Dispatchers.IO) {
         dataStore.data.map(block).first()

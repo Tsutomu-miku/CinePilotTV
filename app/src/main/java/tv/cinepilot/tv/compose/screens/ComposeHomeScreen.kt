@@ -155,6 +155,45 @@ fun ComposeHomeScreen(
         }
     }
 
+    /**
+     * Move focus up one row. Returns true if the move was handled.
+     * If at row 0, returns false so focus can move to the top bar naturally.
+     */
+    fun moveUp(): Boolean {
+        if (focusedRowIndex > 0) {
+            val nextRow = focusedRowIndex - 1
+            val row = displayRows[nextRow]
+            val items = row.items()
+            if (items.isEmpty()) return false
+            val clampedIndex = focusedItemIndex.coerceIn(0, items.lastIndex)
+            focusedRowIndex = nextRow
+            focusedItemIndex = clampedIndex
+            onFocusItem(row, items[clampedIndex])
+            runCatching { railFocusRequesters[nextRow].requestFocus() }
+            return true
+        }
+        return false
+    }
+
+    /**
+     * Move focus down one row. Returns true if the move was handled.
+     */
+    fun moveDown(): Boolean {
+        if (focusedRowIndex < displayRows.lastIndex) {
+            val nextRow = focusedRowIndex + 1
+            val row = displayRows[nextRow]
+            val items = row.items()
+            if (items.isEmpty()) return false
+            val clampedIndex = focusedItemIndex.coerceIn(0, items.lastIndex)
+            focusedRowIndex = nextRow
+            focusedItemIndex = clampedIndex
+            onFocusItem(row, items[clampedIndex])
+            runCatching { railFocusRequesters[nextRow].requestFocus() }
+            return true
+        }
+        return false
+    }
+
     val backdrop = rememberArtworkRequest(
         factory = artworkFactory,
         authenticated = state.authenticated(),
@@ -203,6 +242,8 @@ fun ComposeHomeScreen(
                         focusRequester = railFocusRequesters[rowIndex],
                         onRowFocused = { onRowFocused(rowIndex) },
                         onItemIndexChanged = { itemIndex -> onItemIndexChanged(rowIndex, itemIndex) },
+                        onMoveUp = ::moveUp,
+                        onMoveDown = ::moveDown,
                         onOpen = { itemIndex -> openItem(rowIndex, itemIndex) },
                     )
                 }
@@ -325,6 +366,8 @@ private fun HomeMediaRow(
     focusRequester: FocusRequester,
     onRowFocused: () -> Unit,
     onItemIndexChanged: (Int) -> Unit,
+    onMoveUp: () -> Boolean,
+    onMoveDown: () -> Boolean,
     onOpen: (itemIndex: Int) -> Unit,
 ) {
     val isFocusedRow = rowIndex == focusedRowIndex
@@ -351,8 +394,8 @@ private fun HomeMediaRow(
     /**
      * Handles key events for this rail. Only called when the rail container
      * has actual focus. Manages horizontal logical focus and Enter action.
-     * UP/DOWN are not consumed here - they fall through to Compose's default
-     * focus traversal, which moves focus between rows and the top bar.
+     * UP/DOWN are handled via parent callbacks for reliable vertical navigation
+     * between rows and the top bar.
      */
     fun handleKey(key: Key): Boolean {
         if (!isFocusedRow) return false
@@ -371,6 +414,8 @@ private fun HomeMediaRow(
                     true
                 } else false
             }
+            Key.DirectionUp -> onMoveUp()
+            Key.DirectionDown -> onMoveDown()
             Key.DirectionCenter, Key.Enter, Key.NumPadEnter -> {
                 val safeIndex = focusedItemIndex.coerceIn(0, items.lastIndex)
                 onOpen(safeIndex)
