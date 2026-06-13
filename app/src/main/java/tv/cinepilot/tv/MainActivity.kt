@@ -69,7 +69,7 @@ class MainActivity : ComponentActivity() {
         settingsStore = SettingsStore(this)
         homeSettingsStore = HomeSettingsStore(this)
         TvColors.applyTheme(settingsStore.theme().id)
-        screenHost = CinePilotScreenHost(this) { settingsStore.theme() }
+        screenHost = CinePilotScreenHost(this, settingsStore.stateFlow)
         screenHost.install()
         viewModel = ViewModelProvider(this, CinePilotViewModel.factory(applicationContext))[CinePilotViewModel::class.java]
         pluginHost = PluginHost.create(this)
