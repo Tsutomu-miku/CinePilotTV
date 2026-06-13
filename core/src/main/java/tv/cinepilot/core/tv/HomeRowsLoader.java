@@ -16,11 +16,11 @@ public final class HomeRowsLoader {
     private final int smartCollectionsPerRow;
 
     public HomeRowsLoader(MediaBrowserClient client) {
-        this(client, 24, 6);
+        this(client, 12, 3);
     }
 
     public HomeRowsLoader(MediaBrowserClient client, int rowLimit) {
-        this(client, rowLimit, 6);
+        this(client, rowLimit, 3);
     }
 
     public HomeRowsLoader(MediaBrowserClient client, int rowLimit, int smartCollectionsPerRow) {
@@ -59,7 +59,8 @@ public final class HomeRowsLoader {
     ) {
         MediaBrowseFilters safeFilters = filters == null ? MediaBrowseFilters.EMPTY : filters;
         List<HomeRow> rows = new ArrayList<>();
-        addIfNotEmpty(rows, "views", "媒体库", client.userViews(authenticated).items());
+        MediaItemPage views = client.userViews(authenticated);
+        addIfNotEmpty(rows, "views", "媒体库", views.items());
         if (!safeFilters.isStrict()) {
             addIfNotEmpty(rows, "resume", "继续观看", client.resumeItems(authenticated, rowLimit).items());
             addIfNotEmpty(rows, "next-up", "下一集", client.nextUpItems(authenticated, rowLimit).items());
@@ -83,7 +84,6 @@ public final class HomeRowsLoader {
             }
         }
 
-        MediaItemPage views = client.userViews(authenticated);
         for (MediaItemSummary view : views.items()) {
             if (view.id().isBlank()) {
                 continue;

@@ -3,11 +3,11 @@ package tv.cinepilot.tv.runtime
 import android.content.Context
 import android.provider.Settings
 import java.nio.file.Path
+import okhttp3.OkHttpClient
 import tv.cinepilot.core.protocol.ClientIdentity
 import tv.cinepilot.core.protocol.FileSessionRepository
 import tv.cinepilot.core.protocol.MediaBrowserClient
 import tv.cinepilot.core.protocol.OfflineRepository
-import tv.cinepilot.core.protocol.UrlConnectionHttpTransport
 import tv.cinepilot.core.tv.FileHomeRowsCache
 import tv.cinepilot.core.tv.HomeRowsLoader
 import tv.cinepilot.core.tv.TvAppState
@@ -22,6 +22,7 @@ class CinePilotRuntime private constructor(
     val offlineRepository: OfflineRepository,
     val deviceCodecDiagnostics: DeviceCodecDiagnostics,
     val initialState: TvAppState,
+    val okHttpClient: OkHttpClient,
     val bitmapCache: BitmapCache,
     val homeRowsCache: FileHomeRowsCache,
 ) {
@@ -37,8 +38,10 @@ class CinePilotRuntime private constructor(
             val filesDir: Path = appContext.filesDir.toPath()
             val sessionFile: Path = filesDir.resolve("sessions.properties")
             val homeRowsDir: Path = filesDir.resolve("home-rows")
+            val okHttpClient = CinePilotNetwork.createClient(appContext)
+            CinePilotNetwork.installImageLoader(appContext, okHttpClient)
             val mediaBrowserClient = MediaBrowserClient(
-                UrlConnectionHttpTransport(),
+                OkHttpTransport(okHttpClient),
                 FileSessionRepository(sessionFile),
                 clientIdentity,
             )
@@ -58,6 +61,7 @@ class CinePilotRuntime private constructor(
                 offlineRepository = offlineRepository,
                 deviceCodecDiagnostics = deviceCodecDiagnostics,
                 initialState = TvAppState.initial(),
+                okHttpClient = okHttpClient,
                 bitmapCache = bitmapCache,
                 homeRowsCache = homeRowsCache,
             ).also { CinePilotRuntimeHolder.attach(it) }

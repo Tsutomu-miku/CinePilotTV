@@ -1,5 +1,6 @@
 package tv.cinepilot.tv.runtime
 
+import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.widget.ImageView
 import androidx.activity.ComponentActivity
@@ -66,6 +67,34 @@ class ArtworkLoader(
         }
     }
 
+    fun loadArtworkBitmap(
+        owner: ComponentActivity,
+        authenticated: AuthenticatedServer?,
+        item: MediaItemSummary,
+        artworkTarget: ArtworkTarget,
+        width: Int,
+        height: Int,
+        onLoaded: (Bitmap?) -> Unit,
+    ) {
+        if (authenticated == null) {
+            onLoaded(null)
+            return
+        }
+        val url = when (artworkTarget) {
+            ArtworkTarget.POSTER -> {
+                if (item.imageTags()["Primary"].isNullOrBlank()) return onLoaded(null)
+                mediaBrowserClient.primaryImageUrl(authenticated, item, width, height)
+            }
+            ArtworkTarget.LANDSCAPE,
+            ArtworkTarget.BACKDROP,
+            ArtworkTarget.COLLECTION -> {
+                if (!item.hasBackdropArtwork()) return onLoaded(null)
+                mediaBrowserClient.backdropImageUrl(authenticated, item, width, height)
+            }
+        }
+        loadBitmap(owner, url, onLoaded)
+    }
+
     fun loadPerson(
         owner: ComponentActivity,
         authenticated: AuthenticatedServer?,
@@ -92,7 +121,7 @@ class ArtworkLoader(
             return
         }
         target.tag = url
-        bitmapCache.get(url)?.let { cached ->
+        bitmapCache.getMemory(url)?.let { cached ->
             target.setImageBitmap(cached)
             return
         }
@@ -123,6 +152,45 @@ class ArtworkLoader(
                     if (!owner.isFinishing && !owner.isDestroyed && target.tag == url) {
                         target.setImageBitmap(bitmap)
                     }
+                }
+            }
+        }
+    }
+
+    private fun loadBitmap(owner: ComponentActivity, url: String, onLoaded: (Bitmap?) -> Unit) {
+        if (url.isBlank()) {
+            onLoaded(null)
+            return
+        }
+        bitmapCache.getMemory(url)?.let {
+            onLoaded(it)
+            return
+        }
+        executor.execute {
+            bitmapCache.get(url)?.let { cached ->
+                owner.runOnUiThread {
+                    if (!owner.isFinishing && !owner.isDestroyed) {
+                        onLoaded(cached)
+                    }
+                }
+                return@execute
+            }
+            val bitmap = runCatching {
+                val connection = URL(url).openConnection() as HttpURLConnection
+                connection.connectTimeout = 3_000
+                connection.readTimeout = 5_000
+                try {
+                    connection.inputStream.use(BitmapFactory::decodeStream)
+                } finally {
+                    connection.disconnect()
+                }
+            }.getOrNull()
+            if (bitmap != null) {
+                bitmapCache.put(url, bitmap)
+            }
+            owner.runOnUiThread {
+                if (!owner.isFinishing && !owner.isDestroyed) {
+                    onLoaded(bitmap)
                 }
             }
         }

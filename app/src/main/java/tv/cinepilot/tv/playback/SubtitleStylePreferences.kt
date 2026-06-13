@@ -1,9 +1,34 @@
 package tv.cinepilot.tv.playback
 
 import android.content.Context
-import android.content.SharedPreferences
 import android.graphics.Color
 import android.graphics.Typeface
+import androidx.datastore.core.DataStore
+import androidx.datastore.preferences.SharedPreferencesMigration
+import androidx.datastore.preferences.core.Preferences
+import androidx.datastore.preferences.core.edit
+import androidx.datastore.preferences.core.floatPreferencesKey
+import androidx.datastore.preferences.core.stringPreferencesKey
+import androidx.datastore.preferences.preferencesDataStore
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.runBlocking
+
+private const val SUBTITLE_STYLE_PREFERENCES_NAME = "subtitle_style"
+
+private val Context.subtitleStyleDataStore: DataStore<Preferences> by preferencesDataStore(
+    name = "subtitle_style_datastore",
+    produceMigrations = { context ->
+        listOf(SharedPreferencesMigration(context, SUBTITLE_STYLE_PREFERENCES_NAME))
+    },
+)
 
 data class SubtitleStylePreferences(
     val size: SubtitleTextSize,
@@ -96,39 +121,77 @@ enum class SubtitleTextOpacity(override val label: String, val alpha: Int) : Lab
 }
 
 class SubtitleStyleStore(context: Context) {
-    private val preferences: SharedPreferences = context.applicationContext.getSharedPreferences(
-        "subtitle_style",
-        Context.MODE_PRIVATE,
-    )
+    private val dataStore = context.applicationContext.subtitleStyleDataStore
+    private val storeScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
 
     fun current(): SubtitleStylePreferences {
-        return SubtitleStylePreferences(
-            size = enumValue("size", SubtitleTextSize.STANDARD),
-            color = enumValue("color", SubtitleTextColor.WHITE),
-            background = enumValue("background", SubtitleBackground.SHADOW),
-            fontFamily = enumValue("fontFamily", SubtitleFontFamily.DEFAULT_BOLD),
-            edgeStyle = enumValue("edgeStyle", SubtitleEdgeStyle.AUTO),
-            bottomMargin = enumValue("bottomMargin", SubtitleBottomMargin.STANDARD),
-            textOpacity = enumValue("textOpacity", SubtitleTextOpacity.OPAQUE),
-            letterSpacingDp = preferences.getFloat("letterSpacingDp", 0f),
-        )
+        return read { preferences ->
+            SubtitleStylePreferences(
+                size = enumValue(preferences[KEY_SIZE], SubtitleTextSize.STANDARD),
+                color = enumValue(preferences[KEY_COLOR], SubtitleTextColor.WHITE),
+                background = enumValue(preferences[KEY_BACKGROUND], SubtitleBackground.SHADOW),
+                fontFamily = enumValue(preferences[KEY_FONT_FAMILY], SubtitleFontFamily.DEFAULT_BOLD),
+                edgeStyle = enumValue(preferences[KEY_EDGE_STYLE], SubtitleEdgeStyle.AUTO),
+                bottomMargin = enumValue(preferences[KEY_BOTTOM_MARGIN], SubtitleBottomMargin.STANDARD),
+                textOpacity = enumValue(preferences[KEY_TEXT_OPACITY], SubtitleTextOpacity.OPAQUE),
+                letterSpacingDp = preferences[KEY_LETTER_SPACING_DP] ?: 0f,
+            )
+        }
     }
 
     fun save(value: SubtitleStylePreferences) {
-        preferences.edit()
-            .putString("size", value.size.name)
-            .putString("color", value.color.name)
-            .putString("background", value.background.name)
-            .putString("fontFamily", value.fontFamily.name)
-            .putString("edgeStyle", value.edgeStyle.name)
-            .putString("bottomMargin", value.bottomMargin.name)
-            .putString("textOpacity", value.textOpacity.name)
-            .putFloat("letterSpacingDp", value.letterSpacingDp)
-            .apply()
+        write { preferences ->
+            preferences[KEY_SIZE] = value.size.name
+            preferences[KEY_COLOR] = value.color.name
+            preferences[KEY_BACKGROUND] = value.background.name
+            preferences[KEY_FONT_FAMILY] = value.fontFamily.name
+            preferences[KEY_EDGE_STYLE] = value.edgeStyle.name
+            preferences[KEY_BOTTOM_MARGIN] = value.bottomMargin.name
+            preferences[KEY_TEXT_OPACITY] = value.textOpacity.name
+            preferences[KEY_LETTER_SPACING_DP] = value.letterSpacingDp
+        }
     }
 
-    private inline fun <reified T : Enum<T>> enumValue(key: String, default: T): T {
-        val rawValue = preferences.getString(key, default.name) ?: default.name
-        return enumValues<T>().firstOrNull { it.name == rawValue } ?: default
+    val flow: Flow<SubtitleStylePreferences> = dataStore.data.map { prefs ->
+        SubtitleStylePreferences(
+            size = enumValue(prefs[KEY_SIZE], SubtitleTextSize.STANDARD),
+            color = enumValue(prefs[KEY_COLOR], SubtitleTextColor.WHITE),
+            background = enumValue(prefs[KEY_BACKGROUND], SubtitleBackground.SHADOW),
+            fontFamily = enumValue(prefs[KEY_FONT_FAMILY], SubtitleFontFamily.DEFAULT_BOLD),
+            edgeStyle = enumValue(prefs[KEY_EDGE_STYLE], SubtitleEdgeStyle.AUTO),
+            bottomMargin = enumValue(prefs[KEY_BOTTOM_MARGIN], SubtitleBottomMargin.STANDARD),
+            textOpacity = enumValue(prefs[KEY_TEXT_OPACITY], SubtitleTextOpacity.OPAQUE),
+            letterSpacingDp = prefs[KEY_LETTER_SPACING_DP] ?: 0f,
+        )
+    }
+
+    val stateFlow: StateFlow<SubtitleStylePreferences> by lazy {
+        flow.stateIn(storeScope, SharingStarted.Eagerly, current())
+    }
+
+    private fun <T> read(block: (Preferences) -> T): T = runBlocking(Dispatchers.IO) {
+        dataStore.data.map(block).first()
+    }
+
+    private fun write(block: (androidx.datastore.preferences.core.MutablePreferences) -> Unit) {
+        runBlocking(Dispatchers.IO) {
+            dataStore.edit { preferences -> block(preferences) }
+        }
+    }
+
+    private inline fun <reified T : Enum<T>> enumValue(rawValue: String?, default: T): T {
+        val raw = rawValue ?: default.name
+        return enumValues<T>().firstOrNull { it.name == raw } ?: default
+    }
+
+    private companion object {
+        val KEY_SIZE = stringPreferencesKey("size")
+        val KEY_COLOR = stringPreferencesKey("color")
+        val KEY_BACKGROUND = stringPreferencesKey("background")
+        val KEY_FONT_FAMILY = stringPreferencesKey("fontFamily")
+        val KEY_EDGE_STYLE = stringPreferencesKey("edgeStyle")
+        val KEY_BOTTOM_MARGIN = stringPreferencesKey("bottomMargin")
+        val KEY_TEXT_OPACITY = stringPreferencesKey("textOpacity")
+        val KEY_LETTER_SPACING_DP = floatPreferencesKey("letterSpacingDp")
     }
 }

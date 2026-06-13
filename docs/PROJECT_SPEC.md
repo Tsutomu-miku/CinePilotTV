@@ -10,7 +10,7 @@ CinePilot TV 应该像一个原生 Android TV 媒体播放器，同时严格保�
 2. **工程洁癖**：UI / 协议强隔离（scripts/check.sh Rule A/B grep 守卫 + MediaPresentation/DetailPresentation adapter），服务器路径字面量不泄漏到 UI，UI 不导入原始 `MediaItemType`。
 3. **Infuse 化信息架构**：CinematicStage + MediaWall + compact selector + side sheet + FocusOverflow，彻底告别"居中大卡片 / 全屏选择菜单"。
 4. **播放源选择器 6 层 DirectPlay 优先**：与 Infuse 社区公认的"不做不必要转码"哲学一致。
-5. **单平台 Android TV，不做 iOS/tvOS**：原生 Android View，无 Compose，无跨平台，聚焦一个平台做极致。
+5. **单平台 Android TV，不做 iOS/tvOS**：Jetpack Compose 是主 UI 层，Android View 只用于 Media3 / 平台桥接，不做跨平台。
 6. **明确不进入 Live TV / DVR**（见 `docs/ROADMAP.md` 退出条件）、不做多服务器联邦、不做 Apple 平台特性。
 
 **竞品参考文档**：`docs/COMPETITIVE_MATRIX.md`（四维能力对比 + 差距分析 + P1/P2 遴选）。
@@ -25,7 +25,7 @@ CinePilot TV 应该像一个原生 Android TV 媒体播放器，同时严格保�
 - 状态转换放进类型化 action 或领域函数中。
 - TV 界面状态和焦点身份先放在 JVM 可测试 workflow 中，再由 Android UI 渲染。
 - Android ViewModel 应调用 `TvWorkflowController`，不要在 UI 层直接编排协议请求。
-- 在 Compose/Media3 完整 UI 接入前，允许 `MainActivity` 使用原生 View 承载最小可用流程，但业务状态仍必须走 core controller。
+- Android TV UI 使用自定义 Compose 设计系统；业务状态仍必须走 core controller，Media3 `PlayerView` 通过平台桥接承载。
 - 新行为进入 Android runtime 前，应尽量能通过 `./scripts/check.sh` 测试。
 - 优先修复身份、生命周期和适配器边界的根因问题。
 

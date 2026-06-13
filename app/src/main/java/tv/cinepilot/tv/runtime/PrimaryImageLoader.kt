@@ -1,5 +1,6 @@
 package tv.cinepilot.tv.runtime
 
+import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.widget.ImageView
 import androidx.activity.ComponentActivity
@@ -50,6 +51,21 @@ class PrimaryImageLoader(
         }
     }
 
+    fun loadPublicUserBitmap(
+        owner: ComponentActivity,
+        server: ServerIdentity?,
+        user: PublicUserSummary,
+        width: Int,
+        height: Int,
+        onLoaded: (Bitmap?) -> Unit,
+    ) {
+        if (server == null || user.primaryImageTag().isBlank()) {
+            onLoaded(null)
+            return
+        }
+        loadBitmap(owner, mediaBrowserClient.publicUserImageUrl(server, user, width, height), onLoaded)
+    }
+
     fun shutdown() {
         executor.shutdownNow()
     }
@@ -60,7 +76,7 @@ class PrimaryImageLoader(
             return
         }
         target.tag = url
-        bitmapCache.get(url)?.let { cached ->
+        bitmapCache.getMemory(url)?.let { cached ->
             target.setImageBitmap(cached)
             return
         }
@@ -90,6 +106,45 @@ class PrimaryImageLoader(
                     if (!owner.isFinishing && !owner.isDestroyed && target.tag == url) {
                         target.setImageBitmap(bitmap)
                     }
+                }
+            }
+        }
+    }
+
+    private fun loadBitmap(owner: ComponentActivity, url: String, onLoaded: (Bitmap?) -> Unit) {
+        if (url.isBlank()) {
+            onLoaded(null)
+            return
+        }
+        bitmapCache.getMemory(url)?.let {
+            onLoaded(it)
+            return
+        }
+        executor.execute {
+            bitmapCache.get(url)?.let { cached ->
+                owner.runOnUiThread {
+                    if (!owner.isFinishing && !owner.isDestroyed) {
+                        onLoaded(cached)
+                    }
+                }
+                return@execute
+            }
+            val bitmap = runCatching {
+                val connection = URL(url).openConnection() as HttpURLConnection
+                connection.connectTimeout = 3_000
+                connection.readTimeout = 5_000
+                try {
+                    connection.inputStream.use(BitmapFactory::decodeStream)
+                } finally {
+                    connection.disconnect()
+                }
+            }.getOrNull()
+            if (bitmap != null) {
+                bitmapCache.put(url, bitmap)
+            }
+            owner.runOnUiThread {
+                if (!owner.isFinishing && !owner.isDestroyed) {
+                    onLoaded(bitmap)
                 }
             }
         }

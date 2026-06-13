@@ -165,9 +165,8 @@ public final class TvWorkflowTest {
                 """);
         transport.enqueue(200, """
                 {"Items":[
-                  {"Id":"movies","Name":"Movies","Type":"CollectionFolder","IsFolder":true},
-                  {"Id":"series","Name":"Series","Type":"CollectionFolder","IsFolder":true}
-                ],"TotalRecordCount":2,"StartIndex":0}
+                  {"Id":"coll-child-1","Name":"Collection Child","Type":"Movie","IsPlayable":true}
+                ],"TotalRecordCount":1,"StartIndex":0}
                 """);
         transport.enqueue(200, """
                 {"Items":[
@@ -186,7 +185,7 @@ public final class TvWorkflowTest {
 
         HomeRowsLoader loader = new HomeRowsLoader(mediaClient, 12);
         List<HomeRow> rows = loader.load(authenticated);
-        assertEquals(8, rows.size(), "home row count");
+        assertEquals(9, rows.size(), "home row count");
         assertEquals("views", rows.get(0).id(), "views row id");
         assertEquals("resume", rows.get(1).id(), "resume row id");
         assertEquals("next-up", rows.get(2).id(), "next up row id");
@@ -194,12 +193,14 @@ public final class TvWorkflowTest {
         assertEquals("collections", rows.get(4).id(), "collections row id");
         assertEquals("playlists", rows.get(5).id(), "playlists row id");
         assertEquals("smart-collection:coll-1", rows.get(6).id(), "smart collection row id");
-        assertEquals("latest:movie-1", rows.get(7).id(), "latest row id");
+        assertEquals("latest:movies", rows.get(7).id(), "movie latest row id");
+        assertEquals("latest:series", rows.get(8).id(), "series latest row id");
         assertEquals("resume-1", rows.get(1).items().get(0).id(), "resume item id");
         assertEquals("next-1", rows.get(2).items().get(0).id(), "next up item id");
         assertEquals("fav-1", rows.get(3).items().get(0).id(), "favorites item id");
         assertEquals("coll-1", rows.get(4).items().get(0).id(), "collections item id");
         assertEquals("playlist-1", rows.get(5).items().get(0).id(), "playlists item id");
+        assertEquals("coll-child-1", rows.get(6).items().get(0).id(), "smart collection child id");
 
         TvAppState state = TvWorkflow.homeLoaded(
                 TvWorkflow.loginSucceeded(TvAppState.initial(), authenticated),
@@ -224,8 +225,8 @@ public final class TvWorkflowTest {
         assertTrue(
                 transport.requests.get(6).url(authenticated.server().address()).contains("coll-1"),
                 "smart collection fetches boxset children");
-        assertEquals("/Users/user-1/Views", transport.requests.get(7).path(), "loader fetches views for latest rows");
-        assertTrue(transport.requests.get(8).url(authenticated.server().address()).contains("ParentId=movie-1"), "latest request uses view id");
+        assertTrue(transport.requests.get(7).url(authenticated.server().address()).contains("ParentId=movies"), "movie latest request uses view id");
+        assertTrue(transport.requests.get(8).url(authenticated.server().address()).contains("ParentId=series"), "series latest request uses view id");
     }
 
     private static void controllerLoadsPublicUsersForTvLogin() {
@@ -318,9 +319,9 @@ public final class TvWorkflowTest {
 
         assertEquals("/System/Info/Public", transport.requests.get(0).path(), "controller discover request");
         assertEquals("/Users/AuthenticateByName", transport.requests.get(1).path(), "controller login request");
-        assertEquals("/Users/user-1/Items/movie-1", transport.requests.get(11).path(), "controller item detail request");
-        assertEquals("/Items/movie-1/PlaybackInfo", transport.requests.get(12).path(), "controller playback info request");
-        assertTrue(transport.requests.get(12).url(MediaServerAddress.parse("https://media.example.com/jellyfin")).contains("StartTimeTicks=120000000"), "controller resume ticks");
+        assertEquals("/Users/user-1/Items/movie-1", transport.requests.get(10).path(), "controller item detail request");
+        assertEquals("/Items/movie-1/PlaybackInfo", transport.requests.get(11).path(), "controller playback info request");
+        assertTrue(transport.requests.get(11).url(MediaServerAddress.parse("https://media.example.com/jellyfin")).contains("StartTimeTicks=120000000"), "controller resume ticks");
     }
 
     private static void controllerStartsPlaybackFromBeginningWhenRequested() {
@@ -344,7 +345,7 @@ public final class TvWorkflowTest {
         controller.openItem("movie-1");
         controller.preparePlayback(PlaybackSelectionPreferences.defaults());
 
-        String playbackInfoUrl = transport.requests.get(12).url(MediaServerAddress.parse("https://media.example.com/jellyfin"));
+        String playbackInfoUrl = transport.requests.get(11).url(MediaServerAddress.parse("https://media.example.com/jellyfin"));
         assertTrue(playbackInfoUrl.contains("StartTimeTicks=0"), "explicit playback preferences start from beginning");
         assertEquals(0L, controller.state().playableMedia().startTimeTicks(), "explicit defaults keep start from beginning");
     }
@@ -373,7 +374,7 @@ public final class TvWorkflowTest {
                 .withPlaybackRate(1.5f)
                 .withAlwaysBurnInSubtitleWhenTranscoding(true));
 
-        String playbackInfoUrl = transport.requests.get(12).url(MediaServerAddress.parse("https://media.example.com/jellyfin"));
+        String playbackInfoUrl = transport.requests.get(11).url(MediaServerAddress.parse("https://media.example.com/jellyfin"));
         assertTrue(playbackInfoUrl.contains("StartTimeTicks=0"), "controller forwards preferred start ticks");
         assertTrue(playbackInfoUrl.contains("MaxStreamingBitrate=4000000"), "controller forwards max bitrate");
         assertTrue(playbackInfoUrl.contains("AudioStreamIndex=2"), "controller forwards audio stream");
@@ -416,7 +417,7 @@ public final class TvWorkflowTest {
         controller.openItem("movie-1");
         controller.preparePlayback(null);
 
-        ProtocolRequest playbackInfo = transport.requests.get(12);
+        ProtocolRequest playbackInfo = transport.requests.get(11);
         assertEquals("/Items/movie-1/PlaybackInfo", playbackInfo.path(), "profile playback info path");
         assertEquals("POST", playbackInfo.method().name(), "profile playback info method");
         assertTrue(playbackInfo.bodyJson().contains("\"DeviceProfile\""), "controller forwards device profile");
@@ -457,7 +458,7 @@ public final class TvWorkflowTest {
         assertEquals(4, choices.mediaSources().get(0).mediaStreams().size(), "playback choices keep streams");
         assertEquals(MediaStreamType.AUDIO, choices.mediaSources().get(0).mediaStreams().get(1).type(), "audio stream type maps");
         assertEquals(MediaStreamType.SUBTITLE, choices.mediaSources().get(0).mediaStreams().get(3).type(), "subtitle stream type maps");
-        String playbackInfoUrl = transport.requests.get(12).url(MediaServerAddress.parse("https://media.example.com/jellyfin"));
+        String playbackInfoUrl = transport.requests.get(11).url(MediaServerAddress.parse("https://media.example.com/jellyfin"));
         assertTrue(playbackInfoUrl.contains("StartTimeTicks=120000000"), "choices use resume ticks by default");
     }
 
@@ -542,7 +543,7 @@ public final class TvWorkflowTest {
 
         assertEquals(TvRoute.SERVER_ENTRY, state.route(), "logout returns to server entry");
         assertTrue(mediaClient.restore(server, "user-1").isEmpty(), "logout revokes saved session");
-        assertEquals("/Sessions/Logout", transport.requests.get(11).path(), "controller sends logout request");
+        assertEquals("/Sessions/Logout", transport.requests.get(10).path(), "controller sends logout request");
     }
 
     private static void controllerRestoresSavedSessionAndLoadsHome() {
@@ -595,9 +596,9 @@ public final class TvWorkflowTest {
 
         assertEquals(TvRoute.DETAILS, state.route(), "folder browse opens child details");
         assertEquals("movie-1", state.selectedItem().id(), "folder browse selects first child");
-        assertEquals("/Users/user-1/Items", transport.requests.get(11).path(), "folder browse uses items endpoint");
-        assertTrue(transport.requests.get(11).url(MediaServerAddress.parse("https://media.example.com/jellyfin")).contains("ParentId=movies"), "folder browse passes parent id");
-        assertTrue(transport.requests.get(11).url(MediaServerAddress.parse("https://media.example.com/jellyfin")).contains("Limit=1"), "folder browse limits to first child");
+        assertEquals("/Users/user-1/Items", transport.requests.get(10).path(), "folder browse uses items endpoint");
+        assertTrue(transport.requests.get(10).url(MediaServerAddress.parse("https://media.example.com/jellyfin")).contains("ParentId=movies"), "folder browse passes parent id");
+        assertTrue(transport.requests.get(10).url(MediaServerAddress.parse("https://media.example.com/jellyfin")).contains("Limit=1"), "folder browse limits to first child");
     }
 
     private static void controllerBrowsesFolderRowsAndReturnsToParent() {
@@ -625,8 +626,8 @@ public final class TvWorkflowTest {
         assertEquals(1, folder.homeRows().size(), "folder browse uses one row");
         assertEquals("folder:series", folder.homeRows().get(0).id(), "folder row id");
         assertEquals("season-1", folder.homeRows().get(0).items().get(0).id(), "folder child item");
-        assertTrue(transport.requests.get(11).url(MediaServerAddress.parse("https://media.example.com/jellyfin")).contains("ParentId=series"), "folder browse passes parent id");
-        assertTrue(transport.requests.get(11).url(MediaServerAddress.parse("https://media.example.com/jellyfin")).contains("Limit=50"), "folder browse requests a page");
+        assertTrue(transport.requests.get(10).url(MediaServerAddress.parse("https://media.example.com/jellyfin")).contains("ParentId=series"), "folder browse passes parent id");
+        assertTrue(transport.requests.get(10).url(MediaServerAddress.parse("https://media.example.com/jellyfin")).contains("Limit=50"), "folder browse requests a page");
 
         TvAppState restored = controller.back();
 
@@ -670,11 +671,11 @@ public final class TvWorkflowTest {
         assertTrue(!controller.canPageForwardInBrowse(), "last page has no next page");
         assertTrue(controller.canPageBackwardInBrowse(), "last page has previous page");
         assertEquals("episode-51", secondPage.homeRows().get(0).items().get(0).id(), "next page item");
-        assertTrue(transport.requests.get(12).url(MediaServerAddress.parse("https://media.example.com/jellyfin")).contains("StartIndex=50"), "next page start index");
+        assertTrue(transport.requests.get(11).url(MediaServerAddress.parse("https://media.example.com/jellyfin")).contains("StartIndex=50"), "next page start index");
 
         TvAppState backToFirstPage = controller.previousBrowsePage();
         assertEquals("episode-1", backToFirstPage.homeRows().get(0).items().get(0).id(), "previous page item");
-        assertTrue(transport.requests.get(13).url(MediaServerAddress.parse("https://media.example.com/jellyfin")).contains("StartIndex=0"), "previous page start index");
+        assertTrue(transport.requests.get(12).url(MediaServerAddress.parse("https://media.example.com/jellyfin")).contains("StartIndex=0"), "previous page start index");
     }
 
     private static void controllerSearchesMediaRows() {
@@ -701,9 +702,9 @@ public final class TvWorkflowTest {
         assertEquals("搜索：arrival / 电影", search.homeRows().get(0).title(), "search title includes term and filter");
         assertEquals("movie-1", search.homeRows().get(0).items().get(0).id(), "search row item");
         assertTrue(controller.canGoBackInBrowse(), "search enables back stack");
-        assertTrue(transport.requests.get(11).url(MediaServerAddress.parse("https://media.example.com/jellyfin")).contains("SearchTerm=arrival"), "search query passes term");
-        assertTrue(transport.requests.get(11).url(MediaServerAddress.parse("https://media.example.com/jellyfin")).contains("IncludeItemTypes=Movie"), "search query passes filter");
-        assertTrue(transport.requests.get(11).url(MediaServerAddress.parse("https://media.example.com/jellyfin")).contains("Limit=50"), "search query limits page size");
+        assertTrue(transport.requests.get(10).url(MediaServerAddress.parse("https://media.example.com/jellyfin")).contains("SearchTerm=arrival"), "search query passes term");
+        assertTrue(transport.requests.get(10).url(MediaServerAddress.parse("https://media.example.com/jellyfin")).contains("IncludeItemTypes=Movie"), "search query passes filter");
+        assertTrue(transport.requests.get(10).url(MediaServerAddress.parse("https://media.example.com/jellyfin")).contains("Limit=50"), "search query limits page size");
 
         TvAppState restored = controller.back();
         assertEquals(home.homeRows().get(0).id(), restored.homeRows().get(0).id(), "search back restores previous home");
@@ -830,11 +831,6 @@ public final class TvWorkflowTest {
                 """);
         transport.enqueue(200, """
                 {"Items":[],"TotalRecordCount":0,"StartIndex":0}
-                """);
-        transport.enqueue(200, """
-                {"Items":[
-                  {"Id":"movies","Name":"Movies","Type":"CollectionFolder","IsFolder":true}
-                ],"TotalRecordCount":1,"StartIndex":0}
                 """);
         transport.enqueue(200, """
                 {"Items":[

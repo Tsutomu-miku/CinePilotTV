@@ -1,7 +1,32 @@
 package tv.cinepilot.tv.playback
 
 import android.content.Context
-import android.content.SharedPreferences
+import androidx.datastore.core.DataStore
+import androidx.datastore.preferences.SharedPreferencesMigration
+import androidx.datastore.preferences.core.Preferences
+import androidx.datastore.preferences.core.booleanPreferencesKey
+import androidx.datastore.preferences.core.edit
+import androidx.datastore.preferences.core.stringPreferencesKey
+import androidx.datastore.preferences.preferencesDataStore
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.runBlocking
+
+private const val PLAYBACK_PREFERENCES_NAME = "playback_settings"
+
+private val Context.playbackSettingsDataStore: DataStore<Preferences> by preferencesDataStore(
+    name = "playback_settings_datastore",
+    produceMigrations = { context ->
+        listOf(SharedPreferencesMigration(context, PLAYBACK_PREFERENCES_NAME))
+    },
+)
 
 data class PlaybackSettings(
     val autoFrameMatching: Boolean,
@@ -21,9 +46,9 @@ data class PlaybackSettings(
     companion object {
         fun defaults(): PlaybackSettings {
             return PlaybackSettings(
-                autoFrameMatching = true,
+                autoFrameMatching = false,
                 matchColorSpace = true,
-                confirmBeforeFrameSwitch = true,
+                confirmBeforeFrameSwitch = false,
                 skipFrameSwitchConfirm = false,
                 autoPlayNext = true,
                 autoSkipIntro = false,
@@ -49,63 +74,106 @@ enum class SubtitleEncoding(override val label: String) : LabeledSubtitleOption 
 }
 
 class PlaybackSettingsStore(context: Context) {
-    private val preferences: SharedPreferences = context.applicationContext.getSharedPreferences(
-        "playback_settings",
-        Context.MODE_PRIVATE,
-    )
+    private val dataStore = context.applicationContext.playbackSettingsDataStore
+    private val storeScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
 
     fun current(): PlaybackSettings {
-        return PlaybackSettings(
-            autoFrameMatching = bool("afm", PlaybackSettings.defaults().autoFrameMatching),
-            matchColorSpace = bool("matchColor", PlaybackSettings.defaults().matchColorSpace),
-            confirmBeforeFrameSwitch = bool(
-                "confirmBeforeFrameSwitch",
-                PlaybackSettings.defaults().confirmBeforeFrameSwitch,
-            ),
-            skipFrameSwitchConfirm = bool(
-                "skipFrameSwitchConfirm",
-                PlaybackSettings.defaults().skipFrameSwitchConfirm,
-            ),
-            autoPlayNext = bool("autoPlayNext", PlaybackSettings.defaults().autoPlayNext),
-            autoSkipIntro = bool("autoSkipIntro", PlaybackSettings.defaults().autoSkipIntro),
-            autoSkipCredits = bool("autoSkipCredits", PlaybackSettings.defaults().autoSkipCredits),
-            showIntroSkipButton = bool("showIntroSkip",
-                PlaybackSettings.defaults().showIntroSkipButton),
-            showCreditsSkipButton = bool("showCreditsSkip",
-                PlaybackSettings.defaults().showCreditsSkipButton),
-            showTrickplayPreview = bool("trickplay",
-                PlaybackSettings.defaults().showTrickplayPreview),
-            showChapterStrip = bool("chapterStrip",
-                PlaybackSettings.defaults().showChapterStrip),
-            subtitleEncoding = enumValue("subtitleEncoding",
-                PlaybackSettings.defaults().subtitleEncoding),
-            burnGraphicSubtitleWhenTranscoding = bool("burnGraphicSubtitle",
-                PlaybackSettings.defaults().burnGraphicSubtitleWhenTranscoding),
-        )
+        val defaults = PlaybackSettings.defaults()
+        return read { preferences ->
+            PlaybackSettings(
+                autoFrameMatching = preferences[KEY_AFM] ?: defaults.autoFrameMatching,
+                matchColorSpace = preferences[KEY_MATCH_COLOR] ?: defaults.matchColorSpace,
+                confirmBeforeFrameSwitch = preferences[KEY_CONFIRM_BEFORE_FRAME_SWITCH]
+                    ?: defaults.confirmBeforeFrameSwitch,
+                skipFrameSwitchConfirm = preferences[KEY_SKIP_FRAME_SWITCH_CONFIRM]
+                    ?: defaults.skipFrameSwitchConfirm,
+                autoPlayNext = preferences[KEY_AUTO_PLAY_NEXT] ?: defaults.autoPlayNext,
+                autoSkipIntro = preferences[KEY_AUTO_SKIP_INTRO] ?: defaults.autoSkipIntro,
+                autoSkipCredits = preferences[KEY_AUTO_SKIP_CREDITS] ?: defaults.autoSkipCredits,
+                showIntroSkipButton = preferences[KEY_SHOW_INTRO_SKIP] ?: defaults.showIntroSkipButton,
+                showCreditsSkipButton = preferences[KEY_SHOW_CREDITS_SKIP] ?: defaults.showCreditsSkipButton,
+                showTrickplayPreview = preferences[KEY_TRICKPLAY] ?: defaults.showTrickplayPreview,
+                showChapterStrip = preferences[KEY_CHAPTER_STRIP] ?: defaults.showChapterStrip,
+                subtitleEncoding = enumValue(preferences[KEY_SUBTITLE_ENCODING], defaults.subtitleEncoding),
+                burnGraphicSubtitleWhenTranscoding = preferences[KEY_BURN_GRAPHIC_SUBTITLE]
+                    ?: defaults.burnGraphicSubtitleWhenTranscoding,
+            )
+        }
     }
 
     fun save(value: PlaybackSettings) {
-        preferences.edit()
-            .putBoolean("afm", value.autoFrameMatching)
-            .putBoolean("matchColor", value.matchColorSpace)
-            .putBoolean("confirmBeforeFrameSwitch", value.confirmBeforeFrameSwitch)
-            .putBoolean("skipFrameSwitchConfirm", value.skipFrameSwitchConfirm)
-            .putBoolean("autoPlayNext", value.autoPlayNext)
-            .putBoolean("autoSkipIntro", value.autoSkipIntro)
-            .putBoolean("autoSkipCredits", value.autoSkipCredits)
-            .putBoolean("showIntroSkip", value.showIntroSkipButton)
-            .putBoolean("showCreditsSkip", value.showCreditsSkipButton)
-            .putBoolean("trickplay", value.showTrickplayPreview)
-            .putBoolean("chapterStrip", value.showChapterStrip)
-            .putString("subtitleEncoding", value.subtitleEncoding.name)
-            .putBoolean("burnGraphicSubtitle", value.burnGraphicSubtitleWhenTranscoding)
-            .apply()
+        write { preferences ->
+            preferences[KEY_AFM] = value.autoFrameMatching
+            preferences[KEY_MATCH_COLOR] = value.matchColorSpace
+            preferences[KEY_CONFIRM_BEFORE_FRAME_SWITCH] = value.confirmBeforeFrameSwitch
+            preferences[KEY_SKIP_FRAME_SWITCH_CONFIRM] = value.skipFrameSwitchConfirm
+            preferences[KEY_AUTO_PLAY_NEXT] = value.autoPlayNext
+            preferences[KEY_AUTO_SKIP_INTRO] = value.autoSkipIntro
+            preferences[KEY_AUTO_SKIP_CREDITS] = value.autoSkipCredits
+            preferences[KEY_SHOW_INTRO_SKIP] = value.showIntroSkipButton
+            preferences[KEY_SHOW_CREDITS_SKIP] = value.showCreditsSkipButton
+            preferences[KEY_TRICKPLAY] = value.showTrickplayPreview
+            preferences[KEY_CHAPTER_STRIP] = value.showChapterStrip
+            preferences[KEY_SUBTITLE_ENCODING] = value.subtitleEncoding.name
+            preferences[KEY_BURN_GRAPHIC_SUBTITLE] = value.burnGraphicSubtitleWhenTranscoding
+        }
     }
 
-    private fun bool(key: String, default: Boolean): Boolean = preferences.getBoolean(key, default)
+    val flow: Flow<PlaybackSettings> = dataStore.data.map { prefs ->
+        val defaults = PlaybackSettings.defaults()
+        PlaybackSettings(
+            autoFrameMatching = prefs[KEY_AFM] ?: defaults.autoFrameMatching,
+            matchColorSpace = prefs[KEY_MATCH_COLOR] ?: defaults.matchColorSpace,
+            confirmBeforeFrameSwitch = prefs[KEY_CONFIRM_BEFORE_FRAME_SWITCH]
+                ?: defaults.confirmBeforeFrameSwitch,
+            skipFrameSwitchConfirm = prefs[KEY_SKIP_FRAME_SWITCH_CONFIRM]
+                ?: defaults.skipFrameSwitchConfirm,
+            autoPlayNext = prefs[KEY_AUTO_PLAY_NEXT] ?: defaults.autoPlayNext,
+            autoSkipIntro = prefs[KEY_AUTO_SKIP_INTRO] ?: defaults.autoSkipIntro,
+            autoSkipCredits = prefs[KEY_AUTO_SKIP_CREDITS] ?: defaults.autoSkipCredits,
+            showIntroSkipButton = prefs[KEY_SHOW_INTRO_SKIP] ?: defaults.showIntroSkipButton,
+            showCreditsSkipButton = prefs[KEY_SHOW_CREDITS_SKIP]
+                ?: defaults.showCreditsSkipButton,
+            showTrickplayPreview = prefs[KEY_TRICKPLAY] ?: defaults.showTrickplayPreview,
+            showChapterStrip = prefs[KEY_CHAPTER_STRIP] ?: defaults.showChapterStrip,
+            subtitleEncoding = enumValue(prefs[KEY_SUBTITLE_ENCODING], defaults.subtitleEncoding),
+            burnGraphicSubtitleWhenTranscoding = prefs[KEY_BURN_GRAPHIC_SUBTITLE]
+                ?: defaults.burnGraphicSubtitleWhenTranscoding,
+        )
+    }
 
-    private inline fun <reified T : Enum<T>> enumValue(key: String, default: T): T {
-        val raw = preferences.getString(key, default.name) ?: default.name
+    val stateFlow: StateFlow<PlaybackSettings> by lazy {
+        flow.stateIn(storeScope, SharingStarted.Eagerly, current())
+    }
+
+    private fun <T> read(block: (Preferences) -> T): T = runBlocking(Dispatchers.IO) {
+        dataStore.data.map(block).first()
+    }
+
+    private fun write(block: (androidx.datastore.preferences.core.MutablePreferences) -> Unit) {
+        runBlocking(Dispatchers.IO) {
+            dataStore.edit { preferences -> block(preferences) }
+        }
+    }
+
+    private inline fun <reified T : Enum<T>> enumValue(rawValue: String?, default: T): T {
+        val raw = rawValue ?: default.name
         return enumValues<T>().firstOrNull { it.name == raw } ?: default
+    }
+
+    private companion object {
+        val KEY_AFM = booleanPreferencesKey("afm")
+        val KEY_MATCH_COLOR = booleanPreferencesKey("matchColor")
+        val KEY_CONFIRM_BEFORE_FRAME_SWITCH = booleanPreferencesKey("confirmBeforeFrameSwitch")
+        val KEY_SKIP_FRAME_SWITCH_CONFIRM = booleanPreferencesKey("skipFrameSwitchConfirm")
+        val KEY_AUTO_PLAY_NEXT = booleanPreferencesKey("autoPlayNext")
+        val KEY_AUTO_SKIP_INTRO = booleanPreferencesKey("autoSkipIntro")
+        val KEY_AUTO_SKIP_CREDITS = booleanPreferencesKey("autoSkipCredits")
+        val KEY_SHOW_INTRO_SKIP = booleanPreferencesKey("showIntroSkip")
+        val KEY_SHOW_CREDITS_SKIP = booleanPreferencesKey("showCreditsSkip")
+        val KEY_TRICKPLAY = booleanPreferencesKey("trickplay")
+        val KEY_CHAPTER_STRIP = booleanPreferencesKey("chapterStrip")
+        val KEY_SUBTITLE_ENCODING = stringPreferencesKey("subtitleEncoding")
+        val KEY_BURN_GRAPHIC_SUBTITLE = booleanPreferencesKey("burnGraphicSubtitle")
     }
 }

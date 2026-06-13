@@ -1,8 +1,58 @@
+# macOS / system
+.DS_Store
+Thumbs.db
+
+# IDEs
+.idea/
+*.iml
+*.ipr
+*.iws
+.vscode/
+
+# Local agent/tool state
+.claude/
+.codex/
+.kotlin/
+
+# Gradle / Kotlin build state
 .gradle/
 build/
 **/build/
-local.properties
-.idea/
-*.iml
-.DS_Store
+out/
 
+# Android local configuration
+local.properties
+
+# Android / native build intermediates
+.cxx/
+.externalNativeBuild/
+captures/
+*.apk
+*.ap_
+*.aab
+
+# Signing keys and local secrets
+*.jks
+*.keystore
+*.p12
+*.pem
+*.key
+keystore.properties
+signing.properties
+
+# Logs and crash dumps
+*.log
+*.hprof
+hs_err_pid*
+replay_pid*
+
+# Test / coverage outputs
+coverage/
+*.ec
+*.exec
+
+# Temporary files
+*.tmp
+*.temp
+*.swp
+*.swo

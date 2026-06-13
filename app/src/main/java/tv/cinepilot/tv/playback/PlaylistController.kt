@@ -1,5 +1,6 @@
 package tv.cinepilot.tv.playback
 
+import android.view.View
 import android.widget.ImageView
 import android.widget.Toast
 import androidx.activity.ComponentActivity
@@ -29,6 +30,7 @@ class PlaylistController(
     private val workflowController: TvWorkflowController,
     private val runTask: (String, () -> Unit, () -> Unit) -> Unit,
     private val showHome: (TvAppState) -> Unit,
+    private val renderView: (View) -> Unit,
     private val loadBackdropImage: (ImageView, MediaItemSummary, Int, Int) -> Unit,
     private val loadArtworkImage: (ImageView, MediaItemSummary, ArtworkTarget, Int, Int) -> Unit,
     private val setAuxiliaryBackAction: (() -> Unit) -> Unit,
@@ -59,7 +61,7 @@ class PlaylistController(
                 onClose = onClose,
             )
             setAuxiliaryBackAction(onClose)
-            activity.setContentView(sheet)
+            renderView(sheet)
         }
     }
 
@@ -93,7 +95,7 @@ class PlaylistController(
             },
         )
         setAuxiliaryBackAction { showPicker(item, playbackInfo, episodeContext, onClose) }
-        activity.setContentView(sheet)
+        renderView(sheet)
     }
 
     private fun createAndAdd(
@@ -159,7 +161,7 @@ class PlaylistController(
             loadArtwork = loadArtworkImage,
         )
         setAuxiliaryBackAction { showHome(workflowController.state()) }
-        activity.setContentView(sheet)
+        renderView(sheet)
     }
 
     private fun toast(msg: String) {

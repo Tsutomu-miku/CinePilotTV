@@ -1,5 +1,6 @@
 package tv.cinepilot.tv.playback
 
+import android.view.View
 import android.widget.Toast
 import androidx.activity.ComponentActivity
 import tv.cinepilot.core.protocol.MediaItemSummary
@@ -25,6 +26,7 @@ class SubtitleSearchController(
     private val pluginHost: PluginHost,
     private val subtitleCache: SubtitleCache,
     private val runTask: (String, () -> Unit, () -> Unit) -> Unit,
+    private val renderView: (View) -> Unit,
     private val setAuxiliaryBackAction: (() -> Unit) -> Unit,
 ) {
 
@@ -60,7 +62,7 @@ class SubtitleSearchController(
                 onClose = onClose,
             )
             setAuxiliaryBackAction(onClose)
-            activity.setContentView(sheet)
+            renderView(sheet)
         }
 
         rerender(true)

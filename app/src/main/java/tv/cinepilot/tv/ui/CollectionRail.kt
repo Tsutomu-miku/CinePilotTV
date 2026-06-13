@@ -75,7 +75,9 @@ private fun ComponentActivity.collectionCell(
         FrameLayout.LayoutParams.MATCH_PARENT,
         FrameLayout.LayoutParams.MATCH_PARENT,
     ))
-    loadArtwork(image, item, ArtworkTarget.COLLECTION, 300, 104)
+    image.deferArtworkLoad {
+        loadArtwork(image, item, ArtworkTarget.COLLECTION, 300, 104)
+    }
     cell.layoutParams = LinearLayout.LayoutParams(
         dp(MediaWallTokens.CollectionCellWidth),
         dp(MediaWallTokens.CollectionCellHeight),

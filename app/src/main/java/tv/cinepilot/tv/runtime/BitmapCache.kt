@@ -34,6 +34,11 @@ class BitmapCache private constructor(
     }
     private val diskLock = Any()
 
+    fun getMemory(url: String): Bitmap? {
+        if (url.isBlank()) return null
+        return memoryCache.get(url)
+    }
+
     fun get(url: String): Bitmap? {
         if (url.isBlank()) return null
         memoryCache.get(url)?.let { return it }
@@ -57,7 +62,9 @@ class BitmapCache private constructor(
             if (!parent.exists()) parent.mkdirs()
             val written = runCatching {
                 FileOutputStream(file).use { out ->
-                    bitmap.compress(Bitmap.CompressFormat.PNG, 100, out)
+                    // Artwork is photo-like and usually opaque; JPEG avoids
+                    // the heavy PNG compression cost while scrolling a TV wall.
+                    bitmap.compress(Bitmap.CompressFormat.JPEG, 88, out)
                 }
                 file.length()
             }.getOrDefault(0L)

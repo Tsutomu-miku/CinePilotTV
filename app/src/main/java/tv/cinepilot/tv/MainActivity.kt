@@ -4,20 +4,23 @@ import android.content.Intent
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
+import android.view.View
 import android.widget.ImageView
 import androidx.activity.ComponentActivity
 import androidx.activity.OnBackPressedCallback
+import androidx.compose.runtime.Composable
 import androidx.lifecycle.ViewModelProvider
 import java.util.concurrent.Executors
 import tv.cinepilot.core.protocol.MediaBrowserException
 import tv.cinepilot.core.protocol.MediaItemSummary
 import tv.cinepilot.core.protocol.MediaPerson
-import tv.cinepilot.core.protocol.PublicUserSummary
 import tv.cinepilot.core.tv.TvAppState
 import tv.cinepilot.core.tv.TvRoute
 import tv.cinepilot.tv.auth.AuthRouteController
+import tv.cinepilot.tv.compose.CinePilotScreenHost
+import tv.cinepilot.tv.compose.screens.ComposeErrorScreen
+import tv.cinepilot.tv.compose.theme.CinePilotPalette
 import tv.cinepilot.tv.deeplink.DeepLinkRouter
-import tv.cinepilot.tv.error.errorRouteScreen
 import tv.cinepilot.tv.home.HomeRouteController
 import tv.cinepilot.tv.home.HomeSettingsStore
 import tv.cinepilot.tv.home.SearchRouteController
@@ -28,14 +31,13 @@ import tv.cinepilot.tv.playback.SubtitleStyleStore
 import tv.cinepilot.tv.plugin.PluginHost
 import tv.cinepilot.tv.profile.ProfileSwitcherRouteController
 import tv.cinepilot.tv.runtime.ArtworkLoader
+import tv.cinepilot.tv.runtime.ArtworkRequestFactory
 import tv.cinepilot.tv.runtime.ArtworkTarget
 import tv.cinepilot.tv.runtime.HomeEntryFlow
 import tv.cinepilot.tv.runtime.PrimaryImageLoader
 import tv.cinepilot.tv.settings.SettingsRouteController
 import tv.cinepilot.tv.settings.SettingsStore
 import tv.cinepilot.tv.ui.TvColors
-import tv.cinepilot.tv.ui.label
-import tv.cinepilot.tv.ui.screen
 import tv.cinepilot.tv.ui.tvErrorMessage
 
 class MainActivity : ComponentActivity() {
@@ -49,6 +51,7 @@ class MainActivity : ComponentActivity() {
     private lateinit var homeRoutes: HomeRouteController
     private lateinit var primaryImageLoader: PrimaryImageLoader
     private lateinit var artworkLoader: ArtworkLoader
+    private lateinit var artworkFactory: ArtworkRequestFactory
     private lateinit var subtitleStyleStore: SubtitleStyleStore
     private lateinit var settingsStore: SettingsStore
     private lateinit var homeSettingsStore: HomeSettingsStore
@@ -56,6 +59,7 @@ class MainActivity : ComponentActivity() {
     private lateinit var pluginHost: PluginHost
     private lateinit var downloadCoordinator: DownloadCoordinator
     private lateinit var deepLinkRouter: DeepLinkRouter
+    private lateinit var screenHost: CinePilotScreenHost
     private val executor = Executors.newSingleThreadExecutor()
     private val mainHandler = Handler(Looper.getMainLooper())
     private var accountSwitcherReturnState: TvAppState? = null
@@ -65,14 +69,22 @@ class MainActivity : ComponentActivity() {
         settingsStore = SettingsStore(this)
         homeSettingsStore = HomeSettingsStore(this)
         TvColors.applyTheme(settingsStore.theme().id)
+        screenHost = CinePilotScreenHost(this) { settingsStore.theme() }
+        screenHost.install()
         viewModel = ViewModelProvider(this, CinePilotViewModel.factory(applicationContext))[CinePilotViewModel::class.java]
         pluginHost = PluginHost.create(this)
         downloadCoordinator = DownloadCoordinator.getInstance(
             applicationContext,
             viewModel.runtime.offlineRepository,
+            viewModel.runtime.okHttpClient,
         )
         subtitleStyleStore = SubtitleStyleStore(this)
-        playerHost = Media3PlayerHost(this, viewModel.mediaBrowserClient, subtitleStyleStore)
+        playerHost = Media3PlayerHost(
+            this,
+            viewModel.mediaBrowserClient,
+            subtitleStyleStore,
+            viewModel.runtime.okHttpClient,
+        )
         primaryImageLoader = PrimaryImageLoader(
             viewModel.mediaBrowserClient,
             viewModel.runtime.bitmapCache,
@@ -81,6 +93,7 @@ class MainActivity : ComponentActivity() {
             viewModel.mediaBrowserClient,
             viewModel.runtime.bitmapCache,
         )
+        artworkFactory = ArtworkRequestFactory(viewModel.mediaBrowserClient)
         homeEntryFlow = HomeEntryFlow(
             activity = this,
             executor = executor,
@@ -103,7 +116,7 @@ class MainActivity : ComponentActivity() {
             showLoading = ::showLoading,
             showHome = ::showHome,
             showError = ::showError,
-            loadPublicUserImage = ::loadPublicUserImage,
+            renderCompose = ::renderCompose,
             runHomeEntry = { msg, preload, remember, fallback -> homeEntryFlow.run(msg, preload, remember, fallback) },
             persistHomeCache = homeEntryFlow::persistCurrentHome,
             clearHomeCache = homeEntryFlow::clearCurrentHomeCache,
@@ -114,13 +127,19 @@ class MainActivity : ComponentActivity() {
             playerHost = playerHost,
             subtitleStyleStore = subtitleStyleStore,
             deviceCodecDiagnostics = viewModel.deviceCodecDiagnostics,
+            executor = executor,
             runTask = ::runTask,
             showHome = ::showHome,
+            renderView = ::renderView,
+            renderCompose = ::renderCompose,
+            renderComposeFull = ::renderComposeFull,
             showError = ::showError,
             loadPosterImage = ::loadPosterImage,
             loadArtworkImage = ::loadArtworkImage,
             loadBackdropImage = ::loadBackdropImage,
             loadPersonImage = ::loadPersonImage,
+            artworkLoader = artworkLoader,
+            artworkFactory = artworkFactory,
             pluginHost = pluginHost,
             downloadCoordinator = downloadCoordinator,
         )
@@ -135,21 +154,26 @@ class MainActivity : ComponentActivity() {
             workflowController = viewModel.workflowController,
             runTask = ::runTask,
             showHome = ::showHome,
+            renderView = ::renderView,
+            renderCompose = ::renderCompose,
         )
         settingsRoutes = SettingsRouteController(
             activity = this,
             settingsStore = settingsStore,
             homeSettingsStore = homeSettingsStore,
             showHome = ::showHome,
+            renderView = ::renderView,
+            renderCompose = ::renderCompose,
         )
         profileSwitcherRoutes = ProfileSwitcherRouteController(
             activity = this,
             workflowController = viewModel.workflowController,
             homeSettingsStore = homeSettingsStore,
-            imageLoader = primaryImageLoader,
+            artworkFactory = artworkFactory,
             runTask = ::runTask,
             showHome = ::showHome,
             showServerEntry = authRoutes::showServerEntry,
+            renderCompose = ::renderCompose,
         )
         homeRoutes = HomeRouteController(
             activity = this,
@@ -160,6 +184,7 @@ class MainActivity : ComponentActivity() {
             executor = executor,
             runTask = ::runTask,
             showHome = ::showHome,
+            renderComposeFull = ::renderComposeFull,
             showAccountSwitcher = ::showAccountSwitcher,
             showSettings = settingsRoutes::show,
             showSearch = { term ->
@@ -167,17 +192,14 @@ class MainActivity : ComponentActivity() {
                 searchRoutes.showSearch(term)
             },
             logoutFromHome = authRoutes::logoutFromHome,
-            loadArtwork = ::loadArtworkImage,
-            loadBackdrop = ::loadBackdropImage,
+            artworkFactory = artworkFactory,
         )
         onBackPressedDispatcher.addCallback(this, object : OnBackPressedCallback(true) {
             override fun handleOnBackPressed() {
                 handleBackPressed()
             }
         })
-        if (authRoutes.handleQaLoginIntent(intent)) {
-            return
-        }
+        if (authRoutes.handleQaLoginIntent(intent)) return
         authRoutes.restoreRecentAccountOnLaunch()
         deepLinkRouter.handleIntent(intent)
     }
@@ -239,7 +261,6 @@ class MainActivity : ComponentActivity() {
         settingsRoutes.hide()
         accountSwitcherReturnState = null
         homeRoutes.render(state)
-        homeRoutes.refreshGenres()
         // Replay any queued launcher deep link (e.g. cold start from a
         // preview program) now that an authenticated session is available.
         deepLinkRouter.replayPending()
@@ -268,15 +289,14 @@ class MainActivity : ComponentActivity() {
         artworkLoader.loadPerson(this, viewModel.workflowController.state().authenticated(), target, person, width, height)
     }
 
-    private fun loadPublicUserImage(target: ImageView, user: PublicUserSummary, width: Int, height: Int) {
-        primaryImageLoader.loadPublicUser(this, viewModel.workflowController.state().server(), target, user, width, height)
-    }
+    private fun renderView(view: View) = screenHost.showLegacy(view)
 
-    private fun showLoading(message: String) {
-        setContentView(screen("CinePilot TV") {
-            addView(label(message))
-        })
-    }
+    private fun renderCompose(title: String, content: @Composable (CinePilotPalette) -> Unit) =
+        screenHost.showCompose(title, content)
+
+    private fun renderComposeFull(content: @Composable (CinePilotPalette) -> Unit) = screenHost.showFullScreen(content)
+
+    private fun showLoading(message: String) = screenHost.showLoading(message)
 
     private fun showError(error: Throwable) {
         val authenticationExpired = error is MediaBrowserException && error.statusCode() == 401
@@ -288,18 +308,21 @@ class MainActivity : ComponentActivity() {
         }
         val state = viewModel.workflowController.state()
         val message = if (authenticationExpired) "会话已过期，请重新登录" else tvErrorMessage(error)
-        setContentView(errorRouteScreen(
-            state = state,
-            message = message,
-            authenticationExpired = authenticationExpired,
-            onReturnDetails = { state.selectedItem()?.let(playbackRoutes::showDetails) },
-            onRetryLowBitrate = { playbackRoutes.retryLowBitrateFromError(state) },
-            onPlaybackOptions = { playbackRoutes.showPlaybackOptionsFromError(state) },
-            onDiagnostics = { playbackRoutes.showDiagnosticsFromError(state) { showError(error) } },
-            onHome = { showHome(state) },
-            onLogin = authRoutes::showLogin,
-            onServerEntry = authRoutes::showServerEntry,
-        ))
+        renderCompose(if (authenticationExpired) "重新登录" else "错误恢复") { palette ->
+            ComposeErrorScreen(
+                palette = palette,
+                state = state,
+                message = message,
+                authenticationExpired = authenticationExpired,
+                onReturnDetails = { state.selectedItem()?.let(playbackRoutes::showDetails) },
+                onRetryLowBitrate = { playbackRoutes.retryLowBitrateFromError(state) },
+                onPlaybackOptions = { playbackRoutes.showPlaybackOptionsFromError(state) },
+                onDiagnostics = { playbackRoutes.showDiagnosticsFromError(state) { showError(error) } },
+                onHome = { showHome(state) },
+                onLogin = authRoutes::showLogin,
+                onServerEntry = authRoutes::showServerEntry,
+            )
+        }
     }
 
     private fun runTask(message: String, task: () -> Unit, onSuccess: () -> Unit) {
