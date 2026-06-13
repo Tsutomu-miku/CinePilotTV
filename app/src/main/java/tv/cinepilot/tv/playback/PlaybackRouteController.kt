@@ -9,9 +9,11 @@ import android.widget.ImageView
 import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.compose.runtime.Composable
+import androidx.lifecycle.lifecycleScope
 import java.util.ArrayDeque
 import java.util.EnumSet
 import java.util.concurrent.Executor
+import kotlinx.coroutines.launch
 import tv.cinepilot.core.protocol.ChapterInfo
 import tv.cinepilot.core.protocol.MediaItemSummary
 import tv.cinepilot.core.protocol.MediaPerson
@@ -761,7 +763,7 @@ class PlaybackRouteController(
         currentPlaybackSnapshot = selectedItem
         currentPlaybackDurationMs = if (selectedItem == null) 0L else ticksToMs(selectedItem.runTimeTicks() ?: 0L)
         playbackStartedFired = false
-        val settings = playbackSettingsStore.current()
+        val settings = playbackSettingsStore.stateFlow.value
         playerChapters = emptyList()
         playerSegments = emptyList()
         playerNextUp = null
@@ -810,7 +812,7 @@ class PlaybackRouteController(
                     }
                     // Episode end: honor auto-play if the user never cancelled the Next Up
                     // banner. Otherwise fall back to standard "return to details" flow.
-                    val autoPlay = playbackSettingsStore.current().autoPlayNext &&
+                    val autoPlay = playbackSettingsStore.stateFlow.value.autoPlayNext &&
                             !playerNextUpCancelled
                     if (autoPlay) {
                         val next = playerNextUp
@@ -899,7 +901,7 @@ class PlaybackRouteController(
     private fun maybeDeferredFrameMatch() {
         if (displayModeApplier.hasAppliedMode() || deferredAfmPromptShown) return
         val frameRate = playerHost.referenceFrameRate() ?: return
-        val settings = playbackSettingsStore.current()
+        val settings = playbackSettingsStore.stateFlow.value
         if (!settings.autoFrameMatching) return
         val pending = displayModeApplier.computePendingMode(
             referenceFrameRate = frameRate,
@@ -934,7 +936,7 @@ class PlaybackRouteController(
             }
             pluginHost.dispatchPlaybackProgress(snapshot, positionMs, currentPlaybackDurationMs.coerceAtLeast(durationMs))
         }
-        val settings = playbackSettingsStore.current()
+        val settings = playbackSettingsStore.stateFlow.value
 
         // Auto-skip (once per type per playback).
         for (segment in playerSegments) {
@@ -1010,7 +1012,7 @@ class PlaybackRouteController(
     }
 
     private fun playerHasVisibleIntroSkip(): Boolean {
-        val settings = playbackSettingsStore.current()
+        val settings = playbackSettingsStore.stateFlow.value
         if (!settings.showIntroSkipButton) return false
         val position = playerHost.currentPositionTicks()
         return playerSegments.any {
@@ -1019,7 +1021,7 @@ class PlaybackRouteController(
     }
 
     private fun playerHasVisibleCreditsSkip(): Boolean {
-        val settings = playbackSettingsStore.current()
+        val settings = playbackSettingsStore.stateFlow.value
         if (!settings.showCreditsSkipButton) return false
         val position = playerHost.currentPositionTicks()
         return playerSegments.any {
@@ -1041,7 +1043,7 @@ class PlaybackRouteController(
         rebuildRoot: Boolean,
         playerView: View,
     ) {
-        val settings = playbackSettingsStore.current()
+        val settings = playbackSettingsStore.stateFlow.value
         val positionTicks = playerHost.currentPositionTicks()
         val introSegment = playerSegments.firstOrNull { it.type() == MediaSegmentInfo.Type.INTRO }
             ?.takeIf { it.containsTicks(positionTicks) && settings.showIntroSkipButton }
@@ -1138,7 +1140,7 @@ class PlaybackRouteController(
         focus: PlaybackSettingsFocusGroup = PlaybackSettingsFocusGroup.AFM,
         state: TvAppState,
     ) {
-        val current = playbackSettingsStore.current()
+        val current = playbackSettingsStore.stateFlow.value
         val audioStreams = playerHost.availableAudioStreams()
         val subtitleStreams = playerHost.availableSubtitleStreams()
         val currentAudioIndex = playerHost.currentAudioStreamIndex()
@@ -1155,7 +1157,9 @@ class PlaybackRouteController(
                 subtitleStreams = subtitleStreams.takeIf { it.isNotEmpty() },
                 currentSubtitleStreamIndex = currentSubtitleIndex,
                 onChanged = { updated, nextFocus ->
-                    playbackSettingsStore.save(updated)
+                    activity.lifecycleScope.launch {
+                        playbackSettingsStore.saveAsync(updated)
+                    }
                     showPlaybackSettingsScreen(nextFocus, state)
                 },
                 onAudioStreamChanged = { index ->
@@ -1246,7 +1250,7 @@ class PlaybackRouteController(
     ): PlaybackSelectionPreferences? {
         val selection = trackSelectionFor(item)
             .normalizedFor(selectedPlaybackInfo?.takeIf { it.itemId() == item.id() })
-        val burnGraphic = playbackSettingsStore.current().burnGraphicSubtitleWhenTranscoding
+        val burnGraphic = playbackSettingsStore.stateFlow.value.burnGraphicSubtitleWhenTranscoding
         if (!selection.hasExplicitChoice() && base != null && burnGraphic == base.alwaysBurnInSubtitleWhenTranscoding()) {
             return base
         }

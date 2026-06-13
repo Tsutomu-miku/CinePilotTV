@@ -43,6 +43,13 @@ class SettingsStore(context: Context) {
         }
     }
 
+    /** Non-blocking save; completes when the DataStore edit has been applied. */
+    suspend fun saveThemeAsync(theme: AppTheme) {
+        dataStore.edit { preferences ->
+            preferences[KEY_THEME] = theme.id
+        }
+    }
+
     val flow: Flow<AppTheme> = dataStore.data.map { prefs ->
         AppTheme.fromId(prefs[KEY_THEME])
     }

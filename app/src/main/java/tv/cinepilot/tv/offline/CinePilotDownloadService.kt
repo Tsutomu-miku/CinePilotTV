@@ -36,7 +36,7 @@ class CinePilotDownloadService : DownloadService(
         return DownloadCoordinator.getInstance(
             applicationContext,
             runtime.offlineRepository,
-            runtime.okHttpClient,
+            runtime.streamingOkHttpClient,
         ).downloadManager
     }
 

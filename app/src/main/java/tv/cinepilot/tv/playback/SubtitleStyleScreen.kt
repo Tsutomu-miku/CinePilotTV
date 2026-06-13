@@ -4,6 +4,8 @@ import android.widget.HorizontalScrollView
 import android.widget.ScrollView
 import androidx.activity.ComponentActivity
 import androidx.compose.runtime.Composable
+import androidx.lifecycle.lifecycleScope
+import kotlinx.coroutines.launch
 import tv.cinepilot.tv.compose.screens.ComposeSubtitleStyleScreen
 import tv.cinepilot.tv.compose.theme.CinePilotPalette
 import tv.cinepilot.tv.ui.TvIcon
@@ -23,13 +25,14 @@ fun ComponentActivity.showSubtitleStyleScreen(
         nextFocusGroup: SubtitleStyleFocusGroup,
         update: (SubtitleStylePreferences) -> SubtitleStylePreferences,
     ) {
-        store.save(update(store.current()))
+        val updated = update(store.stateFlow.value)
+        lifecycleScope.launch { store.saveAsync(updated) }
         showSubtitleStyleScreen(store, nextFocusGroup, renderCompose)
     }
     renderCompose("字幕样式") { palette ->
         ComposeSubtitleStyleScreen(
             palette = palette,
-            current = store.current(),
+            current = store.stateFlow.value,
             focusGroup = focusGroup,
             onSize = { size -> refresh(SubtitleStyleFocusGroup.SIZE) { it.copy(size = size) } },
             onColor = { color -> refresh(SubtitleStyleFocusGroup.COLOR) { it.copy(color = color) } },
@@ -49,7 +52,8 @@ fun ComponentActivity.showSubtitleStyleScreen(
                 refresh(SubtitleStyleFocusGroup.OPACITY) { it.copy(textOpacity = opacity) }
             },
             onReset = {
-                store.save(SubtitleStylePreferences.defaults())
+                val defaults = SubtitleStylePreferences.defaults()
+                lifecycleScope.launch { store.saveAsync(defaults) }
                 showSubtitleStyleScreen(store, renderCompose = renderCompose)
             },
         )

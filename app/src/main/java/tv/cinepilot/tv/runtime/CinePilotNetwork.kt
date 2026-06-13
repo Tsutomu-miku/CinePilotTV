@@ -13,19 +13,36 @@ import okhttp3.OkHttpClient
 import okio.Path.Companion.toOkioPath
 
 object CinePilotNetwork {
-    fun createClient(context: Context): OkHttpClient {
+    /**
+     * OkHttpClient for API calls. No HTTP cache — API responses are dynamic and
+     * should always reflect the latest server state.
+     */
+    fun createApiClient(context: Context): OkHttpClient {
+        return baseBuilder(context).build()
+    }
+
+    /**
+     * OkHttpClient for image loading. Has a dedicated HTTP cache so that image
+     * responses don't get evicted by API or video traffic. Coil maintains its own
+     * disk cache on top of this for decoded/transformed bitmaps.
+     */
+    fun createImageClient(context: Context): OkHttpClient {
         val appContext = context.applicationContext
-        val httpCache = Cache(
-            File(appContext.cacheDir, "http_cache"),
-            HTTP_CACHE_BYTES,
+        val imageHttpCache = Cache(
+            File(appContext.cacheDir, "image_http_cache"),
+            IMAGE_HTTP_CACHE_BYTES,
         )
-        return OkHttpClient.Builder()
-            .cache(httpCache)
-            .connectTimeout(15, TimeUnit.SECONDS)
-            .readTimeout(30, TimeUnit.SECONDS)
-            .callTimeout(60, TimeUnit.SECONDS)
-            .retryOnConnectionFailure(true)
+        return baseBuilder(context)
+            .cache(imageHttpCache)
             .build()
+    }
+
+    /**
+     * OkHttpClient for video streaming (playback + offline downloads). No HTTP
+     * cache — video streams are large, one-time, and would evict everything else.
+     */
+    fun createStreamingClient(context: Context): OkHttpClient {
+        return baseBuilder(context).build()
     }
 
     fun installImageLoader(context: Context, okHttpClient: OkHttpClient) {
@@ -56,5 +73,13 @@ object CinePilotNetwork {
         }
     }
 
-    private const val HTTP_CACHE_BYTES = 64L * 1024L * 1024L
+    private fun baseBuilder(context: Context): OkHttpClient.Builder {
+        return OkHttpClient.Builder()
+            .connectTimeout(15, TimeUnit.SECONDS)
+            .readTimeout(30, TimeUnit.SECONDS)
+            .callTimeout(60, TimeUnit.SECONDS)
+            .retryOnConnectionFailure(true)
+    }
+
+    private const val IMAGE_HTTP_CACHE_BYTES = 48L * 1024L * 1024L
 }

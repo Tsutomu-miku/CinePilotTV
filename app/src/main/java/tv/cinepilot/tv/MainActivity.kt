@@ -76,14 +76,14 @@ class MainActivity : ComponentActivity() {
         downloadCoordinator = DownloadCoordinator.getInstance(
             applicationContext,
             viewModel.runtime.offlineRepository,
-            viewModel.runtime.okHttpClient,
+            viewModel.runtime.streamingOkHttpClient,
         )
         subtitleStyleStore = SubtitleStyleStore(this)
         playerHost = Media3PlayerHost(
             this,
             viewModel.mediaBrowserClient,
             subtitleStyleStore,
-            viewModel.runtime.okHttpClient,
+            viewModel.runtime.streamingOkHttpClient,
         )
         primaryImageLoader = PrimaryImageLoader(
             viewModel.mediaBrowserClient,

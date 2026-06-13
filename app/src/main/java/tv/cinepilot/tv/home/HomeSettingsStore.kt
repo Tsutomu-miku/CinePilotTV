@@ -73,6 +73,15 @@ class HomeSettingsStore(context: Context) {
         }
     }
 
+    /** Non-blocking save; completes when the DataStore edit has been applied. */
+    suspend fun saveAsync(settings: HomeSettings) {
+        dataStore.edit { preferences ->
+            preferences[KEY_SMART_COLLECTIONS] = settings.showSmartCollections
+            preferences[KEY_LAUNCHER_CONTINUE_WATCHING] = settings.showContinueWatchingInLauncher
+            preferences[KEY_LAUNCHER_NEXT_UP] = settings.showNextUpInLauncher
+        }
+    }
+
     fun save(block: (HomeSettings) -> HomeSettings) {
         save(block(load()))
     }

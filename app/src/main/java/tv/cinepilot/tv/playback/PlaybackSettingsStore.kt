@@ -119,6 +119,25 @@ class PlaybackSettingsStore(context: Context) {
         }
     }
 
+    /** Non-blocking save; completes when the DataStore edit has been applied. */
+    suspend fun saveAsync(value: PlaybackSettings) {
+        dataStore.edit { preferences ->
+            preferences[KEY_AFM] = value.autoFrameMatching
+            preferences[KEY_MATCH_COLOR] = value.matchColorSpace
+            preferences[KEY_CONFIRM_BEFORE_FRAME_SWITCH] = value.confirmBeforeFrameSwitch
+            preferences[KEY_SKIP_FRAME_SWITCH_CONFIRM] = value.skipFrameSwitchConfirm
+            preferences[KEY_AUTO_PLAY_NEXT] = value.autoPlayNext
+            preferences[KEY_AUTO_SKIP_INTRO] = value.autoSkipIntro
+            preferences[KEY_AUTO_SKIP_CREDITS] = value.autoSkipCredits
+            preferences[KEY_SHOW_INTRO_SKIP] = value.showIntroSkipButton
+            preferences[KEY_SHOW_CREDITS_SKIP] = value.showCreditsSkipButton
+            preferences[KEY_TRICKPLAY] = value.showTrickplayPreview
+            preferences[KEY_CHAPTER_STRIP] = value.showChapterStrip
+            preferences[KEY_SUBTITLE_ENCODING] = value.subtitleEncoding.name
+            preferences[KEY_BURN_GRAPHIC_SUBTITLE] = value.burnGraphicSubtitleWhenTranscoding
+        }
+    }
+
     val flow: Flow<PlaybackSettings> = dataStore.data.map { prefs ->
         val defaults = PlaybackSettings.defaults()
         PlaybackSettings(

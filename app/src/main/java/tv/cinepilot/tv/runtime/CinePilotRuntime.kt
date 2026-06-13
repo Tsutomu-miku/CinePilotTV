@@ -22,7 +22,12 @@ class CinePilotRuntime private constructor(
     val offlineRepository: OfflineRepository,
     val deviceCodecDiagnostics: DeviceCodecDiagnostics,
     val initialState: TvAppState,
-    val okHttpClient: OkHttpClient,
+    /** OkHttpClient for API calls (no HTTP cache). */
+    val apiOkHttpClient: OkHttpClient,
+    /** OkHttpClient for image loading (dedicated image HTTP cache). */
+    val imageOkHttpClient: OkHttpClient,
+    /** OkHttpClient for video streaming / downloads (no HTTP cache). */
+    val streamingOkHttpClient: OkHttpClient,
     val bitmapCache: BitmapCache,
     val homeRowsCache: FileHomeRowsCache,
 ) {
@@ -38,10 +43,12 @@ class CinePilotRuntime private constructor(
             val filesDir: Path = appContext.filesDir.toPath()
             val sessionFile: Path = filesDir.resolve("sessions.properties")
             val homeRowsDir: Path = filesDir.resolve("home-rows")
-            val okHttpClient = CinePilotNetwork.createClient(appContext)
-            CinePilotNetwork.installImageLoader(appContext, okHttpClient)
+            val apiClient = CinePilotNetwork.createApiClient(appContext)
+            val imageClient = CinePilotNetwork.createImageClient(appContext)
+            val streamingClient = CinePilotNetwork.createStreamingClient(appContext)
+            CinePilotNetwork.installImageLoader(appContext, imageClient)
             val mediaBrowserClient = MediaBrowserClient(
-                OkHttpTransport(okHttpClient),
+                OkHttpTransport(apiClient),
                 FileSessionRepository(sessionFile),
                 clientIdentity,
             )
@@ -61,7 +68,9 @@ class CinePilotRuntime private constructor(
                 offlineRepository = offlineRepository,
                 deviceCodecDiagnostics = deviceCodecDiagnostics,
                 initialState = TvAppState.initial(),
-                okHttpClient = okHttpClient,
+                apiOkHttpClient = apiClient,
+                imageOkHttpClient = imageClient,
+                streamingOkHttpClient = streamingClient,
                 bitmapCache = bitmapCache,
                 homeRowsCache = homeRowsCache,
             ).also { CinePilotRuntimeHolder.attach(it) }

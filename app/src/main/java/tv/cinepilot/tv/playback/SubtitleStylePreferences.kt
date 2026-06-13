@@ -152,6 +152,20 @@ class SubtitleStyleStore(context: Context) {
         }
     }
 
+    /** Non-blocking save; completes when the DataStore edit has been applied. */
+    suspend fun saveAsync(value: SubtitleStylePreferences) {
+        dataStore.edit { preferences ->
+            preferences[KEY_SIZE] = value.size.name
+            preferences[KEY_COLOR] = value.color.name
+            preferences[KEY_BACKGROUND] = value.background.name
+            preferences[KEY_FONT_FAMILY] = value.fontFamily.name
+            preferences[KEY_EDGE_STYLE] = value.edgeStyle.name
+            preferences[KEY_BOTTOM_MARGIN] = value.bottomMargin.name
+            preferences[KEY_TEXT_OPACITY] = value.textOpacity.name
+            preferences[KEY_LETTER_SPACING_DP] = value.letterSpacingDp
+        }
+    }
+
     val flow: Flow<SubtitleStylePreferences> = dataStore.data.map { prefs ->
         SubtitleStylePreferences(
             size = enumValue(prefs[KEY_SIZE], SubtitleTextSize.STANDARD),
