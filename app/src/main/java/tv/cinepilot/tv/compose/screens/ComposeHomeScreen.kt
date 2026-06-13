@@ -28,6 +28,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.foundation.focusable
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.input.key.KeyEventType
@@ -83,15 +84,18 @@ fun ComposeHomeScreen(
         ?.items()
         ?.getOrNull(initialAddress.itemIndex)
     var backdropItem by remember(state, displayRows) { mutableStateOf(initialFocus) }
-    val pageFocusRequester = remember { FocusRequester() }
 
-    // Request initial focus to the page container on first composition.
-    // The page-level key handler then manages logical focus, so remote control
-    // always works even if individual card focus requests fail.
+    // One FocusRequester per rail. Recreated when the row count changes.
+    val railFocusRequesters = remember(displayRows.size) {
+        Array(displayRows.size.coerceAtLeast(1)) { FocusRequester() }
+    }
+
+    // Request initial focus on the appropriate rail when rows become available.
     LaunchedEffect(displayRows.size) {
         if (displayRows.isNotEmpty()) {
             delay(50)
-            runCatching { pageFocusRequester.requestFocus() }
+            val targetRow = initialAddress.rowIndex.coerceIn(0, displayRows.lastIndex)
+            runCatching { railFocusRequesters[targetRow].requestFocus() }
         }
     }
 
@@ -114,51 +118,40 @@ fun ComposeHomeScreen(
             ?.getOrNull(focusedItemIndex)
     }
 
-    fun moveFocus(nextRow: Int, nextItem: Int): Boolean {
-        val row = displayRows.getOrNull(nextRow) ?: return false
-        if (row.items().isEmpty()) return false
-        val itemIndex = nextItem.coerceIn(0, row.items().lastIndex)
-        focusedRowIndex = nextRow
-        focusedItemIndex = itemIndex
-        onFocusItem(row, row.items()[itemIndex])
-        return true
+    /**
+     * Called when a rail gains real focus. Updates the logical focused row,
+     * clamps the item index to the new row's range, and notifies the callback.
+     */
+    fun onRowFocused(rowIndex: Int) {
+        if (rowIndex == focusedRowIndex) return
+        val row = displayRows.getOrNull(rowIndex) ?: return
+        val items = row.items()
+        if (items.isEmpty()) return
+        val clampedIndex = focusedItemIndex.coerceIn(0, items.lastIndex)
+        focusedRowIndex = rowIndex
+        focusedItemIndex = clampedIndex
+        onFocusItem(row, items[clampedIndex])
     }
 
-    fun handleKey(key: Key): Boolean {
-        if (displayRows.isEmpty()) return false
-        return when (key) {
-            Key.DirectionLeft -> {
-                if (focusedItemIndex > 0) {
-                    moveFocus(focusedRowIndex, focusedItemIndex - 1)
-                } else false
-            }
-            Key.DirectionRight -> {
-                val row = displayRows.getOrNull(focusedRowIndex) ?: return false
-                if (focusedItemIndex < row.items().lastIndex) {
-                    moveFocus(focusedRowIndex, focusedItemIndex + 1)
-                } else false
-            }
-            Key.DirectionUp -> {
-                if (focusedRowIndex > 0) {
-                    moveFocus(focusedRowIndex - 1, focusedItemIndex)
-                } else false
-            }
-            Key.DirectionDown -> {
-                if (focusedRowIndex < displayRows.lastIndex) {
-                    moveFocus(focusedRowIndex + 1, focusedItemIndex)
-                } else false
-            }
-            Key.DirectionCenter, Key.Enter, Key.NumPadEnter -> {
-                val row = displayRows.getOrNull(focusedRowIndex) ?: return false
-                val item = row.items().getOrNull(focusedItemIndex) ?: return false
-                if (row.id() == "views") {
-                    onLibraryOverview(item.id(), libraryOverviewTitle(item), item.isSeriesLibrary())
-                } else {
-                    onOpen(row, item)
-                }
-                true
-            }
-            else -> false
+    /**
+     * Called when the focused item index changes within the currently focused rail.
+     */
+    fun onItemIndexChanged(rowIndex: Int, itemIndex: Int) {
+        if (rowIndex != focusedRowIndex) return
+        val row = displayRows.getOrNull(rowIndex) ?: return
+        val items = row.items()
+        if (itemIndex < 0 || itemIndex > items.lastIndex) return
+        focusedItemIndex = itemIndex
+        onFocusItem(row, items[itemIndex])
+    }
+
+    fun openItem(rowIndex: Int, itemIndex: Int) {
+        val row = displayRows.getOrNull(rowIndex) ?: return
+        val item = row.items().getOrNull(itemIndex) ?: return
+        if (row.id() == "views") {
+            onLibraryOverview(item.id(), libraryOverviewTitle(item), item.isSeriesLibrary())
+        } else {
+            onOpen(row, item)
         }
     }
 
@@ -180,13 +173,7 @@ fun ComposeHomeScreen(
             contentPadding = PaddingValues(bottom = TvDp.ScreenBottom),
             modifier = Modifier
                 .fillMaxWidth()
-                .weight(1f)
-                .focusRequester(pageFocusRequester)
-                .focusable()
-                .onPreviewKeyEvent { event ->
-                    if (event.type != KeyEventType.KeyDown) return@onPreviewKeyEvent false
-                    handleKey(event.key)
-                },
+                .weight(1f),
         ) {
             item(contentType = "home-top-bar") {
                 HomeTopBar(palette = palette, title = homeTitle(state), navigation = navigation)
@@ -213,18 +200,10 @@ fun ComposeHomeScreen(
                         rowIndex = rowIndex,
                         focusedRowIndex = focusedRowIndex,
                         focusedItemIndex = focusedItemIndex,
-                        onFocused = { itemIndex, item ->
-                            focusedRowIndex = rowIndex
-                            focusedItemIndex = itemIndex
-                            onFocusItem(row, item)
-                        },
-                        onOpen = { item ->
-                            if (row.id() == "views") {
-                                onLibraryOverview(item.id(), libraryOverviewTitle(item), item.isSeriesLibrary())
-                            } else {
-                                onOpen(row, item)
-                            }
-                        },
+                        focusRequester = railFocusRequesters[rowIndex],
+                        onRowFocused = { onRowFocused(rowIndex) },
+                        onItemIndexChanged = { itemIndex -> onItemIndexChanged(rowIndex, itemIndex) },
+                        onOpen = { itemIndex -> openItem(rowIndex, itemIndex) },
                     )
                 }
             }
@@ -343,14 +322,18 @@ private fun HomeMediaRow(
     rowIndex: Int,
     focusedRowIndex: Int,
     focusedItemIndex: Int,
-    onFocused: (itemIndex: Int, item: MediaItemSummary) -> Unit,
-    onOpen: (MediaItemSummary) -> Unit,
+    focusRequester: FocusRequester,
+    onRowFocused: () -> Unit,
+    onItemIndexChanged: (Int) -> Unit,
+    onOpen: (itemIndex: Int) -> Unit,
 ) {
+    val isFocusedRow = rowIndex == focusedRowIndex
     val presentation = remember(row) { row.toHomeRowPresentation() }
     val style = presentation.visualStyle
     val railState = rememberLazyListState()
+
     LaunchedEffect(focusedRowIndex, focusedItemIndex, row.items().size) {
-        if (rowIndex == focusedRowIndex && focusedItemIndex >= 0 && row.items().isNotEmpty()) {
+        if (isFocusedRow && focusedItemIndex >= 0 && row.items().isNotEmpty()) {
             val visible = railState.layoutInfo.visibleItemsInfo
             val firstVisible = visible.firstOrNull()?.index ?: 0
             val lastVisible = visible.lastOrNull()?.index ?: firstVisible
@@ -364,43 +347,87 @@ private fun HomeMediaRow(
             }
         }
     }
-    MediaRailIndexed(
-        palette = palette,
-        title = presentation.title.ifBlank { row.title() },
-        items = row.items(),
-        key = { item -> item.id() },
-        listState = railState,
-    ) { itemIndex, item ->
-        val artworkTarget = if (style == RowVisualStyle.POSTER_RAIL) ArtworkTarget.POSTER else ArtworkTarget.LANDSCAPE
-        val artwork = rememberArtworkRequest(
-            factory = artworkFactory,
-            authenticated = state.authenticated(),
-            item = item,
-            target = artworkTarget,
-            width = if (artworkTarget == ArtworkTarget.POSTER) 260 else 376,
-            height = if (artworkTarget == ArtworkTarget.POSTER) 390 else 212,
-        )
-        val isFocusedTarget = rowIndex == focusedRowIndex && itemIndex == focusedItemIndex
-        if (style == RowVisualStyle.POSTER_RAIL) {
-            PosterCard(
-                palette = palette,
+
+    /**
+     * Handles key events for this rail. Only called when the rail container
+     * has actual focus. Manages horizontal logical focus and Enter action.
+     * UP/DOWN are not consumed here - they fall through to Compose's default
+     * focus traversal, which moves focus between rows and the top bar.
+     */
+    fun handleKey(key: Key): Boolean {
+        if (!isFocusedRow) return false
+        val items = row.items()
+        if (items.isEmpty()) return false
+        return when (key) {
+            Key.DirectionLeft -> {
+                if (focusedItemIndex > 0) {
+                    onItemIndexChanged(focusedItemIndex - 1)
+                    true
+                } else false
+            }
+            Key.DirectionRight -> {
+                if (focusedItemIndex < items.lastIndex) {
+                    onItemIndexChanged(focusedItemIndex + 1)
+                    true
+                } else false
+            }
+            Key.DirectionCenter, Key.Enter, Key.NumPadEnter -> {
+                val safeIndex = focusedItemIndex.coerceIn(0, items.lastIndex)
+                onOpen(safeIndex)
+                true
+            }
+            else -> false
+        }
+    }
+
+    Box(
+        modifier = Modifier
+            .focusRequester(focusRequester)
+            .focusable()
+            .onFocusChanged { if (it.isFocused) onRowFocused() }
+            .onPreviewKeyEvent { event ->
+                if (event.type != KeyEventType.KeyDown) return@onPreviewKeyEvent false
+                handleKey(event.key)
+            },
+    ) {
+        MediaRailIndexed(
+            palette = palette,
+            title = presentation.title.ifBlank { row.title() },
+            items = row.items(),
+            key = { item -> item.id() },
+            listState = railState,
+        ) { itemIndex, item ->
+            val artworkTarget = if (style == RowVisualStyle.POSTER_RAIL) ArtworkTarget.POSTER else ArtworkTarget.LANDSCAPE
+            val artwork = rememberArtworkRequest(
+                factory = artworkFactory,
+                authenticated = state.authenticated(),
                 item = item,
-                artwork = artwork,
-                isFocused = isFocusedTarget,
-                requestInitialFocus = isFocusedTarget,
-                onFocus = { onFocused(itemIndex, item) },
-                onClick = { onOpen(item) },
+                target = artworkTarget,
+                width = if (artworkTarget == ArtworkTarget.POSTER) 260 else 376,
+                height = if (artworkTarget == ArtworkTarget.POSTER) 390 else 212,
             )
-        } else {
-            LandscapeCard(
-                palette = palette,
-                item = item,
-                artwork = artwork,
-                isFocused = isFocusedTarget,
-                requestInitialFocus = isFocusedTarget,
-                onFocus = { onFocused(itemIndex, item) },
-                onClick = { onOpen(item) },
-            )
+            val isFocusedCard = isFocusedRow && itemIndex == focusedItemIndex
+            if (style == RowVisualStyle.POSTER_RAIL) {
+                PosterCard(
+                    palette = palette,
+                    item = item,
+                    artwork = artwork,
+                    isFocused = isFocusedCard,
+                    enabled = false,
+                    onFocus = {},
+                    onClick = {},
+                )
+            } else {
+                LandscapeCard(
+                    palette = palette,
+                    item = item,
+                    artwork = artwork,
+                    isFocused = isFocusedCard,
+                    enabled = false,
+                    onFocus = {},
+                    onClick = {},
+                )
+            }
         }
     }
 }

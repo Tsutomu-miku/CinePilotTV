@@ -183,6 +183,7 @@ fun PosterCard(
     modifier: Modifier = Modifier,
     isFocused: Boolean? = null,
     requestInitialFocus: Boolean = false,
+    enabled: Boolean = true,
     onFocus: () -> Unit,
     onClick: () -> Unit,
 ) {
@@ -196,6 +197,7 @@ fun PosterCard(
         isFocused = isFocused,
         requestInitialFocus = requestInitialFocus,
         focusedScale = 1f,
+        enabled = enabled,
         onFocusChanged = { if (it) onFocus() },
         onClick = onClick,
     ) { focused ->
@@ -217,6 +219,7 @@ fun LandscapeCard(
     modifier: Modifier = Modifier,
     isFocused: Boolean? = null,
     requestInitialFocus: Boolean = false,
+    enabled: Boolean = true,
     onFocus: () -> Unit,
     onClick: () -> Unit,
 ) {
@@ -230,6 +233,7 @@ fun LandscapeCard(
         isFocused = isFocused,
         requestInitialFocus = requestInitialFocus,
         focusedScale = 1f,
+        enabled = enabled,
         onFocusChanged = { if (it) onFocus() },
         onClick = onClick,
     ) { focused ->
