@@ -53,11 +53,11 @@ import tv.cinepilot.tv.ui.isSeason
 import tv.cinepilot.tv.ui.isSeries
 import tv.cinepilot.tv.ui.isSeriesStructureRoot
 import tv.cinepilot.tv.ui.isPlaylist
-import tv.cinepilot.tv.ui.offlineManagerSheet
-import tv.cinepilot.tv.ui.qualityPickerSheet
 import tv.cinepilot.tv.compose.screens.ComposeNextUpInfo
+import tv.cinepilot.tv.compose.screens.ComposeOfflineManagerScreen
 import tv.cinepilot.tv.compose.screens.ComposePlaybackSettingsScreen
 import tv.cinepilot.tv.compose.screens.ComposePlayerScreen
+import tv.cinepilot.tv.compose.screens.ComposeQualityPickerScreen
 
 class PlaybackRouteController(
     private val activity: ComponentActivity,
@@ -372,21 +372,25 @@ class PlaybackRouteController(
             toast("暂无离线记录")
             return
         }
-        val sheet = activity.offlineManagerSheet(
-            entries = entries,
-            onClose = { showDetails(item, playbackInfo, episodeContext) },
-            onPause = { e: OfflineRepository.Entry ->
-                downloadCoordinator.pause(auth.server().serverId(), e.itemId(), e.quality())
-            },
-            onResume = { e: OfflineRepository.Entry ->
-                downloadCoordinator.resume(auth.server().serverId(), e.itemId(), e.quality())
-            },
-            onDelete = { e: OfflineRepository.Entry ->
-                downloadCoordinator.remove(auth.server().serverId(), e.itemId(), e.quality())
-            },
-        )
-        auxiliaryBackAction = { showDetails(item, playbackInfo, episodeContext) }
-        renderView(sheet)
+        val onClose = { showDetails(item, playbackInfo, episodeContext) }
+        auxiliaryBackAction = onClose
+        renderCompose("离线管理") { palette ->
+            ComposeOfflineManagerScreen(
+                palette = palette,
+                entries = entries,
+                onClose = onClose,
+                onPause = { e ->
+                    downloadCoordinator.pause(auth.server().serverId(), e.itemId(), e.quality())
+                },
+                onResume = { e ->
+                    downloadCoordinator.resume(auth.server().serverId(), e.itemId(), e.quality())
+                },
+                onDelete = { e ->
+                    downloadCoordinator.remove(auth.server().serverId(), e.itemId(), e.quality())
+                    onClose()
+                },
+            )
+        }
     }
 
     // --- Playlist UI (delegated to PlaylistController) ---------------------------
@@ -395,14 +399,18 @@ class PlaybackRouteController(
     // --- Subtitle search UI (delegated to SubtitleSearchController) ---------
     // P3-1: see SubtitleSearchController.kt for search, download, and caching.
 
-    private inline fun showQualityPicker(crossinline onChosen: (Int) -> Unit) {
-        val sheet = activity.qualityPickerSheet(
-            labels = qualityLabels.toList(),
-            values = qualityValues.toList(),
-            default = 0,
-            onChosen = { q: Int -> onChosen(q) },
-        )
-        renderView(sheet)
+    private fun showQualityPicker(onChosen: (Int) -> Unit) {
+        auxiliaryBackAction = { /* dismiss */ }
+        renderCompose("选择离线画质") { palette ->
+            ComposeQualityPickerScreen(
+                palette = palette,
+                labels = qualityLabels.toList(),
+                values = qualityValues.toList(),
+                default = 0,
+                onChosen = { q -> onChosen(q) },
+                onClose = { handleAuxiliaryBackPressed() },
+            )
+        }
     }
 
     private fun toast(msg: String) {
