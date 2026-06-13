@@ -13,15 +13,16 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicText
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -32,14 +33,16 @@ import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.focus.FocusRequester
-import androidx.compose.ui.focus.focusProperties
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.layout.Layout
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Constraints
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import tv.cinepilot.core.protocol.AuthenticatedServer
@@ -49,26 +52,26 @@ import tv.cinepilot.core.protocol.MediaStreamInfo
 import tv.cinepilot.core.protocol.MediaStreamType
 import tv.cinepilot.core.protocol.PlaybackInfo
 import tv.cinepilot.core.protocol.PlaybackSelectionPreferences
-import tv.cinepilot.core.tv.HomeRow
 import tv.cinepilot.tv.compose.artwork.CinePilotAsyncImage
 import tv.cinepilot.tv.compose.artwork.rememberArtworkRequest
 import tv.cinepilot.tv.compose.components.LandscapeCard
 import tv.cinepilot.tv.compose.components.MediaRail
 import tv.cinepilot.tv.compose.components.PosterCard
 import tv.cinepilot.tv.compose.theme.CinePilotPalette
-import tv.cinepilot.tv.compose.theme.TvDp
 import tv.cinepilot.tv.compose.theme.TvText
 import tv.cinepilot.tv.details.DetailTrackSelection
 import tv.cinepilot.tv.runtime.ArtworkRequestFactory
 import tv.cinepilot.tv.runtime.ArtworkRequestSpec
 import tv.cinepilot.tv.runtime.ArtworkTarget
 import tv.cinepilot.tv.ui.MediaWallTokens
+import tv.cinepilot.tv.ui.MediaWallType
 import tv.cinepilot.tv.ui.browseChildrenLabel
 import tv.cinepilot.tv.ui.isEpisode
 import tv.cinepilot.tv.ui.mediaTechnicalPills
 import tv.cinepilot.tv.ui.sourceLabel
 import tv.cinepilot.tv.ui.streamLabel
 import tv.cinepilot.tv.ui.toDetailPresentation
+import kotlin.math.max
 
 @Composable
 fun ComposeDetailsScreen(
@@ -165,6 +168,17 @@ fun ComposeDetailsScreen(
                     onProviderBadgeClick = onProviderBadgeClick,
                 )
             }
+            val hasTracks = playbackInfo?.mediaSources().orEmpty().isNotEmpty()
+            if (hasTracks) {
+                item {
+                    DetailTrackOptions(
+                        palette = palette,
+                        playbackInfo = playbackInfo,
+                        selection = trackSelection,
+                        onSelection = onTrackSelection,
+                    )
+                }
+            }
             if (presentation.overview.isNotBlank()) {
                 item {
                     DetailSection(title = "剧情简介", palette = palette) {
@@ -172,20 +186,12 @@ fun ComposeDetailsScreen(
                             text = presentation.overview,
                             style = TextStyle(
                                 color = palette.textSecondary,
-                                fontSize = 14.sp,
-                                lineHeight = 22.sp,
+                                fontSize = TvText.Body,
+                                lineHeight = (TvText.Body.value * 1.08f).sp,
                             ),
                         )
                     }
                 }
-            }
-            item {
-                DetailTrackOptions(
-                    palette = palette,
-                    playbackInfo = playbackInfo,
-                    selection = trackSelection,
-                    onSelection = onTrackSelection,
-                )
             }
             if (item.isEpisode() && siblingEpisodes.isNotEmpty()) {
                 item {
@@ -255,7 +261,7 @@ private fun DetailsStage(
     content: @Composable () -> Unit,
 ) {
     Box(modifier = Modifier.fillMaxSize()) {
-        // Backdrop image
+        // Backdrop image at 84% opacity — matches original
         if (backdrop != null) {
             CinePilotAsyncImage(
                 request = backdrop,
@@ -266,29 +272,29 @@ private fun DetailsStage(
                     .alpha(0.84f),
             )
         }
-        // Dark base overlay
+        // Dark base overlay — matches original Color.argb(42, 0, 0, 0) (16.5% black)
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .background(Color.Black.copy(alpha = 0.16f)),
+                .background(Color.Black.copy(alpha = 42f / 255f)),
         )
-        // Left-side readable scrim — matches the original 1180dp-wide gradient
+        // Left-side readable scrim — 1180dp wide gradient, matches original readableDetailsScrim
         Box(
             modifier = Modifier
-                .fillMaxSize()
+                .fillMaxHeight()
+                .width(1180.dp)
                 .background(
                     brush = Brush.horizontalGradient(
                         colors = listOf(
-                            Color.Black.copy(alpha = 0.92f),
-                            Color.Black.copy(alpha = 0.72f),
-                            Color.Black.copy(alpha = 0.28f),
+                            Color.Black.copy(alpha = 236f / 255f),
+                            Color.Black.copy(alpha = 184f / 255f),
+                            Color.Black.copy(alpha = 72f / 255f),
                             Color.Transparent,
                         ),
-                        endX = 1180.dp.value,
                     ),
                 ),
         )
-        // Content
+        // Scrollable content
         content()
     }
 }
@@ -313,6 +319,74 @@ private fun DetailSection(
     }
 }
 
+// ---- Flow Row layout (matches TvFlowLayout behavior) --------------------------
+
+@Composable
+private fun FlowRow(
+    modifier: Modifier = Modifier,
+    horizontalGap: Dp = 8.dp,
+    verticalGap: Dp = 8.dp,
+    content: @Composable () -> Unit,
+) {
+    Layout(
+        content = content,
+        modifier = modifier,
+    ) { measurables, constraints ->
+        val maxWidth = constraints.maxWidth
+        val hGapPx = horizontalGap.roundToPx()
+        val vGapPx = verticalGap.roundToPx()
+
+        val rows = mutableListOf<RowMeasurements>()
+        var currentRow = RowMeasurements()
+        var currentRowWidth = 0
+
+        for (measurable in measurables) {
+            val placeable = measurable.measure(Constraints(maxWidth = maxWidth))
+            val itemWidth = placeable.width
+            val itemHeight = placeable.height
+
+            if (currentRow.isNotEmpty() && currentRowWidth + hGapPx + itemWidth > maxWidth) {
+                rows.add(currentRow)
+                currentRow = RowMeasurements()
+                currentRowWidth = 0
+            }
+            if (currentRow.isNotEmpty()) {
+                currentRowWidth += hGapPx
+            }
+            currentRowWidth += itemWidth
+            currentRow.items.add(PlaceableItem(placeable, itemWidth, itemHeight))
+        }
+        if (currentRow.isNotEmpty()) {
+            rows.add(currentRow)
+        }
+
+        val totalHeight = rows.sumOf { it.height } + (rows.size - 1) * vGapPx
+        layout(maxWidth, totalHeight.coerceAtLeast(0)) {
+            var y = 0
+            for (row in rows) {
+                var x = 0
+                for (item in row.items) {
+                    item.placeable.placeRelative(x, y)
+                    x += item.width + hGapPx
+                }
+                y += row.height + vGapPx
+            }
+        }
+    }
+}
+
+private class RowMeasurements {
+    val items = mutableListOf<PlaceableItem>()
+    val height: Int get() = items.maxOfOrNull { it.height } ?: 0
+    fun isNotEmpty(): Boolean = items.isNotEmpty()
+}
+
+private data class PlaceableItem(
+    val placeable: androidx.compose.ui.layout.Placeable,
+    val width: Int,
+    val height: Int,
+)
+
 // ---- Details hero -----------------------------------------------------------------
 
 @Composable
@@ -333,7 +407,7 @@ private fun DetailsHero(
         verticalAlignment = Alignment.Top,
         modifier = Modifier.fillMaxWidth(),
     ) {
-        // Poster
+        // Poster — with elevation shadow, matches original
         val poster = rememberArtworkRequest(
             factory = artworkFactory,
             authenticated = authenticated,
@@ -368,7 +442,11 @@ private fun DetailsHero(
         }
 
         // Right column: title, meta, badges, actions
-        Column(modifier = Modifier.weight(1f)) {
+        Column(
+            modifier = Modifier
+                .weight(1f)
+                .padding(top = 4.dp),
+        ) {
             BasicText(
                 text = title,
                 maxLines = 3,
@@ -380,7 +458,7 @@ private fun DetailsHero(
                 ),
             )
             if (contextLine.isNotBlank()) {
-                Spacer(Modifier.height(12.dp))
+                Spacer(Modifier.height(10.dp))
                 BasicText(
                     text = contextLine,
                     maxLines = 1,
@@ -397,7 +475,7 @@ private fun DetailsHero(
             }
             if (providerBadges.isNotEmpty()) {
                 Spacer(Modifier.height(6.dp))
-                ProviderBadgeRow(
+                ProviderBadgeFlow(
                     badges = providerBadges,
                     palette = palette,
                     onClick = onProviderBadgeClick,
@@ -405,7 +483,7 @@ private fun DetailsHero(
             }
             if (actions.isNotEmpty()) {
                 Spacer(Modifier.height(16.dp))
-                DetailActionRow(actions = actions, palette = palette)
+                DetailActionFlow(actions = actions, palette = palette)
             }
         }
     }
@@ -415,9 +493,9 @@ private fun DetailsHero(
 
 @Composable
 private fun MetadataPills(badges: List<String>, palette: CinePilotPalette) {
-    Row(
-        horizontalArrangement = Arrangement.spacedBy(6.dp),
-        verticalAlignment = Alignment.CenterVertically,
+    FlowRow(
+        horizontalGap = 6.dp,
+        verticalGap = 4.dp,
         modifier = Modifier.fillMaxWidth(),
     ) {
         badges.take(8).forEach { badge ->
@@ -431,14 +509,15 @@ private fun MetadataPills(badges: List<String>, palette: CinePilotPalette) {
 }
 
 @Composable
-private fun ProviderBadgeRow(
+private fun ProviderBadgeFlow(
     badges: List<Pair<String, String>>,
     palette: CinePilotPalette,
     onClick: (String) -> Unit,
 ) {
-    Row(
-        horizontalArrangement = Arrangement.spacedBy(6.dp),
-        verticalAlignment = Alignment.CenterVertically,
+    FlowRow(
+        horizontalGap = 6.dp,
+        verticalGap = 4.dp,
+        modifier = Modifier.fillMaxWidth(),
     ) {
         badges.take(5).forEach { (label, url) ->
             var focused by remember { mutableStateOf(false) }
@@ -471,7 +550,7 @@ private fun PillChip(
         else -> Color.White.copy(alpha = 0.08f)
     }
     val textColor = when {
-        primary -> Color.Black
+        primary -> palette.focusText
         focused -> palette.textPrimary
         else -> palette.textSecondary
     }
@@ -480,7 +559,8 @@ private fun PillChip(
         focused -> palette.focusRing
         else -> palette.glassBorder.copy(alpha = 0.4f)
     }
-    val modifier = Modifier
+    val interaction = remember { MutableInteractionSource() }
+    val baseModifier = Modifier
         .height(26.dp)
         .clip(RoundedCornerShape(8.dp))
         .background(bgColor)
@@ -488,12 +568,16 @@ private fun PillChip(
         .padding(horizontal = 8.dp)
 
     val finalModifier = if (clickable) {
-        modifier
-            .onFocusChange { onFocusChange(it) }
-            .focusable()
-            .clickableNoIndication(onClick)
+        baseModifier
+            .onFocusChanged { onFocusChange(it.isFocused) }
+            .focusable(interactionSource = interaction)
+            .clickable(
+                interactionSource = interaction,
+                indication = null,
+                onClick = onClick,
+            )
     } else {
-        modifier
+        baseModifier
     }
 
     Box(finalModifier, contentAlignment = Alignment.Center) {
@@ -509,7 +593,252 @@ private fun PillChip(
     }
 }
 
+// ---- Detail actions (pill-style, flow layout) ------------------------------------
+
 private data class DetailAction(val label: String, val onClick: () -> Unit)
+
+@Composable
+private fun DetailActionFlow(
+    actions: List<DetailAction>,
+    palette: CinePilotPalette,
+) {
+    FlowRow(
+        horizontalGap = 8.dp,
+        verticalGap = 8.dp,
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(top = 4.dp, bottom = 2.dp),
+    ) {
+        actions.forEachIndexed { index, action ->
+            DetailActionButton(
+                label = action.label,
+                palette = palette,
+                primary = index == 0,
+                requestInitialFocus = index == 0,
+                onClick = action.onClick,
+            )
+        }
+    }
+}
+
+@Composable
+private fun DetailActionButton(
+    label: String,
+    palette: CinePilotPalette,
+    primary: Boolean,
+    requestInitialFocus: Boolean = false,
+    onClick: () -> Unit,
+) {
+    var focused by remember { mutableStateOf(false) }
+    val focusRequester = remember { FocusRequester() }
+    val interaction = remember { MutableInteractionSource() }
+
+    val height = if (primary) 38.dp else 34.dp
+    val horizontalPadding = if (primary) 18.dp else 10.dp
+
+    val bgColor = when {
+        primary -> palette.accentStrong
+        focused -> palette.glassFocus
+        else -> Color.Black.copy(alpha = 42f / 255f)
+    }
+    val textColor = when {
+        primary -> palette.focusText
+        focused -> palette.textPrimary
+        else -> palette.textSecondary
+    }
+    val borderColor = when {
+        primary -> palette.accentStrong
+        focused -> palette.focusRing
+        else -> palette.glassBorder.copy(alpha = 44f / 255f)
+    }
+
+    LaunchedEffect(Unit) {
+        if (requestInitialFocus) {
+            runCatching { focusRequester.requestFocus() }
+        }
+    }
+
+    Box(
+        modifier = Modifier
+            .focusRequester(focusRequester)
+            .onFocusChanged { focused = it.isFocused }
+            .focusable(interactionSource = interaction)
+            .clickable(
+                interactionSource = interaction,
+                indication = null,
+                onClick = onClick,
+            )
+            .height(height)
+            .clip(RoundedCornerShape(16.dp))
+            .background(bgColor)
+            .border(1.dp, borderColor, RoundedCornerShape(16.dp))
+            .padding(horizontal = horizontalPadding),
+        contentAlignment = Alignment.Center,
+    ) {
+        BasicText(
+            text = label,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+            style = TextStyle(
+                color = textColor,
+                fontSize = MediaWallType.Action.sp,
+            ),
+        )
+    }
+}
+
+// ---- Detail track options (info-section style, not SettingsGrid) ------------------
+
+@Composable
+private fun DetailTrackOptions(
+    palette: CinePilotPalette,
+    playbackInfo: PlaybackInfo?,
+    selection: DetailTrackSelection,
+    onSelection: (DetailTrackSelection) -> Unit,
+) {
+    val sources = playbackInfo?.mediaSources().orEmpty()
+    if (sources.isEmpty()) return
+
+    val activeSource = sources.firstOrNull { it.id() == selection.mediaSourceId } ?: sources.first()
+
+    Column(verticalArrangement = Arrangement.spacedBy(0.dp)) {
+        FlowRow(
+            horizontalGap = 8.dp,
+            verticalGap = 8.dp,
+            modifier = Modifier.fillMaxWidth(),
+        ) {
+            if (sources.size > 1) {
+                TrackOptionSelector(
+                    palette = palette,
+                    title = "媒体源",
+                    value = sourceValue(activeSource),
+                    width = 420.dp,
+                    requestInitialFocus = selection.focusKey == FOCUS_SOURCE,
+                    onClick = { /* popover TBD */ },
+                )
+            }
+            TrackOptionSelector(
+                palette = palette,
+                title = "音轨",
+                value = audioValue(activeSource, selection),
+                width = 360.dp,
+                requestInitialFocus = selection.focusKey == FOCUS_AUDIO,
+                onClick = { /* popover TBD */ },
+            )
+            TrackOptionSelector(
+                palette = palette,
+                title = "字幕",
+                value = subtitleValue(activeSource, selection),
+                width = 360.dp,
+                requestInitialFocus = selection.focusKey == FOCUS_SUBTITLE,
+                onClick = { /* popover TBD */ },
+            )
+        }
+    }
+}
+
+@Composable
+private fun TrackOptionSelector(
+    palette: CinePilotPalette,
+    title: String,
+    value: String,
+    width: Dp = 360.dp,
+    requestInitialFocus: Boolean = false,
+    onClick: () -> Unit,
+) {
+    var focused by remember { mutableStateOf(false) }
+    val focusRequester = remember { FocusRequester() }
+    val interaction = remember { MutableInteractionSource() }
+
+    val bgColor = if (focused) palette.glassFocus else palette.glass
+    val borderColor = if (focused) palette.focusRing else palette.glassBorder
+    val valueColor = if (focused) palette.textPrimary else palette.textSecondary
+
+    LaunchedEffect(Unit) {
+        if (requestInitialFocus) {
+            runCatching { focusRequester.requestFocus() }
+        }
+    }
+
+    Box(
+        modifier = Modifier
+            .focusRequester(focusRequester)
+            .onFocusChanged { focused = it.isFocused }
+            .focusable(interactionSource = interaction)
+            .clickable(
+                interactionSource = interaction,
+                indication = null,
+                onClick = onClick,
+            )
+            .width(width)
+            .height(40.dp)
+            .clip(RoundedCornerShape(12.dp))
+            .background(bgColor)
+            .border(1.dp, borderColor, RoundedCornerShape(12.dp))
+            .padding(horizontal = 12.dp),
+        contentAlignment = Alignment.Center,
+    ) {
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier.fillMaxWidth(),
+        ) {
+            BasicText(
+                text = title,
+                style = TextStyle(
+                    color = palette.accentStrong,
+                    fontSize = 13.sp,
+                ),
+                modifier = Modifier.width(58.dp),
+            )
+            BasicText(
+                text = value,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                style = TextStyle(
+                    color = valueColor,
+                    fontSize = 13.sp,
+                ),
+                modifier = Modifier.weight(1f),
+            )
+            BasicText(
+                text = "\u2304",
+                style = TextStyle(
+                    color = palette.textMuted,
+                    fontSize = 13.sp,
+                ),
+                modifier = Modifier.width(18.dp),
+            )
+        }
+    }
+}
+
+// ---- Helper functions -------------------------------------------------------------
+
+private fun sourceValue(source: MediaSourceInfo): String {
+    return sourceLabel(source).removePrefix("媒体源：")
+}
+
+private fun audioValue(source: MediaSourceInfo, selection: DetailTrackSelection): String {
+    val streams = source.streamsOf(MediaStreamType.AUDIO)
+    val selectedStream = streams.firstOrNull {
+        selection.audioSelected && selection.audioStreamIndex == it.index()
+    }
+    return selectedStream?.let { streamLabel(it) } ?: serverDefaultLabel(streams)
+}
+
+private fun subtitleValue(source: MediaSourceInfo, selection: DetailTrackSelection): String {
+    val streams = source.streamsOf(MediaStreamType.SUBTITLE)
+    return when {
+        selection.subtitleSelected && selection.subtitleStreamIndex == SUBTITLES_OFF_INDEX ->
+            "关闭字幕"
+        else -> {
+            val selectedStream = streams.firstOrNull {
+                selection.subtitleSelected && selection.subtitleStreamIndex == it.index()
+            }
+            selectedStream?.let { streamLabel(it) } ?: serverDefaultLabel(streams)
+        }
+    }
+}
 
 private fun rememberDetailActions(
     item: MediaItemSummary,
