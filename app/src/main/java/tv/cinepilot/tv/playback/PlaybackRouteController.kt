@@ -38,7 +38,6 @@ import tv.cinepilot.tv.player.DisplayCapabilities
 import tv.cinepilot.tv.plugin.PluginHost
 import tv.cinepilot.tv.plugin.toSnapshot
 import tv.cinepilot.tv.compose.theme.CinePilotPalette
-import tv.cinepilot.tv.runtime.ArtworkLoader
 import tv.cinepilot.tv.runtime.ArtworkRequestFactory
 import tv.cinepilot.tv.runtime.ArtworkTarget
 import tv.cinepilot.tv.runtime.DeviceCodecDiagnostics
@@ -77,7 +76,6 @@ class PlaybackRouteController(
     private val loadArtworkImage: (ImageView, MediaItemSummary, ArtworkTarget, Int, Int) -> Unit,
     private val loadBackdropImage: (ImageView, MediaItemSummary, Int, Int) -> Unit,
     private val loadPersonImage: (ImageView, MediaPerson, Int, Int) -> Unit,
-    private val artworkLoader: ArtworkLoader,
     private val artworkFactory: ArtworkRequestFactory,
     private val pluginHost: tv.cinepilot.tv.plugin.PluginHost,
     private val downloadCoordinator: DownloadCoordinator,

@@ -74,7 +74,6 @@
 # FileHomeRowsCache is in :core and uses Java NIO; keep class names so
 # stack traces are readable in crash reports on user devices.
 -keepnames class tv.cinepilot.tv.runtime.BitmapCache { *; }
--keepnames class tv.cinepilot.tv.runtime.PrimaryImageLoader { *; }
 -keepnames class tv.cinepilot.tv.runtime.ArtworkLoader { *; }
 -keep class tv.cinepilot.core.tv.FileHomeRowsCache { *; }
 
