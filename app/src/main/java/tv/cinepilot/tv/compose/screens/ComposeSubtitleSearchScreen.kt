@@ -148,7 +148,7 @@ private fun SubtitleResultRow(
         selected = isSelected,
         onClick = onClick,
         modifier = Modifier.fillMaxWidth(),
-        radius = TvDp.ControlRadius.dp,
+        radius = TvDp.ControlRadius,
         padding = PaddingValues(horizontal = 16.dp, vertical = 12.dp),
     ) { _ ->
         Column {

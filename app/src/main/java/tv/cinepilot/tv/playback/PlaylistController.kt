@@ -1,18 +1,18 @@
 package tv.cinepilot.tv.playback
 
-import android.view.View
-import android.widget.ImageView
 import android.widget.Toast
 import androidx.activity.ComponentActivity
+import androidx.compose.runtime.Composable
 import tv.cinepilot.core.protocol.MediaItemSummary
 import tv.cinepilot.core.protocol.PlaybackInfo
 import tv.cinepilot.core.tv.ShowStructure
 import tv.cinepilot.core.tv.TvAppState
 import tv.cinepilot.core.tv.TvWorkflowController
-import tv.cinepilot.tv.details.playlistDetailScreen
-import tv.cinepilot.tv.runtime.ArtworkTarget
-import tv.cinepilot.tv.ui.createPlaylistSheet
-import tv.cinepilot.tv.ui.playlistPickerSheet
+import tv.cinepilot.tv.compose.screens.ComposeCreatePlaylistScreen
+import tv.cinepilot.tv.compose.screens.ComposePlaylistDetailScreen
+import tv.cinepilot.tv.compose.screens.ComposePlaylistPickerScreen
+import tv.cinepilot.tv.compose.theme.CinePilotPalette
+import tv.cinepilot.tv.runtime.ArtworkRequestFactory
 
 /**
  * Coordinates playlist UI flows: picker sheet, create dialog, and playlist detail page.
@@ -30,9 +30,8 @@ class PlaylistController(
     private val workflowController: TvWorkflowController,
     private val runTask: (String, () -> Unit, () -> Unit) -> Unit,
     private val showHome: (TvAppState) -> Unit,
-    private val renderView: (View) -> Unit,
-    private val loadBackdropImage: (ImageView, MediaItemSummary, Int, Int) -> Unit,
-    private val loadArtworkImage: (ImageView, MediaItemSummary, ArtworkTarget, Int, Int) -> Unit,
+    private val renderCompose: (String, @Composable (CinePilotPalette) -> Unit) -> Unit,
+    private val artworkFactory: ArtworkRequestFactory,
     private val setAuxiliaryBackAction: (() -> Unit) -> Unit,
     private val onOpenItem: (MediaItemSummary, () -> Unit) -> Unit,
     private val onPlayAll: (List<MediaItemSummary>, () -> Unit) -> Unit,
@@ -50,18 +49,20 @@ class PlaylistController(
         runTask("正在加载播放列表...", {
             playlists = workflowController.playlists(50).items()
         }) {
-            val sheet = activity.playlistPickerSheet(
-                playlists = playlists,
-                onPick = { playlist ->
-                    addItem(item, playlist, onClose)
-                },
-                onCreateNew = {
-                    showCreateDialog(item, playbackInfo, episodeContext, onClose)
-                },
-                onClose = onClose,
-            )
             setAuxiliaryBackAction(onClose)
-            renderView(sheet)
+            renderCompose("播放列表") { palette ->
+                ComposePlaylistPickerScreen(
+                    palette = palette,
+                    playlists = playlists,
+                    onPick = { playlist ->
+                        addItem(item, playlist, onClose)
+                    },
+                    onCreateNew = {
+                        showCreateDialog(item, playbackInfo, episodeContext, onClose)
+                    },
+                    onClose = onClose,
+                )
+            }
         }
     }
 
@@ -85,17 +86,19 @@ class PlaylistController(
         episodeContext: ShowStructure?,
         onClose: () -> Unit,
     ) {
-        val sheet = activity.createPlaylistSheet(
-            initialName = item.name(),
-            onConfirm = { name ->
-                createAndAdd(name, item, onClose)
-            },
-            onCancel = {
-                showPicker(item, playbackInfo, episodeContext, onClose)
-            },
-        )
         setAuxiliaryBackAction { showPicker(item, playbackInfo, episodeContext, onClose) }
-        renderView(sheet)
+        renderCompose("新建播放列表") { palette ->
+            ComposeCreatePlaylistScreen(
+                palette = palette,
+                initialName = item.name(),
+                onConfirm = { name ->
+                    createAndAdd(name, item, onClose)
+                },
+                onCancel = {
+                    showPicker(item, playbackInfo, episodeContext, onClose)
+                },
+            )
+        }
     }
 
     private fun createAndAdd(
@@ -134,34 +137,36 @@ class PlaylistController(
         playlist: MediaItemSummary,
         items: List<MediaItemSummary>,
     ) {
-        val sheet = activity.playlistDetailScreen(
-            playlist = playlist,
-            items = items,
-            onPlayAll = {
-                val playable = items.filter { it.playable() }
-                if (playable.isNotEmpty()) {
-                    onPlayAll(playable) { showDetail(playlist, items) }
-                }
-            },
-            onDelete = {
-                runTask("正在删除播放列表...", {
-                    workflowController.deletePlaylist(playlist.id())
-                }) {
-                    toast("播放列表已删除")
-                    showHome(workflowController.state())
-                }
-            },
-            onOpenItem = { item ->
-                onOpenItem(item) { showDetail(playlist, items) }
-            },
-            onBack = {
-                showHome(workflowController.state())
-            },
-            loadBackdrop = { view, item -> loadBackdropImage(view, item, 1280, 720) },
-            loadArtwork = loadArtworkImage,
-        )
         setAuxiliaryBackAction { showHome(workflowController.state()) }
-        renderView(sheet)
+        renderCompose("播放列表详情") { palette ->
+            ComposePlaylistDetailScreen(
+                palette = palette,
+                playlist = playlist,
+                items = items,
+                artworkFactory = artworkFactory,
+                authenticated = workflowController.state().authenticated(),
+                onPlayAll = {
+                    val playable = items.filter { it.playable() }
+                    if (playable.isNotEmpty()) {
+                        onPlayAll(playable) { showDetail(playlist, items) }
+                    }
+                },
+                onDelete = {
+                    runTask("正在删除播放列表...", {
+                        workflowController.deletePlaylist(playlist.id())
+                    }) {
+                        toast("播放列表已删除")
+                        showHome(workflowController.state())
+                    }
+                },
+                onOpenItem = { item ->
+                    onOpenItem(item) { showDetail(playlist, items) }
+                },
+                onBack = {
+                    showHome(workflowController.state())
+                },
+            )
+        }
     }
 
     private fun toast(msg: String) {
