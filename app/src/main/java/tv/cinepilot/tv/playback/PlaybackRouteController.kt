@@ -99,9 +99,8 @@ class PlaybackRouteController(
         workflowController = workflowController,
         runTask = runTask,
         showHome = showHome,
-        renderView = renderView,
-        loadBackdropImage = loadBackdropImage,
-        loadArtworkImage = loadArtworkImage,
+        renderCompose = renderCompose,
+        artworkFactory = artworkFactory,
         setAuxiliaryBackAction = { action -> auxiliaryBackAction = action },
         onOpenItem = { item, onBack ->
             mediaBackStack.addLast(onBack)
