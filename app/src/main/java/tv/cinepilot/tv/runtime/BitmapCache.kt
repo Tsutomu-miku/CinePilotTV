@@ -21,8 +21,7 @@ import java.security.MessageDigest
  * this single-process TV app.
  *
  * All mutating operations on the disk layer are internally synchronized so
- * ArtworkLoader / PrimaryImageLoader thread pools can share one instance
- * safely.
+ * ArtworkLoader and other image loaders can share one instance safely.
  */
 class BitmapCache private constructor(
     private val diskDir: File,

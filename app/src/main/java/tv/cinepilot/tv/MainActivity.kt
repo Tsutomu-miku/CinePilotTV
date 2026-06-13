@@ -34,7 +34,6 @@ import tv.cinepilot.tv.runtime.ArtworkLoader
 import tv.cinepilot.tv.runtime.ArtworkRequestFactory
 import tv.cinepilot.tv.runtime.ArtworkTarget
 import tv.cinepilot.tv.runtime.HomeEntryFlow
-import tv.cinepilot.tv.runtime.PrimaryImageLoader
 import tv.cinepilot.tv.settings.SettingsRouteController
 import tv.cinepilot.tv.settings.SettingsStore
 import tv.cinepilot.tv.ui.TvColors
@@ -49,7 +48,6 @@ class MainActivity : ComponentActivity() {
     private lateinit var settingsRoutes: SettingsRouteController
     private lateinit var profileSwitcherRoutes: ProfileSwitcherRouteController
     private lateinit var homeRoutes: HomeRouteController
-    private lateinit var primaryImageLoader: PrimaryImageLoader
     private lateinit var artworkLoader: ArtworkLoader
     private lateinit var artworkFactory: ArtworkRequestFactory
     private lateinit var subtitleStyleStore: SubtitleStyleStore
@@ -84,10 +82,6 @@ class MainActivity : ComponentActivity() {
             viewModel.mediaBrowserClient,
             subtitleStyleStore,
             viewModel.runtime.streamingOkHttpClient,
-        )
-        primaryImageLoader = PrimaryImageLoader(
-            viewModel.mediaBrowserClient,
-            viewModel.runtime.bitmapCache,
         )
         artworkLoader = ArtworkLoader(
             viewModel.mediaBrowserClient,
@@ -138,7 +132,6 @@ class MainActivity : ComponentActivity() {
             loadArtworkImage = ::loadArtworkImage,
             loadBackdropImage = ::loadBackdropImage,
             loadPersonImage = ::loadPersonImage,
-            artworkLoader = artworkLoader,
             artworkFactory = artworkFactory,
             pluginHost = pluginHost,
             downloadCoordinator = downloadCoordinator,
@@ -214,7 +207,6 @@ class MainActivity : ComponentActivity() {
         authRoutes.stopQuickConnectPolling()
         playerHost.shutdown()
         artworkLoader.shutdown()
-        primaryImageLoader.shutdown()
         pluginHost.shutdown()
         downloadCoordinator.saveNow()
         executor.shutdownNow()
