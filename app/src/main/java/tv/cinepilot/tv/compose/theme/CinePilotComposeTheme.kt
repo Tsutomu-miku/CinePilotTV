@@ -60,13 +60,13 @@ object CinePilotComposeTheme {
 
     private fun defaultPalette(
         background: Color = Color(0xFF080D18),
-        glass: Color = Color(0xB00A0C12),
-        glassFocus: Color = Color(0xC4121722),
-        accent: Color = Color(0xFF2DD4BF),
-        accentStrong: Color = Color(0xFF5EEAD4),
-        focusRing: Color = Color(0xFF99F6E4),
-        focusGlow: Color = Color(0x5599F6E4),
-        focusText: Color = Color(0xFF031216),
+        glass: Color = Color(0xC80F0F17),
+        glassFocus: Color = Color(0xE0262E42),
+        accent: Color = Color(0xFF3B82F6),
+        accentStrong: Color = Color(0xFF60A5FA),
+        focusRing: Color = Color(0xFF93C5FD),
+        focusGlow: Color = Color(0x4460A5FA),
+        focusText: Color = Color(0xFF0A162E),
         textSecondary: Color = Color(0xFFE2E8F0),
         textMuted: Color = Color(0xFF94A3B8),
     ) = CinePilotPalette(
@@ -74,7 +74,7 @@ object CinePilotComposeTheme {
         scrim = Color(0xD9000000),
         glass = glass,
         glassFocus = glassFocus,
-        glassBorder = Color(0x56F4F7FF),
+        glassBorder = Color(0x30E2E8F0),
         focusRing = focusRing,
         focusGlow = focusGlow,
         accent = accent,
@@ -92,8 +92,8 @@ object TvDp {
     val ScreenTop: Dp = 20.dp
     val ScreenBottom: Dp = 18.dp
     val TopBarHeight: Dp = 36.dp
-    val RowGap: Dp = 14.dp
-    val CellGap: Dp = 8.dp
+    val RowGap: Dp = 20.dp
+    val CellGap: Dp = 10.dp
     val PosterWidth: Dp = 106.dp
     val PosterHeight: Dp = 158.dp
     val LandscapeWidth: Dp = 170.dp
@@ -112,10 +112,10 @@ object TvDp {
     val PlayerSettingsPanelWidth: Dp = 344.dp
     val NextUpWidth: Dp = 344.dp
     val PlayerControlHeight: Dp = 44.dp
-    val FocusRing: Dp = 1.5.dp
+    val FocusRing: Dp = 2.dp
     val PanelRadius: Dp = 16.dp
-    val ControlRadius: Dp = 12.dp
-    val CardRadius: Dp = 12.dp
+    val ControlRadius: Dp = 14.dp
+    val CardRadius: Dp = 14.dp
 }
 
 object TvText {

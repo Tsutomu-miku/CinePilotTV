@@ -1,6 +1,7 @@
 package tv.cinepilot.tv.compose.components
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -160,8 +161,8 @@ fun InfoPanel(
             .fillMaxWidth()
             .clip(RoundedCornerShape(TvDp.PanelRadius))
             .background(palette.glass)
-            .border(0.5.dp, palette.glassBorder, RoundedCornerShape(TvDp.PanelRadius))
-            .padding(10.dp),
+            .border(BorderStroke(0.5.dp, palette.glassBorder), RoundedCornerShape(TvDp.PanelRadius))
+            .padding(12.dp),
     ) {
         BasicText(
             text = title,
@@ -273,16 +274,16 @@ private fun MediaArtwork(
             modifier = Modifier
                 .align(Alignment.BottomCenter)
                 .fillMaxWidth()
-                .height(29.dp)
+                .height(36.dp)
                 .background(
                     Brush.verticalGradient(
                         listOf(
                             palette.background.copy(alpha = 0.0f),
-                            palette.background.copy(alpha = 0.86f),
+                            palette.background.copy(alpha = 0.92f),
                         ),
                     ),
                 )
-                .padding(horizontal = 5.dp, vertical = 4.dp),
+                .padding(horizontal = 7.dp, vertical = 5.dp),
         ) {
             BasicText(
                 text = title,
