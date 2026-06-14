@@ -104,18 +104,33 @@ import tv.cinepilot.tv.ui.toDetailPresentation
 
 private val DetailPosterWidth = 210.dp
 private val DetailPosterHeight = 315.dp
-private val PlayButtonSize = 72.dp
-private val PlayButtonStrokeWidth = 4.dp
-private val PlayButtonGlowRadius = 14.dp
 
 private val DoubanGreen = Color(0xFF2ECC71)
 private val ImdbGold = Color(0xFFF5C518)
 
-private val ActionButtonSize = 68.dp
+private val ActionButtonWidth = 80.dp
+private val ActionButtonHeight = 100.dp
+private val ActionButtonIconSize = 28.dp
+private val ActionButtonGap = 12.dp
 private val ActionButtonProgressHeight = 3.dp
 
-private val EpisodeCardWidth = 240.dp
-private val EpisodeCardHeight = 135.dp
+private val EpisodeCardWidth = 280.dp
+private val EpisodeCardHeight = 158.dp
+private val EpisodeCardGap = 14.dp
+private val EpisodeProgressHeight = 3.dp
+
+private val PillChipHeight = 26.dp
+private val PillChipRadius = 8.dp
+
+private val RatingBadgeHeight = 34.dp
+private val RatingBadgeIconWidth = 58.dp
+
+private val TrackSelectorHeight = 48.dp
+private val TrackSelectorIconSize = 20.dp
+
+private val DetailTitleSize = 34.sp
+private val DetailMetaSize = 13.sp
+private val OverviewTextSize = 12.sp
 
 // ── Top-level screen ────────────────────────────────────────────────────
 
@@ -216,7 +231,6 @@ fun ComposeDetailsScreen(
                     providerBadges = presentation.providerBadges.map { it.label to it.externalUrl },
                     actions = actions,
                     playbackProgress = playbackProgress,
-                    onPlay = { onPreparePlayback(null) },
                     onProviderBadgeClick = onProviderBadgeClick,
                 )
             }
@@ -233,16 +247,14 @@ fun ComposeDetailsScreen(
             }
             if (presentation.overview.isNotBlank()) {
                 item {
-                    DetailSection(title = "剧情简介", palette = palette) {
-                        BasicText(
-                            text = presentation.overview,
-                            style = TextStyle(
-                                color = palette.textSecondary,
-                                fontSize = TvText.Body,
-                                lineHeight = (TvText.Body.value * 1.35f).sp,
-                            ),
-                        )
-                    }
+                    BasicText(
+                        text = presentation.overview,
+                        style = TextStyle(
+                            color = palette.textMuted,
+                            fontSize = OverviewTextSize,
+                            lineHeight = (OverviewTextSize.value * 1.4f).sp,
+                        ),
+                    )
                 }
             }
             if (item.isEpisode() && siblingEpisodes.isNotEmpty()) {
@@ -323,17 +335,18 @@ private fun DetailsStage(
                 .fillMaxSize()
                 .background(Color.Black.copy(alpha = 42f / 255f)),
         )
-        // Left-side readable scrim — wide gradient, matches original readableDetailsScrim
+        // Left-side readable scrim — wide gradient, softer transition
         Box(
             modifier = Modifier
                 .fillMaxHeight()
-                .width(720.dp)
+                .width(900.dp)
                 .background(
                     brush = Brush.horizontalGradient(
                         colors = listOf(
-                            Color.Black.copy(alpha = 236f / 255f),
-                            Color.Black.copy(alpha = 200f / 255f),
-                            Color.Black.copy(alpha = 100f / 255f),
+                            Color.Black.copy(alpha = 250f / 255f),
+                            Color.Black.copy(alpha = 220f / 255f),
+                            Color.Black.copy(alpha = 150f / 255f),
+                            Color.Black.copy(alpha = 60f / 255f),
                             Color.Transparent,
                         ),
                     ),
@@ -447,7 +460,6 @@ private fun DetailsHero(
     providerBadges: List<Pair<String, String>>,
     actions: List<DetailAction>,
     playbackProgress: Float,
-    onPlay: () -> Unit,
     onProviderBadgeClick: (String) -> Unit,
 ) {
     Row(
@@ -455,7 +467,7 @@ private fun DetailsHero(
         verticalAlignment = Alignment.Top,
         modifier = Modifier.fillMaxWidth(),
     ) {
-        // Poster — with central play button and glow on focus
+        // Poster — full artwork without overlay button
         val poster = rememberArtworkRequest(
             factory = artworkFactory,
             authenticated = authenticated,
@@ -487,16 +499,6 @@ private fun DetailsHero(
                 contentScale = ContentScale.Crop,
                 modifier = Modifier.fillMaxSize(),
             )
-            // Center play button with progress ring
-            Box(
-                modifier = Modifier.align(Alignment.Center),
-            ) {
-                PosterPlayButton(
-                    palette = palette,
-                    progress = playbackProgress,
-                    onClick = onPlay,
-                )
-            }
         }
 
         // Right column: title, meta, badges, actions
@@ -512,12 +514,12 @@ private fun DetailsHero(
                 overflow = TextOverflow.Ellipsis,
                 style = TextStyle(
                     color = palette.textPrimary,
-                    fontSize = 30.sp,
+                    fontSize = DetailTitleSize,
                     fontWeight = FontWeight.Bold,
-                    lineHeight = 36.sp,
+                    lineHeight = (DetailTitleSize.value * 1.15f).sp,
                 ),
             )
-            Spacer(Modifier.height(6.dp))
+            Spacer(Modifier.height(8.dp))
             if (contextLine.isNotBlank()) {
                 BasicText(
                     text = contextLine,
@@ -525,10 +527,10 @@ private fun DetailsHero(
                     overflow = TextOverflow.Ellipsis,
                     style = TextStyle(
                         color = palette.textSecondary,
-                        fontSize = 12.sp,
+                        fontSize = DetailMetaSize,
                     ),
                 )
-                Spacer(Modifier.height(8.dp))
+                Spacer(Modifier.height(10.dp))
             }
             if (qualityBadges.isNotEmpty()) {
                 MetadataPills(badges = qualityBadges, palette = palette)
@@ -560,89 +562,6 @@ private fun DetailsHero(
                 )
             }
         }
-    }
-}
-
-// ── Poster play button with progress ring ────────────────────────────────
-
-@Composable
-private fun PosterPlayButton(
-    palette: CinePilotPalette,
-    progress: Float,
-    onClick: () -> Unit,
-) {
-    var focused by remember { mutableStateOf(false) }
-    val focusRequester = remember { FocusRequester() }
-    val interaction = remember { MutableInteractionSource() }
-
-    val glowModifier = if (focused) {
-        Modifier.shadow(
-            elevation = PlayButtonGlowRadius,
-            shape = androidx.compose.foundation.shape.CircleShape,
-            spotColor = palette.focusGlow,
-            ambientColor = palette.focusGlow,
-        )
-    } else {
-        Modifier
-    }
-
-    Box(
-        modifier = Modifier
-            .focusRequester(focusRequester)
-            .onFocusChanged { focused = it.isFocused }
-            .focusable(interactionSource = interaction)
-            .clickable(
-                interactionSource = interaction,
-                indication = null,
-                onClick = onClick,
-            )
-            .size(PlayButtonSize)
-            .then(glowModifier),
-        contentAlignment = Alignment.Center,
-    ) {
-        // Background circle (dark semi-transparent)
-        Box(
-            modifier = Modifier
-                .size(PlayButtonSize)
-                .clip(androidx.compose.foundation.shape.CircleShape)
-                .background(Color.Black.copy(alpha = 0.5f))
-                .border(
-                    width = if (focused) TvDp.FocusRing else 0.5.dp,
-                    color = if (focused) palette.focusRing else palette.glassBorder.copy(alpha = 0.4f),
-                    shape = androidx.compose.foundation.shape.CircleShape,
-                ),
-        )
-        // Progress ring
-        Canvas(
-            modifier = Modifier.size(PlayButtonSize - PlayButtonStrokeWidth),
-        ) {
-            val strokeWidthPx = PlayButtonStrokeWidth.toPx()
-            // Background track
-            drawCircle(
-                color = Color.White.copy(alpha = 0.2f),
-                style = Stroke(width = strokeWidthPx),
-                radius = (size.minDimension - strokeWidthPx) / 2f,
-            )
-            // Progress arc
-            if (progress > 0f) {
-                drawArc(
-                    color = palette.accentStrong,
-                    startAngle = -90f,
-                    sweepAngle = progress * 360f,
-                    useCenter = false,
-                    style = Stroke(width = strokeWidthPx),
-                )
-            }
-        }
-        // Play icon
-        Image(
-            imageVector = Icons.Outlined.PlayArrow,
-            contentDescription = "播放",
-            colorFilter = ColorFilter.tint(palette.textPrimary),
-            modifier = Modifier
-                .size(28.dp)
-                .offset(x = 2.dp),
-        )
     }
 }
 
@@ -704,7 +623,7 @@ private fun PillChip(
     val bgColor = when {
         primary -> palette.accentStrong
         focused -> palette.glassFocus
-        else -> Color.White.copy(alpha = 0.08f)
+        else -> palette.glass
     }
     val textColor = when {
         primary -> palette.focusText
@@ -718,11 +637,11 @@ private fun PillChip(
     }
     val interaction = remember { MutableInteractionSource() }
     val baseModifier = Modifier
-        .height(20.dp)
-        .clip(RoundedCornerShape(6.dp))
+        .height(PillChipHeight)
+        .clip(RoundedCornerShape(PillChipRadius))
         .background(bgColor)
-        .border(if (focused) TvDp.FocusRing else 0.5.dp, borderColor, RoundedCornerShape(6.dp))
-        .padding(horizontal = 8.dp)
+        .border(if (focused) TvDp.FocusRing else 0.5.dp, borderColor, RoundedCornerShape(PillChipRadius))
+        .padding(horizontal = 10.dp)
 
     val finalModifier = if (clickable) {
         baseModifier
@@ -744,7 +663,7 @@ private fun PillChip(
             overflow = TextOverflow.Ellipsis,
             style = TextStyle(
                 color = textColor,
-                fontSize = 10.sp,
+                fontSize = 11.sp,
                 fontWeight = FontWeight.Medium,
             ),
         )
@@ -798,15 +717,15 @@ private fun IconRatingBadge(
     iconBgColor: Color,
     iconTextColor: Color,
 ) {
-    val height = 28.dp
-    val iconWidth = 46.dp
+    val height = RatingBadgeHeight
+    val iconWidth = RatingBadgeIconWidth
 
     Box(
         modifier = Modifier
             .height(height)
-            .clip(RoundedCornerShape(6.dp))
+            .clip(RoundedCornerShape(8.dp))
             .background(palette.glass)
-            .border(0.5.dp, palette.glassBorder, RoundedCornerShape(6.dp)),
+            .border(0.5.dp, palette.glassBorder, RoundedCornerShape(8.dp)),
         contentAlignment = Alignment.CenterStart,
     ) {
         Row(
@@ -825,7 +744,7 @@ private fun IconRatingBadge(
                     maxLines = 1,
                     style = TextStyle(
                         color = iconTextColor,
-                        fontSize = 9.sp,
+                        fontSize = 10.sp,
                         fontWeight = FontWeight.Bold,
                     ),
                 )
@@ -833,7 +752,7 @@ private fun IconRatingBadge(
             // Value area
             Box(
                 modifier = Modifier
-                    .padding(horizontal = 10.dp),
+                    .padding(horizontal = 12.dp),
                 contentAlignment = Alignment.Center,
             ) {
                 BasicText(
@@ -841,7 +760,7 @@ private fun IconRatingBadge(
                     maxLines = 1,
                     style = TextStyle(
                         color = palette.textPrimary,
-                        fontSize = 13.sp,
+                        fontSize = 15.sp,
                         fontWeight = FontWeight.Bold,
                     ),
                 )
@@ -865,7 +784,7 @@ private fun DetailActionFlow(
     playbackProgress: Float = 0f,
 ) {
     LazyRow(
-        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        horizontalArrangement = Arrangement.spacedBy(ActionButtonGap),
         modifier = Modifier
             .fillMaxWidth()
             .padding(top = 2.dp, bottom = 2.dp),
@@ -906,7 +825,7 @@ private fun DetailActionButton(
         else -> palette.glass
     }
     val textColor = when {
-        primary -> palette.focusText
+        primary -> Color.White
         focused -> palette.textPrimary
         else -> palette.textSecondary
     }
@@ -916,7 +835,7 @@ private fun DetailActionButton(
         else -> palette.glassBorder
     }
     val iconColor = when {
-        primary -> palette.focusText
+        primary -> Color.White
         focused -> palette.accentStrong
         else -> palette.textSecondary
     }
@@ -948,8 +867,8 @@ private fun DetailActionButton(
                 indication = null,
                 onClick = onClick,
             )
-            .width(ActionButtonSize)
-            .height(ActionButtonSize + 20.dp)
+            .width(ActionButtonWidth)
+            .height(ActionButtonHeight)
             .then(glowModifier)
             .clip(RoundedCornerShape(TvDp.ControlRadius))
             .background(bgColor)
@@ -964,15 +883,14 @@ private fun DetailActionButton(
             verticalArrangement = Arrangement.Center,
             modifier = Modifier
                 .fillMaxSize()
-                .padding(vertical = 8.dp),
+                .padding(vertical = 10.dp),
         ) {
             Image(
                 imageVector = icon,
                 contentDescription = label,
                 colorFilter = ColorFilter.tint(iconColor),
                 modifier = Modifier
-                    .width(24.dp)
-                    .height(24.dp),
+                    .size(ActionButtonIconSize),
             )
             Spacer(Modifier.height(6.dp))
             BasicText(
@@ -981,7 +899,7 @@ private fun DetailActionButton(
                 overflow = TextOverflow.Ellipsis,
                 style = TextStyle(
                     color = textColor,
-                    fontSize = 10.sp,
+                    fontSize = 11.sp,
                     fontWeight = if (primary) FontWeight.Bold else FontWeight.Medium,
                 ),
             )
@@ -1000,7 +918,7 @@ private fun DetailActionButton(
                         .fillMaxHeight()
                         .fillMaxWidth(progress)
                         .background(
-                            if (primary) palette.focusText else palette.accentStrong
+                            if (primary) Color.White else palette.accentStrong
                         ),
                 )
             }
@@ -1023,9 +941,8 @@ private fun DetailTrackOptions(
     val activeSource = sources.firstOrNull { it.id() == selection.mediaSourceId } ?: sources.first()
 
     Column(verticalArrangement = Arrangement.spacedBy(0.dp)) {
-        FlowRow(
-            horizontalGap = 8.dp,
-            verticalGap = 8.dp,
+        Row(
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
             modifier = Modifier.fillMaxWidth(),
         ) {
             if (sources.size > 1) {
@@ -1034,7 +951,7 @@ private fun DetailTrackOptions(
                     title = "媒体源",
                     value = sourceValue(activeSource),
                     iconRes = tv.cinepilot.tv.R.drawable.ic_media_source,
-                    width = 280.dp,
+                    modifier = Modifier.weight(1f),
                     requestInitialFocus = selection.focusKey == FOCUS_SOURCE,
                     onClick = { /* popover TBD */ },
                 )
@@ -1044,7 +961,7 @@ private fun DetailTrackOptions(
                 title = "音轨",
                 value = audioValue(activeSource, selection),
                 iconRes = tv.cinepilot.tv.R.drawable.ic_volume,
-                width = 260.dp,
+                modifier = Modifier.weight(1f),
                 requestInitialFocus = selection.focusKey == FOCUS_AUDIO,
                 onClick = { /* popover TBD */ },
             )
@@ -1053,7 +970,7 @@ private fun DetailTrackOptions(
                 title = "字幕",
                 value = subtitleValue(activeSource, selection),
                 iconRes = tv.cinepilot.tv.R.drawable.ic_subtitles,
-                width = 260.dp,
+                modifier = Modifier.weight(1f),
                 requestInitialFocus = selection.focusKey == FOCUS_SUBTITLE,
                 onClick = { /* popover TBD */ },
             )
@@ -1067,7 +984,7 @@ private fun TrackOptionSelector(
     title: String,
     value: String,
     @androidx.annotation.DrawableRes iconRes: Int,
-    width: Dp = 360.dp,
+    modifier: Modifier = Modifier,
     requestInitialFocus: Boolean = false,
     onClick: () -> Unit,
 ) {
@@ -1098,7 +1015,7 @@ private fun TrackOptionSelector(
     }
 
     Box(
-        modifier = Modifier
+        modifier = modifier
             .focusRequester(focusRequester)
             .onFocusChanged { focused = it.isFocused }
             .focusable(interactionSource = interaction)
@@ -1107,8 +1024,7 @@ private fun TrackOptionSelector(
                 indication = null,
                 onClick = onClick,
             )
-            .width(width)
-            .height(TvDp.ControlHeight)
+            .height(TrackSelectorHeight)
             .then(glowModifier)
             .clip(RoundedCornerShape(TvDp.ControlRadius))
             .background(bgColor)
@@ -1117,7 +1033,7 @@ private fun TrackOptionSelector(
                 borderColor,
                 RoundedCornerShape(TvDp.ControlRadius),
             )
-            .padding(horizontal = 10.dp),
+            .padding(horizontal = 12.dp),
         contentAlignment = Alignment.Center,
     ) {
         Row(
@@ -1129,25 +1045,25 @@ private fun TrackOptionSelector(
                 contentDescription = title,
                 colorFilter = ColorFilter.tint(iconTint),
                 modifier = Modifier
-                    .size(18.dp),
+                    .size(TrackSelectorIconSize),
             )
-            Spacer(Modifier.width(8.dp))
+            Spacer(Modifier.width(10.dp))
             BasicText(
                 text = title,
                 style = TextStyle(
                     color = palette.textMuted,
-                    fontSize = TvText.Metadata,
+                    fontSize = 12.sp,
                     fontWeight = FontWeight.Medium,
                 ),
             )
-            Spacer(Modifier.width(6.dp))
+            Spacer(Modifier.width(8.dp))
             BasicText(
                 text = value,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
                 style = TextStyle(
                     color = valueColor,
-                    fontSize = TvText.Metadata,
+                    fontSize = 12.sp,
                     fontWeight = FontWeight.Medium,
                 ),
                 modifier = Modifier.weight(1f),
@@ -1156,7 +1072,7 @@ private fun TrackOptionSelector(
                 painter = painterResource(tv.cinepilot.tv.R.drawable.ic_chevron_down),
                 contentDescription = null,
                 colorFilter = ColorFilter.tint(palette.textMuted),
-                modifier = Modifier.size(12.dp),
+                modifier = Modifier.size(14.dp),
             )
         }
     }
@@ -1178,7 +1094,7 @@ private fun EpisodeRow(
         Row(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(4.dp),
-            modifier = Modifier.padding(bottom = 6.dp),
+            modifier = Modifier.padding(bottom = 8.dp),
         ) {
             BasicText(
                 text = "剧集",
@@ -1198,10 +1114,18 @@ private fun EpisodeRow(
                         fontWeight = FontWeight.Medium,
                     ),
                 )
+                BasicText(
+                    text = ">",
+                    style = TextStyle(
+                        color = palette.accentStrong,
+                        fontSize = TvText.Section,
+                        fontWeight = FontWeight.Medium,
+                    ),
+                )
             }
         }
         LazyRow(
-            horizontalArrangement = Arrangement.spacedBy(TvDp.CellGap),
+            horizontalArrangement = Arrangement.spacedBy(EpisodeCardGap),
             contentPadding = androidx.compose.foundation.layout.PaddingValues(
                 start = 3.dp,
                 top = 3.dp,
@@ -1251,11 +1175,12 @@ private fun DetailEpisodeCard(
 
     val cardWidth = EpisodeCardWidth
     val cardHeight = EpisodeCardHeight
+    val cardRadius = 16.dp
 
     val glowModifier = if (focused) {
         Modifier.shadow(
-            elevation = 8.dp,
-            shape = RoundedCornerShape(TvDp.CardRadius),
+            elevation = 10.dp,
+            shape = RoundedCornerShape(cardRadius),
             spotColor = palette.focusGlow,
             ambientColor = palette.focusGlow,
         )
@@ -1282,57 +1207,55 @@ private fun DetailEpisodeCard(
             .width(cardWidth)
             .height(cardHeight)
             .then(glowModifier)
-            .clip(RoundedCornerShape(TvDp.CardRadius))
+            .clip(RoundedCornerShape(cardRadius))
             .border(
                 if (focused) TvDp.FocusRing else 0.5.dp,
                 if (focused) palette.focusRing else palette.glassBorder,
-                RoundedCornerShape(TvDp.CardRadius),
+                RoundedCornerShape(cardRadius),
             ),
     ) {
         // Thumbnail image
-        Box(modifier = Modifier.fillMaxSize()) {
-            CinePilotAsyncImage(
-                request = artwork,
-                contentDescription = episode.name(),
-                contentScale = ContentScale.Crop,
-                modifier = Modifier.fillMaxSize(),
-            )
-            // Bottom overlay with gradient for readability
+        CinePilotAsyncImage(
+            request = artwork,
+            contentDescription = episode.name(),
+            contentScale = ContentScale.Crop,
+            modifier = Modifier.fillMaxSize(),
+        )
+        // Bottom gradient overlay for readability
         Box(
             modifier = Modifier
                 .align(Alignment.BottomCenter)
                 .fillMaxWidth()
-                .height(56.dp)
+                .height(70.dp)
                 .background(
                     brush = Brush.verticalGradient(
                         listOf(
                             Color.Transparent,
-                            Color.Black.copy(alpha = 0.8f),
+                            Color.Black.copy(alpha = 0.85f),
                         ),
                     ),
                 ),
         )
-
         // Bottom content: episode number + title + progress
         Box(
             modifier = Modifier
                 .align(Alignment.BottomStart)
                 .fillMaxWidth()
-                .padding(start = 10.dp, end = 10.dp, bottom = 8.dp),
+                .padding(start = 12.dp, end = 12.dp, bottom = 10.dp),
         ) {
             Column {
                 // Episode number and title row
                 Row(
                     verticalAlignment = Alignment.Bottom,
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    horizontalArrangement = Arrangement.spacedBy(10.dp),
                 ) {
                     BasicText(
                         text = episodeNumber.toString(),
                         style = TextStyle(
                             color = Color.White,
-                            fontSize = 32.sp,
+                            fontSize = 36.sp,
                             fontWeight = FontWeight.Bold,
-                            lineHeight = 32.sp,
+                            lineHeight = 36.sp,
                         ),
                     )
                     BasicText(
@@ -1341,19 +1264,19 @@ private fun DetailEpisodeCard(
                         overflow = TextOverflow.Ellipsis,
                         style = TextStyle(
                             color = palette.textPrimary,
-                            fontSize = TvText.Label,
+                            fontSize = 13.sp,
                             fontWeight = FontWeight.Medium,
                         ),
-                        modifier = Modifier.weight(1f).padding(bottom = 3.dp),
+                        modifier = Modifier.weight(1f).padding(bottom = 4.dp),
                     )
                 }
-                Spacer(Modifier.height(4.dp))
+                Spacer(Modifier.height(6.dp))
                 // Progress bar
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(2.dp)
-                        .clip(RoundedCornerShape(1.dp))
+                        .height(EpisodeProgressHeight)
+                        .clip(RoundedCornerShape(2.dp))
                         .background(Color.White.copy(alpha = 0.2f)),
                 ) {
                     if (progress > 0f) {
