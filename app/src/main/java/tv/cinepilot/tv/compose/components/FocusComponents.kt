@@ -66,9 +66,9 @@ fun FocusSurface(
     /** When non-null, overrides the visual focus state. Use for state-driven focus. */
     isFocused: Boolean? = null,
     requestInitialFocus: Boolean = false,
-    focusedScale: Float = 1.012f,
+    focusedScale: Float = 1.03f,
     /** Glow / halo effect when focused. 0dp disables glow. */
-    glowRadius: Dp = 0.dp,
+    glowRadius: Dp = 8.dp,
     radius: Dp = TvDp.ControlRadius,
     padding: PaddingValues = PaddingValues(horizontal = 9.dp, vertical = 6.dp),
     onFocusChanged: (Boolean) -> Unit = {},
