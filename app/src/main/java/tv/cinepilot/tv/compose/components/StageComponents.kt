@@ -119,30 +119,32 @@ fun SettingsGrid(
     title: String,
     rows: List<@Composable () -> Unit>,
     modifier: Modifier = Modifier,
+    columns: Int = 2,
 ) {
+    val safeColumns = columns.coerceAtLeast(1)
     Column(modifier = modifier.fillMaxWidth()) {
         BasicText(
             text = title,
             maxLines = 1,
             style = TextStyle(color = palette.accentStrong, fontSize = TvText.Section),
         )
-        Spacer(Modifier.height(8.dp))
-        rows.chunked(2).forEach { pair ->
+        Spacer(Modifier.height(6.dp))
+        rows.chunked(safeColumns).forEach { pair ->
             Row(
-                horizontalArrangement = Arrangement.spacedBy(10.dp),
+                horizontalArrangement = Arrangement.spacedBy(7.dp),
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(bottom = 10.dp),
+                    .padding(bottom = 7.dp),
             ) {
                 pair.forEach { row ->
                     Box(Modifier.weight(1f)) { row() }
                 }
-                if (pair.size == 1) {
+                repeat(safeColumns - pair.size) {
                     Spacer(Modifier.weight(1f))
                 }
             }
         }
-        Spacer(Modifier.height(8.dp))
+        Spacer(Modifier.height(4.dp))
     }
 }
 
@@ -158,8 +160,8 @@ fun InfoPanel(
             .fillMaxWidth()
             .clip(RoundedCornerShape(TvDp.PanelRadius))
             .background(palette.glass)
-            .border(1.dp, palette.glassBorder, RoundedCornerShape(TvDp.PanelRadius))
-            .padding(16.dp),
+            .border(0.5.dp, palette.glassBorder, RoundedCornerShape(TvDp.PanelRadius))
+            .padding(10.dp),
     ) {
         BasicText(
             text = title,
@@ -167,7 +169,7 @@ fun InfoPanel(
             overflow = TextOverflow.Ellipsis,
             style = TextStyle(color = palette.accentStrong, fontSize = TvText.Section),
         )
-        Spacer(Modifier.height(8.dp))
+        Spacer(Modifier.height(4.dp))
         BasicText(
             text = body,
             style = TextStyle(color = palette.textSecondary, fontSize = TvText.Body),
@@ -259,7 +261,7 @@ private fun MediaArtwork(
         modifier = modifier
             .clip(RoundedCornerShape(TvDp.CardRadius))
             .background(palette.posterFallback)
-            .border(1.dp, palette.glassBorder, RoundedCornerShape(TvDp.CardRadius)),
+            .border(0.5.dp, palette.glassBorder, RoundedCornerShape(TvDp.CardRadius)),
     ) {
         CinePilotAsyncImage(
             request = artwork,
@@ -271,7 +273,7 @@ private fun MediaArtwork(
             modifier = Modifier
                 .align(Alignment.BottomCenter)
                 .fillMaxWidth()
-                .height(40.dp)
+                .height(29.dp)
                 .background(
                     Brush.verticalGradient(
                         listOf(
@@ -280,13 +282,20 @@ private fun MediaArtwork(
                         ),
                     ),
                 )
-                .padding(horizontal = 7.dp, vertical = 6.dp),
+                .padding(horizontal = 5.dp, vertical = 4.dp),
         ) {
             BasicText(
                 text = title,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
                 style = TextStyle(color = palette.textPrimary, fontSize = TvText.CardTitle),
+            )
+        }
+        if (focused) {
+            Box(
+                modifier = Modifier
+                    .matchParentSize()
+                    .border(TvDp.FocusRing, palette.focusRing, RoundedCornerShape(TvDp.CardRadius)),
             )
         }
     }
@@ -330,11 +339,11 @@ fun <T> MediaRailIndexed(
             overflow = TextOverflow.Ellipsis,
             style = TextStyle(color = palette.textSecondary, fontSize = TvText.Section),
         )
-        Spacer(Modifier.height(8.dp))
+        Spacer(Modifier.height(5.dp))
         LazyRow(
             state = railState,
             horizontalArrangement = Arrangement.spacedBy(TvDp.CellGap),
-            contentPadding = PaddingValues(start = 4.dp, top = 4.dp, end = 28.dp, bottom = 6.dp),
+            contentPadding = PaddingValues(start = 3.dp, top = 3.dp, end = 21.dp, bottom = 4.dp),
         ) {
             itemsIndexed(
                 items = items,

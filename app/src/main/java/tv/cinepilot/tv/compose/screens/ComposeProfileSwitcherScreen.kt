@@ -136,8 +136,8 @@ private fun ProfileRow(
         selected = profile.isActive(),
         modifier = Modifier
             .fillMaxWidth()
-            .height(72.dp),
-        padding = PaddingValues(horizontal = 12.dp, vertical = 10.dp),
+            .height(TvDp.ProfileRowHeight),
+        padding = PaddingValues(horizontal = 14.dp, vertical = 8.dp),
         onClick = onClick,
     ) { focused ->
         Row(
@@ -220,7 +220,7 @@ private fun Avatar(palette: CinePilotPalette, artwork: ArtworkRequestSpec?, labe
     Box(
         contentAlignment = Alignment.Center,
         modifier = Modifier
-            .size(48.dp)
+            .size(TvDp.AvatarSize)
             .clip(CircleShape)
             .background(palette.posterFallback),
     ) {

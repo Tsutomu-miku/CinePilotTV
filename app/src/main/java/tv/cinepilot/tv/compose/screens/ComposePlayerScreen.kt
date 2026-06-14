@@ -4,8 +4,12 @@ import android.view.View
 import android.view.ViewGroup
 import android.widget.FrameLayout
 import androidx.activity.ComponentActivity
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.focusable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -30,14 +34,23 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
 import tv.cinepilot.core.protocol.AuthenticatedServer
 import tv.cinepilot.core.protocol.MediaItemSummary
 import tv.cinepilot.core.protocol.MediaTicks
+import tv.cinepilot.tv.R
 import tv.cinepilot.tv.compose.artwork.CinePilotAsyncImage
 import tv.cinepilot.tv.compose.artwork.rememberArtworkRequest
 import tv.cinepilot.tv.compose.components.FocusSurface
@@ -56,12 +69,19 @@ fun ComposePlayerScreen(
     artworkFactory: ArtworkRequestFactory,
     authenticated: AuthenticatedServer?,
     playerView: View,
+    mediaTitle: String,
+    mediaSubtitle: String,
+    positionTicks: Long,
+    durationTicks: Long,
     debugInfo: String,
     chapters: List<Pair<Long, String>>,
     introSegmentTicks: LongRange?,
     creditsSegmentTicks: LongRange?,
     nextUp: ComposeNextUpInfo?,
     onChapterClick: (Long) -> Unit,
+    onTogglePlayPause: () -> Unit,
+    onSeekBack: () -> Unit,
+    onSeekForward: () -> Unit,
     onSkipIntro: () -> Unit,
     onSkipCredits: () -> Unit,
     onPlayNext: () -> Unit,
@@ -83,41 +103,31 @@ fun ComposePlayerScreen(
                     )
                 }
             },
-            update = { host ->
-                (playerView.parent as? ViewGroup)?.removeView(playerView)
-                host.removeAllViews()
-                host.addView(playerView, FrameLayout.LayoutParams(
-                    FrameLayout.LayoutParams.MATCH_PARENT,
-                    FrameLayout.LayoutParams.MATCH_PARENT,
-                ))
-            },
+            update = { host -> host.attachPlayerView(playerView) },
             modifier = Modifier.fillMaxSize(),
         )
-        Row(
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
+        Box(
             modifier = Modifier
-                .align(Alignment.BottomEnd)
-                .padding(end = 32.dp, bottom = 86.dp),
-        ) {
-            TvActionButton(
-                palette = palette,
-                label = if (infoVisible) "隐藏信息" else "视频信息",
-                modifier = Modifier.width(112.dp),
-                onClick = { infoVisible = !infoVisible },
-            )
-            TvActionButton(
-                palette = palette,
-                label = "播放设置",
-                modifier = Modifier.width(112.dp),
-                onClick = onOpenPlaybackSettings,
-            )
-        }
+                .align(Alignment.BottomCenter)
+                .fillMaxWidth()
+                .height(240.dp)
+                .background(
+                    Brush.verticalGradient(
+                        listOf(
+                            Color.Transparent,
+                            Color.Black.copy(alpha = 0.45f),
+                            Color.Black.copy(alpha = 0.78f),
+                            Color.Black.copy(alpha = 0.92f),
+                        ),
+                    ),
+                ),
+        )
         if (infoVisible) {
             Box(
                 modifier = Modifier
                     .align(Alignment.CenterEnd)
                     .padding(end = TvDp.ScreenX)
-                    .width(460.dp),
+                    .width(TvDp.PanelWidth),
             ) {
                 InfoPanel(
                     palette = palette,
@@ -127,52 +137,55 @@ fun ComposePlayerScreen(
             }
         }
         introSegmentTicks?.let { range ->
-            SkipButton(
+            SegmentPill(
                 palette = palette,
                 label = "跳过片头",
                 range = range,
                 onClick = onSkipIntro,
                 modifier = Modifier
                     .align(Alignment.BottomStart)
-                    .padding(start = 40.dp, bottom = 140.dp),
+                    .padding(start = 32.dp, bottom = 92.dp),
             )
         }
         creditsSegmentTicks?.let { range ->
-            SkipButton(
+            SegmentPill(
                 palette = palette,
                 label = "跳过片尾",
                 range = range,
                 onClick = onSkipCredits,
                 modifier = Modifier
-                    .align(Alignment.BottomEnd)
-                    .padding(end = 40.dp, bottom = 140.dp),
-            )
-        }
-        if (chapters.isNotEmpty()) {
-            ChapterStrip(
-                palette = palette,
-                chapters = chapters,
-                onChapterClick = onChapterClick,
-                modifier = Modifier
                     .align(Alignment.BottomStart)
-                    .padding(start = 40.dp, end = 40.dp, bottom = 210.dp)
-                    .fillMaxWidth(),
+                    .padding(start = 32.dp, bottom = 92.dp),
             )
         }
         nextUp?.let { info ->
-            NextUpCard(
+            NextUpMiniCard(
                 palette = palette,
                 owner = owner,
                 artworkFactory = artworkFactory,
                 authenticated = authenticated,
                 info = info,
                 onPlayNext = onPlayNext,
-                onCancelNextUp = onCancelNextUp,
                 modifier = Modifier
                     .align(Alignment.BottomEnd)
-                    .padding(end = 40.dp, bottom = 140.dp),
+                    .padding(end = 32.dp, bottom = 120.dp),
             )
         }
+        PlayerBottomOsd(
+            palette = palette,
+            mediaTitle = mediaTitle,
+            mediaSubtitle = mediaSubtitle,
+            positionTicks = positionTicks,
+            durationTicks = durationTicks,
+            chapters = chapters,
+            onChapterClick = onChapterClick,
+            onTogglePlayPause = onTogglePlayPause,
+            onSeekBack = onSeekBack,
+            onSeekForward = onSeekForward,
+            onInfo = { infoVisible = !infoVisible },
+            onSettings = onOpenPlaybackSettings,
+            modifier = Modifier.align(Alignment.BottomCenter),
+        )
     }
 }
 
@@ -184,7 +197,7 @@ data class ComposeNextUpInfo(
 )
 
 @Composable
-private fun SkipButton(
+private fun SegmentPill(
     palette: CinePilotPalette,
     label: String,
     range: LongRange,
@@ -194,13 +207,575 @@ private fun SkipButton(
     val seconds = ((range.last - range.first).coerceAtLeast(0L) / MediaTicks.TICKS_PER_SECOND)
         .toInt()
         .coerceAtLeast(1)
-    TvActionButton(
-        palette = palette,
-        label = "$label ${seconds}s",
-        selected = true,
-        modifier = modifier.width(150.dp),
-        onClick = onClick,
+    var focused by remember { mutableStateOf(false) }
+    val shape = RoundedCornerShape(10.dp)
+    Box(
+        modifier = modifier
+            .height(40.dp)
+            .clip(shape)
+            .background(
+                if (focused) palette.glassFocus else palette.glass.copy(alpha = 0.7f),
+                shape,
+            )
+            .border(
+                width = if (focused) TvDp.FocusRing else 0.5.dp,
+                color = if (focused) palette.focusRing else palette.glassBorder,
+                shape = shape,
+            )
+            .shadow(
+                elevation = if (focused) 12.dp else 4.dp,
+                shape = shape,
+                spotColor = if (focused) palette.focusGlow else Color.Transparent,
+                ambientColor = if (focused) palette.focusGlow else Color.Transparent,
+            )
+            .onFocusChanged { focused = it.isFocused }
+            .focusable()
+            .clickable(
+                interactionSource = remember { MutableInteractionSource() },
+                indication = null,
+                onClick = onClick,
+            )
+            .padding(horizontal = 14.dp),
+        contentAlignment = Alignment.Center,
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Image(
+                painter = painterResource(R.drawable.ic_play),
+                contentDescription = null,
+                colorFilter = ColorFilter.tint(palette.accentStrong),
+                modifier = Modifier.size(13.dp),
+            )
+            Spacer(Modifier.width(6.dp))
+            BasicText(
+                text = label,
+                maxLines = 1,
+                style = TextStyle(
+                    color = if (focused) palette.textPrimary else palette.textSecondary,
+                    fontSize = TvText.Body,
+                    fontWeight = FontWeight.Medium,
+                ),
+            )
+            BasicText(
+                text = "  ${seconds}s",
+                maxLines = 1,
+                style = TextStyle(
+                    color = palette.accentStrong,
+                    fontSize = TvText.Body,
+                    fontWeight = FontWeight.SemiBold,
+                ),
+            )
+        }
+    }
+}
+
+@Composable
+private fun PlayerBottomOsd(
+    palette: CinePilotPalette,
+    mediaTitle: String,
+    mediaSubtitle: String,
+    positionTicks: Long,
+    durationTicks: Long,
+    chapters: List<Pair<Long, String>>,
+    modifier: Modifier = Modifier,
+    onChapterClick: (Long) -> Unit,
+    onTogglePlayPause: () -> Unit,
+    onSeekBack: () -> Unit,
+    onSeekForward: () -> Unit,
+    onInfo: () -> Unit,
+    onSettings: () -> Unit,
+) {
+    Column(
+        horizontalAlignment = Alignment.CenterHorizontally,
+        modifier = modifier
+            .fillMaxWidth()
+            .padding(start = 30.dp, end = 30.dp, bottom = 24.dp),
+    ) {
+        BasicText(
+            text = listOf(mediaTitle, mediaSubtitle).filter { it.isNotBlank() }.joinToString("  ·  "),
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+            style = TextStyle(
+                color = palette.textPrimary,
+                fontSize = TvText.Body,
+                fontWeight = FontWeight.Medium,
+                letterSpacing = 0.5.sp,
+            ),
+        )
+        Spacer(Modifier.height(16.dp))
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.Center,
+        ) {
+            Seek30Button(
+                palette = palette,
+                forward = false,
+                onClick = onSeekBack,
+            )
+            Spacer(Modifier.width(22.dp))
+            IconOsdButton(
+                palette = palette,
+                iconRes = R.drawable.ic_skip_previous,
+                size = 42.dp,
+                iconSize = 18.dp,
+                onClick = onSeekBack,
+            )
+            Spacer(Modifier.width(20.dp))
+            PlayPauseButton(
+                palette = palette,
+                isPlaying = false,
+                onClick = onTogglePlayPause,
+            )
+            Spacer(Modifier.width(20.dp))
+            IconOsdButton(
+                palette = palette,
+                iconRes = R.drawable.ic_skip_next,
+                size = 42.dp,
+                iconSize = 18.dp,
+                onClick = onSeekForward,
+            )
+            Spacer(Modifier.width(22.dp))
+            Seek30Button(
+                palette = palette,
+                forward = true,
+                onClick = onSeekForward,
+            )
+            Spacer(Modifier.width(80.dp))
+            IconOsdButton(
+                palette = palette,
+                iconRes = R.drawable.ic_subtitles,
+                size = 40.dp,
+                iconSize = 18.dp,
+                onClick = {},
+            )
+            Spacer(Modifier.width(14.dp))
+            IconOsdButton(
+                palette = palette,
+                iconRes = R.drawable.ic_audio,
+                size = 40.dp,
+                iconSize = 18.dp,
+                onClick = {},
+            )
+            Spacer(Modifier.width(14.dp))
+            TextOsdButton(
+                palette = palette,
+                text = "4K",
+                onClick = {},
+            )
+            Spacer(Modifier.width(14.dp))
+            TextOsdButton(
+                palette = palette,
+                text = "1.0x",
+                onClick = {},
+            )
+            Spacer(Modifier.width(14.dp))
+            IconOsdButton(
+                palette = palette,
+                iconRes = R.drawable.ic_info,
+                size = 40.dp,
+                iconSize = 18.dp,
+                onClick = onInfo,
+            )
+            Spacer(Modifier.width(14.dp))
+            IconOsdButton(
+                palette = palette,
+                iconRes = R.drawable.ic_settings,
+                size = 40.dp,
+                iconSize = 18.dp,
+                onClick = onSettings,
+            )
+        }
+        Spacer(Modifier.height(18.dp))
+        ProgressBarRow(
+            palette = palette,
+            positionTicks = positionTicks,
+            durationTicks = durationTicks,
+        )
+    }
+}
+
+@Composable
+private fun ProgressBarRow(
+    palette: CinePilotPalette,
+    positionTicks: Long,
+    durationTicks: Long,
+) {
+    val fraction = if (durationTicks > 0L) {
+        (positionTicks.toFloat() / durationTicks.toFloat()).coerceIn(0f, 1f)
+    } else {
+        0f
+    }
+    Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
+        BasicText(
+            text = formatPlayerClock(positionTicks),
+            style = TextStyle(
+                color = palette.textSecondary,
+                fontSize = TvText.PlayerTime,
+                fontWeight = FontWeight.Medium,
+            ),
+        )
+        Spacer(Modifier.width(12.dp))
+        Box(
+            modifier = Modifier
+                .weight(1f)
+                .height(14.dp),
+        ) {
+            // Background track
+            Box(
+                modifier = Modifier
+                    .align(Alignment.Center)
+                    .fillMaxWidth()
+                    .height(2.5.dp)
+                    .clip(RoundedCornerShape(2.dp))
+                    .background(Color.White.copy(alpha = 0.22f)),
+            )
+            // Played track
+            Box(
+                modifier = Modifier
+                    .align(Alignment.CenterStart)
+                    .fillMaxWidth(fraction)
+                    .height(2.5.dp)
+                    .clip(RoundedCornerShape(2.dp))
+                    .background(palette.accentStrong.copy(alpha = 0.9f)),
+            )
+            // Thumb with glow
+            if (fraction > 0f) {
+                Box(
+                    modifier = Modifier
+                        .align(Alignment.CenterStart)
+                        .fillMaxWidth(fraction)
+                        .height(14.dp),
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .align(Alignment.CenterEnd)
+                            .size(12.dp)
+                            .shadow(
+                                elevation = 8.dp,
+                                spotColor = palette.focusGlow,
+                                ambientColor = palette.focusGlow,
+                                shape = RoundedCornerShape(6.dp),
+                            )
+                            .clip(RoundedCornerShape(6.dp))
+                            .background(Color.White),
+                    )
+                }
+            }
+        }
+        Spacer(Modifier.width(12.dp))
+        BasicText(
+            text = formatPlayerClock(durationTicks),
+            style = TextStyle(
+                color = palette.textSecondary,
+                fontSize = TvText.PlayerTime,
+                fontWeight = FontWeight.Medium,
+            ),
+        )
+    }
+}
+
+private fun formatPlayerClock(ticks: Long): String {
+    val totalSeconds = MediaTicks.toSeconds(ticks.coerceAtLeast(0L))
+    val hours = totalSeconds / 3600
+    val minutes = (totalSeconds % 3600) / 60
+    val seconds = totalSeconds % 60
+    return "%02d:%02d:%02d".format(hours, minutes, seconds)
+}
+
+@Composable
+private fun PlayPauseButton(
+    palette: CinePilotPalette,
+    isPlaying: Boolean,
+    onClick: () -> Unit,
+) {
+    var focused by remember { mutableStateOf(false) }
+    val size = 58.dp
+    val shape = RoundedCornerShape(size / 2)
+    val glowColor = palette.focusGlow
+    val iconColor = Color.White
+
+    Box(
+        modifier = Modifier
+            .size(size)
+            .shadow(
+                elevation = if (focused) 18.dp else 10.dp,
+                shape = shape,
+                spotColor = glowColor,
+                ambientColor = glowColor,
+            )
+            .clip(shape)
+            .background(
+                if (focused) palette.glassFocus else palette.glass.copy(alpha = 0.9f),
+                shape,
+            )
+            .border(
+                width = if (focused) TvDp.FocusRing else 1.dp,
+                color = if (focused) palette.focusRing else palette.focusRing.copy(alpha = 0.6f),
+                shape = shape,
+            )
+            .onFocusChanged { focused = it.isFocused }
+            .focusable()
+            .clickable(
+                interactionSource = remember { MutableInteractionSource() },
+                indication = null,
+                onClick = onClick,
+            ),
+        contentAlignment = Alignment.Center,
+    ) {
+        Image(
+            painter = painterResource(if (isPlaying) R.drawable.ic_pause else R.drawable.ic_play),
+            contentDescription = if (isPlaying) "Pause" else "Play",
+            colorFilter = ColorFilter.tint(iconColor),
+            modifier = Modifier.size(22.dp),
+        )
+    }
+}
+
+@Composable
+private fun Seek30Button(
+    palette: CinePilotPalette,
+    forward: Boolean,
+    onClick: () -> Unit,
+) {
+    var focused by remember { mutableStateOf(false) }
+    val size = 40.dp
+    val shape = RoundedCornerShape(size / 2)
+    Box(
+        modifier = Modifier
+            .size(size)
+            .clip(shape)
+            .background(
+                if (focused) palette.glassFocus else Color.Transparent,
+                shape,
+            )
+            .border(
+                width = if (focused) TvDp.FocusRing else 0.dp,
+                color = if (focused) palette.focusRing else Color.Transparent,
+                shape = shape,
+            )
+            .onFocusChanged { focused = it.isFocused }
+            .focusable()
+            .clickable(
+                interactionSource = remember { MutableInteractionSource() },
+                indication = null,
+                onClick = onClick,
+            ),
+        contentAlignment = Alignment.Center,
+    ) {
+        Box(contentAlignment = Alignment.Center) {
+            Image(
+                painter = painterResource(if (forward) R.drawable.ic_forward_30 else R.drawable.ic_rewind_30),
+                contentDescription = if (forward) "Forward 30s" else "Rewind 30s",
+                colorFilter = ColorFilter.tint(palette.textPrimary),
+                modifier = Modifier.size(size - 4.dp),
+            )
+            BasicText(
+                text = "30",
+                style = TextStyle(
+                    color = palette.textPrimary,
+                    fontSize = 11.sp,
+                    fontWeight = FontWeight.SemiBold,
+                ),
+            )
+        }
+    }
+}
+
+@Composable
+private fun IconOsdButton(
+    palette: CinePilotPalette,
+    iconRes: Int,
+    size: Dp = 40.dp,
+    iconSize: Dp = 18.dp,
+    onClick: () -> Unit,
+) {
+    var focused by remember { mutableStateOf(false) }
+    val shape = RoundedCornerShape(size / 2)
+    Box(
+        modifier = Modifier
+            .size(size)
+            .clip(shape)
+            .background(
+                if (focused) palette.glassFocus else Color.Transparent,
+                shape,
+            )
+            .border(
+                width = if (focused) TvDp.FocusRing else 0.dp,
+                color = if (focused) palette.focusRing else Color.Transparent,
+                shape = shape,
+            )
+            .onFocusChanged { focused = it.isFocused }
+            .focusable()
+            .clickable(
+                interactionSource = remember { MutableInteractionSource() },
+                indication = null,
+                onClick = onClick,
+            ),
+        contentAlignment = Alignment.Center,
+    ) {
+        Image(
+            painter = painterResource(iconRes),
+            contentDescription = null,
+            colorFilter = ColorFilter.tint(if (focused) palette.accentStrong else palette.textSecondary),
+            modifier = Modifier.size(iconSize),
+        )
+    }
+}
+
+@Composable
+private fun TextOsdButton(
+    palette: CinePilotPalette,
+    text: String,
+    onClick: () -> Unit,
+) {
+    var focused by remember { mutableStateOf(false) }
+    val height = 32.dp
+    val shape = RoundedCornerShape(8.dp)
+    Box(
+        modifier = Modifier
+            .height(height)
+            .clip(shape)
+            .background(
+                if (focused) palette.glassFocus else Color.Transparent,
+                shape,
+            )
+            .border(
+                width = if (focused) TvDp.FocusRing else 0.dp,
+                color = if (focused) palette.focusRing else Color.Transparent,
+                shape = shape,
+            )
+            .onFocusChanged { focused = it.isFocused }
+            .focusable()
+            .clickable(
+                interactionSource = remember { MutableInteractionSource() },
+                indication = null,
+                onClick = onClick,
+            )
+            .padding(horizontal = 8.dp),
+        contentAlignment = Alignment.Center,
+    ) {
+        BasicText(
+            text = text,
+            style = TextStyle(
+                color = if (focused) palette.accentStrong else palette.textSecondary,
+                fontSize = 12.sp,
+                fontWeight = FontWeight.SemiBold,
+            ),
+        )
+    }
+}
+
+@Composable
+private fun NextUpMiniCard(
+    palette: CinePilotPalette,
+    owner: ComponentActivity,
+    artworkFactory: ArtworkRequestFactory,
+    authenticated: AuthenticatedServer?,
+    info: ComposeNextUpInfo,
+    modifier: Modifier = Modifier,
+    onPlayNext: () -> Unit,
+) {
+    val artwork = rememberArtworkRequest(
+        factory = artworkFactory,
+        authenticated = authenticated,
+        item = info.item,
+        target = ArtworkTarget.LANDSCAPE,
+        width = 440,
+        height = 248,
     )
+    var focused by remember { mutableStateOf(false) }
+    val shape = RoundedCornerShape(12.dp)
+    Box(
+        modifier = modifier
+            .width(240.dp)
+            .height(135.dp)
+            .clip(shape)
+            .shadow(
+                elevation = if (focused) 16.dp else 6.dp,
+                shape = shape,
+                spotColor = if (focused) palette.focusGlow else Color.Black.copy(alpha = 0.4f),
+                ambientColor = if (focused) palette.focusGlow else Color.Black.copy(alpha = 0.3f),
+            )
+            .border(
+                width = if (focused) TvDp.FocusRing else 0.8.dp,
+                color = if (focused) palette.focusRing else palette.glassBorder,
+                shape = shape,
+            )
+            .onFocusChanged { focused = it.isFocused }
+            .focusable()
+            .clickable(
+                interactionSource = remember { MutableInteractionSource() },
+                indication = null,
+                onClick = onPlayNext,
+            ),
+    ) {
+        CinePilotAsyncImage(
+            request = artwork,
+            contentDescription = info.item.name(),
+            contentScale = ContentScale.Crop,
+            modifier = Modifier.fillMaxSize(),
+        )
+        // Dark gradient overlay
+        Box(
+            Modifier
+                .fillMaxSize()
+                .background(
+                    Brush.verticalGradient(
+                        listOf(
+                            Color.Black.copy(alpha = 0.05f),
+                            Color.Black.copy(alpha = 0.7f),
+                        ),
+                    ),
+                ),
+        )
+        // Play icon circle overlay
+        Box(
+            modifier = Modifier
+                .align(Alignment.Center)
+                .size(36.dp)
+                .clip(RoundedCornerShape(18.dp))
+                .background(Color.Black.copy(alpha = 0.5f))
+                .border(1.dp, Color.White.copy(alpha = 0.6f), RoundedCornerShape(18.dp)),
+            contentAlignment = Alignment.Center,
+        ) {
+            Image(
+                painter = painterResource(R.drawable.ic_play),
+                contentDescription = null,
+                colorFilter = ColorFilter.tint(Color.White),
+                modifier = Modifier.size(14.dp),
+            )
+        }
+        // Bottom text
+        Column(
+            modifier = Modifier
+                .align(Alignment.BottomStart)
+                .fillMaxWidth()
+                .padding(10.dp),
+        ) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(4.dp),
+            ) {
+                BasicText(
+                    text = "下一集",
+                    maxLines = 1,
+                    style = TextStyle(
+                        color = palette.textPrimary,
+                        fontSize = TvText.Body,
+                        fontWeight = FontWeight.SemiBold,
+                    ),
+                )
+            }
+            BasicText(
+                text = info.episodeLabel,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                style = TextStyle(
+                    color = palette.textMuted,
+                    fontSize = TvText.Label,
+                ),
+            )
+        }
+    }
 }
 
 @Composable
@@ -211,15 +786,15 @@ private fun ChapterStrip(
     onChapterClick: (Long) -> Unit,
 ) {
     LazyRow(
-        horizontalArrangement = Arrangement.spacedBy(8.dp),
-        contentPadding = PaddingValues(vertical = 6.dp),
+        horizontalArrangement = Arrangement.spacedBy(6.dp),
+        contentPadding = PaddingValues(vertical = 4.dp),
         modifier = modifier,
     ) {
         items(items = chapters, key = { chapter -> chapter.first }) { (ticks, title) ->
             TvActionButton(
                 palette = palette,
                 label = title.ifBlank { MediaTicks.formatShort(ticks) },
-                modifier = Modifier.width(150.dp),
+                modifier = Modifier.width(95.dp),
                 onClick = { onChapterClick(ticks) },
             )
         }
@@ -242,72 +817,109 @@ private fun NextUpCard(
         authenticated = authenticated,
         item = info.item,
         target = ArtworkTarget.LANDSCAPE,
-        width = 392,
-        height = 220,
+        width = 600,
+        height = 338,
     )
-    FocusSurface(
-        palette = palette,
-        enabled = false,
-        modifier = modifier.width(620.dp),
-        padding = PaddingValues(16.dp),
+    val shape = RoundedCornerShape(TvDp.CardRadius)
+    Box(
+        modifier = modifier
+            .width(TvDp.NextUpWidth)
+            .clip(shape)
+            .background(palette.glass)
+            .border(0.5.dp, palette.glassBorder, shape)
+            .padding(12.dp),
     ) {
-        Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
-            Box(
-                modifier = Modifier
-                    .size(width = 196.dp, height = 110.dp)
-                    .clip(RoundedCornerShape(TvDp.CardRadius))
-                    .background(palette.posterFallback)
-                    .border(1.dp, palette.glassBorder, RoundedCornerShape(TvDp.CardRadius)),
-            ) {
-                CinePilotAsyncImage(
-                    request = artwork,
-                    contentDescription = info.item.name(),
-                    contentScale = ContentScale.Crop,
-                    modifier = Modifier.fillMaxSize(),
-                )
+        Column {
+            BasicText(
+                text = "接下来播放",
+                maxLines = 1,
+                style = TextStyle(
+                    color = palette.textSecondary,
+                    fontSize = TvText.Metadata,
+                    fontWeight = FontWeight.Medium,
+                ),
+            )
+            Spacer(Modifier.height(8.dp))
+            Row(verticalAlignment = Alignment.Top, modifier = Modifier.fillMaxWidth()) {
+                Box(
+                    modifier = Modifier
+                        .size(width = TvDp.LandscapeWidth, height = TvDp.LandscapeHeight)
+                        .clip(RoundedCornerShape(8.dp))
+                        .background(palette.posterFallback)
+                        .border(0.5.dp, palette.glassBorder, RoundedCornerShape(8.dp)),
+                ) {
+                    CinePilotAsyncImage(
+                        request = artwork,
+                        contentDescription = info.item.name(),
+                        contentScale = ContentScale.Crop,
+                        modifier = Modifier.fillMaxSize(),
+                    )
+                }
+                Spacer(Modifier.width(10.dp))
+                Column(modifier = Modifier.weight(1f)) {
+                    BasicText(
+                        text = info.episodeLabel,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        style = TextStyle(
+                            color = palette.textMuted,
+                            fontSize = TvText.Metadata,
+                        ),
+                    )
+                    Spacer(Modifier.height(3.dp))
+                    BasicText(
+                        text = info.item.name().ifBlank { "下一集" },
+                        maxLines = 2,
+                        overflow = TextOverflow.Ellipsis,
+                        style = TextStyle(
+                            color = palette.textPrimary,
+                            fontSize = TvText.Body,
+                            fontWeight = FontWeight.SemiBold,
+                        ),
+                    )
+                    Spacer(Modifier.height(5.dp))
+                    BasicText(
+                        text = info.item.overview().ifBlank {
+                            if (info.autoPlay) "${info.countdownSeconds}s 后自动播放" else "下一集"
+                        },
+                        maxLines = 2,
+                        overflow = TextOverflow.Ellipsis,
+                        style = TextStyle(color = palette.textMuted, fontSize = TvText.Label),
+                    )
+                }
             }
-            Spacer(Modifier.width(16.dp))
-            Column(modifier = Modifier.weight(1f)) {
-                BasicText(
-                    text = info.episodeLabel,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                    style = TextStyle(color = palette.textSecondary, fontSize = TvText.Metadata),
-                )
-                Spacer(Modifier.height(4.dp))
-                BasicText(
-                    text = info.item.name().ifBlank { "下一集" },
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                    style = TextStyle(color = palette.textPrimary, fontSize = TvText.Body),
-                )
-                Spacer(Modifier.height(6.dp))
-                BasicText(
-                    text = info.item.overview().ifBlank {
-                        if (info.autoPlay) "${info.countdownSeconds}s 后自动播放" else "下一集"
-                    },
-                    maxLines = 2,
-                    overflow = TextOverflow.Ellipsis,
-                    style = TextStyle(color = palette.textMuted, fontSize = TvText.Metadata),
-                )
-            }
-            Spacer(Modifier.width(12.dp))
-            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Spacer(Modifier.height(10.dp))
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
                 TvActionButton(
                     palette = palette,
                     label = "立即播放",
                     selected = true,
                     requestInitialFocus = true,
-                    modifier = Modifier.width(112.dp),
+                    modifier = Modifier.weight(1f),
                     onClick = onPlayNext,
                 )
                 TvActionButton(
                     palette = palette,
                     label = "取消",
-                    modifier = Modifier.width(112.dp),
+                    modifier = Modifier.weight(1f),
                     onClick = onCancelNextUp,
                 )
             }
         }
     }
+}
+
+private fun FrameLayout.attachPlayerView(playerView: View) {
+    if (playerView.parent === this && childCount == 1 && getChildAt(0) === playerView) {
+        return
+    }
+    (playerView.parent as? ViewGroup)?.removeView(playerView)
+    removeAllViews()
+    addView(
+        playerView,
+        FrameLayout.LayoutParams(
+            FrameLayout.LayoutParams.MATCH_PARENT,
+            FrameLayout.LayoutParams.MATCH_PARENT,
+        ),
+    )
 }

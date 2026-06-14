@@ -6,8 +6,10 @@ import android.widget.FrameLayout
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.text.BasicText
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
@@ -92,7 +94,9 @@ fun CinePilotApp(screen: CinePilotScreen, theme: AppTheme) {
         is CinePilotScreen.Loading -> LoadingScreen(palette, screen.message)
         is CinePilotScreen.LegacyView -> LegacyViewScreen(screen)
         is CinePilotScreen.ComposePage -> ImmersiveStage(palette = palette, title = screen.title) {
-            screen.content(palette)
+            Box(modifier = Modifier.widthIn(max = TvDp.PanelWidth)) {
+                screen.content(palette)
+            }
         }
         is CinePilotScreen.ComposeFullScreen -> screen.content(palette)
         else -> LoadingScreen(palette, "正在打开...")

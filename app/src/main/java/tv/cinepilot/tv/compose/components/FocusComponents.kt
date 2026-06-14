@@ -31,6 +31,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusProperties
 import androidx.compose.ui.focus.focusRequester
@@ -65,9 +66,11 @@ fun FocusSurface(
     /** When non-null, overrides the visual focus state. Use for state-driven focus. */
     isFocused: Boolean? = null,
     requestInitialFocus: Boolean = false,
-    focusedScale: Float = 1.025f,
+    focusedScale: Float = 1.012f,
+    /** Glow / halo effect when focused. 0dp disables glow. */
+    glowRadius: Dp = 0.dp,
     radius: Dp = TvDp.ControlRadius,
-    padding: PaddingValues = PaddingValues(horizontal = 14.dp, vertical = 10.dp),
+    padding: PaddingValues = PaddingValues(horizontal = 9.dp, vertical = 6.dp),
     onFocusChanged: (Boolean) -> Unit = {},
     onClick: (() -> Unit)? = null,
     content: @Composable BoxScope.(focused: Boolean) -> Unit,
@@ -118,6 +121,18 @@ fun FocusSurface(
         Modifier
     }
 
+    // Glow shadow — applied outside scale so the glow stays crisp
+    val glowModifier = if (glowRadius > 0.dp && focused) {
+        Modifier.shadow(
+            elevation = glowRadius,
+            shape = shape,
+            spotColor = palette.focusGlow,
+            ambientColor = palette.focusGlow,
+        )
+    } else {
+        Modifier
+    }
+
     Box(
         modifier = modifier
             .focusRequester(focusRequester)
@@ -129,10 +144,11 @@ fun FocusSurface(
                 canFocus = enabled
             }
             .then(interactionModifier)
+            .then(glowModifier)
             .scale(scale)
             .clip(shape)
             .background(fill, shape)
-            .border(BorderStroke(if (focused) 2.dp else 1.dp, border), shape)
+            .border(BorderStroke(if (focused) TvDp.FocusRing else 0.5.dp, border), shape)
             .padding(padding),
         contentAlignment = Alignment.CenterStart,
     ) {
@@ -154,7 +170,7 @@ fun TvActionButton(
         selected = selected,
         requestInitialFocus = requestInitialFocus,
         modifier = modifier.height(TvDp.ControlHeight),
-        padding = PaddingValues(horizontal = if (selected) 18.dp else 14.dp),
+        padding = PaddingValues(horizontal = if (selected) 12.dp else 10.dp),
         onClick = onClick,
     ) { focused ->
         BasicText(
@@ -197,7 +213,7 @@ fun TvIconButton(
             colorFilter = ColorFilter.tint(if (focused || selected) palette.accentStrong else palette.textSecondary),
             modifier = Modifier
                 .align(Alignment.Center)
-                .size(22.dp),
+                .size(15.dp),
         )
     }
 }
@@ -246,7 +262,7 @@ fun TvOptionRow(
                     )
                 }
             }
-            Spacer(Modifier.width(14.dp))
+            Spacer(Modifier.width(9.dp))
             BasicText(
                 text = value,
                 maxLines = 1,
@@ -333,10 +349,10 @@ fun TvTextField(
     Box(
         modifier = modifier
             .fillMaxWidth()
-            .height(52.dp)
+            .height(TvDp.SearchInputHeight)
             .clip(shape)
             .background(if (focused) palette.glassFocus else palette.glass, shape)
-            .border(BorderStroke(if (focused) 2.dp else 1.dp, if (focused) palette.focusRing else palette.glassBorder), shape)
+            .border(BorderStroke(if (focused) TvDp.FocusRing else 0.5.dp, if (focused) palette.focusRing else palette.glassBorder), shape)
             .onFocusChanged {
                 focused = it.isFocused
                 if (it.isFocused && selectAllOnFocus && textFieldValue.text.isNotEmpty()) {

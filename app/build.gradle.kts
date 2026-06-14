@@ -117,6 +117,7 @@ dependencies {
     implementation(libs.androidx.compose.animation)
     implementation(libs.androidx.compose.runtime)
     implementation(libs.androidx.compose.ui.tooling.preview)
+    implementation(libs.androidx.compose.material.icons.extended)
     implementation(libs.coil.compose)
     implementation(libs.coil.network.okhttp)
     implementation(libs.okhttp)

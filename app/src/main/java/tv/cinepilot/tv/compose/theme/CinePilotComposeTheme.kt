@@ -15,6 +15,7 @@ data class CinePilotPalette(
     val glassFocus: Color,
     val glassBorder: Color,
     val focusRing: Color,
+    val focusGlow: Color,
     val accent: Color,
     val accentStrong: Color,
     val focusText: Color,
@@ -31,12 +32,14 @@ object CinePilotComposeTheme {
                 accent = Color(0xFF38BDF8),
                 accentStrong = Color(0xFF7DD3FC),
                 focusRing = Color(0xFFBAE6FD),
+                focusGlow = Color(0x55BAE6FD),
                 focusText = Color(0xFF02121E),
             )
             AppTheme.EMBY -> defaultPalette(
                 accent = Color(0xFF84CC16),
                 accentStrong = Color(0xFFBEF264),
                 focusRing = Color(0xFFBBF7D0),
+                focusGlow = Color(0x55BBF7D0),
                 focusText = Color(0xFF05160C),
             )
             AppTheme.INFUSE -> defaultPalette(
@@ -46,6 +49,7 @@ object CinePilotComposeTheme {
                 accent = Color(0xFF9AB9FF),
                 accentStrong = Color(0xFFEEF4FF),
                 focusRing = Color(0xFFE0EBFF),
+                focusGlow = Color(0x55E0EBFF),
                 focusText = Color(0xFF050B18),
                 textSecondary = Color(0xFFD7DEEE),
                 textMuted = Color(0xFF8E98AE),
@@ -61,6 +65,7 @@ object CinePilotComposeTheme {
         accent: Color = Color(0xFF2DD4BF),
         accentStrong: Color = Color(0xFF5EEAD4),
         focusRing: Color = Color(0xFF99F6E4),
+        focusGlow: Color = Color(0x5599F6E4),
         focusText: Color = Color(0xFF031216),
         textSecondary: Color = Color(0xFFE2E8F0),
         textMuted: Color = Color(0xFF94A3B8),
@@ -71,6 +76,7 @@ object CinePilotComposeTheme {
         glassFocus = glassFocus,
         glassBorder = Color(0x56F4F7FF),
         focusRing = focusRing,
+        focusGlow = focusGlow,
         accent = accent,
         accentStrong = accentStrong,
         focusText = focusText,
@@ -82,30 +88,44 @@ object CinePilotComposeTheme {
 }
 
 object TvDp {
-    val ScreenX: Dp = 44.dp
+    val ScreenX: Dp = 32.dp
     val ScreenTop: Dp = 20.dp
-    val ScreenBottom: Dp = 34.dp
+    val ScreenBottom: Dp = 18.dp
+    val TopBarHeight: Dp = 36.dp
     val RowGap: Dp = 14.dp
     val CellGap: Dp = 8.dp
-    val PosterWidth: Dp = 104.dp
-    val PosterHeight: Dp = 156.dp
-    val LandscapeWidth: Dp = 188.dp
-    val LandscapeHeight: Dp = 106.dp
-    val ControlHeight: Dp = 44.dp
-    val IconButtonSize: Dp = 44.dp
-    val SettingsRowHeight: Dp = 64.dp
-    val PanelRadius: Dp = 18.dp
+    val PosterWidth: Dp = 106.dp
+    val PosterHeight: Dp = 158.dp
+    val LandscapeWidth: Dp = 170.dp
+    val LandscapeHeight: Dp = 85.dp
+    val ContinueWidth: Dp = 223.dp
+    val ContinueHeight: Dp = 97.dp
+    val DetailPosterWidth: Dp = 140.dp
+    val DetailPosterHeight: Dp = 205.dp
+    val ControlHeight: Dp = 42.dp
+    val IconButtonSize: Dp = 36.dp
+    val SettingsRowHeight: Dp = 42.dp
+    val ProfileRowHeight: Dp = 56.dp
+    val AvatarSize: Dp = 44.dp
+    val SearchInputHeight: Dp = 42.dp
+    val PanelWidth: Dp = 300.dp
+    val PlayerSettingsPanelWidth: Dp = 344.dp
+    val NextUpWidth: Dp = 344.dp
+    val PlayerControlHeight: Dp = 44.dp
+    val FocusRing: Dp = 1.5.dp
+    val PanelRadius: Dp = 16.dp
     val ControlRadius: Dp = 12.dp
-    val CardRadius: Dp = 8.dp
+    val CardRadius: Dp = 12.dp
 }
 
 object TvText {
-    val Brand = 12.sp
-    val PageTitle = 30.sp
-    val DetailTitle = 36.sp
-    val Section = 14.sp
-    val Body = 15.sp
-    val Metadata = 12.sp
-    val Label = 11.sp
+    val Brand = 15.sp
+    val PageTitle = 20.sp
+    val DetailTitle = 25.sp
+    val Section = 15.sp
+    val Body = 13.sp
+    val Metadata = 10.5.sp
+    val Label = 9.5.sp
     val CardTitle = 12.sp
+    val PlayerTime = 12.sp
 }

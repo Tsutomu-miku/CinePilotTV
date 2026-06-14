@@ -2,19 +2,25 @@ package tv.cinepilot.tv.compose.screens
 
 import androidx.activity.ComponentActivity
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicText
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -25,33 +31,40 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
 import androidx.compose.foundation.focusable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.input.key.KeyEventType
 import androidx.compose.ui.input.key.key
 import androidx.compose.ui.input.key.onPreviewKeyEvent
 import androidx.compose.ui.input.key.type
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.delay
 import tv.cinepilot.core.protocol.MediaItemSummary
+import tv.cinepilot.core.protocol.MediaItemType
+import tv.cinepilot.core.protocol.MediaTicks
 import tv.cinepilot.core.tv.HomeRow
 import tv.cinepilot.core.tv.TvAppState
 import tv.cinepilot.tv.R
 import tv.cinepilot.tv.compose.artwork.CinePilotAsyncImage
 import tv.cinepilot.tv.compose.artwork.rememberArtworkRequest
 import tv.cinepilot.tv.compose.components.InfoPanel
-import tv.cinepilot.tv.compose.components.LandscapeCard
 import tv.cinepilot.tv.compose.components.MediaRailIndexed
-import tv.cinepilot.tv.compose.components.PosterCard
 import tv.cinepilot.tv.compose.components.TvActionButton
-import tv.cinepilot.tv.compose.components.TvIconButton
 import tv.cinepilot.tv.compose.theme.CinePilotPalette
 import tv.cinepilot.tv.compose.theme.TvDp
 import tv.cinepilot.tv.compose.theme.TvText
@@ -60,6 +73,7 @@ import tv.cinepilot.tv.runtime.ArtworkRequestFactory
 import tv.cinepilot.tv.runtime.ArtworkRequestSpec
 import tv.cinepilot.tv.runtime.ArtworkTarget
 import tv.cinepilot.tv.ui.RowVisualStyle
+import tv.cinepilot.tv.ui.cardBadgeLabels
 import tv.cinepilot.tv.ui.toHomeRowPresentation
 
 @Composable
@@ -74,7 +88,7 @@ fun ComposeHomeScreen(
     onLibraryOverview: (viewId: String, title: String, isSeries: Boolean) -> Unit,
 ) {
     val rows = state.homeRows()
-    val displayRows = remember(rows) { rows.filter { row -> row.items().isNotEmpty() } }
+    val displayRows = remember(rows) { rows.filter { row -> row.items().isNotEmpty() && row.id() != "views" } }
     val initialAddress = remember(state, displayRows) { initialFocusAddress(state, displayRows) }
     var focusedRowIndex by remember(displayRows) { mutableIntStateOf(initialAddress.rowIndex) }
     var focusedItemIndex by remember(displayRows) { mutableIntStateOf(initialAddress.itemIndex) }
@@ -199,8 +213,8 @@ fun ComposeHomeScreen(
         authenticated = state.authenticated(),
         item = backdropItem,
         target = ArtworkTarget.BACKDROP,
-        width = 960,
-        height = 540,
+        width = 1280,
+        height = 720,
     )
     HomeWallStage(
         palette = palette,
@@ -208,7 +222,7 @@ fun ComposeHomeScreen(
     ) {
         LazyColumn(
             state = columnState,
-            verticalArrangement = Arrangement.spacedBy(12.dp),
+            verticalArrangement = Arrangement.spacedBy(TvDp.RowGap),
             contentPadding = PaddingValues(bottom = TvDp.ScreenBottom),
             modifier = Modifier
                 .fillMaxWidth()
@@ -306,7 +320,7 @@ private fun HomeWallStage(
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(start = TvDp.ScreenX, top = 18.dp, end = TvDp.ScreenX, bottom = 0.dp),
+                .padding(start = TvDp.ScreenX, top = TvDp.ScreenTop, end = TvDp.ScreenX, bottom = 0.dp),
         ) {
             content()
         }
@@ -319,18 +333,63 @@ private fun HomeTopBar(palette: CinePilotPalette, title: String, navigation: Com
         verticalAlignment = Alignment.CenterVertically,
         modifier = Modifier
             .fillMaxWidth()
-            .height(44.dp),
+            .height(TvDp.TopBarHeight),
     ) {
-        BasicText(
-            text = title,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
-            style = TextStyle(color = palette.textPrimary, fontSize = TvText.Section),
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
             modifier = Modifier.weight(1f),
-        )
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        ) {
+            // Brand: CinePilot TV
+            Row(verticalAlignment = Alignment.Bottom) {
+                BasicText(
+                    text = "CinePilot",
+                    maxLines = 1,
+                    style = TextStyle(
+                        color = palette.textPrimary,
+                        fontSize = TvText.Brand,
+                        fontWeight = FontWeight.Bold,
+                    ),
+                )
+                BasicText(
+                    text = " TV",
+                    maxLines = 1,
+                    style = TextStyle(
+                        color = palette.accentStrong,
+                        fontSize = TvText.Brand,
+                        fontWeight = FontWeight.Bold,
+                    ),
+                )
+            }
+            Spacer(Modifier.width(12.dp))
+            BasicText(
+                text = "/",
+                maxLines = 1,
+                style = TextStyle(color = palette.textMuted, fontSize = TvText.Body),
+            )
+            Spacer(Modifier.width(12.dp))
+            BasicText(
+                text = title,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                style = TextStyle(color = palette.textPrimary, fontSize = TvText.Body, fontWeight = FontWeight.Bold),
+            )
+            Spacer(Modifier.width(12.dp))
+            BasicText(
+                text = "|",
+                maxLines = 1,
+                style = TextStyle(color = palette.textMuted, fontSize = TvText.Metadata),
+            )
+            Spacer(Modifier.width(12.dp))
+            BasicText(
+                text = "媒体库  Cinema Library",
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                style = TextStyle(color = palette.textSecondary, fontSize = TvText.Metadata),
+            )
+        }
+        Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
             homeActions(navigation).forEach { action ->
-                TvIconButton(
+                HeaderIconButton(
                     palette = palette,
                     iconRes = action.iconRes,
                     contentDescription = action.label,
@@ -448,29 +507,34 @@ private fun HomeMediaRow(
                 authenticated = state.authenticated(),
                 item = item,
                 target = artworkTarget,
-                width = if (artworkTarget == ArtworkTarget.POSTER) 260 else 376,
-                height = if (artworkTarget == ArtworkTarget.POSTER) 390 else 212,
+                width = if (artworkTarget == ArtworkTarget.POSTER) 300 else 600,
+                height = if (artworkTarget == ArtworkTarget.POSTER) 450 else 338,
             )
             val isFocusedCard = isFocusedRow && itemIndex == focusedItemIndex
-            if (style == RowVisualStyle.POSTER_RAIL) {
-                PosterCard(
+            if (row.id() == "resume") {
+                HomeLandscapeCard(
                     palette = palette,
                     item = item,
                     artwork = artwork,
-                    isFocused = isFocusedCard,
-                    enabled = false,
-                    onFocus = {},
-                    onClick = {},
+                    focused = isFocusedCard,
+                    width = TvDp.ContinueWidth,
+                    height = TvDp.ContinueHeight,
+                )
+            } else if (style == RowVisualStyle.POSTER_RAIL) {
+                HomePosterCard(
+                    palette = palette,
+                    item = item,
+                    artwork = artwork,
+                    focused = isFocusedCard,
                 )
             } else {
-                LandscapeCard(
+                HomeLandscapeCard(
                     palette = palette,
                     item = item,
                     artwork = artwork,
-                    isFocused = isFocusedCard,
-                    enabled = false,
-                    onFocus = {},
-                    onClick = {},
+                    focused = isFocusedCard,
+                    width = TvDp.LandscapeWidth,
+                    height = TvDp.LandscapeHeight,
                 )
             }
         }
@@ -515,6 +579,281 @@ private fun EmptyHome(
 }
 
 private data class HomeAction(val label: String, val iconRes: Int, val onClick: () -> Unit)
+
+@Composable
+private fun HeaderIconButton(
+    palette: CinePilotPalette,
+    iconRes: Int,
+    contentDescription: String,
+    onClick: () -> Unit,
+) {
+    var focused by remember { mutableStateOf(false) }
+    val shape = RoundedCornerShape(TvDp.ControlRadius)
+    val glowModifier = if (focused) {
+        Modifier.shadow(
+            elevation = 8.dp,
+            shape = shape,
+            spotColor = palette.focusGlow,
+            ambientColor = palette.focusGlow,
+        )
+    } else {
+        Modifier
+    }
+    Box(
+        modifier = Modifier
+            .size(TvDp.IconButtonSize)
+            .then(glowModifier)
+            .clip(shape)
+            .background(if (focused) palette.glassFocus else palette.glass.copy(alpha = 0.0f), shape)
+            .border(
+                width = if (focused) TvDp.FocusRing else 0.dp,
+                color = if (focused) palette.focusRing else palette.glassBorder.copy(alpha = 0f),
+                shape = shape,
+            )
+            .onFocusChanged { focused = it.isFocused }
+            .focusable()
+            .clickable(
+                interactionSource = remember { MutableInteractionSource() },
+                indication = null,
+                onClick = onClick,
+            ),
+        contentAlignment = Alignment.Center,
+    ) {
+        androidx.compose.foundation.Image(
+            painter = painterResource(iconRes),
+            contentDescription = contentDescription,
+            colorFilter = ColorFilter.tint(if (focused) palette.accentStrong else palette.textPrimary),
+            modifier = Modifier.size(20.dp),
+        )
+    }
+}
+
+@Composable
+private fun HomePosterCard(
+    palette: CinePilotPalette,
+    item: MediaItemSummary,
+    artwork: ArtworkRequestSpec?,
+    focused: Boolean,
+) {
+    HomeArtworkCard(
+        palette = palette,
+        item = item,
+        artwork = artwork,
+        focused = focused,
+        width = TvDp.PosterWidth,
+        height = TvDp.PosterHeight,
+        overlayHeight = 64.dp,
+        showProgressPercent = focused || item.hasResumePosition(),
+    )
+}
+
+@Composable
+private fun HomeLandscapeCard(
+    palette: CinePilotPalette,
+    item: MediaItemSummary,
+    artwork: ArtworkRequestSpec?,
+    focused: Boolean,
+    width: Dp,
+    height: Dp,
+) {
+    HomeArtworkCard(
+        palette = palette,
+        item = item,
+        artwork = artwork,
+        focused = focused,
+        width = width,
+        height = height,
+        overlayHeight = (height * 0.58f),
+        showProgressPercent = item.hasResumePosition(),
+    )
+}
+
+@Composable
+private fun HomeArtworkCard(
+    palette: CinePilotPalette,
+    item: MediaItemSummary,
+    artwork: ArtworkRequestSpec?,
+    focused: Boolean,
+    width: Dp,
+    height: Dp,
+    overlayHeight: Dp,
+    showProgressPercent: Boolean,
+) {
+    val shape = RoundedCornerShape(TvDp.CardRadius)
+    val progress = item.resumeFraction()
+    val badges = remember(item) { item.cardBadgeLabels() }
+    // Glow / halo effect around the card when focused
+    val glowModifier = if (focused) {
+        Modifier.shadow(
+            elevation = 12.dp,
+            shape = shape,
+            spotColor = palette.focusGlow,
+            ambientColor = palette.focusGlow,
+        )
+    } else {
+        Modifier
+    }
+    Box(
+        modifier = Modifier
+            .width(width)
+            .height(height)
+            .then(glowModifier)
+            .clip(shape)
+            .background(palette.posterFallback, shape)
+            .border(
+                width = if (focused) TvDp.FocusRing else 0.5.dp,
+                color = if (focused) palette.focusRing else palette.glassBorder,
+                shape = shape,
+            ),
+    ) {
+        CinePilotAsyncImage(
+            request = artwork,
+            contentDescription = item.name(),
+            contentScale = ContentScale.Crop,
+            modifier = Modifier.fillMaxSize(),
+        )
+        // 技术徽章（左上角）
+        if (badges.isNotEmpty()) {
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(4.dp),
+                modifier = Modifier
+                    .align(Alignment.TopStart)
+                    .padding(8.dp),
+            ) {
+                badges.take(2).forEach { badge ->
+                    CardBadgeChip(text = badge, palette = palette)
+                }
+            }
+        }
+        // 底部渐变遮罩
+        Box(
+            modifier = Modifier
+                .align(Alignment.BottomCenter)
+                .fillMaxWidth()
+                .height(overlayHeight)
+                .background(
+                    Brush.verticalGradient(
+                        listOf(
+                            palette.background.copy(alpha = 0.0f),
+                            palette.background.copy(alpha = 0.70f),
+                            palette.background.copy(alpha = 0.92f),
+                        ),
+                    ),
+                ),
+        )
+        // 文字信息
+        Column(
+            modifier = Modifier
+                .align(Alignment.BottomStart)
+                .fillMaxWidth()
+                .padding(start = 10.dp, end = 10.dp, bottom = 10.dp),
+        ) {
+            BasicText(
+                text = item.name().ifBlank { item.id() },
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                style = TextStyle(
+                    color = palette.textPrimary,
+                    fontSize = TvText.CardTitle,
+                    fontWeight = FontWeight.Bold,
+                ),
+            )
+            Spacer(Modifier.height(3.dp))
+            BasicText(
+                text = item.cardMetaLine(),
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                style = TextStyle(color = palette.textMuted, fontSize = TvText.Metadata),
+            )
+            // 播放进度条
+            if (progress > 0f) {
+                Spacer(Modifier.height(6.dp))
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Box(
+                        modifier = Modifier
+                            .weight(1f)
+                            .height(3.dp)
+                            .clip(RoundedCornerShape(1.5.dp))
+                            .background(palette.textPrimary.copy(alpha = 0.18f)),
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth(progress)
+                                .fillMaxSize()
+                                .background(palette.accent),
+                        )
+                    }
+                    if (showProgressPercent) {
+                        Spacer(Modifier.width(6.dp))
+                        BasicText(
+                            text = "${(progress * 100f).toInt()}%",
+                            maxLines = 1,
+                            style = TextStyle(
+                                color = palette.textMuted,
+                                fontSize = TvText.Label,
+                                fontWeight = FontWeight.Medium,
+                            ),
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun CardBadgeChip(text: String, palette: CinePilotPalette) {
+    Box(
+        modifier = Modifier
+            .height(18.dp)
+            .clip(RoundedCornerShape(6.dp))
+            .background(Color.Black.copy(alpha = 0.72f))
+            .border(0.5.dp, palette.glassBorder.copy(alpha = 0.5f), RoundedCornerShape(6.dp))
+            .padding(horizontal = 6.dp, vertical = 2.dp),
+        contentAlignment = Alignment.Center,
+    ) {
+        BasicText(
+            text = text,
+            maxLines = 1,
+            style = TextStyle(
+                color = palette.textPrimary,
+                fontSize = TvText.Label,
+                fontWeight = FontWeight.SemiBold,
+            ),
+        )
+    }
+}
+
+private fun MediaItemSummary.cardMetaLine(): String {
+    if (type() == MediaItemType.EPISODE) {
+        val season = parentIndexNumber()?.let { "S$it" }.orEmpty()
+        val episode = indexNumber()?.let { "E$it" }.orEmpty()
+        return listOf(season, episode).filter { it.isNotBlank() }.joinToString(" · ").ifBlank {
+            seriesName().ifBlank { productionYear()?.toString().orEmpty() }
+        }
+    }
+    val year = productionYear()?.toString().orEmpty()
+    val duration = runTimeTicks()?.let(::durationLabel).orEmpty()
+    return listOf(year, duration).filter { it.isNotBlank() }.joinToString(" · ")
+}
+
+private fun durationLabel(ticks: Long): String {
+    val minutes = (MediaTicks.toSeconds(ticks) / 60L).coerceAtLeast(0L)
+    val hours = minutes / 60L
+    val rest = minutes % 60L
+    return when {
+        hours > 0L && rest > 0L -> "${hours}小时 ${rest}分钟"
+        hours > 0L -> "${hours}小时"
+        rest > 0L -> "${rest}分钟"
+        else -> ""
+    }
+}
+
+private fun MediaItemSummary.resumeFraction(): Float {
+    val duration = runTimeTicks() ?: return 0f
+    if (duration <= 0L || !hasResumePosition()) return 0f
+    return (userData().playbackPositionTicks().toFloat() / duration.toFloat()).coerceIn(0f, 1f)
+}
 
 private data class HomeFocusAddress(val rowIndex: Int, val itemIndex: Int)
 

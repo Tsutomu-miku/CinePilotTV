@@ -1096,6 +1096,23 @@ class PlaybackRouteController(
             ?: (playerChapters.size - 1).coerceAtLeast(0)
     }
 
+    private fun playerOsdTitle(item: MediaItemSummary?): String {
+        if (item == null) return ""
+        return item.seriesName().ifBlank { item.name() }
+    }
+
+    private fun playerOsdSubtitle(item: MediaItemSummary?): String {
+        if (item == null) return ""
+        val season = item.parentIndexNumber()
+        val episode = item.indexNumber()
+        return when {
+            season != null && episode != null -> "S$season:E$episode"
+            episode != null -> "E$episode"
+            item.productionYear() != null -> item.productionYear().toString()
+            else -> ""
+        }
+    }
+
     private fun rebuildPlayerOverlay(
         state: TvAppState,
         rebuildRoot: Boolean,
@@ -1128,6 +1145,7 @@ class PlaybackRouteController(
             emptyList()
         }
         val playerRoot = playerHost.playerSurfaceView() ?: playerView
+        val selectedItem = state.selectedItem()
         val debugInfo = playbackDebugInfo(state) +
             "\n显示模式：${displayModeApplier.formatCurrentModeForDiagnostics()}" +
             "\nHDR 格式：${playerHdrLabel()}" +
@@ -1140,10 +1158,26 @@ class PlaybackRouteController(
                 artworkFactory = artworkFactory,
                 authenticated = state.authenticated(),
                 playerView = playerRoot,
+                mediaTitle = playerOsdTitle(selectedItem),
+                mediaSubtitle = playerOsdSubtitle(selectedItem),
+                positionTicks = positionTicks,
+                durationTicks = playerHost.durationTicks(),
                 debugInfo = debugInfo,
                 chapters = chapters,
                 onChapterClick = { targetTicks ->
                     playerHost.seekToTicks(targetTicks)
+                    scheduleOverlayRebuild()
+                },
+                onTogglePlayPause = {
+                    playerHost.togglePlayPause()
+                    scheduleOverlayRebuild()
+                },
+                onSeekBack = {
+                    playerHost.seekBack()
+                    scheduleOverlayRebuild()
+                },
+                onSeekForward = {
+                    playerHost.seekForward()
                     scheduleOverlayRebuild()
                 },
                 introSegmentTicks = introSegment,
