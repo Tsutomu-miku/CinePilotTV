@@ -1,6 +1,8 @@
 package tv.cinepilot.tv.compose.screens
 
 import androidx.activity.ComponentActivity
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -11,6 +13,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -18,6 +21,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -32,6 +36,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.scale
 import androidx.compose.ui.draw.shadow
 import androidx.compose.foundation.focusable
 import androidx.compose.foundation.interaction.MutableInteractionSource
@@ -53,6 +58,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import kotlinx.coroutines.delay
 import tv.cinepilot.core.protocol.MediaItemSummary
 import tv.cinepilot.core.protocol.MediaItemType
@@ -299,28 +305,30 @@ private fun HomeWallStage(
                 modifier = Modifier.fillMaxSize(),
             )
         }
+        // 整体暗化遮罩
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .background(palette.scrim.copy(alpha = 0.86f)),
+                .background(palette.scrim.copy(alpha = 0.78f)),
         )
+        // 左侧渐变：更宽、过渡更柔和
         Box(
             modifier = Modifier
                 .fillMaxSize()
                 .background(
                     Brush.horizontalGradient(
-                        listOf(
-                            palette.background.copy(alpha = 0.94f),
-                            palette.background.copy(alpha = 0.62f),
-                            palette.background.copy(alpha = 0.18f),
-                        ),
+                        0.0f to palette.background.copy(alpha = 0.96f),
+                        0.35f to palette.background.copy(alpha = 0.82f),
+                        0.6f to palette.background.copy(alpha = 0.5f),
+                        0.85f to palette.background.copy(alpha = 0.18f),
+                        1.0f to palette.background.copy(alpha = 0.05f),
                     ),
                 ),
         )
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(start = TvDp.ScreenX, top = TvDp.ScreenTop, end = TvDp.ScreenX, bottom = 0.dp),
+                .padding(start = 40.dp, top = 24.dp, end = 40.dp, bottom = 0.dp),
         ) {
             content()
         }
@@ -329,72 +337,93 @@ private fun HomeWallStage(
 
 @Composable
 private fun HomeTopBar(palette: CinePilotPalette, title: String, navigation: ComposeHomeNavigation) {
-    Row(
-        verticalAlignment = Alignment.CenterVertically,
+    val topBarHeight = 56.dp
+    Box(
         modifier = Modifier
             .fillMaxWidth()
-            .height(TvDp.TopBarHeight),
+            .height(topBarHeight)
+            .clip(RoundedCornerShape(TvDp.ControlRadius))
+            .background(
+                Brush.verticalGradient(
+                    listOf(
+                        palette.background.copy(alpha = 0.72f),
+                        palette.background.copy(alpha = 0.56f),
+                    ),
+                ),
+            )
+            .border(0.5.dp, palette.glassBorder.copy(alpha = 0.35f), RoundedCornerShape(TvDp.ControlRadius)),
     ) {
         Row(
             verticalAlignment = Alignment.CenterVertically,
-            modifier = Modifier.weight(1f),
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(horizontal = 18.dp),
         ) {
-            // Brand: CinePilot TV
-            Row(verticalAlignment = Alignment.Bottom) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier.weight(1f),
+            ) {
+                // Brand: CinePilot TV
+                Row(verticalAlignment = Alignment.Bottom) {
+                    BasicText(
+                        text = "CinePilot",
+                        maxLines = 1,
+                        style = TextStyle(
+                            color = palette.textPrimary,
+                            fontSize = 17.sp,
+                            fontWeight = FontWeight.Bold,
+                        ),
+                    )
+                    BasicText(
+                        text = " TV",
+                        maxLines = 1,
+                        style = TextStyle(
+                            color = palette.accentStrong,
+                            fontSize = 17.sp,
+                            fontWeight = FontWeight.Bold,
+                        ),
+                    )
+                }
+                Spacer(Modifier.width(14.dp))
                 BasicText(
-                    text = "CinePilot",
+                    text = "/",
                     maxLines = 1,
+                    style = TextStyle(color = palette.textMuted, fontSize = TvText.Body),
+                )
+                Spacer(Modifier.width(14.dp))
+                BasicText(
+                    text = title,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
                     style = TextStyle(
                         color = palette.textPrimary,
-                        fontSize = TvText.Brand,
-                        fontWeight = FontWeight.Bold,
+                        fontSize = 15.sp,
+                        fontWeight = FontWeight.SemiBold,
                     ),
                 )
+                Spacer(Modifier.width(14.dp))
                 BasicText(
-                    text = " TV",
+                    text = "|",
                     maxLines = 1,
-                    style = TextStyle(
-                        color = palette.accentStrong,
-                        fontSize = TvText.Brand,
-                        fontWeight = FontWeight.Bold,
-                    ),
+                    style = TextStyle(color = palette.textMuted, fontSize = TvText.Metadata),
+                )
+                Spacer(Modifier.width(14.dp))
+                BasicText(
+                    text = "媒体库  Cinema Library",
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    style = TextStyle(color = palette.textSecondary, fontSize = TvText.Body),
                 )
             }
-            Spacer(Modifier.width(12.dp))
-            BasicText(
-                text = "/",
-                maxLines = 1,
-                style = TextStyle(color = palette.textMuted, fontSize = TvText.Body),
-            )
-            Spacer(Modifier.width(12.dp))
-            BasicText(
-                text = title,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-                style = TextStyle(color = palette.textPrimary, fontSize = TvText.Body, fontWeight = FontWeight.Bold),
-            )
-            Spacer(Modifier.width(12.dp))
-            BasicText(
-                text = "|",
-                maxLines = 1,
-                style = TextStyle(color = palette.textMuted, fontSize = TvText.Metadata),
-            )
-            Spacer(Modifier.width(12.dp))
-            BasicText(
-                text = "媒体库  Cinema Library",
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-                style = TextStyle(color = palette.textSecondary, fontSize = TvText.Metadata),
-            )
-        }
-        Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-            homeActions(navigation).forEach { action ->
-                HeaderIconButton(
-                    palette = palette,
-                    iconRes = action.iconRes,
-                    contentDescription = action.label,
-                    onClick = action.onClick,
-                )
+            Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                homeActions(navigation).forEach { action ->
+                    HeaderIconButton(
+                        palette = palette,
+                        iconRes = action.iconRes,
+                        contentDescription = action.label,
+                        onClick = action.onClick,
+                    )
+                }
             }
         }
     }
@@ -494,48 +523,66 @@ private fun HomeMediaRow(
                 handleKey(event.key)
             },
     ) {
-        MediaRailIndexed(
-            palette = palette,
-            title = presentation.title.ifBlank { row.title() },
-            items = row.items(),
-            key = { item -> item.id() },
-            listState = railState,
-        ) { itemIndex, item ->
-            val artworkTarget = if (style == RowVisualStyle.POSTER_RAIL) ArtworkTarget.POSTER else ArtworkTarget.LANDSCAPE
-            val artwork = rememberArtworkRequest(
-                factory = artworkFactory,
-                authenticated = state.authenticated(),
-                item = item,
-                target = artworkTarget,
-                width = if (artworkTarget == ArtworkTarget.POSTER) 300 else 600,
-                height = if (artworkTarget == ArtworkTarget.POSTER) 450 else 338,
+        Column(modifier = Modifier.fillMaxWidth()) {
+            // Section title: 更大、更粗、纯白色
+            BasicText(
+                text = presentation.title.ifBlank { row.title() },
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                style = TextStyle(
+                    color = palette.textPrimary,
+                    fontSize = 17.sp,
+                    fontWeight = FontWeight.SemiBold,
+                ),
             )
-            val isFocusedCard = isFocusedRow && itemIndex == focusedItemIndex
-            if (row.id() == "resume") {
-                HomeLandscapeCard(
-                    palette = palette,
-                    item = item,
-                    artwork = artwork,
-                    focused = isFocusedCard,
-                    width = TvDp.ContinueWidth,
-                    height = TvDp.ContinueHeight,
-                )
-            } else if (style == RowVisualStyle.POSTER_RAIL) {
-                HomePosterCard(
-                    palette = palette,
-                    item = item,
-                    artwork = artwork,
-                    focused = isFocusedCard,
-                )
-            } else {
-                HomeLandscapeCard(
-                    palette = palette,
-                    item = item,
-                    artwork = artwork,
-                    focused = isFocusedCard,
-                    width = TvDp.LandscapeWidth,
-                    height = TvDp.LandscapeHeight,
-                )
+            Spacer(Modifier.height(9.dp))
+            LazyRow(
+                state = railState,
+                horizontalArrangement = Arrangement.spacedBy(TvDp.CellGap),
+                contentPadding = PaddingValues(start = 3.dp, top = 3.dp, end = 21.dp, bottom = 4.dp),
+            ) {
+                itemsIndexed(
+                    items = row.items(),
+                    key = { _, item -> item.id() },
+                    contentType = { _, _ -> "media-card" },
+                ) { itemIndex, item ->
+                    val artworkTarget = if (style == RowVisualStyle.POSTER_RAIL) ArtworkTarget.POSTER else ArtworkTarget.LANDSCAPE
+                    val artwork = rememberArtworkRequest(
+                        factory = artworkFactory,
+                        authenticated = state.authenticated(),
+                        item = item,
+                        target = artworkTarget,
+                        width = if (artworkTarget == ArtworkTarget.POSTER) 300 else 600,
+                        height = if (artworkTarget == ArtworkTarget.POSTER) 450 else 338,
+                    )
+                    val isFocusedCard = isFocusedRow && itemIndex == focusedItemIndex
+                    if (row.id() == "resume") {
+                        HomeLandscapeCard(
+                            palette = palette,
+                            item = item,
+                            artwork = artwork,
+                            focused = isFocusedCard,
+                            width = TvDp.ContinueWidth,
+                            height = TvDp.ContinueHeight,
+                        )
+                    } else if (style == RowVisualStyle.POSTER_RAIL) {
+                        HomePosterCard(
+                            palette = palette,
+                            item = item,
+                            artwork = artwork,
+                            focused = isFocusedCard,
+                        )
+                    } else {
+                        HomeLandscapeCard(
+                            palette = palette,
+                            item = item,
+                            artwork = artwork,
+                            focused = isFocusedCard,
+                            width = TvDp.LandscapeWidth,
+                            height = TvDp.LandscapeHeight,
+                        )
+                    }
+                }
             }
         }
     }
@@ -642,8 +689,9 @@ private fun HomePosterCard(
         focused = focused,
         width = TvDp.PosterWidth,
         height = TvDp.PosterHeight,
-        overlayHeight = 64.dp,
+        overlayHeight = 68.dp,
         showProgressPercent = focused || item.hasResumePosition(),
+        progressAtBottomEdge = false,
     )
 }
 
@@ -663,8 +711,9 @@ private fun HomeLandscapeCard(
         focused = focused,
         width = width,
         height = height,
-        overlayHeight = (height * 0.58f),
+        overlayHeight = (height * 0.65f),
         showProgressPercent = item.hasResumePosition(),
+        progressAtBottomEdge = true,
     )
 }
 
@@ -678,14 +727,23 @@ private fun HomeArtworkCard(
     height: Dp,
     overlayHeight: Dp,
     showProgressPercent: Boolean,
+    progressAtBottomEdge: Boolean,
 ) {
     val shape = RoundedCornerShape(TvDp.CardRadius)
     val progress = item.resumeFraction()
     val badges = remember(item) { item.cardBadgeLabels() }
-    // Glow / halo effect around the card when focused
+
+    // 缩放动画：聚焦时轻微放大
+    val scale by animateFloatAsState(
+        targetValue = if (focused) 1.04f else 1f,
+        animationSpec = tween(140),
+        label = "cardFocusScale",
+    )
+
+    // 光晕效果
     val glowModifier = if (focused) {
         Modifier.shadow(
-            elevation = 12.dp,
+            elevation = 16.dp,
             shape = shape,
             spotColor = palette.focusGlow,
             ambientColor = palette.focusGlow,
@@ -693,11 +751,13 @@ private fun HomeArtworkCard(
     } else {
         Modifier
     }
+
     Box(
         modifier = Modifier
             .width(width)
             .height(height)
             .then(glowModifier)
+            .scale(scale)
             .clip(shape)
             .background(palette.posterFallback, shape)
             .border(
@@ -712,20 +772,8 @@ private fun HomeArtworkCard(
             contentScale = ContentScale.Crop,
             modifier = Modifier.fillMaxSize(),
         )
-        // 技术徽章（左上角）
-        if (badges.isNotEmpty()) {
-            Row(
-                horizontalArrangement = Arrangement.spacedBy(4.dp),
-                modifier = Modifier
-                    .align(Alignment.TopStart)
-                    .padding(8.dp),
-            ) {
-                badges.take(2).forEach { badge ->
-                    CardBadgeChip(text = badge, palette = palette)
-                }
-            }
-        }
-        // 底部渐变遮罩
+
+        // 底部渐变遮罩：更自然的过渡
         Box(
             modifier = Modifier
                 .align(Alignment.BottomCenter)
@@ -733,67 +781,164 @@ private fun HomeArtworkCard(
                 .height(overlayHeight)
                 .background(
                     Brush.verticalGradient(
-                        listOf(
-                            palette.background.copy(alpha = 0.0f),
-                            palette.background.copy(alpha = 0.70f),
-                            palette.background.copy(alpha = 0.92f),
-                        ),
+                        0.0f to palette.background.copy(alpha = 0.0f),
+                        0.35f to palette.background.copy(alpha = 0.35f),
+                        0.7f to palette.background.copy(alpha = 0.75f),
+                        1.0f to palette.background.copy(alpha = 0.95f),
                     ),
                 ),
         )
-        // 文字信息
-        Column(
-            modifier = Modifier
-                .align(Alignment.BottomStart)
-                .fillMaxWidth()
-                .padding(start = 10.dp, end = 10.dp, bottom = 10.dp),
-        ) {
-            BasicText(
-                text = item.name().ifBlank { item.id() },
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-                style = TextStyle(
-                    color = palette.textPrimary,
-                    fontSize = TvText.CardTitle,
-                    fontWeight = FontWeight.Bold,
-                ),
-            )
-            Spacer(Modifier.height(3.dp))
-            BasicText(
-                text = item.cardMetaLine(),
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-                style = TextStyle(color = palette.textMuted, fontSize = TvText.Metadata),
-            )
-            // 播放进度条
-            if (progress > 0f) {
-                Spacer(Modifier.height(6.dp))
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Box(
+
+        // 技术徽章
+        if (badges.isNotEmpty()) {
+            val badgeAlignment = if (progressAtBottomEdge) Alignment.TopStart else Alignment.BottomStart
+            val badgePadding = if (progressAtBottomEdge) {
+                PaddingValues(8.dp)
+            } else {
+                PaddingValues(start = 8.dp, bottom = 8.dp)
+            }
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(4.dp),
+                modifier = Modifier
+                    .align(badgeAlignment)
+                    .padding(badgePadding),
+            ) {
+                badges.take(2).forEach { badge ->
+                    CardBadgeChip(text = badge, palette = palette)
+                }
+            }
+        }
+
+        if (progressAtBottomEdge && progress > 0f) {
+            // 横版卡片：进度条紧贴底部边缘，百分比在进度条上方右侧
+            Column(
+                modifier = Modifier
+                    .align(Alignment.BottomCenter)
+                    .fillMaxWidth(),
+            ) {
+                // 进度百分比：进度条上方右侧
+                if (showProgressPercent) {
+                    Row(
                         modifier = Modifier
-                            .weight(1f)
-                            .height(3.dp)
-                            .clip(RoundedCornerShape(1.5.dp))
-                            .background(palette.textPrimary.copy(alpha = 0.18f)),
+                            .fillMaxWidth()
+                            .padding(horizontal = 8.dp, vertical = 2.dp),
+                        horizontalArrangement = Arrangement.End,
                     ) {
-                        Box(
-                            modifier = Modifier
-                                .fillMaxWidth(progress)
-                                .fillMaxSize()
-                                .background(palette.accent),
-                        )
-                    }
-                    if (showProgressPercent) {
-                        Spacer(Modifier.width(6.dp))
                         BasicText(
                             text = "${(progress * 100f).toInt()}%",
                             maxLines = 1,
                             style = TextStyle(
-                                color = palette.textMuted,
+                                color = palette.textPrimary.copy(alpha = 0.9f),
                                 fontSize = TvText.Label,
-                                fontWeight = FontWeight.Medium,
+                                fontWeight = FontWeight.SemiBold,
                             ),
                         )
+                    }
+                }
+                // 进度条：紧贴最底部边缘，横跨全宽
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(3.5.dp)
+                        .background(palette.textPrimary.copy(alpha = 0.15f)),
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth(progress)
+                            .fillMaxHeight()
+                            .background(palette.accent),
+                    )
+                }
+            }
+
+            // 文字信息：位于渐变遮罩上方区域（在进度条之上）
+            Column(
+                modifier = Modifier
+                    .align(Alignment.BottomStart)
+                    .fillMaxWidth()
+                    .padding(
+                        start = 10.dp,
+                        end = 10.dp,
+                        bottom = if (progress > 0f) 18.dp else 10.dp,
+                    ),
+            ) {
+                BasicText(
+                    text = item.name().ifBlank { item.id() },
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    style = TextStyle(
+                        color = palette.textPrimary,
+                        fontSize = TvText.CardTitle,
+                        fontWeight = FontWeight.SemiBold,
+                    ),
+                )
+                Spacer(Modifier.height(3.dp))
+                BasicText(
+                    text = item.cardMetaLine(),
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    style = TextStyle(color = palette.textMuted, fontSize = TvText.Metadata),
+                )
+            }
+        } else {
+            // 海报卡片 / 默认样式：文字信息在底部，角标在最左下角
+            Column(
+                modifier = Modifier
+                    .align(Alignment.BottomStart)
+                    .fillMaxWidth()
+                    .padding(
+                        start = 10.dp,
+                        end = 10.dp,
+                        bottom = if (badges.isNotEmpty()) 32.dp else 10.dp,
+                    ),
+            ) {
+                BasicText(
+                    text = item.name().ifBlank { item.id() },
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    style = TextStyle(
+                        color = palette.textPrimary,
+                        fontSize = TvText.CardTitle,
+                        fontWeight = FontWeight.SemiBold,
+                    ),
+                )
+                Spacer(Modifier.height(3.dp))
+                BasicText(
+                    text = item.cardMetaLine(),
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    style = TextStyle(color = palette.textMuted, fontSize = TvText.Metadata),
+                )
+                // 播放进度条
+                if (progress > 0f && !progressAtBottomEdge) {
+                    Spacer(Modifier.height(6.dp))
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Box(
+                            modifier = Modifier
+                                .weight(1f)
+                                .height(3.dp)
+                                .clip(RoundedCornerShape(1.5.dp))
+                                .background(palette.textPrimary.copy(alpha = 0.18f)),
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth(progress)
+                                    .fillMaxSize()
+                                    .background(palette.accent),
+                            )
+                        }
+                        if (showProgressPercent) {
+                            Spacer(Modifier.width(6.dp))
+                            BasicText(
+                                text = "${(progress * 100f).toInt()}%",
+                                maxLines = 1,
+                                style = TextStyle(
+                                    color = palette.textMuted,
+                                    fontSize = TvText.Label,
+                                    fontWeight = FontWeight.Medium,
+                                ),
+                            )
+                        }
                     }
                 }
             }
