@@ -44,6 +44,7 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
@@ -110,13 +111,14 @@ fun ComposePlayerScreen(
             modifier = Modifier
                 .align(Alignment.BottomCenter)
                 .fillMaxWidth()
-                .height(240.dp)
+                .height(320.dp)
                 .background(
                     Brush.verticalGradient(
-                        listOf(
+                        colors = listOf(
                             Color.Transparent,
-                            Color.Black.copy(alpha = 0.45f),
-                            Color.Black.copy(alpha = 0.78f),
+                            Color.Black.copy(alpha = 0.25f),
+                            Color.Black.copy(alpha = 0.55f),
+                            Color.Black.copy(alpha = 0.8f),
                             Color.Black.copy(alpha = 0.92f),
                         ),
                     ),
@@ -144,7 +146,7 @@ fun ComposePlayerScreen(
                 onClick = onSkipIntro,
                 modifier = Modifier
                     .align(Alignment.BottomStart)
-                    .padding(start = 32.dp, bottom = 92.dp),
+                    .padding(start = 32.dp, bottom = 76.dp),
             )
         }
         creditsSegmentTicks?.let { range ->
@@ -155,7 +157,7 @@ fun ComposePlayerScreen(
                 onClick = onSkipCredits,
                 modifier = Modifier
                     .align(Alignment.BottomStart)
-                    .padding(start = 32.dp, bottom = 92.dp),
+                    .padding(start = 32.dp, bottom = 76.dp),
             )
         }
         nextUp?.let { info ->
@@ -168,7 +170,7 @@ fun ComposePlayerScreen(
                 onPlayNext = onPlayNext,
                 modifier = Modifier
                     .align(Alignment.BottomEnd)
-                    .padding(end = 32.dp, bottom = 120.dp),
+                    .padding(end = 32.dp, bottom = 108.dp),
             )
         }
         PlayerBottomOsd(
@@ -204,17 +206,14 @@ private fun SegmentPill(
     modifier: Modifier = Modifier,
     onClick: () -> Unit,
 ) {
-    val seconds = ((range.last - range.first).coerceAtLeast(0L) / MediaTicks.TICKS_PER_SECOND)
-        .toInt()
-        .coerceAtLeast(1)
     var focused by remember { mutableStateOf(false) }
     val shape = RoundedCornerShape(10.dp)
     Box(
         modifier = modifier
-            .height(40.dp)
+            .height(36.dp)
             .clip(shape)
             .background(
-                if (focused) palette.glassFocus else palette.glass.copy(alpha = 0.7f),
+                if (focused) palette.glassFocus else palette.glass,
                 shape,
             )
             .border(
@@ -238,33 +237,15 @@ private fun SegmentPill(
             .padding(horizontal = 14.dp),
         contentAlignment = Alignment.Center,
     ) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Image(
-                painter = painterResource(R.drawable.ic_play),
-                contentDescription = null,
-                colorFilter = ColorFilter.tint(palette.accentStrong),
-                modifier = Modifier.size(13.dp),
-            )
-            Spacer(Modifier.width(6.dp))
-            BasicText(
-                text = label,
-                maxLines = 1,
-                style = TextStyle(
-                    color = if (focused) palette.textPrimary else palette.textSecondary,
-                    fontSize = TvText.Body,
-                    fontWeight = FontWeight.Medium,
-                ),
-            )
-            BasicText(
-                text = "  ${seconds}s",
-                maxLines = 1,
-                style = TextStyle(
-                    color = palette.accentStrong,
-                    fontSize = TvText.Body,
-                    fontWeight = FontWeight.SemiBold,
-                ),
-            )
-        }
+        BasicText(
+            text = label,
+            maxLines = 1,
+            style = TextStyle(
+                color = if (focused) palette.accentStrong else palette.textSecondary,
+                fontSize = TvText.Body,
+                fontWeight = FontWeight.Medium,
+            ),
+        )
     }
 }
 
@@ -288,7 +269,7 @@ private fun PlayerBottomOsd(
         horizontalAlignment = Alignment.CenterHorizontally,
         modifier = modifier
             .fillMaxWidth()
-            .padding(start = 30.dp, end = 30.dp, bottom = 24.dp),
+            .padding(start = 30.dp, end = 30.dp, bottom = 22.dp),
     ) {
         BasicText(
             text = listOf(mediaTitle, mediaSubtitle).filter { it.isNotBlank() }.joinToString("  ·  "),
@@ -296,12 +277,12 @@ private fun PlayerBottomOsd(
             overflow = TextOverflow.Ellipsis,
             style = TextStyle(
                 color = palette.textPrimary,
-                fontSize = TvText.Body,
+                fontSize = 15.sp,
                 fontWeight = FontWeight.Medium,
-                letterSpacing = 0.5.sp,
+                letterSpacing = 0.3.sp,
             ),
         )
-        Spacer(Modifier.height(16.dp))
+        Spacer(Modifier.height(14.dp))
         Row(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.Center,
@@ -311,80 +292,80 @@ private fun PlayerBottomOsd(
                 forward = false,
                 onClick = onSeekBack,
             )
-            Spacer(Modifier.width(22.dp))
+            Spacer(Modifier.width(20.dp))
             IconOsdButton(
                 palette = palette,
                 iconRes = R.drawable.ic_skip_previous,
-                size = 42.dp,
+                size = 44.dp,
                 iconSize = 18.dp,
                 onClick = onSeekBack,
             )
-            Spacer(Modifier.width(20.dp))
+            Spacer(Modifier.width(18.dp))
             PlayPauseButton(
                 palette = palette,
                 isPlaying = false,
                 onClick = onTogglePlayPause,
             )
-            Spacer(Modifier.width(20.dp))
+            Spacer(Modifier.width(18.dp))
             IconOsdButton(
                 palette = palette,
                 iconRes = R.drawable.ic_skip_next,
-                size = 42.dp,
+                size = 44.dp,
                 iconSize = 18.dp,
                 onClick = onSeekForward,
             )
-            Spacer(Modifier.width(22.dp))
+            Spacer(Modifier.width(20.dp))
             Seek30Button(
                 palette = palette,
                 forward = true,
                 onClick = onSeekForward,
             )
-            Spacer(Modifier.width(80.dp))
+            Spacer(Modifier.width(72.dp))
             IconOsdButton(
                 palette = palette,
                 iconRes = R.drawable.ic_subtitles,
-                size = 40.dp,
-                iconSize = 18.dp,
+                size = 36.dp,
+                iconSize = 16.dp,
                 onClick = {},
             )
-            Spacer(Modifier.width(14.dp))
+            Spacer(Modifier.width(12.dp))
             IconOsdButton(
                 palette = palette,
                 iconRes = R.drawable.ic_audio,
-                size = 40.dp,
-                iconSize = 18.dp,
+                size = 36.dp,
+                iconSize = 16.dp,
                 onClick = {},
             )
-            Spacer(Modifier.width(14.dp))
+            Spacer(Modifier.width(12.dp))
             TextOsdButton(
                 palette = palette,
                 text = "4K",
                 onClick = {},
             )
-            Spacer(Modifier.width(14.dp))
+            Spacer(Modifier.width(12.dp))
             TextOsdButton(
                 palette = palette,
                 text = "1.0x",
                 onClick = {},
             )
-            Spacer(Modifier.width(14.dp))
+            Spacer(Modifier.width(12.dp))
             IconOsdButton(
                 palette = palette,
                 iconRes = R.drawable.ic_info,
-                size = 40.dp,
-                iconSize = 18.dp,
+                size = 36.dp,
+                iconSize = 16.dp,
                 onClick = onInfo,
             )
-            Spacer(Modifier.width(14.dp))
+            Spacer(Modifier.width(12.dp))
             IconOsdButton(
                 palette = palette,
                 iconRes = R.drawable.ic_settings,
-                size = 40.dp,
-                iconSize = 18.dp,
+                size = 36.dp,
+                iconSize = 16.dp,
                 onClick = onSettings,
             )
         }
-        Spacer(Modifier.height(18.dp))
+        Spacer(Modifier.height(16.dp))
         ProgressBarRow(
             palette = palette,
             positionTicks = positionTicks,
@@ -417,25 +398,25 @@ private fun ProgressBarRow(
         Box(
             modifier = Modifier
                 .weight(1f)
-                .height(14.dp),
+                .height(12.dp),
         ) {
             // Background track
             Box(
                 modifier = Modifier
                     .align(Alignment.Center)
                     .fillMaxWidth()
-                    .height(2.5.dp)
-                    .clip(RoundedCornerShape(2.dp))
-                    .background(Color.White.copy(alpha = 0.22f)),
+                    .height(2.dp)
+                    .clip(RoundedCornerShape(1.dp))
+                    .background(Color.White.copy(alpha = 0.2f)),
             )
             // Played track
             Box(
                 modifier = Modifier
                     .align(Alignment.CenterStart)
                     .fillMaxWidth(fraction)
-                    .height(2.5.dp)
-                    .clip(RoundedCornerShape(2.dp))
-                    .background(palette.accentStrong.copy(alpha = 0.9f)),
+                    .height(2.dp)
+                    .clip(RoundedCornerShape(1.dp))
+                    .background(palette.accentStrong),
             )
             // Thumb with glow
             if (fraction > 0f) {
@@ -443,19 +424,19 @@ private fun ProgressBarRow(
                     modifier = Modifier
                         .align(Alignment.CenterStart)
                         .fillMaxWidth(fraction)
-                        .height(14.dp),
+                        .height(12.dp),
                 ) {
                     Box(
                         modifier = Modifier
                             .align(Alignment.CenterEnd)
-                            .size(12.dp)
+                            .size(10.dp)
                             .shadow(
                                 elevation = 8.dp,
                                 spotColor = palette.focusGlow,
                                 ambientColor = palette.focusGlow,
-                                shape = RoundedCornerShape(6.dp),
+                                shape = RoundedCornerShape(5.dp),
                             )
-                            .clip(RoundedCornerShape(6.dp))
+                            .clip(RoundedCornerShape(5.dp))
                             .background(Color.White),
                     )
                 }
@@ -537,19 +518,25 @@ private fun Seek30Button(
     onClick: () -> Unit,
 ) {
     var focused by remember { mutableStateOf(false) }
-    val size = 40.dp
+    val size = 44.dp
     val shape = RoundedCornerShape(size / 2)
     Box(
         modifier = Modifier
             .size(size)
+            .shadow(
+                elevation = if (focused) 10.dp else 4.dp,
+                shape = shape,
+                spotColor = if (focused) palette.focusGlow else Color.Transparent,
+                ambientColor = if (focused) palette.focusGlow else Color.Transparent,
+            )
             .clip(shape)
             .background(
-                if (focused) palette.glassFocus else Color.Transparent,
+                if (focused) palette.glassFocus else palette.glass,
                 shape,
             )
             .border(
-                width = if (focused) TvDp.FocusRing else 0.dp,
-                color = if (focused) palette.focusRing else Color.Transparent,
+                width = if (focused) TvDp.FocusRing else 0.5.dp,
+                color = if (focused) palette.focusRing else palette.glassBorder,
                 shape = shape,
             )
             .onFocusChanged { focused = it.isFocused }
@@ -565,13 +552,13 @@ private fun Seek30Button(
             Image(
                 painter = painterResource(if (forward) R.drawable.ic_forward_30 else R.drawable.ic_rewind_30),
                 contentDescription = if (forward) "Forward 30s" else "Rewind 30s",
-                colorFilter = ColorFilter.tint(palette.textPrimary),
-                modifier = Modifier.size(size - 4.dp),
+                colorFilter = ColorFilter.tint(if (focused) palette.accentStrong else palette.textPrimary),
+                modifier = Modifier.size(size - 6.dp),
             )
             BasicText(
                 text = "30",
                 style = TextStyle(
-                    color = palette.textPrimary,
+                    color = if (focused) palette.accentStrong else palette.textPrimary,
                     fontSize = 11.sp,
                     fontWeight = FontWeight.SemiBold,
                 ),
@@ -593,14 +580,20 @@ private fun IconOsdButton(
     Box(
         modifier = Modifier
             .size(size)
+            .shadow(
+                elevation = if (focused) 10.dp else 3.dp,
+                shape = shape,
+                spotColor = if (focused) palette.focusGlow else Color.Transparent,
+                ambientColor = if (focused) palette.focusGlow else Color.Transparent,
+            )
             .clip(shape)
             .background(
-                if (focused) palette.glassFocus else Color.Transparent,
+                if (focused) palette.glassFocus else palette.glass,
                 shape,
             )
             .border(
-                width = if (focused) TvDp.FocusRing else 0.dp,
-                color = if (focused) palette.focusRing else Color.Transparent,
+                width = if (focused) TvDp.FocusRing else 0.5.dp,
+                color = if (focused) palette.focusRing else palette.glassBorder,
                 shape = shape,
             )
             .onFocusChanged { focused = it.isFocused }
@@ -628,19 +621,25 @@ private fun TextOsdButton(
     onClick: () -> Unit,
 ) {
     var focused by remember { mutableStateOf(false) }
-    val height = 32.dp
+    val height = 30.dp
     val shape = RoundedCornerShape(8.dp)
     Box(
         modifier = Modifier
             .height(height)
+            .shadow(
+                elevation = if (focused) 10.dp else 3.dp,
+                shape = shape,
+                spotColor = if (focused) palette.focusGlow else Color.Transparent,
+                ambientColor = if (focused) palette.focusGlow else Color.Transparent,
+            )
             .clip(shape)
             .background(
-                if (focused) palette.glassFocus else Color.Transparent,
+                if (focused) palette.glassFocus else palette.glass,
                 shape,
             )
             .border(
-                width = if (focused) TvDp.FocusRing else 0.dp,
-                color = if (focused) palette.focusRing else Color.Transparent,
+                width = if (focused) TvDp.FocusRing else 0.5.dp,
+                color = if (focused) palette.focusRing else palette.glassBorder,
                 shape = shape,
             )
             .onFocusChanged { focused = it.isFocused }
@@ -679,15 +678,15 @@ private fun NextUpMiniCard(
         authenticated = authenticated,
         item = info.item,
         target = ArtworkTarget.LANDSCAPE,
-        width = 440,
-        height = 248,
+        width = 400,
+        height = 225,
     )
     var focused by remember { mutableStateOf(false) }
     val shape = RoundedCornerShape(12.dp)
     Box(
         modifier = modifier
-            .width(240.dp)
-            .height(135.dp)
+            .width(200.dp)
+            .height(112.dp)
             .clip(shape)
             .shadow(
                 elevation = if (focused) 16.dp else 6.dp,
@@ -722,7 +721,7 @@ private fun NextUpMiniCard(
                     Brush.verticalGradient(
                         listOf(
                             Color.Black.copy(alpha = 0.05f),
-                            Color.Black.copy(alpha = 0.7f),
+                            Color.Black.copy(alpha = 0.65f),
                         ),
                     ),
                 ),
@@ -731,17 +730,17 @@ private fun NextUpMiniCard(
         Box(
             modifier = Modifier
                 .align(Alignment.Center)
-                .size(36.dp)
-                .clip(RoundedCornerShape(18.dp))
+                .size(32.dp)
+                .clip(RoundedCornerShape(16.dp))
                 .background(Color.Black.copy(alpha = 0.5f))
-                .border(1.dp, Color.White.copy(alpha = 0.6f), RoundedCornerShape(18.dp)),
+                .border(1.dp, Color.White.copy(alpha = 0.6f), RoundedCornerShape(16.dp)),
             contentAlignment = Alignment.Center,
         ) {
             Image(
                 painter = painterResource(R.drawable.ic_play),
                 contentDescription = null,
                 colorFilter = ColorFilter.tint(Color.White),
-                modifier = Modifier.size(14.dp),
+                modifier = Modifier.size(12.dp),
             )
         }
         // Bottom text
@@ -749,7 +748,7 @@ private fun NextUpMiniCard(
             modifier = Modifier
                 .align(Alignment.BottomStart)
                 .fillMaxWidth()
-                .padding(10.dp),
+                .padding(8.dp),
         ) {
             Row(
                 verticalAlignment = Alignment.CenterVertically,
