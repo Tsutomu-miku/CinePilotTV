@@ -55,7 +55,7 @@ fun ComposeHomeScreen(
     onLibraryOverview: (viewId: String, title: String, isSeries: Boolean) -> Unit,
 ) {
     val rows = state.homeRows()
-    val displayRows = remember(rows) { rows.filter { row -> row.items().isNotEmpty() && row.id() != "views" } }
+    val displayRows = remember(rows) { rows.filter { row -> row.items().isNotEmpty() } }
     val initialAddress = remember(state, displayRows) { initialFocusAddress(state, displayRows) }
     val focusedRowIndexState = remember(displayRows) { mutableIntStateOf(initialAddress.rowIndex) }
     val focusedItemIndexState = remember(displayRows) { mutableIntStateOf(initialAddress.itemIndex) }

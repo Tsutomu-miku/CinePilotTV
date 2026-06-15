@@ -29,6 +29,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
@@ -324,5 +325,80 @@ internal fun HomeArtworkCard(
                 }
             }
         }
+    }
+}
+
+@Composable
+internal fun HomeCollectionCard(
+    palette: CinePilotPalette,
+    item: MediaItemSummary,
+    artwork: ArtworkRequestSpec?,
+    focused: Boolean,
+    onClick: () -> Unit = {},
+) {
+    val shape = RoundedCornerShape(8.dp)
+    val interaction = remember { MutableInteractionSource() }
+
+    val scale by animateFloatAsState(
+        targetValue = if (focused) 1.04f else 1f,
+        animationSpec = tween(140),
+        label = "collectionCardFocusScale",
+    )
+
+    val glowModifier = if (focused) {
+        Modifier.shadow(
+            elevation = 12.dp,
+            shape = shape,
+            spotColor = palette.focusGlow,
+            ambientColor = palette.focusGlow,
+        )
+    } else {
+        Modifier
+    }
+
+    Box(
+        modifier = Modifier
+            .width(150.dp)
+            .height(52.dp)
+            .then(glowModifier)
+            .scale(scale)
+            .clip(shape)
+            .clickable(
+                interactionSource = interaction,
+                indication = null,
+                onClick = onClick,
+            )
+            .background(palette.posterFallback, shape)
+            .border(
+                width = if (focused) TvDp.FocusRing else 0.5.dp,
+                color = if (focused) palette.focusRing else palette.glassBorder.copy(alpha = 0.4f),
+                shape = shape,
+            ),
+        contentAlignment = Alignment.Center,
+    ) {
+        if (artwork != null) {
+            CinePilotAsyncImage(
+                request = artwork,
+                contentDescription = item.name(),
+                contentScale = ContentScale.Crop,
+                modifier = Modifier.fillMaxSize(),
+            )
+            // Dark tint overlay
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(Color.Black.copy(alpha = 0.6f)),
+            )
+        }
+        BasicText(
+            text = item.name().ifBlank { item.id() },
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+            style = TextStyle(
+                color = if (focused) palette.textPrimary else palette.textSecondary,
+                fontSize = TvText.Body,
+                fontWeight = FontWeight.Medium,
+            ),
+        )
     }
 }

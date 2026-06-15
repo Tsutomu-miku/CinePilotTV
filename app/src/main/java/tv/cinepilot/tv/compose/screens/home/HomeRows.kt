@@ -122,18 +122,20 @@ internal fun HomeMediaRow(
             },
     ) {
         Column(modifier = Modifier.fillMaxWidth()) {
-            // Section title: 更大、更粗、纯白色
-            BasicText(
-                text = presentation.title.ifBlank { row.title() },
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-                style = TextStyle(
-                    color = palette.textPrimary,
-                    fontSize = 17.sp,
-                    fontWeight = FontWeight.SemiBold,
-                ),
-            )
-            Spacer(Modifier.height(9.dp))
+            val rowTitle = presentation.title.ifBlank { row.title() }
+            if (rowTitle.isNotBlank()) {
+                BasicText(
+                    text = rowTitle,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    style = TextStyle(
+                        color = palette.textPrimary,
+                        fontSize = 17.sp,
+                        fontWeight = FontWeight.SemiBold,
+                    ),
+                )
+                Spacer(Modifier.height(9.dp))
+            }
             LazyRow(
                 state = railState,
                 horizontalArrangement = Arrangement.spacedBy(TvDp.CellGap),
@@ -147,14 +149,26 @@ internal fun HomeMediaRow(
                     val isFocusedCard by remember(itemIndex) {
                         derivedStateOf { isFocusedRow && focusedItemIndexState.value == itemIndex }
                     }
-                    val artworkTarget = if (style == RowVisualStyle.POSTER_RAIL) ArtworkTarget.POSTER else ArtworkTarget.LANDSCAPE
+                    val artworkTarget = when (style) {
+                        RowVisualStyle.POSTER_RAIL -> ArtworkTarget.POSTER
+                        RowVisualStyle.COLLECTION_RAIL -> ArtworkTarget.COLLECTION
+                        else -> ArtworkTarget.LANDSCAPE
+                    }
                     val artwork = rememberArtworkRequest(
                         factory = artworkFactory,
                         authenticated = state.authenticated(),
                         item = item,
                         target = artworkTarget,
-                        width = if (artworkTarget == ArtworkTarget.POSTER) 300 else 600,
-                        height = if (artworkTarget == ArtworkTarget.POSTER) 450 else 338,
+                        width = when (artworkTarget) {
+                            ArtworkTarget.POSTER -> 300
+                            ArtworkTarget.COLLECTION -> 300
+                            else -> 600
+                        },
+                        height = when (artworkTarget) {
+                            ArtworkTarget.POSTER -> 450
+                            ArtworkTarget.COLLECTION -> 104
+                            else -> 338
+                        },
                     )
                     val onCardClick = {
                         if (focusedRowIndexState.value != rowIndex || focusedItemIndexState.value != itemIndex) {
@@ -163,7 +177,15 @@ internal fun HomeMediaRow(
                         }
                         onOpen(itemIndex)
                     }
-                    if (row.id() == "resume") {
+                    if (style == RowVisualStyle.COLLECTION_RAIL) {
+                        HomeCollectionCard(
+                            palette = palette,
+                            item = item,
+                            artwork = artwork,
+                            focused = isFocusedCard,
+                            onClick = onCardClick,
+                        )
+                    } else if (row.id() == "resume") {
                         HomeLandscapeCard(
                             palette = palette,
                             item = item,

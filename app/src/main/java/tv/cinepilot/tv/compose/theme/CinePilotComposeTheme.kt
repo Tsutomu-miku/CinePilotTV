@@ -96,8 +96,8 @@ object TvDp {
     val CellGap: Dp = 10.dp
     val PosterWidth: Dp = 106.dp
     val PosterHeight: Dp = 158.dp
-    val LandscapeWidth: Dp = 170.dp
-    val LandscapeHeight: Dp = 85.dp
+    val LandscapeWidth: Dp = 176.dp
+    val LandscapeHeight: Dp = 99.dp
     val ContinueWidth: Dp = 223.dp
     val ContinueHeight: Dp = 97.dp
     val DetailPosterWidth: Dp = 140.dp
