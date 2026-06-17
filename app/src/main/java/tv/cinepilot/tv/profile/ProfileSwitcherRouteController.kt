@@ -3,6 +3,7 @@ package tv.cinepilot.tv.profile
 import androidx.activity.ComponentActivity
 import androidx.compose.runtime.Composable
 import tv.cinepilot.core.protocol.ProfileSummary
+import tv.cinepilot.core.protocol.ServerIdentity
 import tv.cinepilot.core.tv.TvAppState
 import tv.cinepilot.core.tv.TvWorkflowController
 import tv.cinepilot.tv.compose.screens.ComposeProfileSwitcherScreen
@@ -16,6 +17,7 @@ class ProfileSwitcherRouteController(
     private val homeSettingsStore: HomeSettingsStore,
     private val artworkFactory: ArtworkRequestFactory,
     private val runTask: (String, () -> Unit, () -> Unit) -> Unit,
+    private val runSilentTask: (() -> Unit, () -> Unit, (Throwable) -> Unit) -> Unit,
     private val showHome: (TvAppState) -> Unit,
     private val showServerEntry: () -> Unit,
     private val renderCompose: (String, @Composable (CinePilotPalette) -> Unit) -> Unit,
@@ -28,25 +30,16 @@ class ProfileSwitcherRouteController(
         visible = true
         val server = state.server()
         var profiles: List<ProfileSummary> = emptyList()
-        runTask("正在加载账号列表...", {
+        renderProfiles(server = server, profiles = profiles, isLoading = true)
+        runSilentTask({
             profiles = workflowController.profiles()
-        }) {
+        }, {
             // Guard against stale callbacks: if the user dismissed the switcher
             // while the profiles request was in flight, don't re-open it.
-            if (!visible) return@runTask
-            renderCompose("切换用户") { palette ->
-                ComposeProfileSwitcherScreen(
-                    palette = palette,
-                    owner = activity,
-                    artworkFactory = artworkFactory,
-                    server = server,
-                    profiles = profiles,
-                    onSwitch = ::switchTo,
-                    onRemove = ::removeProfile,
-                    onClose = ::close,
-                )
-            }
-        }
+            if (visible) renderProfiles(server = server, profiles = profiles, isLoading = false)
+        }, {
+            if (visible) renderProfiles(server = server, profiles = emptyList(), isLoading = false)
+        })
     }
 
     fun hide() {
@@ -57,6 +50,26 @@ class ProfileSwitcherRouteController(
         if (!visible) return false
         close()
         return true
+    }
+
+    private fun renderProfiles(
+        server: ServerIdentity?,
+        profiles: List<ProfileSummary>,
+        isLoading: Boolean,
+    ) {
+        renderCompose("切换用户") { palette ->
+            ComposeProfileSwitcherScreen(
+                palette = palette,
+                owner = activity,
+                artworkFactory = artworkFactory,
+                server = server,
+                profiles = profiles,
+                isLoading = isLoading,
+                onSwitch = ::switchTo,
+                onRemove = ::removeProfile,
+                onClose = ::close,
+            )
+        }
     }
 
     private fun switchTo(userId: String) {

@@ -45,6 +45,7 @@ fun ComposeProfileSwitcherScreen(
     artworkFactory: ArtworkRequestFactory,
     server: ServerIdentity?,
     profiles: List<ProfileSummary>,
+    isLoading: Boolean = false,
     onSwitch: (String) -> Unit,
     onRemove: (String) -> Unit,
     onClose: () -> Unit,
@@ -53,7 +54,9 @@ fun ComposeProfileSwitcherScreen(
         verticalArrangement = Arrangement.spacedBy(TvDp.RowGap),
         modifier = Modifier.fillMaxWidth(),
     ) {
-        if (profiles.isEmpty()) {
+        if (isLoading) {
+            LoadingProfiles(palette = palette, onClose = onClose)
+        } else if (profiles.isEmpty()) {
             EmptyProfiles(palette = palette, onClose = onClose)
         } else {
             SettingsGrid(
@@ -103,6 +106,33 @@ fun ComposeProfileSwitcherScreen(
             )
         }
     }
+}
+
+@Composable
+private fun LoadingProfiles(palette: CinePilotPalette, onClose: () -> Unit) {
+    SettingsGrid(
+        palette = palette,
+        title = "账号",
+        rows = listOf(
+            {
+                BasicText(
+                    text = "正在加载账号列表...",
+                    style = TextStyle(color = palette.textSecondary, fontSize = TvText.Body),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 4.dp, vertical = 10.dp),
+                )
+            },
+            {
+                TvActionButton(
+                    palette = palette,
+                    label = "关闭",
+                    modifier = Modifier.fillMaxWidth(),
+                    onClick = onClose,
+                )
+            },
+        ),
+    )
 }
 
 @Composable

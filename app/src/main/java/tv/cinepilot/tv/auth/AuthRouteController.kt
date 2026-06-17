@@ -26,7 +26,6 @@ class AuthRouteController(
     mainHandler: Handler,
     private val executor: Executor,
     private val runTask: (String, () -> Unit, () -> Unit) -> Unit,
-    private val showLoading: (String) -> Unit,
     private val showHome: (TvAppState) -> Unit,
     private val showError: (Throwable) -> Unit,
     private val renderCompose: (String, @Composable (CinePilotPalette) -> Unit) -> Unit,
@@ -183,16 +182,13 @@ class AuthRouteController(
     }
 
     private fun startQuickConnectLogin() {
-        showLoading("正在创建 Quick Connect...")
-        executor.execute {
-            try {
-                val quickConnect = workflowController.startQuickConnect()
-                activity.runOnUiThread {
-                    showQuickConnect(quickConnect)
-                    quickConnectPoller.start()
-                }
-            } catch (error: Throwable) {
-                activity.runOnUiThread { showError(error) }
+        var quickConnect: QuickConnectSession? = null
+        runTask("正在创建 Quick Connect...", {
+            quickConnect = workflowController.startQuickConnect()
+        }) {
+            quickConnect?.let {
+                showQuickConnect(it)
+                quickConnectPoller.start()
             }
         }
     }

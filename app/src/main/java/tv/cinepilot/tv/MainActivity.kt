@@ -6,6 +6,7 @@ import android.os.Handler
 import android.os.Looper
 import android.view.View
 import android.widget.ImageView
+import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.OnBackPressedCallback
 import androidx.compose.runtime.Composable
@@ -33,6 +34,7 @@ import tv.cinepilot.tv.profile.ProfileSwitcherRouteController
 import tv.cinepilot.tv.runtime.ArtworkLoader
 import tv.cinepilot.tv.runtime.ArtworkRequestFactory
 import tv.cinepilot.tv.runtime.ArtworkTarget
+import tv.cinepilot.tv.runtime.CinePilotTaskRunner
 import tv.cinepilot.tv.runtime.HomeEntryFlow
 import tv.cinepilot.tv.settings.SettingsRouteController
 import tv.cinepilot.tv.settings.SettingsStore
@@ -58,6 +60,7 @@ class MainActivity : ComponentActivity() {
     private lateinit var downloadCoordinator: DownloadCoordinator
     private lateinit var deepLinkRouter: DeepLinkRouter
     private lateinit var screenHost: CinePilotScreenHost
+    private lateinit var taskRunner: CinePilotTaskRunner
     private val executor = Executors.newSingleThreadExecutor()
     private val mainHandler = Handler(Looper.getMainLooper())
     private var accountSwitcherReturnState: TvAppState? = null
@@ -69,6 +72,14 @@ class MainActivity : ComponentActivity() {
         TvColors.applyTheme(settingsStore.theme().id)
         screenHost = CinePilotScreenHost(this, settingsStore.stateFlow)
         screenHost.install()
+        taskRunner = CinePilotTaskRunner(
+            executor = executor,
+            postToMain = { action -> runOnUiThread(action) },
+            showBlocking = ::showLoading,
+            beginBusy = screenHost::beginBusy,
+            showBlockingError = ::showError,
+            showInPlaceError = ::showInPlaceError,
+        )
         viewModel = ViewModelProvider(this, CinePilotViewModel.factory(applicationContext))[CinePilotViewModel::class.java]
         pluginHost = PluginHost.create(this)
         downloadCoordinator = DownloadCoordinator.getInstance(
@@ -106,8 +117,7 @@ class MainActivity : ComponentActivity() {
             workflowController = viewModel.workflowController,
             mainHandler = mainHandler,
             executor = executor,
-            runTask = ::runTask,
-            showLoading = ::showLoading,
+            runTask = ::runInPlaceTask,
             showHome = ::showHome,
             showError = ::showError,
             renderCompose = ::renderCompose,
@@ -122,7 +132,8 @@ class MainActivity : ComponentActivity() {
             subtitleStyleStore = subtitleStyleStore,
             deviceCodecDiagnostics = viewModel.deviceCodecDiagnostics,
             executor = executor,
-            runTask = ::runTask,
+            runTask = ::runInPlaceTask,
+            runSilentTask = ::runSilentTask,
             showHome = ::showHome,
             renderView = ::renderView,
             renderCompose = ::renderCompose,
@@ -138,14 +149,14 @@ class MainActivity : ComponentActivity() {
         )
         deepLinkRouter = DeepLinkRouter(
             workflowController = viewModel.workflowController,
-            runTask = ::runTask,
+            runTask = ::runInPlaceTask,
             showDetails = playbackRoutes::showDetails,
             showHome = ::showHome,
         )
         searchRoutes = SearchRouteController(
             activity = this,
             workflowController = viewModel.workflowController,
-            runTask = ::runTask,
+            runTask = ::runInPlaceTask,
             showHome = ::showHome,
             renderView = ::renderView,
             renderCompose = ::renderCompose,
@@ -163,7 +174,8 @@ class MainActivity : ComponentActivity() {
             workflowController = viewModel.workflowController,
             homeSettingsStore = homeSettingsStore,
             artworkFactory = artworkFactory,
-            runTask = ::runTask,
+            runTask = ::runInPlaceTask,
+            runSilentTask = ::runSilentTask,
             showHome = ::showHome,
             showServerEntry = authRoutes::showServerEntry,
             renderCompose = ::renderCompose,
@@ -175,7 +187,7 @@ class MainActivity : ComponentActivity() {
             homeSettingsStore = homeSettingsStore,
             mediaBrowserClient = viewModel.mediaBrowserClient,
             executor = executor,
-            runTask = ::runTask,
+            runTask = ::runInPlaceTask,
             showHome = ::showHome,
             renderComposeFull = ::renderComposeFull,
             showAccountSwitcher = ::showAccountSwitcher,
@@ -317,15 +329,24 @@ class MainActivity : ComponentActivity() {
         }
     }
 
-    private fun runTask(message: String, task: () -> Unit, onSuccess: () -> Unit) {
-        showLoading(message)
-        executor.execute {
-            try {
-                task()
-                runOnUiThread { onSuccess() }
-            } catch (error: Throwable) {
-                runOnUiThread { showError(error) }
-            }
+    private fun showInPlaceError(error: Throwable) {
+        val authenticationExpired = error is MediaBrowserException && error.statusCode() == 401
+        if (authenticationExpired) {
+            showError(error)
+            return
         }
+        Toast.makeText(this, tvErrorMessage(error), Toast.LENGTH_LONG).show()
     }
+
+    private fun runBlockingTask(message: String, task: () -> Unit, onSuccess: () -> Unit) =
+        taskRunner.runBlockingTask(message, task, onSuccess)
+
+    private fun runInPlaceTask(message: String, task: () -> Unit, onSuccess: () -> Unit) =
+        taskRunner.runInPlaceTask(message, task, onSuccess)
+
+    private fun runSilentTask(
+        task: () -> Unit,
+        onSuccess: () -> Unit = {},
+        onError: (Throwable) -> Unit = ::showError,
+    ) = taskRunner.runSilentTask(task, onSuccess, onError)
 }

@@ -69,6 +69,7 @@ class PlaybackRouteController(
     private val deviceCodecDiagnostics: DeviceCodecDiagnostics,
     private val executor: Executor,
     private val runTask: (String, () -> Unit, () -> Unit) -> Unit,
+    private val runSilentTask: (() -> Unit, () -> Unit, (Throwable) -> Unit) -> Unit,
     private val showHome: (TvAppState) -> Unit,
     private val renderView: (View) -> Unit,
     private val renderCompose: (String, @Composable (CinePilotPalette) -> Unit) -> Unit,
@@ -91,6 +92,7 @@ class PlaybackRouteController(
         pluginHost = pluginHost,
         subtitleCache = SubtitleCache(activity),
         runTask = runTask,
+        runSilentTask = runSilentTask,
         renderCompose = renderCompose,
         setAuxiliaryBackAction = { action -> auxiliaryBackAction = action },
     )
@@ -148,6 +150,7 @@ class PlaybackRouteController(
         item: MediaItemSummary,
         playbackInfo: PlaybackInfo? = null,
         episodeContext: ShowStructure? = null,
+        sameCollectionItems: List<MediaItemSummary>? = null,
     ) {
         auxiliaryBackAction = null
         if (playbackInfo != null && playbackInfo.itemId() == item.id()) {
@@ -157,95 +160,106 @@ class PlaybackRouteController(
         val effectiveTrackSelection = normalizedTrackSelectionFor(item, effectivePlaybackInfo)
         // --- compute offline action label/state BEFORE going into runTask
         val offlineInfo = computeOfflineInfo(item)
-        var sameCollection: List<MediaItemSummary> = emptyList()
-        runTask("正在加载同系列作品...", {
-            runCatching {
-                if (workflowController.state().selectedItem()?.id() != item.id()) {
-                    workflowController.openItem(item.id())
+        val sameCollection = sameCollectionItems.orEmpty()
+        renderComposeFull { palette ->
+            ComposeDetailsScreen(
+                palette = palette,
+                owner = activity,
+                artworkFactory = artworkFactory,
+                authenticated = workflowController.state().authenticated(),
+                item = item,
+                playbackInfo = effectivePlaybackInfo,
+                siblingEpisodes = episodeContext?.episodes() ?: emptyList(),
+                sameCollectionItems = sameCollection,
+                trackSelection = effectiveTrackSelection,
+                supportedHdrTypes = supportedHdrLabels(),
+                supportedPassthroughCodecs = supportedPassthroughLabels(),
+                onPreparePlayback = { preferences ->
+                    preparePlaybackWith(applyTrackSelection(item, preferences))
+                },
+                onTrackSelection = { selection ->
+                    selectedTrackItemId = item.id()
+                    selectedTrackSelection = selection
+                    showDetails(item, effectivePlaybackInfo, episodeContext, sameCollectionItems)
+                },
+                onSubtitleStyle = { showSubtitleStyleOptions(item) },
+                onPlaybackSpeed = { showPlaybackSpeedOptions(item) },
+                onSeriesNextUp = ::openSeriesNextUp,
+                onOpenEpisodePicker = { openEpisodeSeason(item) },
+                onOpenSeries = { openEpisodeSeries(item) },
+                onOpenEpisode = { episode ->
+                    openEpisodeDetail(episode) { showDetails(item, effectivePlaybackInfo, episodeContext, sameCollectionItems) }
+                },
+                onOpenCollectionItem = ::openCollectionItem,
+                onOpenFolder = {
+                    runTask("正在打开目录...", {
+                        workflowController.openFolder(item.id(), item.name())
+                    }) {
+                        showHome(workflowController.state())
+                    }
+                },
+                onToggleFavorite = {
+                    rerenderAfterUserAction({ workflowController.toggleFavorite() }) { newItem ->
+                        showDetails(newItem, effectivePlaybackInfo, episodeContext, sameCollectionItems)
+                    }
+                },
+                onToggleWatched = {
+                    rerenderAfterUserAction({ workflowController.toggleWatched() }) { newItem ->
+                        showDetails(newItem, effectivePlaybackInfo, episodeContext, sameCollectionItems)
+                    }
+                },
+                onSetUserRating = { rating ->
+                    rerenderAfterUserAction({ workflowController.setUserRating(rating) }) { newItem ->
+                        showDetails(newItem, effectivePlaybackInfo, episodeContext, sameCollectionItems)
+                    }
+                },
+                onOpenProviderIdsEditor = {
+                    openProviderIdsEditor(item) {
+                        val fresh = workflowController.state().selectedItem() ?: item
+                        showDetails(fresh, effectivePlaybackInfo, episodeContext, sameCollectionItems)
+                    }
+                },
+                onProviderBadgeClick = ::openExternalUrl,
+                onChooseDownloadQuality = { quality ->
+                    showDownloadQualityDialog(item, effectivePlaybackInfo, episodeContext, quality)
+                },
+                onManageOffline = {
+                    showOfflineManager(item, effectivePlaybackInfo, episodeContext)
+                },
+                offlineActionLabel = offlineInfo?.label,
+                offlineActionIsReady = offlineInfo?.isReady == true,
+                onAddToPlaylist = {
+                    playlists.showPicker(item, effectivePlaybackInfo, episodeContext) {
+                        showDetails(item, effectivePlaybackInfo, episodeContext, sameCollectionItems)
+                    }
+                },
+                onSearchSubtitles = {
+                    subtitleSearch.showSearchSheet(item, effectivePlaybackInfo, episodeContext) {
+                        showDetails(item, effectivePlaybackInfo, episodeContext, sameCollectionItems)
+                    }
+                },
+                hasSubtitleSearch = subtitleSearch.hasSubtitleSearch(),
+            )
+        }
+        if (sameCollectionItems == null) {
+            var loadedSameCollection: List<MediaItemSummary> = emptyList()
+            runSilentTask({
+                if (workflowController.state().route() == TvRoute.DETAILS) {
+                    runCatching {
+                        if (workflowController.state().selectedItem()?.id() != item.id()) {
+                            workflowController.openItem(item.id())
+                        }
+                        loadedSameCollection = workflowController.loadSameCollectionItemsForSelectedItem()
+                    }
                 }
-                sameCollection = workflowController.loadSameCollectionItemsForSelectedItem()
-            }
-        }) {
-            renderComposeFull { palette ->
-                ComposeDetailsScreen(
-                    palette = palette,
-                    owner = activity,
-                    artworkFactory = artworkFactory,
-                    authenticated = workflowController.state().authenticated(),
-                    item = item,
-                    playbackInfo = effectivePlaybackInfo,
-                    siblingEpisodes = episodeContext?.episodes() ?: emptyList(),
-                    sameCollectionItems = sameCollection,
-                    trackSelection = effectiveTrackSelection,
-                    supportedHdrTypes = supportedHdrLabels(),
-                    supportedPassthroughCodecs = supportedPassthroughLabels(),
-                    onPreparePlayback = { preferences ->
-                        preparePlaybackWith(applyTrackSelection(item, preferences))
-                    },
-                    onTrackSelection = { selection ->
-                        selectedTrackItemId = item.id()
-                        selectedTrackSelection = selection
-                        showDetails(item, effectivePlaybackInfo, episodeContext)
-                    },
-                    onSubtitleStyle = { showSubtitleStyleOptions(item) },
-                    onPlaybackSpeed = { showPlaybackSpeedOptions(item) },
-                    onSeriesNextUp = ::openSeriesNextUp,
-                    onOpenEpisodePicker = { openEpisodeSeason(item) },
-                    onOpenSeries = { openEpisodeSeries(item) },
-                    onOpenEpisode = { episode ->
-                        openEpisodeDetail(episode) { showDetails(item, effectivePlaybackInfo, episodeContext) }
-                    },
-                    onOpenCollectionItem = ::openCollectionItem,
-                    onOpenFolder = {
-                        runTask("正在打开目录...", {
-                            workflowController.openFolder(item.id(), item.name())
-                        }) {
-                            showHome(workflowController.state())
-                        }
-                    },
-                    onToggleFavorite = {
-                        rerenderAfterUserAction({ workflowController.toggleFavorite() }) { newItem ->
-                            showDetails(newItem, effectivePlaybackInfo, episodeContext)
-                        }
-                    },
-                    onToggleWatched = {
-                        rerenderAfterUserAction({ workflowController.toggleWatched() }) { newItem ->
-                            showDetails(newItem, effectivePlaybackInfo, episodeContext)
-                        }
-                    },
-                    onSetUserRating = { rating ->
-                        rerenderAfterUserAction({ workflowController.setUserRating(rating) }) { newItem ->
-                            showDetails(newItem, effectivePlaybackInfo, episodeContext)
-                        }
-                    },
-                    onOpenProviderIdsEditor = {
-                        openProviderIdsEditor(item) {
-                            val fresh = workflowController.state().selectedItem() ?: item
-                            showDetails(fresh, effectivePlaybackInfo, episodeContext)
-                        }
-                    },
-                    onProviderBadgeClick = ::openExternalUrl,
-                    onChooseDownloadQuality = { quality ->
-                        showDownloadQualityDialog(item, effectivePlaybackInfo, episodeContext, quality)
-                    },
-                    onManageOffline = {
-                        showOfflineManager(item, effectivePlaybackInfo, episodeContext)
-                    },
-                    offlineActionLabel = offlineInfo?.label,
-                    offlineActionIsReady = offlineInfo?.isReady == true,
-                    onAddToPlaylist = {
-                        playlists.showPicker(item, effectivePlaybackInfo, episodeContext) {
-                            showDetails(item, effectivePlaybackInfo, episodeContext)
-                        }
-                    },
-                    onSearchSubtitles = {
-                        subtitleSearch.showSearchSheet(item, effectivePlaybackInfo, episodeContext) {
-                            showDetails(item, effectivePlaybackInfo, episodeContext)
-                        }
-                    },
-                    hasSubtitleSearch = subtitleSearch.hasSubtitleSearch(),
-                )
-            }
+            }, {
+                if (
+                    workflowController.state().route() == TvRoute.DETAILS &&
+                    workflowController.state().selectedItem()?.id() == item.id()
+                ) {
+                    showDetails(item, effectivePlaybackInfo, episodeContext, loadedSameCollection)
+                }
+            }, {})
         }
     }
 
@@ -532,24 +546,29 @@ class PlaybackRouteController(
                 render(if (foldedSeasonsExpanded) emptyMap() else seasonStartedCache, sameCollection)
                 return
             }
-            runTask("正在加载补充信息...", {
-                if (needStatus) {
-                    runCatching {
-                        seasonStartedCache = workflowController.loadSeasonsStartedStatus(structure)
-                    }
-                }
-                if (needCollection) {
-                    runCatching {
-                        if (workflowController.state().selectedItem()?.id() != series.id()) {
-                            workflowController.openItem(series.id())
+            render(if (foldedSeasonsExpanded) emptyMap() else seasonStartedCache, sameCollection)
+            runSilentTask({
+                if (workflowController.state().route() == TvRoute.DETAILS) {
+                    if (needStatus) {
+                        runCatching {
+                            seasonStartedCache = workflowController.loadSeasonsStartedStatus(structure)
                         }
-                        sameCollection = workflowController.loadSameCollectionItemsForSelectedItem()
                     }
-                    collectionLoaded = true
+                    if (needCollection) {
+                        runCatching {
+                            if (workflowController.state().selectedItem()?.id() != series.id()) {
+                                workflowController.openItem(series.id())
+                            }
+                            sameCollection = workflowController.loadSameCollectionItemsForSelectedItem()
+                        }
+                        collectionLoaded = true
+                    }
                 }
-            }) {
-                render(if (foldedSeasonsExpanded) emptyMap() else seasonStartedCache, sameCollection)
-            }
+            }, {
+                if (workflowController.state().route() == TvRoute.DETAILS) {
+                    render(if (foldedSeasonsExpanded) emptyMap() else seasonStartedCache, sameCollection)
+                }
+            }, {})
         }
         withExtras { status, collection ->
             renderView(activity.seriesDetailScreen(
@@ -624,7 +643,6 @@ class PlaybackRouteController(
         }
         val season = structure.selectedSeason() ?: structure.series()
         var sameCollection: List<MediaItemSummary> = emptyList()
-        var loaded = false
         fun render(collection: List<MediaItemSummary>) {
             renderView(activity.seasonDetailScreen(
                 structure = structure,
@@ -661,21 +679,21 @@ class PlaybackRouteController(
                 onPersonClick = ::openPerson,
             ))
         }
-        if (loaded) {
-            render(sameCollection)
-        } else {
-            runTask("正在加载同系列作品...", {
+        render(sameCollection)
+        runSilentTask({
+            if (workflowController.state().route() == TvRoute.DETAILS) {
                 runCatching {
                     if (workflowController.state().selectedItem()?.id() != season.id()) {
                         workflowController.openItem(season.id())
                     }
                     sameCollection = workflowController.loadSameCollectionItemsForSelectedItem()
                 }
-                loaded = true
-            }) {
+            }
+        }, {
+            if (workflowController.state().route() == TvRoute.DETAILS) {
                 render(sameCollection)
             }
-        }
+        }, {})
     }
 
     private fun openEpisodeDetail(item: MediaItemSummary, backRenderer: () -> Unit) {

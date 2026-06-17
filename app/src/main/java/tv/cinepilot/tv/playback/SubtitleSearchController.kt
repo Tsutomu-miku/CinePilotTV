@@ -30,6 +30,7 @@ class SubtitleSearchController(
     private val pluginHost: PluginHost,
     private val subtitleCache: SubtitleCache,
     private val runTask: (String, () -> Unit, () -> Unit) -> Unit,
+    private val runSilentTask: (() -> Unit, () -> Unit, (Throwable) -> Unit) -> Unit,
     private val renderCompose: (String, @Composable (CinePilotPalette) -> Unit) -> Unit,
     private val setAuxiliaryBackAction: (() -> Unit) -> Unit,
 ) {
@@ -72,11 +73,11 @@ class SubtitleSearchController(
         }
 
         rerender(true)
-        runTask("正在搜索字幕...", {
+        runSilentTask({
             results = pluginHost.searchSubtitles(snapshot)
-        }) {
+        }, {
             rerender(false)
-        }
+        }, { rerender(false) })
     }
 
     /** Download a subtitle (using cache if available) and mark it selected. */
