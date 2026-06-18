@@ -1249,8 +1249,12 @@ class PlaybackRouteController(
     fun showPlaybackSettingsScreen(
         focus: PlaybackSettingsFocusGroup = PlaybackSettingsFocusGroup.AFM,
         state: TvAppState,
+        /** When set, render this snapshot as the "current" settings instead of reading the
+         *  store flow. Used by the recursive onChanged path to avoid showing a stale value
+         *  while saveAsync persists the update. */
+        snapshot: PlaybackSettings? = null,
     ) {
-        val current = playbackSettingsStore.stateFlow.value
+        val current = snapshot ?: playbackSettingsStore.stateFlow.value
         val audioStreams = playerHost.availableAudioStreams()
         val subtitleStreams = playerHost.availableSubtitleStreams()
         val currentAudioIndex = playerHost.currentAudioStreamIndex()
@@ -1267,10 +1271,13 @@ class PlaybackRouteController(
                 subtitleStreams = subtitleStreams.takeIf { it.isNotEmpty() },
                 currentSubtitleStreamIndex = currentSubtitleIndex,
                 onChanged = { updated, nextFocus ->
+                    // Fire the persistence but rebuild the screen with the already-known
+                    // updated value so the toggle visually reflects the change immediately
+                    // and subsequent interactions operate on consistent state.
                     activity.lifecycleScope.launch {
                         playbackSettingsStore.saveAsync(updated)
                     }
-                    showPlaybackSettingsScreen(nextFocus, state)
+                    showPlaybackSettingsScreen(nextFocus, state, snapshot = updated)
                 },
                 onAudioStreamChanged = { index ->
                     playerHost.setAudioStreamIndex(index)

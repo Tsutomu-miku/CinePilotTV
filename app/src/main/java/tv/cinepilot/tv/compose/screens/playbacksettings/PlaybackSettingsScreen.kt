@@ -195,22 +195,12 @@ fun ComposePlaybackSettingsScreen(
                 }
             }
         }
-        // Chapter strip at bottom (placeholder UI)
-        ChapterStripBar(
-            palette = palette,
-            modifier = Modifier
-                .align(Alignment.BottomStart)
-                .padding(start = TvDp.ScreenX, bottom = 16.dp),
-        )
-        // Next up countdown card (placeholder UI)
-        NextUpCountdownCard(
-            palette = palette,
-            modifier = Modifier
-                .align(Alignment.BottomEnd)
-                .padding(
-                    end = TvDp.PlayerSettingsPanelWidth + TvDp.ScreenX + 32.dp,
-                    bottom = 70.dp,
-                ),
-        )
+        // Chapter strip at the bottom is rendered on the player OSD layer, not inside
+        // the settings overlay. Keep this comment to remind future refactors that
+        // duplicating progress UI here is intentional no-op: the settings pane sits
+        // on top of the player and the user still sees chapter/OSD info below.
+        // Next up countdown: also handled by the player screen — never render a
+        // hard-coded placeholder in this settings panel (it would show fake next-ep
+        // text for any media type and confuse users).
     }
 }

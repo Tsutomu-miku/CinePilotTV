@@ -39,6 +39,7 @@ import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import tv.cinepilot.core.protocol.AuthenticatedServer
 import tv.cinepilot.tv.R
 import tv.cinepilot.tv.compose.artwork.CinePilotAsyncImage
@@ -59,6 +60,7 @@ internal fun NextUpMiniCard(
     info: ComposeNextUpInfo,
     modifier: Modifier = Modifier,
     onPlayNext: () -> Unit,
+    onCancelNextUp: () -> Unit,
 ) {
     val artwork = rememberArtworkRequest(
         factory = artworkFactory,
@@ -69,47 +71,52 @@ internal fun NextUpMiniCard(
         height = 225,
     )
     var focused by remember { mutableStateOf(false) }
+    var cancelFocused by remember { mutableStateOf(false) }
     val shape = RoundedCornerShape(12.dp)
     Box(
         modifier = modifier
             .width(200.dp)
-            .height(112.dp)
-            .clip(shape)
-            .shadow(
-                elevation = if (focused) 16.dp else 6.dp,
-                shape = shape,
-                spotColor = if (focused) palette.focusGlow else Color.Black.copy(alpha = 0.4f),
-                ambientColor = if (focused) palette.focusGlow else Color.Black.copy(alpha = 0.3f),
-            )
-            .border(
-                width = if (focused) TvDp.FocusRing else 0.8.dp,
-                color = if (focused) palette.focusRing else palette.glassBorder,
-                shape = shape,
-            )
-            .onFocusChanged { focused = it.isFocused }
-            .focusable()
-            .clickable(
-                interactionSource = remember { MutableInteractionSource() },
-                indication = null,
-                onClick = onPlayNext,
-            ),
+            .height(112.dp),
     ) {
-        CinePilotAsyncImage(
-            request = artwork,
-            contentDescription = info.item.name(),
-            contentScale = ContentScale.Crop,
-            modifier = Modifier.fillMaxSize(),
-        )
-        // Dark gradient overlay
         Box(
-            Modifier
+            modifier = Modifier
                 .fillMaxSize()
-                .background(
-                    Brush.verticalGradient(
-                        listOf(
-                            Color.Black.copy(alpha = 0.05f),
-                            Color.Black.copy(alpha = 0.65f),
-                        ),
+                .clip(shape)
+                .shadow(
+                    elevation = if (focused) 16.dp else 6.dp,
+                    shape = shape,
+                    spotColor = if (focused) palette.focusGlow else Color.Black.copy(alpha = 0.4f),
+                    ambientColor = if (focused) palette.focusGlow else Color.Black.copy(alpha = 0.3f),
+                )
+                .border(
+                    width = if (focused) TvDp.FocusRing else 0.8.dp,
+                    color = if (focused) palette.focusRing else palette.glassBorder,
+                    shape = shape,
+                )
+                .onFocusChanged { focused = it.isFocused }
+                .focusable()
+                .clickable(
+                    interactionSource = remember { MutableInteractionSource() },
+                    indication = null,
+                    onClick = onPlayNext,
+                ),
+        ) {
+            CinePilotAsyncImage(
+                request = artwork,
+                contentDescription = info.item.name(),
+                contentScale = ContentScale.Crop,
+                modifier = Modifier.fillMaxSize(),
+            )
+            // Dark gradient overlay
+            Box(
+                Modifier
+                    .fillMaxSize()
+                    .background(
+                        Brush.verticalGradient(
+                            listOf(
+                                Color.Black.copy(alpha = 0.05f),
+                                Color.Black.copy(alpha = 0.65f),
+                            ),
                     ),
                 ),
         )
@@ -160,6 +167,43 @@ internal fun NextUpMiniCard(
                     fontSize = TvText.Label,
                 ),
             )
+            }
+        }
+        // Small dismiss "×" overlay so users can cancel the countdown without
+        // leaving the player. Mirrors the action exposed on the larger NextUpCard.
+        if (info.autoPlay) {
+            Box(
+                modifier = Modifier
+                    .align(Alignment.TopEnd)
+                    .padding(top = 4.dp, end = 4.dp)
+                    .size(22.dp)
+                    .clip(RoundedCornerShape(11.dp))
+                    .background(
+                        if (cancelFocused) palette.glassFocus else Color.Black.copy(alpha = 0.55f),
+                    )
+                    .border(
+                        width = if (cancelFocused) TvDp.FocusRing else 0.5.dp,
+                        color = if (cancelFocused) palette.focusRing else palette.glassBorder,
+                        RoundedCornerShape(11.dp),
+                    )
+                    .onFocusChanged { cancelFocused = it.isFocused }
+                    .focusable()
+                    .clickable(
+                        interactionSource = remember { MutableInteractionSource() },
+                        indication = null,
+                        onClick = onCancelNextUp,
+                    ),
+                contentAlignment = Alignment.Center,
+            ) {
+                BasicText(
+                    text = "×",
+                    style = TextStyle(
+                        color = Color.White,
+                        fontSize = 14.sp,
+                        fontWeight = FontWeight.SemiBold,
+                    ),
+                )
+            }
         }
     }
 }

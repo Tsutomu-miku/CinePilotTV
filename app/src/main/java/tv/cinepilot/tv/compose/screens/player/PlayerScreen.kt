@@ -160,6 +160,7 @@ fun ComposePlayerScreen(
                 authenticated = authenticated,
                 info = info,
                 onPlayNext = onPlayNext,
+                onCancelNextUp = onCancelNextUp,
                 modifier = Modifier
                     .align(Alignment.BottomEnd)
                     .padding(end = 32.dp, bottom = 108.dp),
