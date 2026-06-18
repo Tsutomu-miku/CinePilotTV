@@ -30,11 +30,13 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.delay
+import tv.cinepilot.core.protocol.MediaBrowseFilters
 import tv.cinepilot.core.protocol.MediaItemSummary
 import tv.cinepilot.core.tv.HomeRow
 import tv.cinepilot.core.tv.TvAppState
 import tv.cinepilot.tv.compose.artwork.CinePilotAsyncImage
 import tv.cinepilot.tv.compose.artwork.rememberArtworkRequest
+import tv.cinepilot.tv.compose.components.BrowseFilterChipsRow
 import tv.cinepilot.tv.compose.components.InfoPanel
 import tv.cinepilot.tv.compose.components.TvActionButton
 import tv.cinepilot.tv.compose.theme.CinePilotPalette
@@ -49,13 +51,19 @@ fun ComposeHomeScreen(
     owner: ComponentActivity,
     artworkFactory: ArtworkRequestFactory,
     state: TvAppState,
+    browseFilters: MediaBrowseFilters,
+    availableGenreNames: List<String>,
     navigation: ComposeHomeNavigation,
     onOpen: (HomeRow, MediaItemSummary) -> Unit,
     onFocusItem: (HomeRow, MediaItemSummary) -> Unit,
     onLibraryOverview: (viewId: String, title: String, isSeries: Boolean) -> Unit,
+    onFiltersChanged: (MediaBrowseFilters) -> Unit,
 ) {
     val rows = state.homeRows()
     val displayRows = remember(rows) { rows.filter { row -> row.items().isNotEmpty() } }
+    val isSearchResults = remember(rows) { rows.any { it.id().startsWith("search:") } }
+    val isOverview = remember(rows) { rows.any { it.id().startsWith("overview:") } }
+    val showFilters = isSearchResults || isOverview || (!isSearchResults && !isOverview)
     val initialAddress = remember(state, displayRows) { initialFocusAddress(state, displayRows) }
     val focusedRowIndexState = remember(displayRows) { mutableIntStateOf(initialAddress.rowIndex) }
     val focusedItemIndexState = remember(displayRows) { mutableIntStateOf(initialAddress.itemIndex) }
@@ -200,11 +208,21 @@ fun ComposeHomeScreen(
             item(contentType = "home-top-bar") {
                 HomeTopBar(palette = palette, title = homeTitle(state), navigation = navigation)
             }
+            if (showFilters) {
+                item(contentType = "home-filter-chips") {
+                    BrowseFilterChipsRow(
+                        palette = palette,
+                        filters = browseFilters,
+                        availableGenreNames = availableGenreNames,
+                        onChanged = onFiltersChanged,
+                    )
+                }
+            }
             if (displayRows.isEmpty()) {
                 item(contentType = "home-empty") {
                     EmptyHome(
                         palette = palette,
-                        searchResults = rows.any { it.id().startsWith("search:") },
+                        searchResults = isSearchResults,
                         navigation = navigation,
                     )
                 }

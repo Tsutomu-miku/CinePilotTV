@@ -3,6 +3,7 @@ package tv.cinepilot.tv.home
 import androidx.activity.ComponentActivity
 import androidx.compose.runtime.Composable
 import java.util.concurrent.Executor
+import tv.cinepilot.core.protocol.MediaBrowseFilters
 import tv.cinepilot.core.protocol.MediaItemSummary
 import tv.cinepilot.core.tv.HomeRow
 import tv.cinepilot.core.tv.TvAppState
@@ -34,12 +35,22 @@ class HomeRouteController(
     private val artworkFactory: ArtworkRequestFactory,
 ) {
     fun render(state: TvAppState) {
+        val filters = workflowController.browseFilters()
+        val homeRows = state.homeRows()
+        val availableGenreNames = homeRows
+            .flatMap { it.items() }
+            .flatMap { it.genres().orEmpty() }
+            .distinct()
+            .filter { it.isNotBlank() }
+            .sorted()
         renderComposeFull { palette ->
             ComposeHomeScreen(
                 palette = palette,
                 owner = activity,
                 artworkFactory = artworkFactory,
                 state = state,
+                browseFilters = filters,
+                availableGenreNames = availableGenreNames,
                 navigation = ComposeHomeNavigation(
                     canGoBack = workflowController.canGoBackInBrowse(),
                     canPageBackward = workflowController.canPageBackwardInBrowse(),
@@ -56,6 +67,14 @@ class HomeRouteController(
                 onOpen = playbackRoutes::openMediaItem,
                 onFocusItem = ::handleFocusItem,
                 onLibraryOverview = ::openLibraryOverview,
+                onFiltersChanged = { next ->
+                    runTask("正在筛选...", {
+                        val includeSmart = homeSettingsStore.load().showSmartCollections
+                        workflowController.setBrowseFilters(next, includeSmart)
+                    }) {
+                        showHome(workflowController.state())
+                    }
+                },
             )
         }
     }

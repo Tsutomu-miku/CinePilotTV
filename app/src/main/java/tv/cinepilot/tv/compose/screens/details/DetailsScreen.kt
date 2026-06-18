@@ -150,6 +150,14 @@ fun ComposeDetailsScreen(
                     onProviderBadgeClick = onProviderBadgeClick,
                 )
             }
+            item {
+                UserRatingRow(
+                    palette = palette,
+                    currentRating = item.userData().userRating(),
+                    communityRating = item.communityRating(),
+                    onChange = onSetUserRating,
+                )
+            }
             val hasTracks = playbackInfo?.mediaSources().orEmpty().isNotEmpty()
             if (hasTracks) {
                 item {
