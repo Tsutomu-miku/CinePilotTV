@@ -3,10 +3,12 @@ package tv.cinepilot.tv.home
 import androidx.activity.ComponentActivity
 import androidx.compose.runtime.Composable
 import java.util.concurrent.Executor
+import tv.cinepilot.core.protocol.GenreInfo
 import tv.cinepilot.core.protocol.MediaBrowseFilters
 import tv.cinepilot.core.protocol.MediaItemSummary
 import tv.cinepilot.core.tv.HomeRow
 import tv.cinepilot.core.tv.TvAppState
+import tv.cinepilot.core.tv.TvRoute
 import tv.cinepilot.core.tv.TvWorkflowController
 import tv.cinepilot.tv.compose.screens.ComposeHomeNavigation
 import tv.cinepilot.tv.compose.screens.ComposeHomeScreen
@@ -34,15 +36,40 @@ class HomeRouteController(
     private val logoutFromHome: () -> Unit,
     private val artworkFactory: ArtworkRequestFactory,
 ) {
+    private var cachedGenreNames: List<String> = emptyList()
+
+    /**
+     * Fetches the server-side genre list for the currently focused view on
+     * a background executor, then re-renders the home screen once the list
+     * is available. This keeps overview/home pages consistent with the
+     * previous View-based home path, where genre chips cover the whole
+     * library rather than only genres visible on the first page.
+     */
+    fun refreshGenreNames() {
+        executor.execute {
+            val names: List<String> = runCatching {
+                workflowController.genresForCurrentView().map(GenreInfo::displayName)
+            }.getOrDefault(emptyList())
+            activity.runOnUiThread {
+                if (cachedGenreNames == names) return@runOnUiThread
+                cachedGenreNames = names
+                if (workflowController.state().route() == TvRoute.HOME) {
+                    render(workflowController.state())
+                }
+            }
+        }
+    }
+
     fun render(state: TvAppState) {
         val filters = workflowController.browseFilters()
-        val homeRows = state.homeRows()
-        val availableGenreNames = homeRows
-            .flatMap { it.items() }
-            .flatMap { it.genres().orEmpty() }
-            .distinct()
-            .filter { it.isNotBlank() }
-            .sorted()
+        val availableGenreNames = cachedGenreNames.ifEmpty {
+            state.homeRows()
+                .flatMap { it.items() }
+                .flatMap { it.genres().orEmpty() }
+                .distinct()
+                .filter { it.isNotBlank() }
+                .sorted()
+        }
         renderComposeFull { palette ->
             ComposeHomeScreen(
                 palette = palette,
@@ -84,6 +111,10 @@ class HomeRouteController(
             workflowController.loadHome(homeSettingsStore.load().showSmartCollections)
         }) {
             val state = workflowController.state()
+            // Kick off a server-scoped genre fetch on the background executor so
+            // the next render can show filter chips for genres that are not
+            // represented on the first page of the current view.
+            refreshGenreNames()
             showHome(state)
             state.authenticated()?.let { authenticated ->
                 // Channel sync hits the network and writes to the TV provider

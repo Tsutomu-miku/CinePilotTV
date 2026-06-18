@@ -51,6 +51,14 @@ fun ComposePlayerScreen(
     onPlayNext: () -> Unit,
     onCancelNextUp: () -> Unit,
     onOpenPlaybackSettings: () -> Unit,
+    subtitleShortcutLabel: String,
+    audioShortcutLabel: String,
+    qualityLabel: String,
+    speedLabel: String,
+    onSubtitlesShortcut: () -> Unit,
+    onAudioShortcut: () -> Unit,
+    onQualityShortcut: () -> Unit,
+    onSpeedShortcut: () -> Unit,
 ) {
     PlayerComposePlayerScreen(
         palette = palette,
@@ -76,5 +84,13 @@ fun ComposePlayerScreen(
         onPlayNext = onPlayNext,
         onCancelNextUp = onCancelNextUp,
         onOpenPlaybackSettings = onOpenPlaybackSettings,
+        subtitleShortcutLabel = subtitleShortcutLabel,
+        audioShortcutLabel = audioShortcutLabel,
+        qualityLabel = qualityLabel,
+        speedLabel = speedLabel,
+        onSubtitlesShortcut = onSubtitlesShortcut,
+        onAudioShortcut = onAudioShortcut,
+        onQualityShortcut = onQualityShortcut,
+        onSpeedShortcut = onSpeedShortcut,
     )
 }

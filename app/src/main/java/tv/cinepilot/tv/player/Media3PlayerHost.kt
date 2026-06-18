@@ -389,6 +389,68 @@ class Media3PlayerHost(
         } ?: false
     }
 
+    fun currentPlaybackSpeed(): Float = player?.playbackParameters?.speed ?: 1f
+
+    fun setPlaybackSpeed(speed: Float) {
+        player?.let { currentPlayer ->
+            currentPlayer.playbackParameters =
+                androidx.media3.common.PlaybackParameters(currentPlayer.playbackParameters.pitch, speed)
+        }
+    }
+
+    /**
+     * Cycle to the next audio stream in the server-provided order, wrapping
+     * around when the tail is reached. Returns the new stream index (or the
+     * current one when no audio streams are available).
+     */
+    fun cycleNextAudioStream(): Int? {
+        val streams = availableAudioStreams()
+        if (streams.isEmpty()) return currentAudioStreamIndex()
+        val current = currentAudioStreamIndex() ?: -1
+        val next = (current + 1) % streams.size
+        val targetIndex = streams[next].index()
+        setAudioStreamIndex(targetIndex)
+        return targetIndex
+    }
+
+    /**
+     * Cycle subtitle visibility / stream selection. Order of operations:
+     *  1. If subtitles are currently disabled, enable the first available
+     *     subtitle stream (matches Jellyfin's "next subtitle" UX).
+     *  2. Otherwise move to the next subtitle stream in server order.
+     *  3. If the last subtitle stream is active, disable subtitles.
+     * Returns a human-readable label describing the new state.
+     */
+    fun cycleNextSubtitle(): String {
+        val streams = availableSubtitleStreams()
+        val enabled = subtitlesEnabled()
+        val currentIdx = currentSubtitleStreamIndex()
+        return when {
+            streams.isEmpty() -> "无字幕"
+            !enabled -> {
+                val target = streams.first().index()
+                setSubtitleStreamIndex(target)
+                streams.first().displayTitle().ifBlank { "字幕 1" }
+            }
+            currentIdx == null -> {
+                val target = streams.first().index()
+                setSubtitleStreamIndex(target)
+                streams.first().displayTitle().ifBlank { "字幕 1" }
+            }
+            else -> {
+                val pos = streams.indexOfFirst { it.index() == currentIdx }
+                if (pos < 0 || pos >= streams.lastIndex) {
+                    setSubtitleStreamIndex(null)
+                    "字幕 关"
+                } else {
+                    val target = streams[pos + 1].index()
+                    setSubtitleStreamIndex(target)
+                    streams[pos + 1].displayTitle().ifBlank { "字幕 ${pos + 2}" }
+                }
+            }
+        }
+    }
+
     fun release() {
         currentOverlay?.attachToPlayer(null)
         currentOverlay = null

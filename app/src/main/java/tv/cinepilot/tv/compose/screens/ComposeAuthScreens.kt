@@ -6,7 +6,9 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.BasicText
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -38,7 +40,7 @@ fun ComposeServerEntryScreen(
     onClearAccounts: () -> Unit,
 ) {
     var serverAddress by remember { mutableStateOf("") }
-    Column(modifier = Modifier.fillMaxWidth()) {
+    Column(modifier = Modifier.fillMaxWidth().verticalScroll(rememberScrollState())) {
         if (recentAccounts.isNotEmpty()) {
             val accountRows = buildList<@Composable () -> Unit> {
                 recentAccounts.forEach { account ->
@@ -118,7 +120,7 @@ fun ComposeLoginScreen(
 ) {
     var username by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
-    Column(modifier = Modifier.fillMaxWidth()) {
+    Column(modifier = Modifier.fillMaxWidth().verticalScroll(rememberScrollState())) {
         BasicText(
             text = serverName,
             style = TextStyle(color = palette.textSecondary, fontSize = TvText.Section),
@@ -199,7 +201,7 @@ fun ComposeQuickConnectScreen(
     onCheckNow: () -> Unit,
     onBackToLogin: () -> Unit,
 ) {
-    Column(modifier = Modifier.fillMaxWidth()) {
+    Column(modifier = Modifier.fillMaxWidth().verticalScroll(rememberScrollState())) {
         BasicText(
             text = quickConnect.code(),
             maxLines = 1,

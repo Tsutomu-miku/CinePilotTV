@@ -80,6 +80,14 @@ fun ComposePlayerScreen(
     onPlayNext: () -> Unit,
     onCancelNextUp: () -> Unit,
     onOpenPlaybackSettings: () -> Unit,
+    subtitleShortcutLabel: String,
+    audioShortcutLabel: String,
+    qualityLabel: String,
+    speedLabel: String,
+    onSubtitlesShortcut: () -> Unit,
+    onAudioShortcut: () -> Unit,
+    onQualityShortcut: () -> Unit,
+    onSpeedShortcut: () -> Unit,
 ) {
     var infoVisible by remember { mutableStateOf(false) }
     Box(
@@ -179,6 +187,14 @@ fun ComposePlayerScreen(
             onSeekForward = onSeekForward,
             onInfo = { infoVisible = !infoVisible },
             onSettings = onOpenPlaybackSettings,
+            subtitleShortcutLabel = subtitleShortcutLabel,
+            audioShortcutLabel = audioShortcutLabel,
+            qualityLabel = qualityLabel,
+            speedLabel = speedLabel,
+            onSubtitlesShortcut = onSubtitlesShortcut,
+            onAudioShortcut = onAudioShortcut,
+            onQualityShortcut = onQualityShortcut,
+            onSpeedShortcut = onSpeedShortcut,
             modifier = Modifier.align(Alignment.BottomCenter),
         )
     }

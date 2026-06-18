@@ -145,6 +145,8 @@ class PlaybackRouteController(
     private var currentPlaybackSnapshot: MediaItemSummary? = null
     private var currentPlaybackDurationMs: Long = 0L
     private var playbackStartedFired = false
+    private var playerSubtitleShortcutLabel = "字幕"
+    private var playerAudioShortcutLabel = "音轨"
 
     fun showDetails(
         item: MediaItemSummary,
@@ -801,6 +803,8 @@ class PlaybackRouteController(
         deferredAfmPromptShown = false
         lastOverlayTickKey = ""
         overlayRebuildScheduled = false
+        playerSubtitleShortcutLabel = "字幕"
+        playerAudioShortcutLabel = "音轨"
         val (offlineFactory, offlineCacheKey) = run {
             val serverId = state.authenticated()?.server()?.serverId()
             if (serverId != null && selectedItem != null) {
@@ -1087,7 +1091,8 @@ class PlaybackRouteController(
         val introVisible = playerHasVisibleIntroSkip()
         val creditsVisible = playerHasVisibleCreditsSkip()
         val currentChapterIndex = playerCurrentChapterIndex()
-        return "$segments|$chaptersCount|$hasNextUp|$playerNextUpCountdownSeconds|$playerNextUpCancelled|$introVisible|$creditsVisible|$currentChapterIndex"
+        val playbackSpeed = playerHost.currentPlaybackSpeed()
+        return "$segments|$chaptersCount|$hasNextUp|$playerNextUpCountdownSeconds|$playerNextUpCancelled|$introVisible|$creditsVisible|$currentChapterIndex|$playerSubtitleShortcutLabel|$playerAudioShortcutLabel|$playbackSpeed"
     }
 
     private fun playerHasVisibleIntroSkip(): Boolean {
@@ -1133,6 +1138,12 @@ class PlaybackRouteController(
             else -> ""
         }
     }
+
+    private fun playerOsdSubtitle(): String = subtitleShortcutLabel(playerHost)
+    private fun playerOsdAudio(): String = audioShortcutLabel(playerHost)
+    private fun playerOsdQuality(): String =
+        qualityShortcutLabel(workflowController.state().playableMedia(), playerHdrLabel())
+    private fun playerOsdSpeed(): String = speedShortcutLabel(playerHost)
 
     private fun rebuildPlayerOverlay(
         state: TvAppState,
@@ -1226,6 +1237,32 @@ class PlaybackRouteController(
                     scheduleOverlayRebuild()
                 },
                 onOpenPlaybackSettings = { openPlaybackSettings(state) },
+                subtitleShortcutLabel = playerOsdSubtitle(),
+                audioShortcutLabel = playerOsdAudio(),
+                qualityLabel = playerOsdQuality(),
+                speedLabel = playerOsdSpeed(),
+                onSubtitlesShortcut = {
+                    playerSubtitleShortcutLabel = playerHost.cycleNextSubtitle()
+                    lastOverlayTickKey = ""
+                    scheduleOverlayRebuild()
+                },
+                onAudioShortcut = {
+                    playerHost.cycleNextAudioStream()
+                    playerAudioShortcutLabel = playerOsdAudio()
+                    lastOverlayTickKey = ""
+                    scheduleOverlayRebuild()
+                },
+                onQualityShortcut = {
+                    // Quality is locked in at prepare-playback time; open
+                    // playback settings so the user can view (or change via
+                    // bitrate cap on the next re-prepare).
+                    openPlaybackSettings(state)
+                },
+                onSpeedShortcut = {
+                    cycleNextPlaybackSpeed(playerHost)
+                    lastOverlayTickKey = ""
+                    scheduleOverlayRebuild()
+                },
             )
         }
         val overlayOwnsFocus = nextUpInfo != null
