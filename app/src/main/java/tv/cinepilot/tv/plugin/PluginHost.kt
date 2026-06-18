@@ -13,6 +13,7 @@ import tv.cinepilot.plugin.spi.SubtitleSearchPlugin
 import tv.cinepilot.plugin.spi.SubtitleSearchResult
 import tv.cinepilot.plugin.spi.UserDataSyncPlugin
 import java.util.ServiceLoader
+import java.util.Collections
 import java.util.concurrent.ExecutionException
 import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
@@ -410,6 +411,22 @@ class PluginHost private constructor(
                 prefs.edit().putBoolean(key, value).apply()
 
             override fun remove(key: String) = prefs.edit().remove(key).apply()
+
+            override fun removeByPrefix(prefix: String) {
+                if (prefix.isEmpty()) return
+                val editor = prefs.edit()
+                var removed = 0
+                for (k in prefs.all.keys) {
+                    if (k.startsWith(prefix)) {
+                        editor.remove(k)
+                        removed++
+                    }
+                }
+                if (removed > 0) editor.apply()
+            }
+
+            override fun keySet(): Set<String> =
+                Collections.unmodifiableSet(prefs.all.keys)
 
             override fun clear() = prefs.edit().clear().apply()
         }

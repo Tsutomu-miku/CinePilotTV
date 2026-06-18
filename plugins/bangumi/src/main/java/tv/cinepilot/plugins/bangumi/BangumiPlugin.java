@@ -49,6 +49,12 @@ public final class BangumiPlugin implements UserDataSyncPlugin, PlaybackSyncPlug
         static final String EPISODE_PREFIX = "e:";
         static final String TIMESTAMP_SUFFIX = ":t";
         static final String WATCHED_PREFIX = "w:";
+        /**
+         * Success stamp written after `setSubjectCollection(subjectId, DONE)
+         * succeeds for a non-episode item (series, movie). Mirrors
+         * WATCHED_PREFIX for the episode path.
+         */
+        static final String USER_DONE_PREFIX = "u:";
         static final String FAILED_PREFIX = "f:";
         static final String PROVIDER_SUBJECT_PREFIX = "p:";
         static final String PROVIDER_EPISODE_PREFIX = "q:";
@@ -123,6 +129,19 @@ public final class BangumiPlugin implements UserDataSyncPlugin, PlaybackSyncPlug
     @Override public void clearAuth(PluginSettingsStore store) {
         store.remove(Keys.TOKEN);
         store.remove(Keys.LAST_ERROR);
+        // Wipe all per-item sync state when the user rotates credentials:
+        // all success stamps, failure markers, subject/episode caches, and
+        // provider id mappings are account-scoped on Bangumi's side. Keeping
+        // them would leak stale "已同步 / 同步失败" badges after login change.
+        store.removeByPrefix(Keys.SUBJECT_PREFIX);
+        store.removeByPrefix(Keys.EPISODE_PREFIX);
+        store.removeByPrefix(Keys.WATCHED_PREFIX);
+        store.removeByPrefix(Keys.USER_DONE_PREFIX);
+        store.removeByPrefix(Keys.FAILED_PREFIX);
+        store.removeByPrefix(Keys.PROVIDER_SUBJECT_PREFIX);
+        store.removeByPrefix(Keys.PROVIDER_EPISODE_PREFIX);
+        // The timestamp keys share the same prefix root as their payloads
+        // ($prefix$key + ":t"), so removing-by-payload-prefix handles both.
     }
 
     @Override public void onUnloaded() {
@@ -176,6 +195,7 @@ public final class BangumiPlugin implements UserDataSyncPlugin, PlaybackSyncPlug
                 long subjectId = resolveSubjectId(store, item, /*persistProviderId=*/ true);
                 if (subjectId > 0) {
                     api(store).setSubjectCollection(subjectId, BangumiApi.SubjectCollectionType.DONE);
+                    store.putLong(Keys.USER_DONE_PREFIX + key, System.currentTimeMillis());
                 }
             }
         });
@@ -199,16 +219,13 @@ public final class BangumiPlugin implements UserDataSyncPlugin, PlaybackSyncPlug
         String key = BangumiSubjectMatcher.cacheKey(item);
         String failed = store.getString(Keys.FAILED_PREFIX + key, "");
         if (!failed.isBlank()) return ItemSyncStatus.FAILED;
-        long watchedStamp = store.getLong(Keys.WATCHED_PREFIX + key, 0L);
-        if (watchedStamp > 0L) return ItemSyncStatus.SYNCED;
-        // No explicit success/failure recorded: if the subject cache already
-        // exists the item is "matched" but not yet synced; otherwise UNMATCHED.
-        long subjectCached = store.getLong(Keys.SUBJECT_PREFIX + key, 0L);
-        if (subjectCached > 0) return ItemSyncStatus.SYNCED; // conservative: treat cache as intent
-        String provider = item.providerId("BgmTv");
-        if (provider.isBlank()) provider = item.providerId("BANGUMI_TV");
-        if (provider.isBlank()) provider = item.providerId("Bangumi");
-        if (!provider.isBlank()) return ItemSyncStatus.SYNCED;
+        // Only SYNCED on an explicit post-write success stamp.
+        // WATCHED_PREFIX = episode mark-watched completed upstream.
+        // USER_DONE_PREFIX = non-episode (series/season/movie) collection=DONE completed upstream.
+        long episodeStamp = store.getLong(Keys.WATCHED_PREFIX + key, 0L);
+        if (episodeStamp > 0L) return ItemSyncStatus.SYNCED;
+        long doneStamp = store.getLong(Keys.USER_DONE_PREFIX + key, 0L);
+        if (doneStamp > 0L) return ItemSyncStatus.SYNCED;
         return ItemSyncStatus.UNMATCHED;
     }
 
@@ -225,6 +242,7 @@ public final class BangumiPlugin implements UserDataSyncPlugin, PlaybackSyncPlug
                 if (subjectId > 0) {
                     api(store).setSubjectCollection(
                             subjectId, BangumiApi.SubjectCollectionType.DONE);
+                    store.putLong(Keys.USER_DONE_PREFIX + key, System.currentTimeMillis());
                 }
             });
         }
