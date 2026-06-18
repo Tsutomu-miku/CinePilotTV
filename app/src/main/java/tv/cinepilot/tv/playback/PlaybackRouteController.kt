@@ -160,6 +160,9 @@ class PlaybackRouteController(
         }
         val effectivePlaybackInfo = playbackInfo ?: selectedPlaybackInfo?.takeIf { it.itemId() == item.id() }
         val effectiveTrackSelection = normalizedTrackSelectionFor(item, effectivePlaybackInfo)
+        val auth = workflowController.state().authenticated()
+        val snapshot = auth?.let { item.toSnapshot(it) }
+        val pluginSyncStates = snapshot?.let(pluginHost::itemSyncStatuses).orEmpty()
         // --- compute offline action label/state BEFORE going into runTask
         val offlineInfo = computeOfflineInfo(item)
         val sameCollection = sameCollectionItems.orEmpty()
@@ -168,7 +171,7 @@ class PlaybackRouteController(
                 palette = palette,
                 owner = activity,
                 artworkFactory = artworkFactory,
-                authenticated = workflowController.state().authenticated(),
+                authenticated = auth,
                 item = item,
                 playbackInfo = effectivePlaybackInfo,
                 siblingEpisodes = episodeContext?.episodes() ?: emptyList(),
@@ -176,6 +179,7 @@ class PlaybackRouteController(
                 trackSelection = effectiveTrackSelection,
                 supportedHdrTypes = supportedHdrLabels(),
                 supportedPassthroughCodecs = supportedPassthroughLabels(),
+                pluginSyncStates = pluginSyncStates,
                 onPreparePlayback = { preferences ->
                     preparePlaybackWith(applyTrackSelection(item, preferences))
                 },
@@ -241,6 +245,39 @@ class PlaybackRouteController(
                     }
                 },
                 hasSubtitleSearch = subtitleSearch.hasSubtitleSearch(),
+                onRetryPluginSync = { pluginId ->
+                    // Re-read both the auth and the item fresh inside the
+                    // callback instead of capturing the top-of-showDetails
+                    // snapshot: the user can navigate to a different item
+                    // while this closure is still referenced in the tree.
+                    val authFresh = workflowController.state().authenticated()
+                    val itemFresh = workflowController.state().selectedItem() ?: item
+                    val snapFresh = authFresh?.let(itemFresh::toSnapshot)
+                    if (snapFresh != null) {
+                        runSilentTask({
+                            pluginHost.retryItemSync(pluginId, snapFresh)?.get(
+                                RETRY_SYNC_TIMEOUT_SECONDS, java.util.concurrent.TimeUnit.SECONDS,
+                            )
+                        }, {
+                            if (workflowController.state().route() == TvRoute.DETAILS) {
+                                val reloaded = workflowController.state().selectedItem()
+                                    ?: itemFresh
+                                showDetails(
+                                    reloaded,
+                                    effectivePlaybackInfo,
+                                    episodeContext,
+                                    sameCollection,
+                                )
+                            }
+                        }, {
+                            // Retry surfaced via per-item FAILED marker so the
+                            // user still sees a refreshed sync chip; log the
+                            // exception for developer diagnostics only.
+                            android.util.Log.d(
+                                TAG, "plugin retry failed plugin=$pluginId", it)
+                        })
+                    }
+                },
             )
         }
         if (sameCollectionItems == null) {
@@ -261,15 +298,38 @@ class PlaybackRouteController(
                 ) {
                     showDetails(item, effectivePlaybackInfo, episodeContext, loadedSameCollection)
                 }
-            }, {})
+            }, { err ->
+                // Same-collection lookup is best-effort cosmetic; log and
+                // move on — the user still sees the rest of the details page.
+                android.util.Log.d(TAG, "same-collection lookup failed item=${item.id()}", err)
+            })
         }
     }
 
     // --- Offline download UI --------------------------------------------------
 
     private data class OfflineInfo(val label: String, val isReady: Boolean)
-    private val qualityLabels = arrayOf("自动", "480p", "720p", "1080p", "4K")
-    private val qualityValues = intArrayOf(0, 1, 2, 3, 4)
+
+    /**
+     * Download quality tiers. Index 0 is handled as "auto" (no caps) by the
+     * call-sites; the remaining entries encode the (max-height, max-bitrate)
+     * pair used to build [PlaybackSelectionPreferences].
+     */
+    private enum class QualityTier(
+        val index: Int,
+        val label: String,
+        val maxHeight: Int,
+        val maxBitRate: Long,
+    ) {
+        AUTO(0, "自动", 0, 0L),
+        P480(1, "480p", 480, 2_000_000L),
+        P720(2, "720p", 720, 4_000_000L),
+        P1080(3, "1080p", 1080, 10_000_000L),
+        P2160(4, "4K", 2160, 40_000_000L),
+    }
+
+    private val qualityLabels = QualityTier.values().map { it.label }.toTypedArray()
+    private val qualityValues = QualityTier.values().map { it.index }.toIntArray()
 
     private fun computeOfflineInfo(item: MediaItemSummary): OfflineInfo? {
         val server = workflowController.state().authenticated()?.server() ?: return null
@@ -355,10 +415,10 @@ class PlaybackRouteController(
     private fun buildQualityPreferences(quality: Int, item: MediaItemSummary): PlaybackSelectionPreferences? {
         val base = applyTrackSelection(item, null)
         val (maxHeight, maxBitRate) = when (quality) {
-            1 -> 480 to 2_000_000
-            2 -> 720 to 4_000_000
-            3 -> 1080 to 10_000_000
-            4 -> 2160 to 40_000_000
+            QualityTier.P480.index -> QualityTier.P480.maxHeight to QualityTier.P480.maxBitRate
+            QualityTier.P720.index -> QualityTier.P720.maxHeight to QualityTier.P720.maxBitRate
+            QualityTier.P1080.index -> QualityTier.P1080.maxHeight to QualityTier.P1080.maxBitRate
+            QualityTier.P2160.index -> QualityTier.P2160.maxHeight to QualityTier.P2160.maxBitRate
             else -> return base // 自动: no caps
         }
         return PlaybackSelectionPreferences(
@@ -368,7 +428,7 @@ class PlaybackRouteController(
             base?.maxAudioChannels(),
             0,
             maxHeight,
-            maxBitRate,
+            maxBitRate.toInt(),
             base?.mediaSourceId(),
             base?.playbackRate(),
             base?.alwaysBurnInSubtitleWhenTranscoding() ?: false,
@@ -573,7 +633,12 @@ class PlaybackRouteController(
                 if (workflowController.state().route() == TvRoute.DETAILS) {
                     render(if (foldedSeasonsExpanded) emptyMap() else seasonStartedCache, sameCollection)
                 }
-            }, {})
+            }, { err ->
+                // Season detail background loads are best-effort: the user
+                // already sees structure data from the main blocking load,
+                // so a failure here is a cosmetic miss only.
+                android.util.Log.d(TAG, "series background load failed", err)
+            })
         }
         withExtras { status, collection ->
             renderView(activity.seriesDetailScreen(
@@ -698,7 +763,9 @@ class PlaybackRouteController(
             if (workflowController.state().route() == TvRoute.DETAILS) {
                 render(sameCollection)
             }
-        }, {})
+        }, { err ->
+            android.util.Log.d(TAG, "season same-collection load failed season=${season.id()}", err)
+        })
     }
 
     private fun openEpisodeDetail(item: MediaItemSummary, backRenderer: () -> Unit) {
@@ -965,7 +1032,7 @@ class PlaybackRouteController(
         val playerView = playerHost.playerView()
         if (playerView != null) {
             playerView.post { playerView.requestFocus() }
-            playerView.postDelayed({ playerView.requestFocus() }, 120L)
+            playerView.postDelayed({ playerView.requestFocus() }, FOCUS_RETRY_DELAY_MS)
             return
         }
         val surfaceView = playerHost.playerSurfaceView() ?: return
@@ -1044,7 +1111,8 @@ class PlaybackRouteController(
             val threshold = if (credits != null && credits.startPositionTicks() > 0) {
                 credits.startPositionTicks()
             } else {
-                (durationTicks - MediaTicks.fromSeconds(30)).coerceAtLeast(0)
+                (durationTicks - tv.cinepilot.core.protocol.MediaTicks.fromSeconds(
+                    NEXT_UP_COUNTDOWN_WINDOW_SECONDS)).coerceAtLeast(0)
             }
             if (positionTicks >= threshold && durationTicks > 0) {
                 val remaining = (durationTicks - positionTicks).coerceAtLeast(0L)
@@ -1445,7 +1513,14 @@ class PlaybackRouteController(
     }
 
     companion object {
+        private const val TAG = "PlaybackRouteController"
         private const val PLAYBACK_BACK_EXIT_WINDOW_MS = 2_000L
+        /** Max time (seconds) we wait for a plugin retry-sync to finish. */
+        private const val RETRY_SYNC_TIMEOUT_SECONDS = 45L
+        /** Delay (ms) between retry attempts when requesting focus on the player surface. */
+        private const val FOCUS_RETRY_DELAY_MS = 120L
+        /** Next-up overlay is shown during the final N seconds of an episode (or credits start). */
+        private const val NEXT_UP_COUNTDOWN_WINDOW_SECONDS = 30L
     }
 
     // ---- P1 user-action helpers ---------------------------------------------------------------
@@ -1454,11 +1529,22 @@ class PlaybackRouteController(
      * Runs [action] (e.g. `toggleFavorite`) on the currently selected detail item,
      * then re-renders using [rerender] which receives the freshly-updated selected item.
      * Intended for movie/episode detail screens where the workflow already has a selectedItem.
+     *
+     * @param rerenderOnUiThread when true the action is fire-and-forget (no blocking loading
+     *     spinner) and [rerender] is invoked immediately with the currently-selected item.
+     *     Use this for actions like plugin sync retry that are idempotent and where the
+     *     user-facing state change lives in plugin-owned storage, not the workflow state.
      */
     private fun rerenderAfterUserAction(
         action: () -> Unit,
+        rerenderOnUiThread: Boolean = false,
         rerender: (MediaItemSummary) -> Unit,
     ) {
+        if (rerenderOnUiThread) {
+            action()
+            workflowController.state().selectedItem()?.let(rerender)
+            return
+        }
         val before = workflowController.state().selectedItem()
         val auth = workflowController.state().authenticated()
         var updated: MediaItemSummary? = null

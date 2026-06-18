@@ -19,6 +19,7 @@ import tv.cinepilot.core.protocol.AuthenticatedServer
 import tv.cinepilot.core.protocol.MediaItemSummary
 import tv.cinepilot.core.protocol.PlaybackInfo
 import tv.cinepilot.core.protocol.PlaybackSelectionPreferences
+import tv.cinepilot.plugin.spi.ItemSyncStatus
 import tv.cinepilot.tv.compose.artwork.rememberArtworkRequest
 import tv.cinepilot.tv.compose.components.MediaRail
 import tv.cinepilot.tv.compose.components.PosterCard
@@ -26,11 +27,17 @@ import tv.cinepilot.tv.compose.theme.CinePilotPalette
 import tv.cinepilot.tv.compose.theme.TvDp
 import tv.cinepilot.tv.compose.theme.TvText
 import tv.cinepilot.tv.details.DetailTrackSelection
+import tv.cinepilot.tv.plugin.PluginHost
 import tv.cinepilot.tv.runtime.ArtworkRequestFactory
 import tv.cinepilot.tv.runtime.ArtworkTarget
 import tv.cinepilot.tv.ui.isEpisode
 import tv.cinepilot.tv.ui.mediaTechnicalPills
 import tv.cinepilot.tv.ui.toDetailPresentation
+
+private const val BACKDROP_REQ_WIDTH_PX = 1280
+private const val BACKDROP_REQ_HEIGHT_PX = 720
+private const val RELATED_POSTER_REQ_WIDTH_PX = 300
+private const val RELATED_POSTER_REQ_HEIGHT_PX = 450
 
 // ── Text size constants ─────────────────────────────────────────────────
 
@@ -44,7 +51,7 @@ internal fun calculateProgress(item: MediaItemSummary): Float {
     if (!item.hasResumePosition()) return 0f
     val runtime = item.runTimeTicks() ?: return 0f
     if (runtime <= 0L) return 0f
-    val position = item.userData().playbackPositionTicks()
+    val position = item.userData()?.playbackPositionTicks() ?: 0L
     return (position.toFloat() / runtime.toFloat()).coerceIn(0f, 1f)
 }
 
@@ -63,6 +70,7 @@ fun ComposeDetailsScreen(
     trackSelection: DetailTrackSelection,
     supportedHdrTypes: Set<String>,
     supportedPassthroughCodecs: Set<String>,
+    pluginSyncStates: List<PluginHost.PluginItemSyncState>,
     onPreparePlayback: (PlaybackSelectionPreferences?) -> Unit,
     onTrackSelection: (DetailTrackSelection) -> Unit,
     onSubtitleStyle: () -> Unit,
@@ -85,6 +93,7 @@ fun ComposeDetailsScreen(
     onAddToPlaylist: () -> Unit,
     onSearchSubtitles: () -> Unit,
     hasSubtitleSearch: Boolean,
+    onRetryPluginSync: (String) -> Unit,
 ) {
     val technicalInfo = mediaTechnicalPills(playbackInfo, supportedHdrTypes, supportedPassthroughCodecs)
     val presentation = item.toDetailPresentation(technicalTags = technicalInfo)
@@ -93,8 +102,8 @@ fun ComposeDetailsScreen(
         authenticated = authenticated,
         item = item,
         target = ArtworkTarget.BACKDROP,
-        width = 1280,
-        height = 720,
+        width = BACKDROP_REQ_WIDTH_PX,
+        height = BACKDROP_REQ_HEIGHT_PX,
     )
     val actions = rememberDetailActions(
         item = item,
@@ -147,13 +156,15 @@ fun ComposeDetailsScreen(
                     providerBadges = presentation.providerBadges.map { it.label to it.externalUrl },
                     actions = actions,
                     playbackProgress = playbackProgress,
+                    pluginSyncStates = pluginSyncStates,
                     onProviderBadgeClick = onProviderBadgeClick,
+                    onRetryPluginSync = onRetryPluginSync,
                 )
             }
             item {
                 UserRatingRow(
                     palette = palette,
-                    currentRating = item.userData().userRating(),
+                    currentRating = item.userData()?.userRating(),
                     communityRating = item.communityRating(),
                     onChange = onSetUserRating,
                 )
@@ -211,8 +222,8 @@ fun ComposeDetailsScreen(
                                     authenticated = authenticated,
                                     item = rel,
                                     target = ArtworkTarget.POSTER,
-                                    width = 300,
-                                    height = 450,
+                                    width = RELATED_POSTER_REQ_WIDTH_PX,
+                                    height = RELATED_POSTER_REQ_HEIGHT_PX,
                                 ),
                                 onFocus = {},
                                 onClick = { onOpenCollectionItem(rel) },
@@ -224,4 +235,3 @@ fun ComposeDetailsScreen(
         }
     }
 }
-

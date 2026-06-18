@@ -165,9 +165,12 @@ class MainActivity : ComponentActivity() {
             activity = this,
             settingsStore = settingsStore,
             homeSettingsStore = homeSettingsStore,
+            pluginHost = pluginHost,
             showHome = ::showHome,
             renderView = ::renderView,
             renderCompose = ::renderCompose,
+            renderComposeFull = ::renderComposeFull,
+            runSilentTask = ::runSilentTask,
         )
         profileSwitcherRoutes = ProfileSwitcherRouteController(
             activity = this,

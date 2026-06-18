@@ -2,6 +2,9 @@ package tv.cinepilot.tv.compose.screens.details
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.focusable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -16,10 +19,16 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicText
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
@@ -28,10 +37,13 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import tv.cinepilot.core.protocol.AuthenticatedServer
 import tv.cinepilot.core.protocol.MediaItemSummary
+import tv.cinepilot.plugin.spi.ItemSyncStatus
 import tv.cinepilot.tv.compose.artwork.CinePilotAsyncImage
 import tv.cinepilot.tv.compose.artwork.rememberArtworkRequest
+import tv.cinepilot.tv.compose.components.layout.FlowRow
 import tv.cinepilot.tv.compose.theme.CinePilotPalette
 import tv.cinepilot.tv.compose.theme.TvDp
+import tv.cinepilot.tv.plugin.PluginHost
 import tv.cinepilot.tv.runtime.ArtworkRequestFactory
 import tv.cinepilot.tv.runtime.ArtworkTarget
 
@@ -39,9 +51,16 @@ import tv.cinepilot.tv.runtime.ArtworkTarget
 
 private val DetailPosterWidth = 200.dp
 private val DetailPosterHeight = 300.dp
+private const val POSTER_REQ_WIDTH_PX = 420
+private const val POSTER_REQ_HEIGHT_PX = 630
 
 private val DetailTitleSize = 32.sp
 private val DetailMetaSize = 12.sp
+
+private val SyncSuccessGreen = Color(0xFF22C55E)
+private val SyncWarnAmber = Color(0xFFF59E0B)
+private val SyncErrorRed = Color(0xFFEF4444)
+private val SyncMutedBlue = Color(0xFF94A3B8)
 
 // ── Details hero ─────────────────────────────────────────────────────────
 
@@ -57,7 +76,9 @@ internal fun DetailsHero(
     providerBadges: List<Pair<String, String>>,
     actions: List<DetailAction>,
     playbackProgress: Float,
+    pluginSyncStates: List<PluginHost.PluginItemSyncState>,
     onProviderBadgeClick: (String) -> Unit,
+    onRetryPluginSync: (String) -> Unit,
 ) {
     Row(
         horizontalArrangement = Arrangement.spacedBy(20.dp),
@@ -70,8 +91,8 @@ internal fun DetailsHero(
             authenticated = authenticated,
             item = item,
             target = ArtworkTarget.POSTER,
-            width = 420,
-            height = 630,
+            width = POSTER_REQ_WIDTH_PX,
+            height = POSTER_REQ_HEIGHT_PX,
         )
         Box(
             modifier = Modifier
@@ -138,8 +159,8 @@ internal fun DetailsHero(
                 RatingBadgeRow(
                     palette = palette,
                     communityRating = rating,
-                    hasTmdb = item.tmdbId().isNotBlank(),
-                    hasImdb = item.imdbId().isNotBlank(),
+                    hasTmdb = (item.tmdbId() ?: "").isNotBlank(),
+                    hasImdb = (item.imdbId() ?: "").isNotBlank(),
                 )
                 Spacer(Modifier.height(12.dp))
             }
@@ -151,6 +172,14 @@ internal fun DetailsHero(
                 )
                 Spacer(Modifier.height(8.dp))
             }
+            if (pluginSyncStates.isNotEmpty()) {
+                PluginSyncStatusRow(
+                    states = pluginSyncStates,
+                    palette = palette,
+                    onRetry = onRetryPluginSync,
+                )
+                Spacer(Modifier.height(10.dp))
+            }
             if (actions.isNotEmpty()) {
                 DetailActionFlow(
                     actions = actions,
@@ -158,6 +187,107 @@ internal fun DetailsHero(
                     playbackProgress = playbackProgress,
                 )
             }
+        }
+    }
+}
+
+// ── Plugin sync status row (Bangumi / future plugins) ──────────────────
+
+@Composable
+private fun PluginSyncStatusRow(
+    states: List<PluginHost.PluginItemSyncState>,
+    palette: CinePilotPalette,
+    onRetry: (String) -> Unit,
+) {
+    FlowRow(
+        horizontalGap = 6.dp,
+        verticalGap = 5.dp,
+        modifier = Modifier.fillMaxWidth(),
+    ) {
+        states.forEach { state ->
+            val syncColor = when (state.status) {
+                ItemSyncStatus.SYNCED -> SyncSuccessGreen
+                ItemSyncStatus.FAILED -> SyncErrorRed
+                ItemSyncStatus.UNMATCHED -> SyncMutedBlue
+                ItemSyncStatus.AUTH_REQUIRED -> SyncWarnAmber
+                ItemSyncStatus.UNSUPPORTED -> SyncMutedBlue
+            }
+            val label = when (state.status) {
+                ItemSyncStatus.SYNCED -> "${state.pluginName} 已同步"
+                ItemSyncStatus.FAILED -> "${state.pluginName} 同步失败 · 重试"
+                ItemSyncStatus.UNMATCHED -> "${state.pluginName} 未匹配"
+                ItemSyncStatus.AUTH_REQUIRED -> "${state.pluginName} 需授权"
+                ItemSyncStatus.UNSUPPORTED -> return@forEach
+            }
+            PluginSyncChip(
+                palette = palette,
+                label = label,
+                color = syncColor,
+                clickable = state.status == ItemSyncStatus.FAILED,
+                onClick = { onRetry(state.pluginId) },
+            )
+        }
+    }
+}
+
+@Composable
+private fun PluginSyncChip(
+    palette: CinePilotPalette,
+    label: String,
+    color: Color,
+    clickable: Boolean,
+    onClick: () -> Unit,
+) {
+    var focused by remember { mutableStateOf(false) }
+    val bg = when {
+        focused -> palette.glassFocus
+        else -> palette.glass
+    }
+    val interaction = remember { androidx.compose.foundation.interaction.MutableInteractionSource() }
+    // Interaction modifiers first so focus-ring + hit-box cover the full visual
+    // chip (outer size), then padding is applied inside for the label layout.
+    var modifier: Modifier = Modifier
+    if (clickable) {
+        modifier = modifier
+            .onFocusChanged { focused = it.isFocused }
+            .focusable(interactionSource = interaction)
+            .clickable(
+                interactionSource = interaction,
+                indication = null,
+                onClick = onClick,
+            )
+    }
+    modifier = modifier
+        .height(26.dp)
+        .clip(RoundedCornerShape(8.dp))
+        .background(bg)
+        .border(
+            width = if (focused) TvDp.FocusRing else 0.6.dp,
+            color = if (focused) palette.focusRing else color.copy(alpha = 0.75f),
+            shape = RoundedCornerShape(8.dp),
+        )
+        .padding(horizontal = 10.dp)
+    Box(modifier, contentAlignment = Alignment.Center) {
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(4.dp),
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(6.dp)
+                    .clip(RoundedCornerShape(3.dp))
+                    .background(color),
+            )
+            BasicText(
+                text = label,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                style = TextStyle(
+                    color = if (focused) palette.textPrimary else palette.textSecondary,
+                    fontSize = 11.sp,
+                    fontWeight = FontWeight.Medium,
+                ),
+            )
         }
     }
 }

@@ -8,6 +8,7 @@ import tv.cinepilot.core.protocol.PlaybackInfo
 import tv.cinepilot.core.protocol.PlaybackSelectionPreferences
 import tv.cinepilot.tv.compose.theme.CinePilotPalette
 import tv.cinepilot.tv.details.DetailTrackSelection
+import tv.cinepilot.tv.plugin.PluginHost
 import tv.cinepilot.tv.runtime.ArtworkRequestFactory
 import tv.cinepilot.tv.compose.screens.details.ComposeDetailsScreen as DetailsScreenImpl
 
@@ -28,6 +29,7 @@ fun ComposeDetailsScreen(
     trackSelection: DetailTrackSelection,
     supportedHdrTypes: Set<String>,
     supportedPassthroughCodecs: Set<String>,
+    pluginSyncStates: List<PluginHost.PluginItemSyncState>,
     onPreparePlayback: (PlaybackSelectionPreferences?) -> Unit,
     onTrackSelection: (DetailTrackSelection) -> Unit,
     onSubtitleStyle: () -> Unit,
@@ -50,6 +52,7 @@ fun ComposeDetailsScreen(
     onAddToPlaylist: () -> Unit,
     onSearchSubtitles: () -> Unit,
     hasSubtitleSearch: Boolean,
+    onRetryPluginSync: (String) -> Unit,
 ) {
     DetailsScreenImpl(
         palette = palette,
@@ -63,6 +66,7 @@ fun ComposeDetailsScreen(
         trackSelection = trackSelection,
         supportedHdrTypes = supportedHdrTypes,
         supportedPassthroughCodecs = supportedPassthroughCodecs,
+        pluginSyncStates = pluginSyncStates,
         onPreparePlayback = onPreparePlayback,
         onTrackSelection = onTrackSelection,
         onSubtitleStyle = onSubtitleStyle,
@@ -85,5 +89,6 @@ fun ComposeDetailsScreen(
         onAddToPlaylist = onAddToPlaylist,
         onSearchSubtitles = onSearchSubtitles,
         hasSubtitleSearch = hasSubtitleSearch,
+        onRetryPluginSync = onRetryPluginSync,
     )
 }
