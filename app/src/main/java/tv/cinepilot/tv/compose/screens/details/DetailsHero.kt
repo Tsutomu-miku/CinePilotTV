@@ -51,6 +51,8 @@ import tv.cinepilot.tv.runtime.ArtworkTarget
 
 private val DetailPosterWidth = 200.dp
 private val DetailPosterHeight = 300.dp
+private const val POSTER_REQ_WIDTH_PX = 420
+private const val POSTER_REQ_HEIGHT_PX = 630
 
 private val DetailTitleSize = 32.sp
 private val DetailMetaSize = 12.sp
@@ -89,8 +91,8 @@ internal fun DetailsHero(
             authenticated = authenticated,
             item = item,
             target = ArtworkTarget.POSTER,
-            width = 420,
-            height = 630,
+            width = POSTER_REQ_WIDTH_PX,
+            height = POSTER_REQ_HEIGHT_PX,
         )
         Box(
             modifier = Modifier
@@ -157,8 +159,8 @@ internal fun DetailsHero(
                 RatingBadgeRow(
                     palette = palette,
                     communityRating = rating,
-                    hasTmdb = item.tmdbId().isNotBlank(),
-                    hasImdb = item.imdbId().isNotBlank(),
+                    hasTmdb = (item.tmdbId() ?: "").isNotBlank(),
+                    hasImdb = (item.imdbId() ?: "").isNotBlank(),
                 )
                 Spacer(Modifier.height(12.dp))
             }
@@ -242,16 +244,9 @@ private fun PluginSyncChip(
         else -> palette.glass
     }
     val interaction = remember { androidx.compose.foundation.interaction.MutableInteractionSource() }
+    // Interaction modifiers first so focus-ring + hit-box cover the full visual
+    // chip (outer size), then padding is applied inside for the label layout.
     var modifier: Modifier = Modifier
-        .height(26.dp)
-        .clip(RoundedCornerShape(8.dp))
-        .background(bg)
-        .border(
-            width = if (focused) TvDp.FocusRing else 0.6.dp,
-            color = if (focused) palette.focusRing else color.copy(alpha = 0.75f),
-            shape = RoundedCornerShape(8.dp),
-        )
-        .padding(horizontal = 10.dp)
     if (clickable) {
         modifier = modifier
             .onFocusChanged { focused = it.isFocused }
@@ -262,6 +257,16 @@ private fun PluginSyncChip(
                 onClick = onClick,
             )
     }
+    modifier = modifier
+        .height(26.dp)
+        .clip(RoundedCornerShape(8.dp))
+        .background(bg)
+        .border(
+            width = if (focused) TvDp.FocusRing else 0.6.dp,
+            color = if (focused) palette.focusRing else color.copy(alpha = 0.75f),
+            shape = RoundedCornerShape(8.dp),
+        )
+        .padding(horizontal = 10.dp)
     Box(modifier, contentAlignment = Alignment.Center) {
         Row(
             verticalAlignment = Alignment.CenterVertically,

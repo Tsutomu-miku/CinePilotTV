@@ -36,6 +36,7 @@ class SettingsRouteController(
 
     // Plugin sub-screen state
     private var activePlugin: PluginHost.PluginInfo? = null
+    private var activePluginLastError = ""
     private var pluginToken = ""
     private var pluginVerifying = false
     private var pluginVerifyMessage = ""
@@ -58,6 +59,7 @@ class SettingsRouteController(
         if (activePlugin != null) {
             // Back from plugin sub-screen -> return to main settings
             activePlugin = null
+            activePluginLastError = ""
             pluginToken = ""
             pluginVerifying = false
             pluginVerifyMessage = ""
@@ -90,6 +92,7 @@ class SettingsRouteController(
                     verifying = pluginVerifying,
                     verifyMessage = pluginVerifyMessage,
                     verifyMessageIsError = pluginVerifyIsError,
+                    lastError = activePluginLastError,
                     onBack = { closeIfVisible() },
                     onVerify = { verifyCurrentPlugin() },
                     onDisconnect = { disconnectCurrentPlugin() },
@@ -127,11 +130,12 @@ class SettingsRouteController(
     private fun openPlugin(info: PluginHost.PluginInfo) {
         activePlugin = info
         pluginToken = info.store.getString("token", "")
+        activePluginLastError = info.store.getString("lastError", "")
         pluginVerifying = false
         pluginVerifyMessage = when (info.status) {
             PluginStatus.READY -> "当前令牌已通过验证。"
-            PluginStatus.TEMPORARILY_UNAVAILABLE -> info.store.getString("lastError", "").let {
-                it.ifBlank { "上次调用失败，请重试验证。" }
+            PluginStatus.TEMPORARILY_UNAVAILABLE -> activePluginLastError.ifBlank {
+                "上次调用失败，请重试验证。"
             }
             else -> ""
         }
@@ -152,6 +156,11 @@ class SettingsRouteController(
         pluginVerifyMessage = ""
         pluginVerifyIsError = false
         render()
+        // Holder is captured by both lambdas. Writes happen on the task
+        // (background) thread; reads happen inside onSuccess which the
+        // task-runner dispatches on the main thread with a happens-before
+        // edge, so visibility is guaranteed without @Volatile.
+        val resultHolder = arrayOfNulls<AuthVerificationResult>(1)
         runSilentTask(
             {
                 val result: AuthVerificationResult = pluginHost.verifyPluginAuth(
@@ -159,12 +168,11 @@ class SettingsRouteController(
                 if (result.isOk) {
                     pluginHost.savePluginAuth(plugin.descriptor.id(), token)
                 }
-                // stash the result across the thread boundary
-                verificationResult = result
+                resultHolder[0] = result
             },
             {
                 pluginVerifying = false
-                val result = verificationResult
+                val result = resultHolder[0] ?: AuthVerificationResult.failure("")
                 pluginVerifyIsError = !result.isOk
                 pluginVerifyMessage = when {
                     result.isOk -> buildString {
@@ -180,6 +188,10 @@ class SettingsRouteController(
                     else -> "验证失败"
                 }
                 activePlugin = freshPluginInfo(plugin.descriptor.id())
+                // Refresh lastError so error paragraphs + banner stay in sync
+                // with what the plugin wrote during verify/saveAuth.
+                activePluginLastError = activePlugin?.store
+                    ?.getString("lastError", "") ?: ""
                 render()
             },
             { error ->
@@ -191,15 +203,13 @@ class SettingsRouteController(
         )
     }
 
-    private var verificationResult: AuthVerificationResult =
-        AuthVerificationResult.failure("")
-
     private fun disconnectCurrentPlugin() {
         val plugin = activePlugin ?: return
         pluginHost.clearPluginAuth(plugin.descriptor.id())
         pluginToken = ""
         pluginVerifyMessage = "已断开连接，令牌已删除。"
         pluginVerifyIsError = false
+        activePluginLastError = ""
         activePlugin = freshPluginInfo(plugin.descriptor.id())
         render()
     }

@@ -50,7 +50,10 @@ fun PluginSettingsSection(
     pluginHost: PluginHost,
     onOpenPlugin: (PluginHost.PluginInfo) -> Unit,
 ) {
-    val plugins = remember { pluginHost.listPlugins() }
+    // Do NOT remember { listPlugins() } here: plugin status can change while
+    // the settings screen stays open (e.g. after verify/retry), and we must
+    // pick up the fresh value on every recomposition.
+    val plugins = pluginHost.listPlugins()
     if (plugins.isEmpty()) return
     SettingsGrid(
         palette = palette,
@@ -103,23 +106,26 @@ fun BangumiPluginSettingsScreen(
     verifying: Boolean,
     verifyMessage: String,
     verifyMessageIsError: Boolean,
+    lastError: String,
     onBack: () -> Unit,
     onVerify: () -> Unit,
     onDisconnect: () -> Unit,
 ) {
-    val statusColor = remember(pluginInfo.status) { pluginStatusColor(palette, pluginInfo.status) }
+    // statusColor is a cheap `when`; skip remember() to stay correct when
+    // the palette (theme) switches while this screen is composed.
+    val statusColor = pluginStatusColor(palette, pluginInfo.status)
     var showToken by remember { mutableStateOf(false) }
 
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .verticalScroll(rememberScrollState())
             .padding(
                 start = TvDp.ScreenX,
                 top = TvDp.ScreenTop,
                 end = TvDp.ScreenX,
                 bottom = TvDp.ScreenBottom,
-            ),
+            )
+            .verticalScroll(rememberScrollState()),
         verticalArrangement = Arrangement.spacedBy(10.dp),
     ) {
         Row(
@@ -172,7 +178,6 @@ fun BangumiPluginSettingsScreen(
             )
         }
 
-        val lastError = pluginInfo.store.getString("lastError", "")
         if (lastError.isNotBlank()) {
             BasicText(
                 text = "最近错误：$lastError",

@@ -60,7 +60,10 @@ public final class BangumiPlugin implements UserDataSyncPlugin, PlaybackSyncPlug
     /** Consider an episode "watched" when playback crosses 90% of its run time. */
     private static final float WATCHED_THRESHOLD = 0.9f;
     /** Minimum run time (ms) for a progress event to be worth recording. */
+    /** Minimum run time (ms) for a progress event to be worth recording. */
     private static final long MIN_RUN_TIME_MS = 90_000L;
+    private static final int SEARCH_SUBJECT_LIMIT = 5;
+    private static final int LIST_EPISODES_LIMIT = 200;
 
     private final ExecutorService worker = Executors.newSingleThreadExecutor(r -> {
         Thread t = new Thread(r, "bangumi-plugin");
@@ -89,8 +92,9 @@ public final class BangumiPlugin implements UserDataSyncPlugin, PlaybackSyncPlug
     @Override public PluginStatus status(PluginSettingsStore store) {
         String token = store.getString(Keys.TOKEN, "");
         if (token.isBlank()) return PluginStatus.AUTH_REQUIRED;
-        String err = store.getString(Keys.LAST_ERROR, "");
-        if (!err.isBlank()) return PluginStatus.TEMPORARILY_UNAVAILABLE;
+        // Per-item errors live under Keys.FAILED_PREFIX + cacheKey and are
+        // surfaced by the details-screen sync chip. They must not flip the
+        // whole plugin into TEMPORARILY_UNAVAILABLE.
         return PluginStatus.READY;
     }
 
@@ -141,19 +145,29 @@ public final class BangumiPlugin implements UserDataSyncPlugin, PlaybackSyncPlug
     @Override public void onFavoriteChanged(
             PluginSettingsStore store, MediaItemSnapshot item, boolean isFavorite) {
         if (item.kind() == MediaItemSnapshot.Kind.EPISODE) return;
+        if (!isFavorite) {
+            // Jellyfin "favorite" ≠ Bangumi wish-list 1:1. Skip the inverse
+            // because Bangumi has no atomic "remove from collection" API and
+            // setting DONE here would corrupt upstream state for anime the
+            // user has not actually watched. A full two-way sync lives in P1.
+            return;
+        }
         submit(store, () -> {
             long subjectId = resolveSubjectId(store, item, /*persistProviderId=*/ true);
             if (subjectId <= 0) return;
-            int collectionType = isFavorite
-                    ? BangumiApi.SubjectCollectionType.WISH
-                    : BangumiApi.SubjectCollectionType.DONE;
-            api(store).setSubjectCollection(subjectId, collectionType);
+            api(store).setSubjectCollection(subjectId, BangumiApi.SubjectCollectionType.WISH);
         });
     }
 
     @Override public void onWatchedChanged(
             PluginSettingsStore store, MediaItemSnapshot item, boolean isWatched) {
-        if (!isWatched) return;
+        if (!isWatched) {
+            // Bangumi does not expose an atomic "un-mark as watched" verb, and
+            // deleting a collection entry can clear user ratings as a side
+            // effect. Skip the un-mark path until the plugin supports a safe
+            // inverse operation (P1 roadmap).
+            return;
+        }
         String key = BangumiSubjectMatcher.cacheKey(item);
         submit(store, () -> {
             if (item.kind() == MediaItemSnapshot.Kind.EPISODE) {
@@ -204,13 +218,15 @@ public final class BangumiPlugin implements UserDataSyncPlugin, PlaybackSyncPlug
         // the new attempt's result can overwrite it cleanly.
         store.remove(Keys.FAILED_PREFIX + key);
         if (item.kind() == MediaItemSnapshot.Kind.EPISODE) {
-            markEpisodeWatched(store, item);
+            runCatchingIOException(() -> markEpisodeWatched(store, item));
         } else {
-            long subjectId = resolveSubjectId(store, item, /*persistProviderId=*/ true);
-            if (subjectId > 0) {
-                runCatchingIOException(() -> api(store).setSubjectCollection(
-                        subjectId, BangumiApi.SubjectCollectionType.DONE));
-            }
+            runCatchingIOException(() -> {
+                long subjectId = resolveSubjectId(store, item, /*persistProviderId=*/ true);
+                if (subjectId > 0) {
+                    api(store).setSubjectCollection(
+                            subjectId, BangumiApi.SubjectCollectionType.DONE);
+                }
+            });
         }
     }
 
@@ -277,7 +293,7 @@ public final class BangumiPlugin implements UserDataSyncPlugin, PlaybackSyncPlug
         String keyword = BangumiSubjectMatcher.searchKeyword(item);
         if (keyword.isBlank()) return 0L;
         String raw = api(store).searchSubject(
-                keyword, BangumiSubjectMatcher.subjectType(item), 5);
+                keyword, BangumiSubjectMatcher.subjectType(item), SEARCH_SUBJECT_LIMIT);
         List<BangumiJson.SubjectMatch> matches = BangumiJson.parseSearch(raw);
         if (matches.isEmpty()) return 0L;
         long id = matches.get(0).id;
@@ -302,7 +318,7 @@ public final class BangumiPlugin implements UserDataSyncPlugin, PlaybackSyncPlug
         int episodeNo = BangumiSubjectMatcher.episodeNumber(episode);
         if (episodeNo <= 0 || subjectId <= 0) return 0L;
         List<BangumiJson.EpisodeMatch> episodes = BangumiJson.parseEpisodes(
-                api(store).listEpisodes(subjectId, 200));
+                api(store).listEpisodes(subjectId, LIST_EPISODES_LIMIT));
         BangumiJson.EpisodeMatch match = null;
         for (BangumiJson.EpisodeMatch ep : episodes) {
             if (Math.round(ep.sort) == episodeNo) { match = ep; break; }
@@ -348,11 +364,10 @@ public final class BangumiPlugin implements UserDataSyncPlugin, PlaybackSyncPlug
         worker.submit(() -> {
             try {
                 work.run();
-                store.putString(Keys.LAST_ERROR, "");
-            } catch (IOException | RuntimeException exception) {
-                String message = exception.getClass().getSimpleName()
-                        + ": " + exception.getMessage();
-                store.putString(Keys.LAST_ERROR, message);
+            } catch (IOException | RuntimeException ignored) {
+                // Per-item failure diagnostics are written into the item-scoped
+                // Keys.FAILED_PREFIX entry by the specific work block
+                // (markEpisodeWatched etc.), and surfaced through itemSyncStatus.
             }
         });
     }
@@ -361,6 +376,10 @@ public final class BangumiPlugin implements UserDataSyncPlugin, PlaybackSyncPlug
      * Variant of {@link #submit} that runs work inline (never wraps in a
      * worker task) and swallows exceptions. Used by {@link #retrySyncItem}
      * which is already invoked on the plugin host's worker executor.
+     *
+     * <p>Note: {@link #markEpisodeWatched} already writes per-item failures
+     * into the scoped {@code Keys.FAILED_PREFIX + cacheKey} entry, so even
+     * silent failures remain visible to the user via the details sync chip.
      */
     private void runCatchingIOException(ThrowingRunnable work) {
         try {
