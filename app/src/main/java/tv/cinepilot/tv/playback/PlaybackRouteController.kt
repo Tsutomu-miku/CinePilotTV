@@ -160,6 +160,9 @@ class PlaybackRouteController(
         }
         val effectivePlaybackInfo = playbackInfo ?: selectedPlaybackInfo?.takeIf { it.itemId() == item.id() }
         val effectiveTrackSelection = normalizedTrackSelectionFor(item, effectivePlaybackInfo)
+        val auth = workflowController.state().authenticated()
+        val snapshot = auth?.let { item.toSnapshot(it) }
+        val pluginSyncStates = snapshot?.let(pluginHost::itemSyncStatuses).orEmpty()
         // --- compute offline action label/state BEFORE going into runTask
         val offlineInfo = computeOfflineInfo(item)
         val sameCollection = sameCollectionItems.orEmpty()
@@ -168,7 +171,7 @@ class PlaybackRouteController(
                 palette = palette,
                 owner = activity,
                 artworkFactory = artworkFactory,
-                authenticated = workflowController.state().authenticated(),
+                authenticated = auth,
                 item = item,
                 playbackInfo = effectivePlaybackInfo,
                 siblingEpisodes = episodeContext?.episodes() ?: emptyList(),
@@ -176,6 +179,7 @@ class PlaybackRouteController(
                 trackSelection = effectiveTrackSelection,
                 supportedHdrTypes = supportedHdrLabels(),
                 supportedPassthroughCodecs = supportedPassthroughLabels(),
+                pluginSyncStates = pluginSyncStates,
                 onPreparePlayback = { preferences ->
                     preparePlaybackWith(applyTrackSelection(item, preferences))
                 },
@@ -241,6 +245,15 @@ class PlaybackRouteController(
                     }
                 },
                 hasSubtitleSearch = subtitleSearch.hasSubtitleSearch(),
+                onRetryPluginSync = { pluginId ->
+                    if (snapshot != null) {
+                        rerenderAfterUserAction({
+                            pluginHost.retryItemSync(pluginId, snapshot)
+                        }, rerenderOnUiThread = true) { newItem ->
+                            showDetails(newItem, effectivePlaybackInfo, episodeContext, sameCollectionItems)
+                        }
+                    }
+                },
             )
         }
         if (sameCollectionItems == null) {
@@ -1454,11 +1467,22 @@ class PlaybackRouteController(
      * Runs [action] (e.g. `toggleFavorite`) on the currently selected detail item,
      * then re-renders using [rerender] which receives the freshly-updated selected item.
      * Intended for movie/episode detail screens where the workflow already has a selectedItem.
+     *
+     * @param rerenderOnUiThread when true the action is fire-and-forget (no blocking loading
+     *     spinner) and [rerender] is invoked immediately with the currently-selected item.
+     *     Use this for actions like plugin sync retry that are idempotent and where the
+     *     user-facing state change lives in plugin-owned storage, not the workflow state.
      */
     private fun rerenderAfterUserAction(
         action: () -> Unit,
+        rerenderOnUiThread: Boolean = false,
         rerender: (MediaItemSummary) -> Unit,
     ) {
+        if (rerenderOnUiThread) {
+            action()
+            workflowController.state().selectedItem()?.let(rerender)
+            return
+        }
         val before = workflowController.state().selectedItem()
         val auth = workflowController.state().authenticated()
         var updated: MediaItemSummary? = null

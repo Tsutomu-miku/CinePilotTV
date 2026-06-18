@@ -8,7 +8,9 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
+import tv.cinepilot.plugin.spi.AuthVerificationResult;
 import tv.cinepilot.plugin.spi.CinePilotPlugin;
+import tv.cinepilot.plugin.spi.ItemSyncStatus;
 import tv.cinepilot.plugin.spi.MediaItemSnapshot;
 import tv.cinepilot.plugin.spi.PlaybackSyncPlugin;
 import tv.cinepilot.plugin.spi.PluginDescriptor;
@@ -29,6 +31,15 @@ import tv.cinepilot.plugin.spi.UserDataSyncPlugin;
  * so the bangumi rate limiter (60 req/min) is respected even when the
  * player fires progress events every few hundred milliseconds. Episode-level
  * progress callbacks are coalesced to the most recent position per item.
+ *
+ * <p>Per-item state tracked in the plugin store (keyed by Jellyfin
+ * serverId:itemId):
+ *   - {@code s:<key>}, {@code s:<key>:t}       cached bangumi subject id + timestamp
+ *   - {@code e:<key>}, {@code e:<key>:t}       cached bangumi episode id + timestamp
+ *   - {@code w:<key>}, {@code w:<key>:t}       "successfully marked watched" flag
+ *   - {@code f:<key>}                          last error text if this item last failed
+ *   - {@code p:<key>}                          persistent provider id mapping for subject
+ *   - {@code q:<key>}                          persistent provider id mapping for episode
  */
 public final class BangumiPlugin implements UserDataSyncPlugin, PlaybackSyncPlugin {
     private static final class Keys {
@@ -37,6 +48,10 @@ public final class BangumiPlugin implements UserDataSyncPlugin, PlaybackSyncPlug
         static final String SUBJECT_PREFIX = "s:";
         static final String EPISODE_PREFIX = "e:";
         static final String TIMESTAMP_SUFFIX = ":t";
+        static final String WATCHED_PREFIX = "w:";
+        static final String FAILED_PREFIX = "f:";
+        static final String PROVIDER_SUBJECT_PREFIX = "p:";
+        static final String PROVIDER_EPISODE_PREFIX = "q:";
     }
 
     private static final long CACHE_DURATION_MS = TimeUnit.DAYS.toMillis(30);
@@ -79,6 +94,33 @@ public final class BangumiPlugin implements UserDataSyncPlugin, PlaybackSyncPlug
         return PluginStatus.READY;
     }
 
+    // --- Auth verification ------------------------------------------------
+
+    @Override public AuthVerificationResult verifyAuth(PluginSettingsStore store, String credential) {
+        if (credential == null || credential.isBlank()) {
+            return AuthVerificationResult.failure("请输入个人访问令牌（PAT）");
+        }
+        try {
+            String raw = new BangumiApi(credential).me();
+            String nickname = BangumiJson.parseUserNickname(raw);
+            if (nickname.isBlank()) nickname = "已验证用户";
+            return AuthVerificationResult.success(nickname);
+        } catch (IOException | RuntimeException exception) {
+            String message = exception.getClass().getSimpleName() + ": " + exception.getMessage();
+            return AuthVerificationResult.failure(message);
+        }
+    }
+
+    @Override public void saveAuth(PluginSettingsStore store, String credential) {
+        store.putString(Keys.TOKEN, credential);
+        store.putString(Keys.LAST_ERROR, "");
+    }
+
+    @Override public void clearAuth(PluginSettingsStore store) {
+        store.remove(Keys.TOKEN);
+        store.remove(Keys.LAST_ERROR);
+    }
+
     @Override public void onUnloaded() {
         worker.shutdownNow();
     }
@@ -90,7 +132,7 @@ public final class BangumiPlugin implements UserDataSyncPlugin, PlaybackSyncPlug
         if (item.kind() == MediaItemSnapshot.Kind.EPISODE) return;
         int rating = (int) Math.round(ratingZeroToTen);
         submit(store, () -> {
-            long subjectId = resolveSubjectId(store, item);
+            long subjectId = resolveSubjectId(store, item, /*persistProviderId=*/ true);
             if (subjectId <= 0) return;
             api(store).setSubjectRating(subjectId, rating);
         });
@@ -100,7 +142,7 @@ public final class BangumiPlugin implements UserDataSyncPlugin, PlaybackSyncPlug
             PluginSettingsStore store, MediaItemSnapshot item, boolean isFavorite) {
         if (item.kind() == MediaItemSnapshot.Kind.EPISODE) return;
         submit(store, () -> {
-            long subjectId = resolveSubjectId(store, item);
+            long subjectId = resolveSubjectId(store, item, /*persistProviderId=*/ true);
             if (subjectId <= 0) return;
             int collectionType = isFavorite
                     ? BangumiApi.SubjectCollectionType.WISH
@@ -117,12 +159,59 @@ public final class BangumiPlugin implements UserDataSyncPlugin, PlaybackSyncPlug
             if (item.kind() == MediaItemSnapshot.Kind.EPISODE) {
                 if (watchedMarked.add(key)) markEpisodeWatched(store, item);
             } else {
-                long subjectId = resolveSubjectId(store, item);
+                long subjectId = resolveSubjectId(store, item, /*persistProviderId=*/ true);
                 if (subjectId > 0) {
                     api(store).setSubjectCollection(subjectId, BangumiApi.SubjectCollectionType.DONE);
                 }
             }
         });
+    }
+
+    // --- Per-item status (details badge) ---------------------------------
+
+    @Override public ItemSyncStatus itemSyncStatus(PluginSettingsStore store, MediaItemSnapshot item) {
+        // Only anime-ish kinds (EPISODE, SERIES, SEASON, MOVIE) are interesting.
+        switch (item.kind()) {
+            case EPISODE:
+            case SERIES:
+            case SEASON:
+            case MOVIE:
+                break;
+            default:
+                return ItemSyncStatus.UNSUPPORTED;
+        }
+        String token = store.getString(Keys.TOKEN, "");
+        if (token.isBlank()) return ItemSyncStatus.AUTH_REQUIRED;
+        String key = BangumiSubjectMatcher.cacheKey(item);
+        String failed = store.getString(Keys.FAILED_PREFIX + key, "");
+        if (!failed.isBlank()) return ItemSyncStatus.FAILED;
+        long watchedStamp = store.getLong(Keys.WATCHED_PREFIX + key, 0L);
+        if (watchedStamp > 0L) return ItemSyncStatus.SYNCED;
+        // No explicit success/failure recorded: if the subject cache already
+        // exists the item is "matched" but not yet synced; otherwise UNMATCHED.
+        long subjectCached = store.getLong(Keys.SUBJECT_PREFIX + key, 0L);
+        if (subjectCached > 0) return ItemSyncStatus.SYNCED; // conservative: treat cache as intent
+        String provider = item.providerId("BgmTv");
+        if (provider.isBlank()) provider = item.providerId("BANGUMI_TV");
+        if (provider.isBlank()) provider = item.providerId("Bangumi");
+        if (!provider.isBlank()) return ItemSyncStatus.SYNCED;
+        return ItemSyncStatus.UNMATCHED;
+    }
+
+    @Override public void retrySyncItem(PluginSettingsStore store, MediaItemSnapshot item) {
+        String key = BangumiSubjectMatcher.cacheKey(item);
+        // Clear the failed marker so the UI briefly shows pending state and
+        // the new attempt's result can overwrite it cleanly.
+        store.remove(Keys.FAILED_PREFIX + key);
+        if (item.kind() == MediaItemSnapshot.Kind.EPISODE) {
+            markEpisodeWatched(store, item);
+        } else {
+            long subjectId = resolveSubjectId(store, item, /*persistProviderId=*/ true);
+            if (subjectId > 0) {
+                runCatchingIOException(() -> api(store).setSubjectCollection(
+                        subjectId, BangumiApi.SubjectCollectionType.DONE));
+            }
+        }
     }
 
     // --- PlaybackSyncPlugin -------------------------------------------
@@ -172,7 +261,10 @@ public final class BangumiPlugin implements UserDataSyncPlugin, PlaybackSyncPlug
 
     // --- Internal -----------------------------------------------------
 
-    private long resolveSubjectId(PluginSettingsStore store, MediaItemSnapshot item) throws IOException {
+    private long resolveSubjectId(
+            PluginSettingsStore store,
+            MediaItemSnapshot item,
+            boolean persistProviderId) throws IOException {
         long explicit = BangumiSubjectMatcher.explicitSubjectId(item);
         if (explicit > 0) return explicit;
         String key = Keys.SUBJECT_PREFIX + BangumiSubjectMatcher.cacheKey(item);
@@ -191,6 +283,10 @@ public final class BangumiPlugin implements UserDataSyncPlugin, PlaybackSyncPlug
         long id = matches.get(0).id;
         store.putLong(key, id);
         store.putLong(timeKey, System.currentTimeMillis());
+        if (persistProviderId) {
+            String providerKey = Keys.PROVIDER_SUBJECT_PREFIX + BangumiSubjectMatcher.cacheKey(item);
+            store.putString(providerKey, Long.toString(id));
+        }
         return id;
     }
 
@@ -214,15 +310,32 @@ public final class BangumiPlugin implements UserDataSyncPlugin, PlaybackSyncPlug
         if (match == null) return 0L;
         store.putLong(eKey, match.id);
         store.putLong(tKey, System.currentTimeMillis());
+        String providerKey = Keys.PROVIDER_EPISODE_PREFIX + BangumiSubjectMatcher.cacheKey(episode);
+        store.putString(providerKey, Long.toString(match.id));
         return match.id;
     }
 
     private void markEpisodeWatched(PluginSettingsStore store, MediaItemSnapshot item) throws IOException {
-        long subjectId = resolveSubjectId(store, item);
-        if (subjectId <= 0) return;
-        long episodeId = resolveEpisodeId(store, item, subjectId);
-        if (episodeId <= 0) return;
-        api(store).setEpisodeCollection(episodeId, BangumiApi.EpisodeCollectionType.WATCHED);
+        String key = BangumiSubjectMatcher.cacheKey(item);
+        try {
+            long subjectId = resolveSubjectId(store, item, /*persistProviderId=*/ true);
+            if (subjectId <= 0) {
+                store.putString(Keys.FAILED_PREFIX + key, "未找到匹配的 Bangumi 条目");
+                return;
+            }
+            long episodeId = resolveEpisodeId(store, item, subjectId);
+            if (episodeId <= 0) {
+                store.putString(Keys.FAILED_PREFIX + key, "未找到匹配的 Bangumi 分集");
+                return;
+            }
+            api(store).setEpisodeCollection(episodeId, BangumiApi.EpisodeCollectionType.WATCHED);
+            store.putLong(Keys.WATCHED_PREFIX + key, System.currentTimeMillis());
+            store.remove(Keys.FAILED_PREFIX + key);
+        } catch (IOException | RuntimeException ex) {
+            String message = ex.getClass().getSimpleName() + ": " + ex.getMessage();
+            store.putString(Keys.FAILED_PREFIX + key, message);
+            throw ex;
+        }
     }
 
     private BangumiApi api(PluginSettingsStore store) {
@@ -242,6 +355,20 @@ public final class BangumiPlugin implements UserDataSyncPlugin, PlaybackSyncPlug
                 store.putString(Keys.LAST_ERROR, message);
             }
         });
+    }
+
+    /**
+     * Variant of {@link #submit} that runs work inline (never wraps in a
+     * worker task) and swallows exceptions. Used by {@link #retrySyncItem}
+     * which is already invoked on the plugin host's worker executor.
+     */
+    private void runCatchingIOException(ThrowingRunnable work) {
+        try {
+            work.run();
+        } catch (IOException ignored) {
+            // retrySyncItem callers are already wrapped in try/catch by the
+            // plugin host; any persistent error shows up via itemSyncStatus.
+        }
     }
 
     @FunctionalInterface

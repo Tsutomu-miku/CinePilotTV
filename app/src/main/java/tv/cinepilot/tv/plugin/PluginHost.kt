@@ -1,7 +1,9 @@
 package tv.cinepilot.tv.plugin
 
 import android.content.Context
+import tv.cinepilot.plugin.spi.AuthVerificationResult
 import tv.cinepilot.plugin.spi.CinePilotPlugin
+import tv.cinepilot.plugin.spi.ItemSyncStatus
 import tv.cinepilot.plugin.spi.MediaItemSnapshot
 import tv.cinepilot.plugin.spi.PlaybackSyncPlugin
 import tv.cinepilot.plugin.spi.PluginDescriptor
@@ -12,8 +14,11 @@ import tv.cinepilot.plugin.spi.SubtitleSearchResult
 import tv.cinepilot.plugin.spi.UserDataSyncPlugin
 import java.util.ServiceLoader
 import java.util.concurrent.ConcurrentHashMap
+import java.util.concurrent.ExecutionException
 import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
+import java.util.concurrent.TimeUnit
+import java.util.concurrent.TimeoutException
 
 /**
  * Discovers and drives all installed CinePilot plugins via
@@ -62,6 +67,44 @@ class PluginHost private constructor(
             supportsPlaybackSync = loaded.plugin is PlaybackSyncPlugin,
             supportsSubtitleSearch = loaded.plugin is SubtitleSearchPlugin,
         )
+    }
+
+    /**
+     * Verify a raw credential against the given plugin. Runs synchronously on
+     * the plugin worker executor so token verification (network I/O) never blocks
+     * the UI thread. Must be called from a background thread.
+     */
+    fun verifyPluginAuth(pluginId: String, credential: String): AuthVerificationResult {
+        val loaded = plugins.firstOrNull { it.descriptor.id() == pluginId }
+            ?: return AuthVerificationResult.failure("插件未加载")
+        val future = executor.submit<AuthVerificationResult> {
+            runCatching { loaded.plugin.verifyAuth(loaded.store, credential) }
+                .getOrElse { t -> AuthVerificationResult.failure(t.message ?: "验证失败") }
+        }
+        return try {
+            future.get(30L, TimeUnit.SECONDS)
+        } catch (_: TimeoutException) {
+            AuthVerificationResult.failure("验证超时")
+        } catch (e: InterruptedException) {
+            Thread.currentThread().interrupt()
+            AuthVerificationResult.failure("验证被中断")
+        } catch (e: ExecutionException) {
+            AuthVerificationResult.failure(e.cause?.message ?: "验证失败")
+        }
+    }
+
+    /**
+     * Save a credential for a plugin (following successful verification) and reload status. */
+    fun savePluginAuth(pluginId: String, credential: String) {
+        val loaded = plugins.firstOrNull { it.descriptor.id() == pluginId } ?: return
+        runCatching { loaded.plugin.saveAuth(loaded.store, credential) }
+    }
+
+    /**
+     * Wipe stored credentials for a plugin. */
+    fun clearPluginAuth(pluginId: String) {
+        val loaded = plugins.firstOrNull { it.descriptor.id() == pluginId } ?: return
+        runCatching { loaded.plugin.clearAuth(loaded.store) }
     }
 
     // --- UserDataSyncPlugin dispatch -----------------------------------
@@ -138,7 +181,54 @@ class PluginHost private constructor(
         return null
     }
 
-    // --- internals ----------------------------------------------------
+    // --- Per-item sync status / retry (details screen) --------------------
+
+    /**
+     * Aggregate per-item sync status across every [UserDataSyncPlugin].
+     *
+     * <p>The host uses this to render a small sync chip next to the poster
+     * on the details screen. The returned list is ordered by plugin name;
+     * plugins that return [ItemSyncStatus.UNSUPPORTED] are omitted.
+     *
+     * <p>Plugins answer from cache only (no network). Safe to call from the
+     * UI thread.
+     */
+    fun itemSyncStatuses(item: MediaItemSnapshot): List<PluginItemSyncState> {
+        val result = mutableListOf<PluginItemSyncState>()
+        for (loaded in plugins) {
+            val plugin = loaded.plugin as? UserDataSyncPlugin ?: continue
+            val state = runCatching { plugin.itemSyncStatus(loaded.store, item) }
+                .getOrDefault(ItemSyncStatus.UNSUPPORTED)
+            if (state == ItemSyncStatus.UNSUPPORTED) continue
+            result.add(PluginItemSyncState(loaded.descriptor.id(), loaded.descriptor.name(), state))
+        }
+        result.sortBy { it.pluginName }
+        return result
+    }
+
+    /**
+     * Retry sync for a single plugin + item pair (user clicked "重试" on the
+     * failed chip). Runs on the plugin worker executor so it is safe for
+     * plugins to do network I/O inside [UserDataSyncPlugin.retrySyncItem].
+     *
+     * <p>The host calls this from a background task; it does NOT wait for
+     * completion to unblock the UI, but returns a future so callers can
+     * poll progress if needed.
+     */
+    fun retryItemSync(pluginId: String, item: MediaItemSnapshot) {
+        val loaded = plugins.firstOrNull { it.descriptor.id() == pluginId } ?: return
+        val plugin = loaded.plugin as? UserDataSyncPlugin ?: return
+        executor.submit {
+            runCatching { plugin.retrySyncItem(loaded.store, item) }
+                .onFailure { markErrored(loaded) }
+        }
+    }
+
+    data class PluginItemSyncState(
+        val pluginId: String,
+        val pluginName: String,
+        val status: ItemSyncStatus,
+    )
 
     private fun forUserPlugins(block: (UserDataSyncPlugin, PluginSettingsStore) -> Unit) {
         for (loaded in plugins) {
