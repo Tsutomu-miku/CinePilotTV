@@ -95,7 +95,7 @@ internal fun DetailActionFlow(
             .fillMaxWidth()
             .padding(top = 2.dp, bottom = 2.dp),
     ) {
-        itemsIndexed(actions.take(9)) { index, action ->
+        itemsIndexed(actions.take(15)) { index, action ->
             val isPrimary = index == 0
             val progress = if (isPrimary) playbackProgress else 0f
             DetailActionButton(
