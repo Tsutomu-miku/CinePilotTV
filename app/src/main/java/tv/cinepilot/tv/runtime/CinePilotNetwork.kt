@@ -40,9 +40,16 @@ object CinePilotNetwork {
     /**
      * OkHttpClient for video streaming (playback + offline downloads). No HTTP
      * cache — video streams are large, one-time, and would evict everything else.
+     *
+     * The base callTimeout of 60s is intentionally cleared here: direct-play video
+     * streams and offline downloads are single HTTP calls that routinely exceed 60s
+     * while data is actively flowing. `readTimeout` still protects against a silent
+     * server stall, which is the failure mode we actually want to surface.
      */
     fun createStreamingClient(context: Context): OkHttpClient {
-        return baseBuilder(context).build()
+        return baseBuilder(context)
+            .callTimeout(0, TimeUnit.SECONDS)
+            .build()
     }
 
     fun installImageLoader(context: Context, okHttpClient: OkHttpClient) {

@@ -8,6 +8,7 @@ import kotlinx.coroutines.launch
 import tv.cinepilot.core.tv.TvAppState
 import tv.cinepilot.tv.compose.screens.ComposeSettingsScreen
 import tv.cinepilot.tv.compose.theme.CinePilotPalette
+import tv.cinepilot.tv.home.HomeSettings
 import tv.cinepilot.tv.home.HomeSettingsStore
 import tv.cinepilot.tv.ui.TvColors
 
@@ -41,9 +42,12 @@ class SettingsRouteController(
         return true
     }
 
-    private fun render() {
-        val theme = settingsStore.stateFlow.value
-        val homeSettings = homeSettingsStore.stateFlow.value
+    private fun render(
+        themeSnapshot: AppTheme? = null,
+        homeSettingsSnapshot: HomeSettings? = null,
+    ) {
+        val theme = themeSnapshot ?: settingsStore.stateFlow.value
+        val homeSettings = homeSettingsSnapshot ?: homeSettingsStore.stateFlow.value
         TvColors.applyTheme(theme.id)
         renderCompose("设置") { palette ->
             ComposeSettingsScreen(
@@ -55,13 +59,13 @@ class SettingsRouteController(
                         settingsStore.saveThemeAsync(selected)
                     }
                     TvColors.applyTheme(selected.id)
-                    render()
+                    render(themeSnapshot = selected, homeSettingsSnapshot = homeSettings)
                 },
                 onHomeSettings = { next ->
                     activity.lifecycleScope.launch {
                         homeSettingsStore.saveAsync(next)
                     }
-                    render()
+                    render(themeSnapshot = theme, homeSettingsSnapshot = next)
                 },
             )
         }
