@@ -66,10 +66,12 @@ public final class BangumiPlugin implements UserDataSyncPlugin, PlaybackSyncPlug
     /** Consider an episode "watched" when playback crosses 90% of its run time. */
     private static final float WATCHED_THRESHOLD = 0.9f;
     /** Minimum run time (ms) for a progress event to be worth recording. */
-    /** Minimum run time (ms) for a progress event to be worth recording. */
     private static final long MIN_RUN_TIME_MS = 90_000L;
     private static final int SEARCH_SUBJECT_LIMIT = 5;
     private static final int LIST_EPISODES_LIMIT = 200;
+
+    /** Key under which the current auth generation is stored in the plugin settings store. */
+    private static final String AUTH_GEN_KEY = "auth_generation";
 
     private final ExecutorService worker = Executors.newSingleThreadExecutor(r -> {
         Thread t = new Thread(r, "bangumi-plugin");
@@ -124,9 +126,16 @@ public final class BangumiPlugin implements UserDataSyncPlugin, PlaybackSyncPlug
     @Override public void saveAuth(PluginSettingsStore store, String credential) {
         store.putString(Keys.TOKEN, credential);
         store.putString(Keys.LAST_ERROR, "");
+        // Bump the auth generation so any sync tasks queued under a prior PAT
+        // check their generation at execution time and skip the write.
+        bumpAuthGeneration(store);
     }
 
     @Override public void clearAuth(PluginSettingsStore store) {
+        // Bump generation first so queued tasks abort their work even before we
+        // wipe Keys.TOKEN; this prevents a race where a running task reads
+        // TOKEN before the remove() below lands but after the outer cleanup.
+        bumpAuthGeneration(store);
         store.remove(Keys.TOKEN);
         store.remove(Keys.LAST_ERROR);
         // Wipe all per-item sync state when the user rotates credentials:
@@ -153,8 +162,10 @@ public final class BangumiPlugin implements UserDataSyncPlugin, PlaybackSyncPlug
     @Override public void onRatingChanged(
             PluginSettingsStore store, MediaItemSnapshot item, double ratingZeroToTen) {
         if (item.kind() == MediaItemSnapshot.Kind.EPISODE) return;
-        int rating = (int) Math.round(ratingZeroToTen);
+        final long gen = currentAuthGeneration(store);
+        final int rating = (int) Math.round(ratingZeroToTen);
         submit(store, () -> {
+            if (!authGenerationMatches(store, gen)) return;
             long subjectId = resolveSubjectId(store, item, /*persistProviderId=*/ true);
             if (subjectId <= 0) return;
             api(store).setSubjectRating(subjectId, rating);
@@ -171,7 +182,9 @@ public final class BangumiPlugin implements UserDataSyncPlugin, PlaybackSyncPlug
             // user has not actually watched. A full two-way sync lives in P1.
             return;
         }
+        final long gen = currentAuthGeneration(store);
         submit(store, () -> {
+            if (!authGenerationMatches(store, gen)) return;
             long subjectId = resolveSubjectId(store, item, /*persistProviderId=*/ true);
             if (subjectId <= 0) return;
             api(store).setSubjectCollection(subjectId, BangumiApi.SubjectCollectionType.WISH);
@@ -188,14 +201,27 @@ public final class BangumiPlugin implements UserDataSyncPlugin, PlaybackSyncPlug
             return;
         }
         String key = BangumiSubjectMatcher.cacheKey(item);
+        final long gen = currentAuthGeneration(store);
         submit(store, () -> {
+            if (!authGenerationMatches(store, gen)) return;
             if (item.kind() == MediaItemSnapshot.Kind.EPISODE) {
                 if (watchedMarked.add(key)) markEpisodeWatched(store, item);
             } else {
-                long subjectId = resolveSubjectId(store, item, /*persistProviderId=*/ true);
-                if (subjectId > 0) {
-                    api(store).setSubjectCollection(subjectId, BangumiApi.SubjectCollectionType.DONE);
+                try {
+                    long subjectId = resolveSubjectId(store, item, /*persistProviderId=*/ true);
+                    if (subjectId <= 0) {
+                        store.putString(Keys.FAILED_PREFIX + key,
+                                "未找到匹配的 Bangumi 条目");
+                        return;
+                    }
+                    api(store).setSubjectCollection(subjectId,
+                            BangumiApi.SubjectCollectionType.DONE);
                     store.putLong(Keys.USER_DONE_PREFIX + key, System.currentTimeMillis());
+                    store.remove(Keys.FAILED_PREFIX + key);
+                } catch (IOException | RuntimeException ex) {
+                    String message = ex.getClass().getSimpleName() + ": " + ex.getMessage();
+                    store.putString(Keys.FAILED_PREFIX + key, message);
+                    throw ex;
                 }
             }
         });
@@ -272,7 +298,9 @@ public final class BangumiPlugin implements UserDataSyncPlugin, PlaybackSyncPlug
         if (!last.compareAndSet(prev, now)) return;
         float ratio = durationMs <= 0 ? 0f : (float) positionMs / durationMs;
         if (ratio < WATCHED_THRESHOLD) return;
+        final long gen = currentAuthGeneration(store);
         submit(store, () -> {
+            if (!authGenerationMatches(store, gen)) return;
             if (watchedMarked.add(key)) markEpisodeWatched(store, item);
         });
     }
@@ -288,7 +316,9 @@ public final class BangumiPlugin implements UserDataSyncPlugin, PlaybackSyncPlug
         lastProgressAt.remove(key);
         float ratio = durationMs <= 0 ? 0f : (float) finalPositionMs / durationMs;
         if (ratio < WATCHED_THRESHOLD) return;
+        final long gen = currentAuthGeneration(store);
         submit(store, () -> {
+            if (!authGenerationMatches(store, gen)) return;
             if (watchedMarked.add(key)) markEpisodeWatched(store, item);
         });
     }
@@ -301,6 +331,21 @@ public final class BangumiPlugin implements UserDataSyncPlugin, PlaybackSyncPlug
             boolean persistProviderId) throws IOException {
         long explicit = BangumiSubjectMatcher.explicitSubjectId(item);
         if (explicit > 0) return explicit;
+        // Persistent provider-id mapping written by a prior successful match.
+        // Consult this BEFORE the 30-day volatile (s:) cache so the user's
+        // manual override or a past fuzzy match survives cache expiry without
+        // ever re-running search (and potentially mis-matching a re-titled item).
+        String providerKey = Keys.PROVIDER_SUBJECT_PREFIX + BangumiSubjectMatcher.cacheKey(item);
+        String providerIdStr = store.getString(providerKey, "");
+        if (!providerIdStr.isBlank()) {
+            try {
+                long id = Long.parseLong(providerIdStr);
+                if (id > 0) return id;
+            } catch (NumberFormatException ignored) {
+                // fall through to the cache/search path and, on success, the
+                // caller will overwrite the malformed value via persistProviderId.
+            }
+        }
         String key = Keys.SUBJECT_PREFIX + BangumiSubjectMatcher.cacheKey(item);
         String timeKey = key + Keys.TIMESTAMP_SUFFIX;
         long cached = store.getLong(key, 0L);
@@ -318,7 +363,6 @@ public final class BangumiPlugin implements UserDataSyncPlugin, PlaybackSyncPlug
         store.putLong(key, id);
         store.putLong(timeKey, System.currentTimeMillis());
         if (persistProviderId) {
-            String providerKey = Keys.PROVIDER_SUBJECT_PREFIX + BangumiSubjectMatcher.cacheKey(item);
             store.putString(providerKey, Long.toString(id));
         }
         return id;
@@ -326,6 +370,19 @@ public final class BangumiPlugin implements UserDataSyncPlugin, PlaybackSyncPlug
 
     private long resolveEpisodeId(
             PluginSettingsStore store, MediaItemSnapshot episode, long subjectId) throws IOException {
+        // Persistent per-item provider-id mapping for episodes. Survives the
+        // 30-day volatile (e:) cache the same way PROVIDER_SUBJECT_PREFIX does
+        // for subjects.
+        String providerKey = Keys.PROVIDER_EPISODE_PREFIX + BangumiSubjectMatcher.cacheKey(episode);
+        String providerIdStr = store.getString(providerKey, "");
+        if (!providerIdStr.isBlank()) {
+            try {
+                long id = Long.parseLong(providerIdStr);
+                if (id > 0) return id;
+            } catch (NumberFormatException ignored) {
+                // fall through to list-and-match, which will overwrite the key.
+            }
+        }
         String eKey = Keys.EPISODE_PREFIX + BangumiSubjectMatcher.cacheKey(episode);
         String tKey = eKey + Keys.TIMESTAMP_SUFFIX;
         long cached = store.getLong(eKey, 0L);
@@ -344,7 +401,6 @@ public final class BangumiPlugin implements UserDataSyncPlugin, PlaybackSyncPlug
         if (match == null) return 0L;
         store.putLong(eKey, match.id);
         store.putLong(tKey, System.currentTimeMillis());
-        String providerKey = Keys.PROVIDER_EPISODE_PREFIX + BangumiSubjectMatcher.cacheKey(episode);
         store.putString(providerKey, Long.toString(match.id));
         return match.id;
     }
@@ -376,6 +432,35 @@ public final class BangumiPlugin implements UserDataSyncPlugin, PlaybackSyncPlug
         String token = store.getString(Keys.TOKEN, "");
         if (token.isBlank()) throw new IllegalStateException("bangumi access token not set");
         return new BangumiApi(token);
+    }
+
+    /**
+     * Read the current auth generation. The generation is bumped on any
+     * credential rotation (saveAuth / clearAuth) so queued tasks that
+     * were submitted under a prior account can detect the shift.
+     */
+    private static long currentAuthGeneration(PluginSettingsStore store) {
+        return store.getLong(AUTH_GEN_KEY, 0L);
+    }
+
+    /**
+     * Bump the auth generation by one. Invoked from any credential-change
+     * path; writes are serialized via the SharedPreferences editor inside a
+     * single store.putLong call.
+     */
+    private static void bumpAuthGeneration(PluginSettingsStore store) {
+        store.putLong(AUTH_GEN_KEY, currentAuthGeneration(store) + 1L);
+    }
+
+    /**
+     * Generation check at the start of every queued sync task. Returns true
+     * only if the current stored generation still matches the value snapped
+     * when the task was submitted. A mismatch means the user rotated or
+     * removed the PAT while this task was pending; abort to avoid cross-
+     * account writes.
+     */
+    private static boolean authGenerationMatches(PluginSettingsStore store, long capturedAtSubmit) {
+        return currentAuthGeneration(store) == capturedAtSubmit;
     }
 
     private void submit(PluginSettingsStore store, ThrowingRunnable work) {
