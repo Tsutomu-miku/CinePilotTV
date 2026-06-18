@@ -41,6 +41,13 @@ class SettingsRouteController(
     private var pluginVerifying = false
     private var pluginVerifyMessage = ""
     private var pluginVerifyIsError = false
+    /**
+     * Bumped whenever the plugin auth context changes (disconnect, closeIfVisible,
+     * clear of the plugin sub-screen, plugin change). Any in-flight verification uses this
+     * snapshots the value at enqueue time and bails out if the epoch has shifted
+     * by the time verification completes, so a "先点断开连接 races with pending /me.
+     */
+    private var pluginAuthEpoch: Long = 0L
 
     fun show(state: TvAppState) {
         returnState = state
@@ -64,6 +71,7 @@ class SettingsRouteController(
             pluginVerifying = false
             pluginVerifyMessage = ""
             pluginVerifyIsError = false
+            pluginAuthEpoch++ // cancel any in-flight verification for this plugin
             render()
             return true
         }
@@ -152,27 +160,37 @@ class SettingsRouteController(
             render()
             return
         }
+        // Snapshot the auth epoch and the current plugin id. If the user
+        // disconnects, navigates away, or switches plugins while the /me
+        // round-trip is in flight, we skip both savePluginAuth and the
+        // success banner when the result lands.
+        val epochAtStart = pluginAuthEpoch
+        val pluginIdAtStart = plugin.descriptor.id()
         pluginVerifying = true
         pluginVerifyMessage = ""
         pluginVerifyIsError = false
         render()
-        // Holder is captured by both lambdas. Writes happen on the task
-        // (background) thread; reads happen inside onSuccess which the
-        // task-runner dispatches on the main thread with a happens-before
-        // edge, so visibility is guaranteed without @Volatile.
         val resultHolder = arrayOfNulls<AuthVerificationResult>(1)
         runSilentTask(
             {
                 val result: AuthVerificationResult = pluginHost.verifyPluginAuth(
-                    plugin.descriptor.id(), token)
-                if (result.isOk) {
-                    pluginHost.savePluginAuth(plugin.descriptor.id(), token)
+                    pluginIdAtStart, token)
+                if (result.isOk && pluginAuthEpoch == epochAtStart &&
+                    pluginIdAtStart == activePlugin?.descriptor?.id() &&
+                    token == pluginToken.trim()) {
+                    pluginHost.savePluginAuth(pluginIdAtStart, token)
                 }
                 resultHolder[0] = result
             },
             {
                 pluginVerifying = false
                 val result = resultHolder[0] ?: AuthVerificationResult.failure("")
+                // If the auth epoch or active plugin changed while the
+                // request was in flight, silently drop the result.
+                if (pluginAuthEpoch != epochAtStart ||
+                    activePlugin?.descriptor?.id() != pluginIdAtStart) {
+                    return@runSilentTask
+                }
                 pluginVerifyIsError = !result.isOk
                 pluginVerifyMessage = when {
                     result.isOk -> buildString {
@@ -187,18 +205,21 @@ class SettingsRouteController(
                     result.message().isNotBlank() -> result.message()
                     else -> "验证失败"
                 }
-                activePlugin = freshPluginInfo(plugin.descriptor.id())
-                // Refresh lastError so error paragraphs + banner stay in sync
-                // with what the plugin wrote during verify/saveAuth.
+                activePlugin = freshPluginInfo(pluginIdAtStart)
                 activePluginLastError = activePlugin?.store
                     ?.getString("lastError", "") ?: ""
                 render()
             },
             { error ->
-                pluginVerifying = false
-                pluginVerifyIsError = true
-                pluginVerifyMessage = error.message ?: "验证失败"
-                render()
+                // Same epoch check as onSuccess: only surface error if the
+                // verify attempt still matches the current plugin context.
+                if (pluginAuthEpoch == epochAtStart &&
+                    activePlugin?.descriptor?.id() == pluginIdAtStart) {
+                    pluginVerifying = false
+                    pluginVerifyIsError = true
+                    pluginVerifyMessage = error.message ?: "验证失败"
+                    render()
+                }
             },
         )
     }
@@ -210,6 +231,7 @@ class SettingsRouteController(
         pluginVerifyMessage = "已断开连接，令牌已删除。"
         pluginVerifyIsError = false
         activePluginLastError = ""
+        pluginAuthEpoch++ // cancel any pending verify for this plugin context
         activePlugin = freshPluginInfo(plugin.descriptor.id())
         render()
     }
