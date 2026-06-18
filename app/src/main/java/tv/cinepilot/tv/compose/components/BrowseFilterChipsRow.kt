@@ -1,6 +1,7 @@
 package tv.cinepilot.tv.compose.components
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.focusable
 import androidx.compose.foundation.interaction.MutableInteractionSource
@@ -182,21 +183,31 @@ private fun FilterChip(
         active -> palette.accentStrong.copy(alpha = 0.18f)
         else -> palette.glass
     }
-    val border = when {
-        focused -> palette.focusRing
-        active -> palette.accentStrong
-        else -> palette.glassBorder
-    }
     val text = when {
         focused -> palette.textPrimary
         active -> palette.accentStrong
-        else -> palette.textSecondary
+        else -> palette.textPrimary.copy(alpha = 0.85f)
+    }
+    val borderWidth = when {
+        focused -> TvDp.FocusRing
+        active -> 1.2.dp
+        else -> 0.6.dp
+    }
+    val borderColor = when {
+        focused -> palette.focusRing
+        active -> palette.accentStrong.copy(alpha = 0.75f)
+        else -> palette.glassBorder.copy(alpha = 0.55f)
     }
     Box(
         modifier = Modifier
             .height(ChipHeight)
             .clip(RoundedCornerShape(TvDp.ControlRadius))
             .background(fill)
+            .border(
+                width = borderWidth,
+                color = borderColor,
+                shape = RoundedCornerShape(TvDp.ControlRadius),
+            )
             .onFocusChanged { focused = it.isFocused }
             .focusable(interactionSource = remember { MutableInteractionSource() })
             .clickable(

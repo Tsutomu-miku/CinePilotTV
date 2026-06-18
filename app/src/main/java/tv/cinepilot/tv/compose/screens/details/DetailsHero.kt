@@ -49,10 +49,10 @@ import tv.cinepilot.tv.runtime.ArtworkTarget
 
 // ── Hero / poster constants ─────────────────────────────────────────────
 
-private val DetailPosterWidth = 200.dp
-private val DetailPosterHeight = 300.dp
-private const val POSTER_REQ_WIDTH_PX = 420
-private const val POSTER_REQ_HEIGHT_PX = 630
+private val DetailPosterWidth = 176.dp
+private val DetailPosterHeight = 264.dp
+private const val POSTER_REQ_WIDTH_PX = 352
+private const val POSTER_REQ_HEIGHT_PX = 528
 
 private val DetailTitleSize = 32.sp
 private val DetailMetaSize = 12.sp
@@ -81,7 +81,7 @@ internal fun DetailsHero(
     onRetryPluginSync: (String) -> Unit,
 ) {
     Row(
-        horizontalArrangement = Arrangement.spacedBy(20.dp),
+        horizontalArrangement = Arrangement.spacedBy(16.dp),
         verticalAlignment = Alignment.Top,
         modifier = Modifier.fillMaxWidth(),
     ) {
@@ -137,7 +137,7 @@ internal fun DetailsHero(
                     lineHeight = (DetailTitleSize.value * 1.15f).sp,
                 ),
             )
-            Spacer(Modifier.height(8.dp))
+            Spacer(Modifier.height(6.dp))
             if (contextLine.isNotBlank()) {
                 BasicText(
                     text = contextLine,
@@ -148,11 +148,11 @@ internal fun DetailsHero(
                         fontSize = DetailMetaSize,
                     ),
                 )
-                Spacer(Modifier.height(10.dp))
+                Spacer(Modifier.height(7.dp))
             }
             if (qualityBadges.isNotEmpty()) {
                 MetadataPills(badges = qualityBadges, palette = palette)
-                Spacer(Modifier.height(10.dp))
+                Spacer(Modifier.height(7.dp))
             }
             // 评分徽章行（TMDB / 豆瓣 / IMDB）
             item.communityRating()?.let { rating ->
@@ -162,7 +162,7 @@ internal fun DetailsHero(
                     hasTmdb = (item.tmdbId() ?: "").isNotBlank(),
                     hasImdb = (item.imdbId() ?: "").isNotBlank(),
                 )
-                Spacer(Modifier.height(12.dp))
+                Spacer(Modifier.height(7.dp))
             }
             if (providerBadges.isNotEmpty()) {
                 ProviderBadgeFlow(
@@ -170,7 +170,7 @@ internal fun DetailsHero(
                     palette = palette,
                     onClick = onProviderBadgeClick,
                 )
-                Spacer(Modifier.height(8.dp))
+                Spacer(Modifier.height(6.dp))
             }
             if (pluginSyncStates.isNotEmpty()) {
                 PluginSyncStatusRow(
@@ -178,7 +178,7 @@ internal fun DetailsHero(
                     palette = palette,
                     onRetry = onRetryPluginSync,
                 )
-                Spacer(Modifier.height(10.dp))
+                Spacer(Modifier.height(7.dp))
             }
             if (actions.isNotEmpty()) {
                 DetailActionFlow(
@@ -262,8 +262,8 @@ private fun PluginSyncChip(
         .clip(RoundedCornerShape(8.dp))
         .background(bg)
         .border(
-            width = if (focused) TvDp.FocusRing else 0.6.dp,
-            color = if (focused) palette.focusRing else color.copy(alpha = 0.75f),
+            width = if (focused) TvDp.FocusRing else 1.dp,
+            color = if (focused) palette.focusRing else color.copy(alpha = 0.95f),
             shape = RoundedCornerShape(8.dp),
         )
         .padding(horizontal = 10.dp)

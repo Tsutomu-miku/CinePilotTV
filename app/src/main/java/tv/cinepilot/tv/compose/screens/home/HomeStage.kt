@@ -41,23 +41,16 @@ internal fun HomeWallStage(
                 modifier = Modifier.fillMaxSize(),
             )
         }
-        // 整体暗化遮罩
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .background(palette.scrim.copy(alpha = 0.78f)),
-        )
-        // 左侧渐变：更宽、过渡更柔和
+        // 整体暗化 + 左侧渐变：合成一层减少 overdraw
         Box(
             modifier = Modifier
                 .fillMaxSize()
                 .background(
                     Brush.horizontalGradient(
-                        0.0f to palette.background.copy(alpha = 0.96f),
-                        0.35f to palette.background.copy(alpha = 0.82f),
-                        0.6f to palette.background.copy(alpha = 0.5f),
-                        0.85f to palette.background.copy(alpha = 0.18f),
-                        1.0f to palette.background.copy(alpha = 0.05f),
+                        0.0f to palette.background.copy(alpha = 0.97f),
+                        0.35f to palette.background.copy(alpha = 0.88f),
+                        0.7f to palette.background.copy(alpha = 0.78f),
+                        1.0f to palette.background.copy(alpha = 0.62f),
                     ),
                 ),
         )

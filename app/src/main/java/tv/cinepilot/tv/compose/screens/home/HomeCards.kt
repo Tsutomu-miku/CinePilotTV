@@ -143,8 +143,8 @@ internal fun HomeArtworkCard(
             )
             .background(palette.posterFallback, shape)
             .border(
-                width = if (focused) TvDp.FocusRing else 0.5.dp,
-                color = if (focused) palette.focusRing else palette.glassBorder,
+                width = if (focused) TvDp.FocusRing else 1.dp,
+                color = if (focused) palette.focusRing else palette.glassBorder.copy(alpha = 0.5f),
                 shape = shape,
             ),
     ) {
@@ -155,7 +155,12 @@ internal fun HomeArtworkCard(
             modifier = Modifier.fillMaxSize(),
         )
 
-        // 底部渐变遮罩：更自然的过渡
+        // 聚焦时的淡色高亮蒙层，提升"选中态"的可见度
+        if (focused) {
+            Box(Modifier.fillMaxSize().background(Color.White.copy(alpha = 0.08f)))
+        }
+
+        // 底部渐变遮罩
         Box(
             modifier = Modifier
                 .align(Alignment.BottomCenter)
@@ -164,8 +169,7 @@ internal fun HomeArtworkCard(
                 .background(
                     Brush.verticalGradient(
                         0.0f to palette.background.copy(alpha = 0.0f),
-                        0.35f to palette.background.copy(alpha = 0.35f),
-                        0.7f to palette.background.copy(alpha = 0.75f),
+                        0.5f to palette.background.copy(alpha = 0.55f),
                         1.0f to palette.background.copy(alpha = 0.95f),
                     ),
                 ),
@@ -347,7 +351,7 @@ internal fun HomeCollectionCard(
 
     val glowModifier = if (focused) {
         Modifier.shadow(
-            elevation = 12.dp,
+            elevation = 16.dp,
             shape = shape,
             spotColor = palette.focusGlow,
             ambientColor = palette.focusGlow,
@@ -370,8 +374,8 @@ internal fun HomeCollectionCard(
             )
             .background(palette.posterFallback, shape)
             .border(
-                width = if (focused) TvDp.FocusRing else 0.5.dp,
-                color = if (focused) palette.focusRing else palette.glassBorder.copy(alpha = 0.4f),
+                width = if (focused) TvDp.FocusRing else 1.dp,
+                color = if (focused) palette.focusRing else palette.glassBorder.copy(alpha = 0.65f),
                 shape = shape,
             ),
         contentAlignment = Alignment.Center,

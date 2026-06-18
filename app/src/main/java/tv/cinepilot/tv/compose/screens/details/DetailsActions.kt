@@ -67,10 +67,10 @@ import tv.cinepilot.tv.ui.isEpisode
 
 // ── Action button constants ─────────────────────────────────────────────
 
-private val ActionButtonWidth = 92.dp
-private val ActionButtonHeight = 88.dp
-private val ActionButtonIconSize = 26.dp
-private val ActionButtonGap = 10.dp
+private val ActionButtonWidth = 80.dp
+private val ActionButtonHeight = 76.dp
+private val ActionButtonIconSize = 22.dp
+private val ActionButtonGap = 8.dp
 private val ActionButtonProgressHeight = 3.dp
 
 // ── Detail action data model ────────────────────────────────────────────
@@ -92,8 +92,7 @@ internal fun DetailActionFlow(
     LazyRow(
         horizontalArrangement = Arrangement.spacedBy(ActionButtonGap),
         modifier = Modifier
-            .fillMaxWidth()
-            .padding(top = 2.dp, bottom = 2.dp),
+            .fillMaxWidth(),
     ) {
         itemsIndexed(actions.take(15)) { index, action ->
             val isPrimary = index == 0
@@ -131,17 +130,22 @@ private fun DetailActionButton(
         else -> palette.glass
     }
     val textColor = when {
-        primary -> Color.White
+        primary -> palette.focusText
         focused -> palette.textPrimary
         else -> palette.textSecondary
     }
     val borderColor = when {
-        primary -> palette.accentStrong
+        primary -> if (focused) palette.focusRing else palette.accentStrong.copy(alpha = 0.9f)
         focused -> palette.focusRing
-        else -> palette.glassBorder
+        else -> palette.glassBorder.copy(alpha = 0.55f)
+    }
+    val borderWidth = when {
+        focused -> TvDp.FocusRing
+        primary -> 1.2.dp
+        else -> 1.dp
     }
     val iconColor = when {
-        primary -> Color.White
+        primary -> palette.focusText
         focused -> palette.accentStrong
         else -> palette.textSecondary
     }
@@ -179,7 +183,7 @@ private fun DetailActionButton(
             .clip(RoundedCornerShape(TvDp.ControlRadius))
             .background(bgColor)
             .border(
-                if (focused) TvDp.FocusRing else 0.5.dp,
+                borderWidth,
                 borderColor,
                 RoundedCornerShape(TvDp.ControlRadius),
             ),
@@ -189,7 +193,7 @@ private fun DetailActionButton(
             verticalArrangement = Arrangement.Center,
             modifier = Modifier
                 .fillMaxSize()
-                .padding(vertical = 10.dp),
+                .padding(vertical = 7.dp),
         ) {
             Image(
                 imageVector = icon,
@@ -198,14 +202,14 @@ private fun DetailActionButton(
                 modifier = Modifier
                     .size(ActionButtonIconSize),
             )
-            Spacer(Modifier.height(6.dp))
+            Spacer(Modifier.height(3.dp))
             BasicText(
                 text = label,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
                 style = TextStyle(
                     color = textColor,
-                    fontSize = 11.sp,
+                    fontSize = 10.5.sp,
                     fontWeight = if (primary) FontWeight.Bold else FontWeight.Medium,
                 ),
             )
@@ -223,9 +227,7 @@ private fun DetailActionButton(
                     modifier = Modifier
                         .fillMaxHeight()
                         .fillMaxWidth(progress)
-                        .background(
-                            if (primary) Color.White else palette.accentStrong
-                        ),
+                        .background(palette.focusText),
                 )
             }
         }

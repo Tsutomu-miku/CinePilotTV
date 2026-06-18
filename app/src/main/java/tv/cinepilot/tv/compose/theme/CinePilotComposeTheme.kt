@@ -31,15 +31,15 @@ object CinePilotComposeTheme {
             AppTheme.JELLYFIN -> defaultPalette(
                 accent = Color(0xFF38BDF8),
                 accentStrong = Color(0xFF7DD3FC),
-                focusRing = Color(0xFFBAE6FD),
-                focusGlow = Color(0x55BAE6FD),
+                focusRing = Color(0xFFD7F1FE),
+                focusGlow = Color(0x77BAE6FD),
                 focusText = Color(0xFF02121E),
             )
             AppTheme.EMBY -> defaultPalette(
                 accent = Color(0xFF84CC16),
                 accentStrong = Color(0xFFBEF264),
-                focusRing = Color(0xFFBBF7D0),
-                focusGlow = Color(0x55BBF7D0),
+                focusRing = Color(0xFFDCFCE6),
+                focusGlow = Color(0x77BBF7D0),
                 focusText = Color(0xFF05160C),
             )
             AppTheme.INFUSE -> defaultPalette(
@@ -48,8 +48,8 @@ object CinePilotComposeTheme {
                 glassFocus = Color(0xC4121722),
                 accent = Color(0xFF9AB9FF),
                 accentStrong = Color(0xFFEEF4FF),
-                focusRing = Color(0xFFE0EBFF),
-                focusGlow = Color(0x55E0EBFF),
+                focusRing = Color(0xFFEEF4FF),
+                focusGlow = Color(0x77E0EBFF),
                 focusText = Color(0xFF050B18),
                 textSecondary = Color(0xFFD7DEEE),
                 textMuted = Color(0xFF8E98AE),
@@ -64,8 +64,8 @@ object CinePilotComposeTheme {
         glassFocus: Color = Color(0xE0262E42),
         accent: Color = Color(0xFF3B82F6),
         accentStrong: Color = Color(0xFF60A5FA),
-        focusRing: Color = Color(0xFF93C5FD),
-        focusGlow: Color = Color(0x4460A5FA),
+        focusRing: Color = Color(0xFFC4DDFE),
+        focusGlow: Color = Color(0x66A0C8FF),
         focusText: Color = Color(0xFF0A162E),
         textSecondary: Color = Color(0xFFE2E8F0),
         textMuted: Color = Color(0xFF94A3B8),
@@ -98,8 +98,8 @@ object TvDp {
     val PosterHeight: Dp = 158.dp
     val LandscapeWidth: Dp = 176.dp
     val LandscapeHeight: Dp = 99.dp
-    val ContinueWidth: Dp = 223.dp
-    val ContinueHeight: Dp = 97.dp
+    val ContinueWidth: Dp = 224.dp
+    val ContinueHeight: Dp = 126.dp
     val DetailPosterWidth: Dp = 140.dp
     val DetailPosterHeight: Dp = 205.dp
     val ControlHeight: Dp = 42.dp
@@ -112,7 +112,7 @@ object TvDp {
     val PlayerSettingsPanelWidth: Dp = 344.dp
     val NextUpWidth: Dp = 344.dp
     val PlayerControlHeight: Dp = 44.dp
-    val FocusRing: Dp = 2.dp
+    val FocusRing: Dp = 3.dp
     val PanelRadius: Dp = 16.dp
     val ControlRadius: Dp = 14.dp
     val CardRadius: Dp = 14.dp

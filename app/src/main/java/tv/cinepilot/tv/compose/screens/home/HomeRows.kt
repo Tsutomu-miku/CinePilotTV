@@ -66,6 +66,7 @@ internal fun HomeMediaRow(
     val style = presentation.visualStyle
     val railState = rememberLazyListState()
     val itemCount by remember { derivedStateOf { row.items().size } }
+    val authenticated = state.authenticated()
 
     LaunchedEffect(focusedRowIndexState.value, focusedItemIndexState.value, itemCount) {
         if (isFocusedRow && focusedItemIndex >= 0 && itemCount > 0) {
@@ -156,7 +157,7 @@ internal fun HomeMediaRow(
                     }
                     val artwork = rememberArtworkRequest(
                         factory = artworkFactory,
-                        authenticated = state.authenticated(),
+                        authenticated = authenticated,
                         item = item,
                         target = artworkTarget,
                         width = when (artworkTarget) {

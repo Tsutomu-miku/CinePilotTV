@@ -111,7 +111,11 @@ class MainActivity : ComponentActivity() {
             showHome = ::showHome,
             showError = ::showError,
         )
-        tv.cinepilot.tv.home.channel.HomeChannelInitializeReceiver.ensureScheduled(this)
+        // 桌面媒体通道 / HomeChannel 的首次调度涉及 JobScheduler /
+        // AlarmManager 的 IPC，抛到后台单线程执行避免阻塞首帧
+        executor.execute {
+            tv.cinepilot.tv.home.channel.HomeChannelInitializeReceiver.ensureScheduled(this@MainActivity)
+        }
         authRoutes = AuthRouteController(
             activity = this,
             workflowController = viewModel.workflowController,

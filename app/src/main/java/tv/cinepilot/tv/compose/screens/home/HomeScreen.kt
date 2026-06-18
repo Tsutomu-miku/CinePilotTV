@@ -13,7 +13,9 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.unit.dp
@@ -65,32 +67,54 @@ fun ComposeHomeScreen(
         Array(displayRows.size.coerceAtLeast(1)) { FocusRequester() }
     }
 
+    // 首次 rows 从空变为非空时，只做一次初始聚焦，避免每一次重排都重新触发 focus 调度。
+    var initialFocusBootstrapped by remember(displayRows) { mutableStateOf(false) }
     // Request initial focus on the appropriate rail when rows become available.
     LaunchedEffect(displayRows.size) {
-        if (displayRows.isNotEmpty()) {
+        if (!initialFocusBootstrapped && displayRows.isNotEmpty()) {
             delay(50)
             val targetRow = initialAddress.rowIndex.coerceIn(0, displayRows.lastIndex)
             runCatching { railFocusRequesters[targetRow].requestFocus() }
+            initialFocusBootstrapped = true
         }
     }
 
     LaunchedEffect(focusedRowIndex, displayRows.size) {
         if (focusedRowIndex >= 0 && displayRows.isNotEmpty()) {
             val rowListIndex = focusedRowIndex + 1
-            val visibleIndexes = columnState.layoutInfo.visibleItemsInfo.map { item -> item.index }
-            if (rowListIndex !in visibleIndexes) {
+            val visible = columnState.layoutInfo.visibleItemsInfo
+            val firstVisible = visible.firstOrNull()?.index ?: 0
+            val lastVisible = visible.lastOrNull()?.index ?: firstVisible
+            // 只有目标行真正落到视窗之外时才 scroll，避免每次焦点变更都读 layoutInfo 再触发滚动
+            if (rowListIndex < firstVisible || rowListIndex > lastVisible) {
                 val targetListIndex = if (focusedRowIndex <= 1) 0 else rowListIndex - 1
                 columnState.scrollToItem(targetListIndex.coerceAtLeast(0))
             }
         }
     }
 
-    LaunchedEffect(focusedRowIndex, focusedItemIndex, displayRows) {
-        delay(150)
-        backdropItem = displayRows
-            .getOrNull(focusedRowIndex)
-            ?.items()
-            ?.getOrNull(focusedItemIndex)
+    // backdrop 切换防抖：快速切焦点时不频繁加载图片，停顿 150ms 以上才更新
+    val focusedAddressState = rememberUpdatedState(focusedRowIndex to focusedItemIndex)
+    LaunchedEffect(Unit) {
+        var lastRow = -1
+        var lastItem = -1
+        while (true) {
+            val (r, i) = focusedAddressState.value
+            if (r != lastRow || i != lastItem) {
+                delay(150)
+                val (rr, ii) = focusedAddressState.value
+                if (rr != lastRow || ii != lastItem) {
+                    lastRow = rr
+                    lastItem = ii
+                    backdropItem = displayRows
+                        .getOrNull(rr)
+                        ?.items()
+                        ?.getOrNull(ii)
+                }
+            } else {
+                delay(50)
+            }
+        }
     }
 
     /**

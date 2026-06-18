@@ -66,28 +66,12 @@ fun ComposePlaybackSettingsScreen(
             update = { host -> host.attachPlayerView(playerView) },
             modifier = Modifier.fillMaxSize(),
         )
-        // Bottom gradient mask
-        Box(
-            modifier = Modifier
-                .align(Alignment.BottomCenter)
-                .fillMaxWidth()
-                .height(180.dp)
-                .background(
-                    Brush.verticalGradient(
-                        listOf(
-                            Color.Transparent,
-                            Color.Black.copy(alpha = 0.5f),
-                            Color.Black.copy(alpha = 0.8f),
-                        ),
-                    ),
-                ),
-        )
         // Right settings panel container
         Box(
             modifier = Modifier
                 .align(Alignment.TopEnd)
                 .fillMaxHeight()
-                .width(TvDp.PlayerSettingsPanelWidth + 24.dp)
+                .width(TvDp.PlayerSettingsPanelWidth + 16.dp)
                 .padding(top = TvDp.ScreenTop, bottom = TvDp.ScreenBottom, end = TvDp.ScreenX),
         ) {
             Column(
@@ -171,36 +155,16 @@ fun ComposePlaybackSettingsScreen(
                     }
                 }
                 Spacer(Modifier.height(12.dp))
-                // Bottom action buttons
-                Row(
+                // 返回播放按钮
+                SettingsBottomButton(
+                    palette = palette,
+                    label = "返回播放",
+                    iconRes = R.drawable.ic_back,
+                    selected = false,
                     modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                ) {
-                    SettingsBottomButton(
-                        palette = palette,
-                        label = "视频信息",
-                        iconRes = R.drawable.ic_info,
-                        selected = false,
-                        modifier = Modifier.weight(1f),
-                        onClick = { /* TODO: switch to info panel */ },
-                    )
-                    SettingsBottomButton(
-                        palette = palette,
-                        label = "播放设置",
-                        iconRes = R.drawable.ic_settings,
-                        selected = true,
-                        modifier = Modifier.weight(1f),
-                        onClick = { /* already on settings */ },
-                    )
-                }
+                    onClick = onBack,
+                )
             }
         }
-        // Chapter strip at the bottom is rendered on the player OSD layer, not inside
-        // the settings overlay. Keep this comment to remind future refactors that
-        // duplicating progress UI here is intentional no-op: the settings pane sits
-        // on top of the player and the user still sees chapter/OSD info below.
-        // Next up countdown: also handled by the player screen — never render a
-        // hard-coded placeholder in this settings panel (it would show fake next-ep
-        // text for any media type and confuse users).
     }
 }

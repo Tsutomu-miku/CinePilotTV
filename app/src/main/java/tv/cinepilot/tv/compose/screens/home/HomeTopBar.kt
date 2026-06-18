@@ -175,8 +175,8 @@ private fun HeaderIconButton(
             .clip(shape)
             .background(if (focused) palette.glassFocus else palette.glass.copy(alpha = 0.0f), shape)
             .border(
-                width = if (focused) TvDp.FocusRing else 0.dp,
-                color = if (focused) palette.focusRing else palette.glassBorder.copy(alpha = 0f),
+                width = if (focused) TvDp.FocusRing else 1.dp,
+                color = if (focused) palette.focusRing else palette.glassBorder.copy(alpha = 0.4f),
                 shape = shape,
             )
             .onFocusChanged { focused = it.isFocused }
