@@ -14,12 +14,14 @@ import androidx.media3.common.PlaybackException
 import androidx.media3.common.TrackSelectionOverride
 import androidx.media3.common.Tracks
 import androidx.media3.datasource.DataSource
+import androidx.media3.datasource.okhttp.OkHttpDataSource
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
 import androidx.media3.ui.CaptionStyleCompat
 import androidx.media3.ui.PlayerView
 import java.io.File
 import java.util.concurrent.Executors
+import okhttp3.OkHttpClient
 import tv.cinepilot.core.protocol.AuthSession
 import tv.cinepilot.core.protocol.MediaBrowserClient
 import tv.cinepilot.core.protocol.MediaStreamInfo
@@ -41,6 +43,7 @@ class Media3PlayerHost(
     private val context: Context,
     private val mediaBrowserClient: MediaBrowserClient,
     private val subtitleStyleStore: SubtitleStyleStore,
+    okHttpClient: OkHttpClient,
 ) {
     private val handler = Handler(Looper.getMainLooper())
     private var player: ExoPlayer? = null
@@ -52,6 +55,9 @@ class Media3PlayerHost(
     private var positionTickCallback: ((Long, Long) -> Unit)? = null
     private var trackResolver: Media3StreamIndexResolver? = null
     private val checkInExecutor = Executors.newSingleThreadExecutor()
+    private val httpDataSourceFactory: DataSource.Factory =
+        OkHttpDataSource.Factory(okHttpClient)
+            .setUserAgent(USER_AGENT)
 
     /** An external subtitle file to inject as an additional subtitle track. */
     data class ExternalSubtitle(
@@ -95,9 +101,7 @@ class Media3PlayerHost(
             initialSubtitleStreamIndex = playable.subtitleStreamIndex(),
         )
         val playerBuilder = ExoPlayer.Builder(context)
-        if (dataSourceOverride != null) {
-            playerBuilder.setMediaSourceFactory(DefaultMediaSourceFactory(dataSourceOverride))
-        }
+            .setMediaSourceFactory(DefaultMediaSourceFactory(dataSourceOverride ?: httpDataSourceFactory))
         // Install the CinePilot subtitle factory on the builder BEFORE build() so
         // ExoPlayer constructs its TextRenderer with our ASS / PGS / SubRip decoders
         // instead of the default ones (P1-1 / P1-2 / P1-3).
@@ -385,6 +389,69 @@ class Media3PlayerHost(
         } ?: false
     }
 
+    fun currentPlaybackSpeed(): Float = player?.playbackParameters?.speed ?: 1f
+
+    fun setPlaybackSpeed(speed: Float) {
+        player?.let { currentPlayer ->
+            currentPlayer.playbackParameters =
+                androidx.media3.common.PlaybackParameters(speed, currentPlayer.playbackParameters.pitch)
+        }
+    }
+
+    /**
+     * Cycle to the next audio stream in the server-provided order, wrapping
+     * around when the tail is reached. Returns the new stream index (or the
+     * current one when no audio streams are available).
+     */
+    fun cycleNextAudioStream(): Int? {
+        val streams = availableAudioStreams()
+        if (streams.isEmpty()) return currentAudioStreamIndex()
+        val current = currentAudioStreamIndex() ?: -1
+        val currentPos = if (current == -1) -1 else streams.indexOfFirst { it.index() == current }
+        val nextPos = (currentPos + 1) % streams.size
+        val targetIndex = streams[nextPos].index()
+        setAudioStreamIndex(targetIndex)
+        return targetIndex
+    }
+
+    /**
+     * Cycle subtitle visibility / stream selection. Order of operations:
+     *  1. If subtitles are currently disabled, enable the first available
+     *     subtitle stream (matches Jellyfin's "next subtitle" UX).
+     *  2. Otherwise move to the next subtitle stream in server order.
+     *  3. If the last subtitle stream is active, disable subtitles.
+     * Returns a human-readable label describing the new state.
+     */
+    fun cycleNextSubtitle(): String {
+        val streams = availableSubtitleStreams()
+        val enabled = subtitlesEnabled()
+        val currentIdx = currentSubtitleStreamIndex()
+        return when {
+            streams.isEmpty() -> "无字幕"
+            !enabled -> {
+                val target = streams.first().index()
+                setSubtitleStreamIndex(target)
+                streams.first().displayTitle().ifBlank { "字幕 1" }
+            }
+            currentIdx == null -> {
+                val target = streams.first().index()
+                setSubtitleStreamIndex(target)
+                streams.first().displayTitle().ifBlank { "字幕 1" }
+            }
+            else -> {
+                val pos = streams.indexOfFirst { it.index() == currentIdx }
+                if (pos < 0 || pos >= streams.lastIndex) {
+                    setSubtitleStreamIndex(null)
+                    "字幕 关"
+                } else {
+                    val target = streams[pos + 1].index()
+                    setSubtitleStreamIndex(target)
+                    streams[pos + 1].displayTitle().ifBlank { "字幕 ${pos + 2}" }
+                }
+            }
+        }
+    }
+
     fun release() {
         currentOverlay?.attachToPlayer(null)
         currentOverlay = null
@@ -573,5 +640,6 @@ class Media3PlayerHost(
         private const val PLAYER_CONTROLLER_TIMEOUT_MS = 5_000
         private const val REMOTE_SEEK_STEP_MS = 30_000L
         private const val PROGRESS_TICK_INTERVAL_MS = 500L
+        private const val USER_AGENT = "CinePilotTV/1.0 (media3-okhttp)"
     }
 }

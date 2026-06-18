@@ -40,7 +40,9 @@ fun ComponentActivity.landscapeArtworkCell(
         ))
     }
     episodeWatchedBadge(item)?.let(cell::addView)
-    loadArtwork(image, item, ArtworkTarget.LANDSCAPE, 376, 212)
+    image.deferArtworkLoad {
+        loadArtwork(image, item, ArtworkTarget.LANDSCAPE, 376, 212)
+    }
     cell.layoutParams = LinearLayout.LayoutParams(
         dp(MediaWallTokens.LandscapeCellWidth),
         dp(MediaWallTokens.LandscapeCellHeight),

@@ -25,22 +25,22 @@ fun ComponentActivity.screen(title: String, content: LinearLayout.() -> Unit): S
         setBackgroundColor(TvColors.Background)
     }
     container.addView(TextView(this).apply {
-        text = "CinePilot TV"
+            text = "CinePilot TV"
         textSize = TvType.Brand
-        setTextColor(TvColors.AccentStrong)
+            setTextColor(TvColors.AccentStrong)
         letterSpacing = 0.08f
         setPadding(0, 0, 0, dp(4))
-    })
+        })
     container.addView(TextView(this).apply {
-        text = title
-        textSize = TvType.Title
-        typeface = Typeface.DEFAULT
-        setTextColor(TvColors.TextPrimary)
-        gravity = Gravity.START
-        maxLines = 2
-        ellipsize = TextUtils.TruncateAt.END
+            text = title
+            textSize = TvType.Title
+            typeface = Typeface.DEFAULT
+            setTextColor(TvColors.TextPrimary)
+            gravity = Gravity.START
+            maxLines = 2
+            ellipsize = TextUtils.TruncateAt.END
         setPadding(0, 0, 0, dp(TvSpacing.SectionTop))
-    })
+        })
     container.content()
     return ScrollView(this).apply {
         setBackgroundColor(TvColors.Background)

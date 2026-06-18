@@ -11,6 +11,8 @@ enum class AppTheme(
     EMBY("emby", "Emby 绿", "绿色焦点与强调色");
 
     companion object {
+        fun defaults(): AppTheme = CINEPILOT
+
         fun fromId(id: String?): AppTheme {
             return values().firstOrNull { it.id == id } ?: CINEPILOT
         }

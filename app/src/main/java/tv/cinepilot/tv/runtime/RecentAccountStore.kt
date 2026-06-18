@@ -1,36 +1,96 @@
 package tv.cinepilot.tv.runtime
 
 import android.content.Context
-import android.content.SharedPreferences
+import androidx.datastore.core.DataStore
+import androidx.datastore.preferences.SharedPreferencesMigration
+import androidx.datastore.preferences.core.Preferences
+import androidx.datastore.preferences.core.edit
+import androidx.datastore.preferences.core.stringPreferencesKey
+import androidx.datastore.preferences.preferencesDataStore
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.runBlocking
 import tv.cinepilot.core.protocol.AuthenticatedServer
 
+private val Context.recentAccountDataStore: DataStore<Preferences> by preferencesDataStore(
+    name = "cinepilot_last_account_datastore",
+    produceMigrations = { context ->
+        listOf(SharedPreferencesMigration(context, RecentAccountStore.PREFERENCES_NAME))
+    },
+)
+
+data class RecentAccountsState(
+    val accounts: List<RecentAccount>,
+    val servers: List<RecentServer>,
+)
+
 class RecentAccountStore(context: Context) {
-    private val preferences: SharedPreferences = context.getSharedPreferences(PREFERENCES_NAME, Context.MODE_PRIVATE)
+    private val dataStore = context.applicationContext.recentAccountDataStore
+    private val storeScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
 
     fun accounts(): List<RecentAccount> {
-        val recentAccounts = preferences.getString(RECENT_ACCOUNTS_KEY, null)
+        return read { preferences ->
+            val recentAccounts = preferences[RECENT_ACCOUNTS_KEY]
+                ?.lineSequence()
+                ?.mapNotNull(RecentAccount::deserialize)
+                ?.toList()
+                .orEmpty()
+            if (recentAccounts.isNotEmpty()) {
+                recentAccounts
+            } else {
+                legacyAccount(preferences)?.let(::listOf).orEmpty()
+            }
+        }
+    }
+
+    fun servers(): List<RecentServer> {
+        return read { preferences ->
+            val recentServers = preferences[RECENT_SERVERS_KEY]
+                ?.lineSequence()
+                ?.mapNotNull(RecentServer::deserialize)
+                ?.toList()
+                .orEmpty()
+            if (recentServers.isNotEmpty()) {
+                recentServers
+            } else {
+                legacyAccount(preferences)?.let {
+                    listOf(RecentServer(it.serverAddress, it.serverName))
+                }.orEmpty()
+            }
+        }
+    }
+
+    fun current(): RecentAccountsState = RecentAccountsState(accounts = accounts(), servers = servers())
+
+    val flow: Flow<RecentAccountsState> = dataStore.data.map { prefs ->
+        val accts = prefs[RECENT_ACCOUNTS_KEY]
             ?.lineSequence()
             ?.mapNotNull(RecentAccount::deserialize)
             ?.toList()
             .orEmpty()
-        if (recentAccounts.isNotEmpty()) {
-            return recentAccounts
-        }
-        return legacyAccount()?.let(::listOf).orEmpty()
-    }
-
-    fun servers(): List<RecentServer> {
-        val recentServers = preferences.getString(RECENT_SERVERS_KEY, null)
+        val svrs = prefs[RECENT_SERVERS_KEY]
             ?.lineSequence()
             ?.mapNotNull(RecentServer::deserialize)
             ?.toList()
             .orEmpty()
-        if (recentServers.isNotEmpty()) {
-            return recentServers
+        val finalAccounts = accts.ifEmpty {
+            legacyAccount(prefs)?.let(::listOf).orEmpty()
         }
-        return legacyAccount()?.let {
-            listOf(RecentServer(it.serverAddress, it.serverName))
-        }.orEmpty()
+        val finalServers = svrs.ifEmpty {
+            legacyAccount(prefs)?.let { listOf(RecentServer(it.serverAddress, it.serverName)) }.orEmpty()
+        }
+        RecentAccountsState(accounts = finalAccounts, servers = finalServers)
+    }
+
+    val stateFlow: StateFlow<RecentAccountsState> by lazy {
+        flow.stateIn(storeScope, SharingStarted.Eagerly, current())
     }
 
     fun remember(authenticated: AuthenticatedServer) {
@@ -43,12 +103,12 @@ class RecentAccountStore(context: Context) {
         val accounts = (listOf(account) + accounts().filterNot {
             it.serverAddress == account.serverAddress && it.userId == account.userId
         }).take(MAX_RECENT_ACCOUNTS)
-        preferences.edit()
-            .putString(RECENT_ACCOUNTS_KEY, accounts.joinToString("\n") { it.serialize() })
-            .putString(LEGACY_SERVER_ADDRESS_KEY, account.serverAddress)
-            .putString(LEGACY_SERVER_NAME_KEY, account.serverName)
-            .putString(LEGACY_USER_ID_KEY, account.userId)
-            .apply()
+        write { preferences ->
+            preferences[RECENT_ACCOUNTS_KEY] = accounts.joinToString("\n") { it.serialize() }
+            preferences[LEGACY_SERVER_ADDRESS_KEY] = account.serverAddress
+            preferences[LEGACY_SERVER_NAME_KEY] = account.serverName
+            preferences[LEGACY_USER_ID_KEY] = account.userId
+        }
     }
 
     fun rememberServer(serverAddress: String, serverName: String) {
@@ -59,9 +119,9 @@ class RecentAccountStore(context: Context) {
         val servers = (listOf(server) + servers().filterNot {
             it.serverAddress == server.serverAddress
         }).take(MAX_RECENT_SERVERS)
-        preferences.edit()
-            .putString(RECENT_SERVERS_KEY, servers.joinToString("\n") { it.serialize() })
-            .apply()
+        write { preferences ->
+            preferences[RECENT_SERVERS_KEY] = servers.joinToString("\n") { it.serialize() }
+        }
     }
 
     fun forget(authenticated: AuthenticatedServer) {
@@ -73,38 +133,48 @@ class RecentAccountStore(context: Context) {
         val accounts = accounts().filterNot {
             it.serverAddress == account.serverAddress && it.userId == account.userId
         }
-        preferences.edit()
-            .putString(RECENT_ACCOUNTS_KEY, accounts.joinToString("\n") { it.serialize() })
-            .remove(LEGACY_SERVER_ADDRESS_KEY)
-            .remove(LEGACY_SERVER_NAME_KEY)
-            .remove(LEGACY_USER_ID_KEY)
-            .apply()
+        write { preferences ->
+            preferences[RECENT_ACCOUNTS_KEY] = accounts.joinToString("\n") { it.serialize() }
+            preferences.remove(LEGACY_SERVER_ADDRESS_KEY)
+            preferences.remove(LEGACY_SERVER_NAME_KEY)
+            preferences.remove(LEGACY_USER_ID_KEY)
+        }
     }
 
     fun clear() {
-        preferences.edit().clear().apply()
+        write { preferences -> preferences.clear() }
     }
 
-    private fun legacyAccount(): RecentAccount? {
-        val serverAddress = preferences.getString(LEGACY_SERVER_ADDRESS_KEY, null)?.takeIf { it.isNotBlank() }
-        val userId = preferences.getString(LEGACY_USER_ID_KEY, null)?.takeIf { it.isNotBlank() }
+    private fun legacyAccount(preferences: Preferences): RecentAccount? {
+        val serverAddress = preferences[LEGACY_SERVER_ADDRESS_KEY]?.takeIf { it.isNotBlank() }
+        val userId = preferences[LEGACY_USER_ID_KEY]?.takeIf { it.isNotBlank() }
         if (serverAddress == null || userId == null) {
             return null
         }
         return RecentAccount(
             serverAddress,
-            preferences.getString(LEGACY_SERVER_NAME_KEY, null).orEmpty(),
+            preferences[LEGACY_SERVER_NAME_KEY].orEmpty(),
             userId,
         )
     }
 
-    private companion object {
+    private fun <T> read(block: (Preferences) -> T): T = runBlocking(Dispatchers.IO) {
+        dataStore.data.map(block).first()
+    }
+
+    private fun write(block: (androidx.datastore.preferences.core.MutablePreferences) -> Unit) {
+        runBlocking(Dispatchers.IO) {
+            dataStore.edit { preferences -> block(preferences) }
+        }
+    }
+
+    companion object {
         const val PREFERENCES_NAME = "cinepilot_last_account"
-        const val RECENT_ACCOUNTS_KEY = "recent_accounts"
-        const val RECENT_SERVERS_KEY = "recent_servers"
-        const val LEGACY_SERVER_ADDRESS_KEY = "server_address"
-        const val LEGACY_SERVER_NAME_KEY = "server_name"
-        const val LEGACY_USER_ID_KEY = "user_id"
+        private val RECENT_ACCOUNTS_KEY = stringPreferencesKey("recent_accounts")
+        private val RECENT_SERVERS_KEY = stringPreferencesKey("recent_servers")
+        private val LEGACY_SERVER_ADDRESS_KEY = stringPreferencesKey("server_address")
+        private val LEGACY_SERVER_NAME_KEY = stringPreferencesKey("server_name")
+        private val LEGACY_USER_ID_KEY = stringPreferencesKey("user_id")
         const val MAX_RECENT_ACCOUNTS = 5
         const val MAX_RECENT_SERVERS = 5
     }

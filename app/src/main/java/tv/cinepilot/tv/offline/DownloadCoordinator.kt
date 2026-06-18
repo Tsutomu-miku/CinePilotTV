@@ -6,11 +6,11 @@ import androidx.media3.common.MimeTypes
 import androidx.media3.database.DatabaseProvider
 import androidx.media3.database.StandaloneDatabaseProvider
 import androidx.media3.datasource.DataSource
-import androidx.media3.datasource.DefaultHttpDataSource
 import androidx.media3.datasource.HttpDataSource
 import androidx.media3.datasource.cache.Cache
 import androidx.media3.datasource.cache.CacheDataSource
 import androidx.media3.datasource.cache.SimpleCache
+import androidx.media3.datasource.okhttp.OkHttpDataSource
 import androidx.media3.exoplayer.offline.Download
 import androidx.media3.exoplayer.offline.DownloadManager
 import androidx.media3.exoplayer.offline.DownloadRequest
@@ -21,6 +21,7 @@ import androidx.media3.common.MediaItem as ExoMediaItem
 import java.io.File
 import java.util.concurrent.Executor
 import java.util.concurrent.Executors
+import okhttp3.OkHttpClient
 import tv.cinepilot.core.protocol.AuthenticatedServer
 import tv.cinepilot.core.protocol.MediaItemSummary
 import tv.cinepilot.core.protocol.OfflineRepository
@@ -46,6 +47,7 @@ import tv.cinepilot.core.protocol.PlaybackUrlAuthorizer
 class DownloadCoordinator private constructor(
     private val appContext: Context,
     private val offlineRepository: OfflineRepository,
+    private val okHttpClient: OkHttpClient,
 ) {
 
     private val executor: Executor = Executors.newSingleThreadExecutor()
@@ -68,11 +70,8 @@ class DownloadCoordinator private constructor(
     }
 
     private val httpDataSourceFactory: HttpDataSource.Factory by lazy {
-        DefaultHttpDataSource.Factory()
+        OkHttpDataSource.Factory(okHttpClient)
             .setUserAgent(USER_AGENT)
-            .setAllowCrossProtocolRedirects(true)
-            .setConnectTimeoutMs(8_000)
-            .setReadTimeoutMs(15_000)
     }
 
     private val upstreamDataSourceFactory: DataSource.Factory by lazy {
@@ -310,13 +309,17 @@ class DownloadCoordinator private constructor(
 
         @Volatile private var instance: DownloadCoordinator? = null
 
-        fun getInstance(context: Context, offlineRepository: OfflineRepository): DownloadCoordinator {
+        fun getInstance(
+            context: Context,
+            offlineRepository: OfflineRepository,
+            okHttpClient: OkHttpClient,
+        ): DownloadCoordinator {
             val cached = instance
             if (cached != null) return cached
             return synchronized(this) {
                 val existing = instance
                 existing ?: DownloadCoordinator(
-                    context.applicationContext, offlineRepository,
+                    context.applicationContext, offlineRepository, okHttpClient,
                 ).also { instance = it }
             }
         }

@@ -3,15 +3,20 @@ package tv.cinepilot.tv.auth
 import android.content.Intent
 import android.content.pm.ApplicationInfo
 import android.os.Handler
-import android.widget.ImageView
-import android.widget.TextView
 import androidx.activity.ComponentActivity
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
 import java.util.concurrent.Executor
-import tv.cinepilot.core.protocol.PublicUserSummary
 import tv.cinepilot.core.protocol.QuickConnectSession
 import tv.cinepilot.core.protocol.ServerFlavor
 import tv.cinepilot.core.tv.TvAppState
 import tv.cinepilot.core.tv.TvWorkflowController
+import tv.cinepilot.tv.compose.screens.ComposeLoginScreen
+import tv.cinepilot.tv.compose.screens.ComposeQuickConnectScreen
+import tv.cinepilot.tv.compose.screens.ComposeServerEntryScreen
+import tv.cinepilot.tv.compose.theme.CinePilotPalette
 import tv.cinepilot.tv.runtime.QuickConnectPoller
 import tv.cinepilot.tv.runtime.RecentAccountStore
 
@@ -21,10 +26,9 @@ class AuthRouteController(
     mainHandler: Handler,
     private val executor: Executor,
     private val runTask: (String, () -> Unit, () -> Unit) -> Unit,
-    private val showLoading: (String) -> Unit,
     private val showHome: (TvAppState) -> Unit,
     private val showError: (Throwable) -> Unit,
-    private val loadPublicUserImage: (ImageView, PublicUserSummary, Int, Int) -> Unit,
+    private val renderCompose: (String, @Composable (CinePilotPalette) -> Unit) -> Unit,
     /**
      * Cache-aware entry flow: execute (preload) on the background, restore any
      * cached home rows to the UI as soon as possible, then run a full network
@@ -40,7 +44,7 @@ class AuthRouteController(
     private val clearHomeCache: () -> Unit,
 ) {
     private val recentAccountStore by lazy { RecentAccountStore(activity) }
-    private var quickConnectStatus: TextView? = null
+    private var quickConnectStatus by mutableStateOf("")
     private val quickConnectPoller = QuickConnectPoller(
         mainHandler,
         executor,
@@ -59,26 +63,29 @@ class AuthRouteController(
         val recentAccounts = recentAccountStore.accounts()
         val recentServers = recentAccountStore.servers()
             .filterNot { server -> recentAccounts.any { account -> account.serverAddress == server.serverAddress } }
-        activity.setContentView(activity.serverEntryScreen(
-            recentAccounts = recentAccounts,
-            recentServers = recentServers,
-            onContinueAccount = { account ->
-                runHomeEntry(
-                    null,
-                    {
-                        workflowController.submitServer(account.serverAddress)
-                        workflowController.restoreSession(account.userId)
-                    },
-                    {},
-                    ::fallbackToServerEntry,
-                )
-            },
-            onOpenServer = ::connectToServer,
-            onClearAccounts = {
-                clearSavedAccounts()
-                showServerEntry()
-            },
-        ))
+        renderCompose("CinePilot TV") { palette ->
+            ComposeServerEntryScreen(
+                palette = palette,
+                recentAccounts = recentAccounts,
+                recentServers = recentServers,
+                onContinueAccount = { account ->
+                    runHomeEntry(
+                        null,
+                        {
+                            workflowController.submitServer(account.serverAddress)
+                            workflowController.restoreSessionWithoutHome(account.userId)
+                        },
+                        {},
+                        ::fallbackToServerEntry,
+                    )
+                },
+                onOpenServer = ::connectToServer,
+                onClearAccounts = {
+                    clearSavedAccounts()
+                    showServerEntry()
+                },
+            )
+        }
     }
 
     fun restoreRecentAccountOnLaunch() {
@@ -88,10 +95,10 @@ class AuthRouteController(
             return
         }
         runHomeEntry(
-            "正在恢复上次登录...",
+            null,
             {
                 workflowController.submitServer(account.serverAddress)
-                workflowController.restoreSession(account.userId)
+                workflowController.restoreSessionWithoutHome(account.userId)
             },
             {},
             { activity.runOnUiThread { showServerEntry() } },
@@ -101,15 +108,17 @@ class AuthRouteController(
     fun showLogin() {
         stopQuickConnectPolling()
         val state = workflowController.state()
-        activity.setContentView(activity.loginScreen(
-            serverName = state.server()?.serverName().orEmpty(),
-            publicUsers = state.publicUsers(),
-            quickConnectAvailable = state.server()?.flavor() == ServerFlavor.JELLYFIN,
-            loadPublicUserImage = loadPublicUserImage,
-            onLogin = ::loginWithCredentials,
-            onQuickConnect = ::startQuickConnectLogin,
-            onBackToServer = ::showServerEntry,
-        ))
+        renderCompose("登录") { palette ->
+            ComposeLoginScreen(
+                palette = palette,
+                serverName = state.server()?.serverName().orEmpty(),
+                publicUsers = state.publicUsers(),
+                quickConnectAvailable = state.server()?.flavor() == ServerFlavor.JELLYFIN,
+                onLogin = ::loginWithCredentials,
+                onQuickConnect = ::startQuickConnectLogin,
+                onBackToServer = ::showServerEntry,
+            )
+        }
     }
 
     fun handleQaLoginIntent(intent: Intent?): Boolean {
@@ -124,7 +133,7 @@ class AuthRouteController(
             {
                 workflowController.submitServer(server)
                 loadPublicUsersIfAvailable()
-                workflowController.login(username, password)
+                workflowController.loginWithoutHome(username, password)
             },
             ::rememberAccount,
             { err -> showError(err) },
@@ -166,43 +175,43 @@ class AuthRouteController(
     private fun loginWithCredentials(username: String, password: String) {
         runHomeEntry(
             "正在登录并加载首页...",
-            { workflowController.login(username, password) },
+            { workflowController.loginWithoutHome(username, password) },
             ::rememberAccount,
             { err -> showError(err) },
         )
     }
 
     private fun startQuickConnectLogin() {
-        showLoading("正在创建 Quick Connect...")
-        executor.execute {
-            try {
-                val quickConnect = workflowController.startQuickConnect()
-                activity.runOnUiThread {
-                    showQuickConnect(quickConnect)
-                    quickConnectPoller.start()
-                }
-            } catch (error: Throwable) {
-                activity.runOnUiThread { showError(error) }
+        var quickConnect: QuickConnectSession? = null
+        runTask("正在创建 Quick Connect...", {
+            quickConnect = workflowController.startQuickConnect()
+        }) {
+            quickConnect?.let {
+                showQuickConnect(it)
+                quickConnectPoller.start()
             }
         }
     }
 
     private fun showQuickConnect(quickConnect: QuickConnectSession) {
-        val quickConnectViews = activity.quickConnectScreen(
-            quickConnect = quickConnect,
-            onCheckNow = ::checkQuickConnectNow,
-            onBackToLogin = ::showLogin,
-        )
-        quickConnectStatus = quickConnectViews.status
-        activity.setContentView(quickConnectViews.root)
+        quickConnectStatus = "正在等待授权，电视会每 2 秒自动检查一次"
+        renderCompose("Quick Connect") { palette ->
+            ComposeQuickConnectScreen(
+                palette = palette,
+                quickConnect = quickConnect,
+                status = quickConnectStatus,
+                onCheckNow = ::checkQuickConnectNow,
+                onBackToLogin = ::showLogin,
+            )
+        }
     }
 
     private fun updateQuickConnectWaiting(attempts: Int) {
-        quickConnectStatus?.text = "还没有授权，已自动检查 $attempts 次"
+        quickConnectStatus = "还没有授权，已自动检查 $attempts 次"
     }
 
     private fun checkQuickConnectNow() {
-        quickConnectStatus?.text = "正在检查授权..."
+        quickConnectStatus = "正在检查授权..."
         quickConnectPoller.checkNow()
     }
 

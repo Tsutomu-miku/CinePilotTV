@@ -9,12 +9,14 @@ import android.widget.LinearLayout
 import android.widget.ScrollView
 import androidx.activity.ComponentActivity
 
-fun ComponentActivity.cinematicBackdrop(): ImageView {
+fun ComponentActivity.cinematicBackdrop(blurred: Boolean = true): ImageView {
     return ImageView(this).apply {
         scaleType = ImageView.ScaleType.CENTER_CROP
         alpha = 0.5f
         setBackgroundColor(Color.BLACK)
-        applyBackdropBlur()
+        if (blurred) {
+            applyBackdropBlur()
+        }
     }
 }
 

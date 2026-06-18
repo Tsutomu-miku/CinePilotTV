@@ -5,12 +5,15 @@ import android.net.Uri
 import android.os.Handler
 import android.os.Looper
 import android.view.View
-import android.view.ViewGroup
 import android.widget.ImageView
 import android.widget.Toast
 import androidx.activity.ComponentActivity
+import androidx.compose.runtime.Composable
+import androidx.lifecycle.lifecycleScope
 import java.util.ArrayDeque
 import java.util.EnumSet
+import java.util.concurrent.Executor
+import kotlinx.coroutines.launch
 import tv.cinepilot.core.protocol.ChapterInfo
 import tv.cinepilot.core.protocol.MediaItemSummary
 import tv.cinepilot.core.protocol.MediaPerson
@@ -21,7 +24,6 @@ import tv.cinepilot.core.protocol.PlayableMedia
 import tv.cinepilot.core.protocol.PlaybackInfo
 import tv.cinepilot.core.protocol.PlaybackSelectionPreferences
 import tv.cinepilot.core.tv.HomeRow
-import tv.cinepilot.core.protocol.TrickplayInfo
 import tv.cinepilot.core.tv.ShowStructure
 import tv.cinepilot.core.tv.TvAppState
 import tv.cinepilot.core.tv.TvRoute
@@ -29,34 +31,35 @@ import tv.cinepilot.core.tv.TvWorkflowController
 import tv.cinepilot.tv.details.DetailTrackSelection
 import tv.cinepilot.tv.details.seasonDetailScreen
 import tv.cinepilot.tv.details.seriesDetailScreen
-import tv.cinepilot.tv.details.detailsRouteScreen
+import tv.cinepilot.tv.compose.screens.ComposeDetailsScreen
 import tv.cinepilot.tv.player.DisplayModeApplier
 import tv.cinepilot.tv.player.Media3PlayerHost
 import tv.cinepilot.tv.player.DisplayCapabilities
 import tv.cinepilot.tv.plugin.PluginHost
 import tv.cinepilot.tv.plugin.toSnapshot
+import tv.cinepilot.tv.compose.theme.CinePilotPalette
+import tv.cinepilot.tv.runtime.ArtworkRequestFactory
 import tv.cinepilot.tv.runtime.ArtworkTarget
 import tv.cinepilot.tv.runtime.DeviceCodecDiagnostics
 import tv.cinepilot.tv.offline.DownloadCoordinator
 import tv.cinepilot.core.protocol.OfflineRepository as CoreOfflineRepo
 import tv.cinepilot.tv.subtitle.SubtitleCache
-import tv.cinepilot.tv.ui.DisplayModeSwitchPrompt
+import tv.cinepilot.tv.compose.screens.ComposeProviderIdEditorScreen
 import tv.cinepilot.tv.ui.ProviderIdEditorEntry
-import tv.cinepilot.tv.ui.afmConfirmationSheet
 import tv.cinepilot.tv.ui.buildProviderIdEditorEntries
-import tv.cinepilot.tv.ui.providerIdsEditorSheet
-import tv.cinepilot.tv.ui.PlayerNextUpInfo
-import tv.cinepilot.tv.ui.PlayerOverrides
 import tv.cinepilot.tv.playback.PlaybackSettingsFocusGroup
-import tv.cinepilot.tv.ui.TrickplayGridSpec
 import tv.cinepilot.tv.ui.isEpisode
 import tv.cinepilot.tv.ui.isSeason
 import tv.cinepilot.tv.ui.isSeries
 import tv.cinepilot.tv.ui.isSeriesStructureRoot
 import tv.cinepilot.tv.ui.isPlaylist
-import tv.cinepilot.tv.ui.offlineManagerSheet
-import tv.cinepilot.tv.ui.playerScreen
-import tv.cinepilot.tv.ui.qualityPickerSheet
+import tv.cinepilot.tv.compose.screens.ComposeAfmConfirmationScreen
+import tv.cinepilot.tv.compose.screens.ComposeNextUpInfo
+import tv.cinepilot.tv.compose.screens.ComposeOfflineManagerScreen
+import tv.cinepilot.tv.compose.screens.ComposePlaybackSettingsScreen
+import tv.cinepilot.tv.compose.screens.ComposePlayerScreen
+import tv.cinepilot.tv.compose.screens.ComposeQualityPickerScreen
+import tv.cinepilot.tv.ui.DisplayModeSwitchPrompt
 
 class PlaybackRouteController(
     private val activity: ComponentActivity,
@@ -64,18 +67,24 @@ class PlaybackRouteController(
     private val playerHost: Media3PlayerHost,
     private val subtitleStyleStore: SubtitleStyleStore,
     private val deviceCodecDiagnostics: DeviceCodecDiagnostics,
+    private val executor: Executor,
     private val runTask: (String, () -> Unit, () -> Unit) -> Unit,
+    private val runSilentTask: (() -> Unit, () -> Unit, (Throwable) -> Unit) -> Unit,
     private val showHome: (TvAppState) -> Unit,
+    private val renderView: (View) -> Unit,
+    private val renderCompose: (String, @Composable (CinePilotPalette) -> Unit) -> Unit,
+    private val renderComposeFull: (@Composable (CinePilotPalette) -> Unit) -> Unit,
     private val showError: (Throwable) -> Unit,
     private val loadPosterImage: (ImageView, MediaItemSummary, Int, Int) -> Unit,
     private val loadArtworkImage: (ImageView, MediaItemSummary, ArtworkTarget, Int, Int) -> Unit,
     private val loadBackdropImage: (ImageView, MediaItemSummary, Int, Int) -> Unit,
     private val loadPersonImage: (ImageView, MediaPerson, Int, Int) -> Unit,
+    private val artworkFactory: ArtworkRequestFactory,
     private val pluginHost: tv.cinepilot.tv.plugin.PluginHost,
     private val downloadCoordinator: DownloadCoordinator,
     private val playbackSettingsStore: PlaybackSettingsStore = PlaybackSettingsStore(activity),
 ) {
-    private val diagnosticsController = PlaybackDiagnosticsController(activity, deviceCodecDiagnostics)
+    private val diagnosticsController = PlaybackDiagnosticsController(activity, deviceCodecDiagnostics, renderCompose)
     private val displayCapabilities = DisplayCapabilities(activity)
     private val subtitleSearch = SubtitleSearchController(
         activity = activity,
@@ -83,6 +92,8 @@ class PlaybackRouteController(
         pluginHost = pluginHost,
         subtitleCache = SubtitleCache(activity),
         runTask = runTask,
+        runSilentTask = runSilentTask,
+        renderCompose = renderCompose,
         setAuxiliaryBackAction = { action -> auxiliaryBackAction = action },
     )
     private val playlists = PlaylistController(
@@ -90,8 +101,8 @@ class PlaybackRouteController(
         workflowController = workflowController,
         runTask = runTask,
         showHome = showHome,
-        loadBackdropImage = loadBackdropImage,
-        loadArtworkImage = loadArtworkImage,
+        renderCompose = renderCompose,
+        artworkFactory = artworkFactory,
         setAuxiliaryBackAction = { action -> auxiliaryBackAction = action },
         onOpenItem = { item, onBack ->
             mediaBackStack.addLast(onBack)
@@ -124,7 +135,6 @@ class PlaybackRouteController(
     private var deferredAfmPromptShown = false
     private var playerChapters: List<ChapterInfo> = emptyList()
     private var playerSegments: List<MediaSegmentInfo> = emptyList()
-    private var playerTrickplay: TrickplayInfo = TrickplayInfo.empty()
     private var playerNextUp: MediaItemSummary? = null
     private var playerNextUpCountdownSeconds: Int = 0
     private var playerNextUpCancelled = false
@@ -135,11 +145,14 @@ class PlaybackRouteController(
     private var currentPlaybackSnapshot: MediaItemSummary? = null
     private var currentPlaybackDurationMs: Long = 0L
     private var playbackStartedFired = false
+    private var playerSubtitleShortcutLabel = "字幕"
+    private var playerAudioShortcutLabel = "音轨"
 
     fun showDetails(
         item: MediaItemSummary,
         playbackInfo: PlaybackInfo? = null,
         episodeContext: ShowStructure? = null,
+        sameCollectionItems: List<MediaItemSummary>? = null,
     ) {
         auxiliaryBackAction = null
         if (playbackInfo != null && playbackInfo.itemId() == item.id()) {
@@ -149,31 +162,27 @@ class PlaybackRouteController(
         val effectiveTrackSelection = normalizedTrackSelectionFor(item, effectivePlaybackInfo)
         // --- compute offline action label/state BEFORE going into runTask
         val offlineInfo = computeOfflineInfo(item)
-        var sameCollection: List<MediaItemSummary> = emptyList()
-        runTask("正在加载同系列作品...", {
-            runCatching {
-                if (workflowController.state().selectedItem()?.id() != item.id()) {
-                    workflowController.openItem(item.id())
-                }
-                sameCollection = workflowController.loadSameCollectionItemsForSelectedItem()
-            }
-        }) {
-            activity.setContentView(activity.detailsRouteScreen(
+        val sameCollection = sameCollectionItems.orEmpty()
+        renderComposeFull { palette ->
+            ComposeDetailsScreen(
+                palette = palette,
+                owner = activity,
+                artworkFactory = artworkFactory,
+                authenticated = workflowController.state().authenticated(),
                 item = item,
                 playbackInfo = effectivePlaybackInfo,
-                loadPosterImage = loadPosterImage,
-                loadBackdropImage = loadBackdropImage,
-                loadArtworkImage = loadArtworkImage,
                 siblingEpisodes = episodeContext?.episodes() ?: emptyList(),
                 sameCollectionItems = sameCollection,
                 trackSelection = effectiveTrackSelection,
+                supportedHdrTypes = supportedHdrLabels(),
+                supportedPassthroughCodecs = supportedPassthroughLabels(),
                 onPreparePlayback = { preferences ->
                     preparePlaybackWith(applyTrackSelection(item, preferences))
                 },
                 onTrackSelection = { selection ->
                     selectedTrackItemId = item.id()
                     selectedTrackSelection = selection
-                    showDetails(item, effectivePlaybackInfo, episodeContext)
+                    showDetails(item, effectivePlaybackInfo, episodeContext, sameCollectionItems)
                 },
                 onSubtitleStyle = { showSubtitleStyleOptions(item) },
                 onPlaybackSpeed = { showPlaybackSpeedOptions(item) },
@@ -181,7 +190,7 @@ class PlaybackRouteController(
                 onOpenEpisodePicker = { openEpisodeSeason(item) },
                 onOpenSeries = { openEpisodeSeries(item) },
                 onOpenEpisode = { episode ->
-                    openEpisodeDetail(episode) { showDetails(item, effectivePlaybackInfo, episodeContext) }
+                    openEpisodeDetail(episode) { showDetails(item, effectivePlaybackInfo, episodeContext, sameCollectionItems) }
                 },
                 onOpenCollectionItem = ::openCollectionItem,
                 onOpenFolder = {
@@ -193,23 +202,23 @@ class PlaybackRouteController(
                 },
                 onToggleFavorite = {
                     rerenderAfterUserAction({ workflowController.toggleFavorite() }) { newItem ->
-                        showDetails(newItem, effectivePlaybackInfo, episodeContext)
+                        showDetails(newItem, effectivePlaybackInfo, episodeContext, sameCollectionItems)
                     }
                 },
                 onToggleWatched = {
                     rerenderAfterUserAction({ workflowController.toggleWatched() }) { newItem ->
-                        showDetails(newItem, effectivePlaybackInfo, episodeContext)
+                        showDetails(newItem, effectivePlaybackInfo, episodeContext, sameCollectionItems)
                     }
                 },
                 onSetUserRating = { rating ->
                     rerenderAfterUserAction({ workflowController.setUserRating(rating) }) { newItem ->
-                        showDetails(newItem, effectivePlaybackInfo, episodeContext)
+                        showDetails(newItem, effectivePlaybackInfo, episodeContext, sameCollectionItems)
                     }
                 },
                 onOpenProviderIdsEditor = {
                     openProviderIdsEditor(item) {
                         val fresh = workflowController.state().selectedItem() ?: item
-                        showDetails(fresh, effectivePlaybackInfo, episodeContext)
+                        showDetails(fresh, effectivePlaybackInfo, episodeContext, sameCollectionItems)
                     }
                 },
                 onProviderBadgeClick = ::openExternalUrl,
@@ -223,18 +232,36 @@ class PlaybackRouteController(
                 offlineActionIsReady = offlineInfo?.isReady == true,
                 onAddToPlaylist = {
                     playlists.showPicker(item, effectivePlaybackInfo, episodeContext) {
-                        showDetails(item, effectivePlaybackInfo, episodeContext)
+                        showDetails(item, effectivePlaybackInfo, episodeContext, sameCollectionItems)
                     }
                 },
                 onSearchSubtitles = {
                     subtitleSearch.showSearchSheet(item, effectivePlaybackInfo, episodeContext) {
-                        showDetails(item, effectivePlaybackInfo, episodeContext)
+                        showDetails(item, effectivePlaybackInfo, episodeContext, sameCollectionItems)
                     }
                 },
                 hasSubtitleSearch = subtitleSearch.hasSubtitleSearch(),
-                supportedHdrTypes = supportedHdrLabels(),
-                supportedPassthroughCodecs = supportedPassthroughLabels(),
-            ))
+            )
+        }
+        if (sameCollectionItems == null) {
+            var loadedSameCollection: List<MediaItemSummary> = emptyList()
+            runSilentTask({
+                if (workflowController.state().route() == TvRoute.DETAILS) {
+                    runCatching {
+                        if (workflowController.state().selectedItem()?.id() != item.id()) {
+                            workflowController.openItem(item.id())
+                        }
+                        loadedSameCollection = workflowController.loadSameCollectionItemsForSelectedItem()
+                    }
+                }
+            }, {
+                if (
+                    workflowController.state().route() == TvRoute.DETAILS &&
+                    workflowController.state().selectedItem()?.id() == item.id()
+                ) {
+                    showDetails(item, effectivePlaybackInfo, episodeContext, loadedSameCollection)
+                }
+            }, {})
         }
     }
 
@@ -294,31 +321,34 @@ class PlaybackRouteController(
             }
             return
         }
-        showQualityPicker { quality ->
-            val preferences = buildQualityPreferences(quality, item)
-            var resolved: PlayableMedia? = null
-            runTask("正在解析离线地址...", {
-                // preparePlayback() transitions the workflow route to PLAYER, but
-                // we only need the resolved PlayableMedia for the download queue.
-                // Pop back to DETAILS immediately so the global route stays in
-                // sync with the visible UI — otherwise hardware Back key would go
-                // through the playback back path while the screen still shows details.
-                workflowController.preparePlayback(preferences)
-                resolved = workflowController.state().playableMedia()
-                    ?: throw IllegalStateException("无法解析媒体播放地址")
-                workflowController.back()
-            }) {
-                val r = resolved
-                if (r == null) {
-                    toast("解析片源地址失败")
-                } else {
-                    downloadCoordinator.enqueue(auth, item, r, quality) { err ->
-                        if (err != null) toast(err) else toast("已加入下载队列")
-                        showDetails(item, selectedPlaybackInfo?.takeIf { it.itemId() == item.id() }, episodeContext)
+        showQualityPicker(
+            onChosen = { quality ->
+                val preferences = buildQualityPreferences(quality, item)
+                var resolved: PlayableMedia? = null
+                runTask("正在解析离线地址...", {
+                    // preparePlayback() transitions the workflow route to PLAYER, but
+                    // we only need the resolved PlayableMedia for the download queue.
+                    // Pop back to DETAILS immediately so the global route stays in
+                    // sync with the visible UI — otherwise hardware Back key would go
+                    // through the playback back path while the screen still shows details.
+                    workflowController.preparePlayback(preferences)
+                    resolved = workflowController.state().playableMedia()
+                        ?: throw IllegalStateException("无法解析媒体播放地址")
+                    workflowController.back()
+                }) {
+                    val r = resolved
+                    if (r == null) {
+                        toast("解析片源地址失败")
+                    } else {
+                        downloadCoordinator.enqueue(auth, item, r, quality) { err ->
+                            if (err != null) toast(err) else toast("已加入下载队列")
+                            showDetails(item, selectedPlaybackInfo?.takeIf { it.itemId() == item.id() }, episodeContext)
+                        }
                     }
                 }
-            }
-        }
+            },
+            onCancel = { showDetails(item, selectedPlaybackInfo?.takeIf { it.itemId() == item.id() }, episodeContext) },
+        )
     }
 
     /** Map our quality enum (0=auto..4=4K) to a PlaybackSelectionPreferences hint. */
@@ -363,21 +393,25 @@ class PlaybackRouteController(
             toast("暂无离线记录")
             return
         }
-        val sheet = activity.offlineManagerSheet(
-            entries = entries,
-            onClose = { showDetails(item, playbackInfo, episodeContext) },
-            onPause = { e: OfflineRepository.Entry ->
-                downloadCoordinator.pause(auth.server().serverId(), e.itemId(), e.quality())
-            },
-            onResume = { e: OfflineRepository.Entry ->
-                downloadCoordinator.resume(auth.server().serverId(), e.itemId(), e.quality())
-            },
-            onDelete = { e: OfflineRepository.Entry ->
-                downloadCoordinator.remove(auth.server().serverId(), e.itemId(), e.quality())
-            },
-        )
-        auxiliaryBackAction = { showDetails(item, playbackInfo, episodeContext) }
-        activity.setContentView(sheet)
+        val onClose = { showDetails(item, playbackInfo, episodeContext) }
+        auxiliaryBackAction = onClose
+        renderCompose("离线管理") { palette ->
+            ComposeOfflineManagerScreen(
+                palette = palette,
+                entries = entries,
+                onClose = onClose,
+                onPause = { e ->
+                    downloadCoordinator.pause(auth.server().serverId(), e.itemId(), e.quality())
+                },
+                onResume = { e ->
+                    downloadCoordinator.resume(auth.server().serverId(), e.itemId(), e.quality())
+                },
+                onDelete = { e ->
+                    downloadCoordinator.remove(auth.server().serverId(), e.itemId(), e.quality())
+                    onClose()
+                },
+            )
+        }
     }
 
     // --- Playlist UI (delegated to PlaylistController) ---------------------------
@@ -386,14 +420,18 @@ class PlaybackRouteController(
     // --- Subtitle search UI (delegated to SubtitleSearchController) ---------
     // P3-1: see SubtitleSearchController.kt for search, download, and caching.
 
-    private inline fun showQualityPicker(crossinline onChosen: (Int) -> Unit) {
-        val sheet = activity.qualityPickerSheet(
-            labels = qualityLabels.toList(),
-            values = qualityValues.toList(),
-            default = 0,
-            onChosen = { q: Int -> onChosen(q) },
-        )
-        activity.setContentView(sheet)
+    private fun showQualityPicker(onChosen: (Int) -> Unit, onCancel: () -> Unit) {
+        auxiliaryBackAction = onCancel
+        renderCompose("选择离线画质") { palette ->
+            ComposeQualityPickerScreen(
+                palette = palette,
+                labels = qualityLabels.toList(),
+                values = qualityValues.toList(),
+                default = 0,
+                onChosen = { q -> onChosen(q) },
+                onClose = { handleAuxiliaryBackPressed() },
+            )
+        }
     }
 
     private fun toast(msg: String) {
@@ -403,6 +441,7 @@ class PlaybackRouteController(
     fun handleAuxiliaryBackPressed(): Boolean {
         val backAction = auxiliaryBackAction
         if (backAction != null) {
+            auxiliaryBackAction = null
             backAction()
             return true
         }
@@ -512,27 +551,32 @@ class PlaybackRouteController(
                 render(if (foldedSeasonsExpanded) emptyMap() else seasonStartedCache, sameCollection)
                 return
             }
-            runTask("正在加载补充信息...", {
-                if (needStatus) {
-                    runCatching {
-                        seasonStartedCache = workflowController.loadSeasonsStartedStatus(structure)
-                    }
-                }
-                if (needCollection) {
-                    runCatching {
-                        if (workflowController.state().selectedItem()?.id() != series.id()) {
-                            workflowController.openItem(series.id())
+            render(if (foldedSeasonsExpanded) emptyMap() else seasonStartedCache, sameCollection)
+            runSilentTask({
+                if (workflowController.state().route() == TvRoute.DETAILS) {
+                    if (needStatus) {
+                        runCatching {
+                            seasonStartedCache = workflowController.loadSeasonsStartedStatus(structure)
                         }
-                        sameCollection = workflowController.loadSameCollectionItemsForSelectedItem()
                     }
-                    collectionLoaded = true
+                    if (needCollection) {
+                        runCatching {
+                            if (workflowController.state().selectedItem()?.id() != series.id()) {
+                                workflowController.openItem(series.id())
+                            }
+                            sameCollection = workflowController.loadSameCollectionItemsForSelectedItem()
+                        }
+                        collectionLoaded = true
+                    }
                 }
-            }) {
-                render(if (foldedSeasonsExpanded) emptyMap() else seasonStartedCache, sameCollection)
-            }
+            }, {
+                if (workflowController.state().route() == TvRoute.DETAILS) {
+                    render(if (foldedSeasonsExpanded) emptyMap() else seasonStartedCache, sameCollection)
+                }
+            }, {})
         }
         withExtras { status, collection ->
-            activity.setContentView(activity.seriesDetailScreen(
+            renderView(activity.seriesDetailScreen(
                 structure = structure,
                 onOpenSeason = { season ->
                     mediaBackStack.addLast { showSeriesDetail(structure, pushBack = false, foldedSeasonsExpanded) }
@@ -604,9 +648,8 @@ class PlaybackRouteController(
         }
         val season = structure.selectedSeason() ?: structure.series()
         var sameCollection: List<MediaItemSummary> = emptyList()
-        var loaded = false
         fun render(collection: List<MediaItemSummary>) {
-            activity.setContentView(activity.seasonDetailScreen(
+            renderView(activity.seasonDetailScreen(
                 structure = structure,
                 onOpenEpisode = { episode ->
                     openEpisodeDetail(episode) { showSeasonDetail(structure, pushBack = false) }
@@ -641,21 +684,21 @@ class PlaybackRouteController(
                 onPersonClick = ::openPerson,
             ))
         }
-        if (loaded) {
-            render(sameCollection)
-        } else {
-            runTask("正在加载同系列作品...", {
+        render(sameCollection)
+        runSilentTask({
+            if (workflowController.state().route() == TvRoute.DETAILS) {
                 runCatching {
                     if (workflowController.state().selectedItem()?.id() != season.id()) {
                         workflowController.openItem(season.id())
                     }
                     sameCollection = workflowController.loadSameCollectionItemsForSelectedItem()
                 }
-                loaded = true
-            }) {
+            }
+        }, {
+            if (workflowController.state().route() == TvRoute.DETAILS) {
                 render(sameCollection)
             }
-        }
+        }, {})
     }
 
     private fun openEpisodeDetail(item: MediaItemSummary, backRenderer: () -> Unit) {
@@ -712,14 +755,14 @@ class PlaybackRouteController(
 
     private fun showPlaybackSpeedOptions(item: MediaItemSummary) {
         auxiliaryBackAction = { showDetails(item) }
-        activity.setContentView(activity.playbackSpeedScreen(
+        renderView(activity.playbackSpeedScreen(
             onSpeed = { rate -> preparePlaybackWith(applyTrackSelection(item, speedPreferences(item, rate))) },
         ))
     }
 
     private fun showSubtitleStyleOptions(item: MediaItemSummary) {
         auxiliaryBackAction = { showDetails(item) }
-        activity.showSubtitleStyleScreen(subtitleStyleStore)
+        activity.showSubtitleStyleScreen(subtitleStyleStore, renderCompose = renderCompose)
     }
 
     fun showDiagnosticsFromError(state: TvAppState, onBackError: () -> Unit) {
@@ -750,141 +793,183 @@ class PlaybackRouteController(
         currentPlaybackSnapshot = selectedItem
         currentPlaybackDurationMs = if (selectedItem == null) 0L else ticksToMs(selectedItem.runTimeTicks() ?: 0L)
         playbackStartedFired = false
-        val settings = playbackSettingsStore.current()
-        // Load chapters / segments / trickplay / next-up metadata on the worker executor.
-        // Data is cached on workflowController.selectedItem and on controller fields; when
-        // unavailable the overlays simply stay hidden, player continues unblocked.
-        var chapters: List<ChapterInfo> = emptyList()
-        var segments: List<MediaSegmentInfo> = emptyList()
-        var trickplay: TrickplayInfo = TrickplayInfo.empty()
-        var nextUp: MediaItemSummary? = null
-        runTask("正在准备播放器辅助数据...", {
-            val selected = state.selectedItem()
-            if (selected != null) {
+        val settings = playbackSettingsStore.stateFlow.value
+        playerChapters = emptyList()
+        playerSegments = emptyList()
+        playerNextUp = null
+        playerNextUpCountdownSeconds = 0
+        playerNextUpCancelled = false
+        playerAutoSkipTypes.clear()
+        deferredAfmPromptShown = false
+        lastOverlayTickKey = ""
+        overlayRebuildScheduled = false
+        playerSubtitleShortcutLabel = "字幕"
+        playerAudioShortcutLabel = "音轨"
+        val (offlineFactory, offlineCacheKey) = run {
+            val serverId = state.authenticated()?.server()?.serverId()
+            if (serverId != null && selectedItem != null) {
+                val ready = workflowController.offlineRepository().readyFor(serverId, selectedItem.id())
+                if (ready != null) {
+                    val key = tv.cinepilot.tv.offline.DownloadCoordinator.mediaSourceContentId(
+                        serverId, selectedItem.id(), ready.quality(),
+                    )
+                    downloadCoordinator.cacheDataSourceFactory to key
+                } else {
+                    null to null
+                }
+            } else {
+                null to null
+            }
+        }
+        val externalSubs = selectedItem?.let { subtitleSearch.buildExternalSubtitles(it) }.orEmpty()
+        val playerView = playerHost.createPlayerView(
+            state = state,
+            subtitleEncoding = settings.subtitleEncoding,
+            dataSourceOverride = offlineFactory,
+            externalSubtitles = externalSubs,
+            offlineCacheKey = offlineCacheKey,
+            onPlaybackError = { error ->
+                activity.runOnUiThread {
+                    releasePlayerAndDispatchStop()
+                    displayModeApplier.restorePrevious()
+                    showError(error)
+                }
+            },
+            onPlaybackEnded = {
+                activity.runOnUiThread {
+                    releasePlayerAndDispatchStop()
+                    displayModeApplier.restorePrevious()
+                    if (workflowController.state().route() != TvRoute.PLAYER) {
+                        return@runOnUiThread
+                    }
+                    // Episode end: honor auto-play if the user never cancelled the Next Up
+                    // banner. Otherwise fall back to standard "return to details" flow.
+                    val autoPlay = playbackSettingsStore.stateFlow.value.autoPlayNext &&
+                            !playerNextUpCancelled
+                    if (autoPlay) {
+                        val next = playerNextUp
+                        if (next != null && next.id().isNotBlank()) {
+                            playNextEpisode(next)
+                            return@runOnUiThread
+                        }
+                    }
+                    workflowController.back()
+                    workflowController.state().selectedItem()?.let { showDetails(it) }
+                        ?: showHome(workflowController.state())
+                }
+            },
+            onPositionTick = ::onPlayerPositionTick,
+        )
+        rebuildPlayerOverlay(state, rebuildRoot = true, playerView = playerView)
+        applyDisplayModeIfNonBlocking(settings, playerHost.referenceFrameRate())
+        requestPlayerFocus()
+        loadPlayerAuxiliaryDataAsync(selectedItem, settings)
+    }
+
+    private fun loadPlayerAuxiliaryDataAsync(
+        selectedItem: MediaItemSummary?,
+        settings: PlaybackSettings,
+    ) {
+        executor.execute {
+            var chapters: List<ChapterInfo> = emptyList()
+            var segments: List<MediaSegmentInfo> = emptyList()
+            var nextUp: MediaItemSummary? = null
+            if (selectedItem != null) {
                 runCatching { workflowController.loadChaptersForSelectedItem() }
                     .onSuccess { chapters = it }
                 runCatching { workflowController.loadMediaSegmentsForSelectedItem() }
                     .onSuccess { segments = it }
-                if (settings.showTrickplayPreview) {
-                    runCatching { workflowController.loadTrickplayForSelectedItem(320) }
-                        .onSuccess { trickplay = it }
-                }
-                if (settings.autoPlayNext && selected.isEpisode()) {
+                if (settings.autoPlayNext && selectedItem.isEpisode()) {
                     runCatching { workflowController.nextUpEpisodeForSelected() }
                         .onSuccess { nextUp = it }
                 }
             }
-        }) {
-            playerChapters = chapters
-            playerSegments = segments
-            playerTrickplay = trickplay
-            playerNextUp = nextUp
-            playerNextUpCountdownSeconds = 0
-            playerNextUpCancelled = false
-            playerAutoSkipTypes.clear()
-            deferredAfmPromptShown = false
-            lastOverlayTickKey = ""
-            overlayRebuildScheduled = false
-            val (offlineFactory, offlineCacheKey) = run {
-                val serverId = state.authenticated()?.server()?.serverId()
-                if (serverId != null && selectedItem != null) {
-                    val ready = workflowController.offlineRepository().readyFor(serverId, selectedItem.id())
-                    if (ready != null) {
-                        val key = tv.cinepilot.tv.offline.DownloadCoordinator.mediaSourceContentId(
-                            serverId, selectedItem.id(), ready.quality(),
-                        )
-                        downloadCoordinator.cacheDataSourceFactory to key
-                    } else {
-                        null to null
-                    }
-                } else {
-                    null to null
-                }
-            }
-            val externalSubs = selectedItem?.let { subtitleSearch.buildExternalSubtitles(it) }.orEmpty()
-            val playerView = playerHost.createPlayerView(
-                state = state,
-                subtitleEncoding = settings.subtitleEncoding,
-                dataSourceOverride = offlineFactory,
-                externalSubtitles = externalSubs,
-                offlineCacheKey = offlineCacheKey,
-                onPlaybackError = { error ->
-                    activity.runOnUiThread {
-                        releasePlayerAndDispatchStop()
-                        displayModeApplier.restorePrevious()
-                        showError(error)
-                    }
-                },
-                onPlaybackEnded = {
-                    activity.runOnUiThread {
-                        releasePlayerAndDispatchStop()
-                        displayModeApplier.restorePrevious()
-                        if (workflowController.state().route() != TvRoute.PLAYER) {
-                            return@runOnUiThread
-                        }
-                        // Episode end: honor auto-play if the user never cancelled the Next Up
-                        // banner.  Otherwise fall back to standard "return to details" flow.
-                        val autoPlay = playbackSettingsStore.current().autoPlayNext &&
-                                !playerNextUpCancelled
-                        if (autoPlay) {
-                            val next = playerNextUp
-                            if (next != null && next.id().isNotBlank()) {
-                                playNextEpisode(next)
-                                return@runOnUiThread
-                            }
-                        }
-                        workflowController.back()
-                        workflowController.state().selectedItem()?.let { showDetails(it) }
-                            ?: showHome(workflowController.state())
-                    }
-                },
-                onPositionTick = ::onPlayerPositionTick,
-            )
-            val pending = displayModeApplier.computePendingMode(
-                referenceFrameRate = playerHost.referenceFrameRate(),
-                matchColorSpace = settings.matchColorSpace,
-                enabled = settings.autoFrameMatching,
-            )
-            fun finalize() {
-                rebuildPlayerOverlay(state, rebuildRoot = true, playerView = playerView)
-                playerView.post { playerView.requestFocus() }
-            }
-            if (pending != null &&
-                settings.confirmBeforeFrameSwitch &&
-                !settings.skipFrameSwitchConfirm
-            ) {
-                showAfmConfirmation(pending, ::finalize)
-            } else {
-                if (pending != null) displayModeApplier.commitPendingMode(pending)
-                finalize()
+            activity.runOnUiThread {
+                if (workflowController.state().route() != TvRoute.PLAYER) return@runOnUiThread
+                if (currentPlaybackSnapshot?.id() != selectedItem?.id()) return@runOnUiThread
+                playerChapters = chapters
+                playerSegments = segments
+                playerNextUp = nextUp
+                lastOverlayTickKey = ""
+                scheduleOverlayRebuild()
             }
         }
     }
 
-    private fun showAfmConfirmation(
-        pending: android.view.Display.Mode,
-        finalize: () -> Unit,
-    ) {
+    private fun applyDisplayModeIfNonBlocking(settings: PlaybackSettings, frameRate: Float?) {
+        val pending = displayModeApplier.computePendingMode(
+            referenceFrameRate = frameRate,
+            matchColorSpace = settings.matchColorSpace,
+            enabled = settings.autoFrameMatching,
+        ) ?: return
+        if (settings.confirmBeforeFrameSwitch && !settings.skipFrameSwitchConfirm) {
+            showAfmConfirmationSheet(pending)
+            return
+        }
+        displayModeApplier.commitPendingMode(pending)
+    }
+
+    private fun showAfmConfirmationSheet(pending: android.view.Display.Mode) {
+        deferredAfmPromptShown = true
+        val current = playbackSettingsStore.stateFlow.value
+        val currentMode = activity.windowManager.defaultDisplay?.mode ?: return
         val prompt = DisplayModeSwitchPrompt.from(pending)
-        val current = displayModeApplier.formatCurrentModeForDiagnostics()
-        activity.setContentView(activity.afmConfirmationSheet(
-            prompt = prompt,
-            currentModeLabel = current,
-            onSwitchNow = {
-                displayModeApplier.commitPendingMode(pending)
-                finalize()
-            },
-            onSkipOnce = {
-                finalize()
-            },
-            onAlwaysSkip = {
-                playbackSettingsStore.save(
-                    playbackSettingsStore.current().copy(skipFrameSwitchConfirm = true)
-                )
-                displayModeApplier.commitPendingMode(pending)
-                finalize()
-            },
-        ))
+        val currentLabel = buildString {
+            val height = currentMode.physicalHeight
+            when {
+                height >= 2160 -> append("4K")
+                height >= 1080 -> append("1080p")
+                height >= 720 -> append("720p")
+                else -> append("${currentMode.physicalWidth}×${currentMode.physicalHeight}")
+            }
+            append(" ")
+            append(String.format("%.0f Hz", currentMode.refreshRate))
+        }
+
+        fun returnToPlayer() {
+            auxiliaryBackAction = null
+            lastOverlayTickKey = ""
+            playerHost.playerSurfaceView()?.let { playerView ->
+                rebuildPlayerOverlay(workflowController.state(), rebuildRoot = true, playerView = playerView)
+            }
+        }
+
+        auxiliaryBackAction = {
+            returnToPlayer()
+        }
+
+        renderCompose("切换显示模式") { palette ->
+            ComposeAfmConfirmationScreen(
+                palette = palette,
+                prompt = prompt,
+                currentModeLabel = currentLabel,
+                onSwitchNow = {
+                    displayModeApplier.commitPendingMode(pending)
+                    returnToPlayer()
+                },
+                onSkipOnce = {
+                    returnToPlayer()
+                },
+                onAlwaysSkip = {
+                    activity.lifecycleScope.launch {
+                        playbackSettingsStore.saveAsync(current.copy(skipFrameSwitchConfirm = true))
+                    }
+                    displayModeApplier.commitPendingMode(pending)
+                    returnToPlayer()
+                },
+            )
+        }
+    }
+
+    private fun requestPlayerFocus() {
+        val playerView = playerHost.playerView()
+        if (playerView != null) {
+            playerView.post { playerView.requestFocus() }
+            playerView.postDelayed({ playerView.requestFocus() }, 120L)
+            return
+        }
+        val surfaceView = playerHost.playerSurfaceView() ?: return
+        surfaceView.post { surfaceView.requestFocus() }
     }
 
     /**
@@ -892,13 +977,14 @@ class PlaybackRouteController(
      * Called from the position-tick callback so we pick up the real frame rate
      * as soon as the demuxer has parsed the stream.
      *
-     * Uses the same confirmation / skip logic as the immediate path so users
-     * aren't surprised by an unprompted mode switch mid-playback.
+     * This path never replaces the player with a modal confirmation sheet: if
+     * confirmation is enabled we skip the switch for this playback and keep
+     * the video surface visible.
      */
     private fun maybeDeferredFrameMatch() {
         if (displayModeApplier.hasAppliedMode() || deferredAfmPromptShown) return
         val frameRate = playerHost.referenceFrameRate() ?: return
-        val settings = playbackSettingsStore.current()
+        val settings = playbackSettingsStore.stateFlow.value
         if (!settings.autoFrameMatching) return
         val pending = displayModeApplier.computePendingMode(
             referenceFrameRate = frameRate,
@@ -907,9 +993,7 @@ class PlaybackRouteController(
         ) ?: return
         if (settings.confirmBeforeFrameSwitch && !settings.skipFrameSwitchConfirm) {
             deferredAfmPromptShown = true
-            showAfmConfirmation(pending) {
-                rebuildPlayerOverlayIfNeeded()
-            }
+            toast("已暂不切换显示模式，可在播放设置中关闭确认后自动匹配")
         } else {
             displayModeApplier.commitPendingMode(pending)
         }
@@ -935,7 +1019,7 @@ class PlaybackRouteController(
             }
             pluginHost.dispatchPlaybackProgress(snapshot, positionMs, currentPlaybackDurationMs.coerceAtLeast(durationMs))
         }
-        val settings = playbackSettingsStore.current()
+        val settings = playbackSettingsStore.stateFlow.value
 
         // Auto-skip (once per type per playback).
         for (segment in playerSegments) {
@@ -1007,11 +1091,12 @@ class PlaybackRouteController(
         val introVisible = playerHasVisibleIntroSkip()
         val creditsVisible = playerHasVisibleCreditsSkip()
         val currentChapterIndex = playerCurrentChapterIndex()
-        return "$segments|$chaptersCount|$hasNextUp|$playerNextUpCountdownSeconds|$playerNextUpCancelled|$introVisible|$creditsVisible|$currentChapterIndex"
+        val playbackSpeed = playerHost.currentPlaybackSpeed()
+        return "$segments|$chaptersCount|$hasNextUp|$playerNextUpCountdownSeconds|$playerNextUpCancelled|$introVisible|$creditsVisible|$currentChapterIndex|$playerSubtitleShortcutLabel|$playerAudioShortcutLabel|$playbackSpeed"
     }
 
     private fun playerHasVisibleIntroSkip(): Boolean {
-        val settings = playbackSettingsStore.current()
+        val settings = playbackSettingsStore.stateFlow.value
         if (!settings.showIntroSkipButton) return false
         val position = playerHost.currentPositionTicks()
         return playerSegments.any {
@@ -1020,7 +1105,7 @@ class PlaybackRouteController(
     }
 
     private fun playerHasVisibleCreditsSkip(): Boolean {
-        val settings = playbackSettingsStore.current()
+        val settings = playbackSettingsStore.stateFlow.value
         if (!settings.showCreditsSkipButton) return false
         val position = playerHost.currentPositionTicks()
         return playerSegments.any {
@@ -1037,15 +1122,35 @@ class PlaybackRouteController(
             ?: (playerChapters.size - 1).coerceAtLeast(0)
     }
 
+    private fun playerOsdTitle(item: MediaItemSummary?): String {
+        if (item == null) return ""
+        return item.seriesName().ifBlank { item.name() }
+    }
+
+    private fun playerOsdSubtitle(item: MediaItemSummary?): String {
+        if (item == null) return ""
+        val season = item.parentIndexNumber()
+        val episode = item.indexNumber()
+        return when {
+            season != null && episode != null -> "S$season:E$episode"
+            episode != null -> "E$episode"
+            item.productionYear() != null -> item.productionYear().toString()
+            else -> ""
+        }
+    }
+
+    private fun playerOsdSubtitle(): String = subtitleShortcutLabel(playerHost)
+    private fun playerOsdAudio(): String = audioShortcutLabel(playerHost)
+    private fun playerOsdQuality(): String =
+        qualityShortcutLabel(workflowController.state().playableMedia(), playerHdrLabel())
+    private fun playerOsdSpeed(): String = speedShortcutLabel(playerHost)
+
     private fun rebuildPlayerOverlay(
         state: TvAppState,
         rebuildRoot: Boolean,
         playerView: View,
     ) {
-        // Detach the player surface from its current parent before reusing it in a new
-        // layout, otherwise addView() throws "child already has a parent".
-        (playerView.parent as? ViewGroup)?.removeView(playerView)
-        val settings = playbackSettingsStore.current()
+        val settings = playbackSettingsStore.stateFlow.value
         val positionTicks = playerHost.currentPositionTicks()
         val introSegment = playerSegments.firstOrNull { it.type() == MediaSegmentInfo.Type.INTRO }
             ?.takeIf { it.containsTicks(positionTicks) && settings.showIntroSkipButton }
@@ -1055,13 +1160,11 @@ class PlaybackRouteController(
             ?.let { it.startPositionTicks()..it.endPositionTicks() }
         val nextUpInfo = playerNextUp?.takeIf { playerNextUpCountdownSeconds > 0 }
             ?.let { next ->
-                PlayerNextUpInfo(
+                ComposeNextUpInfo(
+                    item = next,
                     episodeLabel = next.parentIndexNumber()?.let { s ->
                         next.indexNumber()?.let { e -> "第 ${s}季 · 第 ${e}集" }
                     } ?: next.indexNumber()?.let { e -> "第 ${e}集" } ?: "下一集",
-                    title = next.name(),
-                    overview = next.overview(),
-                    artworkUrl = "",
                     countdownSeconds = playerNextUpCountdownSeconds,
                     autoPlay = settings.autoPlayNext,
                 )
@@ -1073,28 +1176,40 @@ class PlaybackRouteController(
         } else {
             emptyList()
         }
-        val trickplaySpec = if (settings.showTrickplayPreview && playerTrickplay.isValid()) {
-            TrickplayGridSpec(
-                tileWidth = playerTrickplay.tileWidth(),
-                tileHeight = playerTrickplay.tileHeight(),
-                tilesPerRow = playerTrickplay.tilesPerRow(),
-                tileIntervalTicks = playerTrickplay.tileIntervalTicks(),
-                tileCount = playerTrickplay.tileCount(),
-            )
-        } else {
-            TrickplayGridSpec(0, 0, 0, 0L, 0)
-        }
-        val overlay = activity.playerScreen(
-            playerView = playerView,
-            debugInfo = playbackDebugInfo(state) +
-                    "\n显示模式：${displayModeApplier.formatCurrentModeForDiagnostics()}" +
-                    "\nHDR 格式：${playerHdrLabel()}" +
-                    "\nHDR 支持：${displayCapabilities.describe()}" +
-                    "\n音频直通：${audioPassthroughLabel()}",
-            overlays = PlayerOverrides(
-                chapterTitles = chapters,
+        val playerRoot = playerHost.playerSurfaceView() ?: playerView
+        val selectedItem = state.selectedItem()
+        val debugInfo = playbackDebugInfo(state) +
+            "\n显示模式：${displayModeApplier.formatCurrentModeForDiagnostics()}" +
+            "\nHDR 格式：${playerHdrLabel()}" +
+            "\nHDR 支持：${displayCapabilities.describe()}" +
+            "\n音频直通：${audioPassthroughLabel()}"
+        renderComposeFull { palette ->
+            ComposePlayerScreen(
+                palette = palette,
+                owner = activity,
+                artworkFactory = artworkFactory,
+                authenticated = state.authenticated(),
+                playerView = playerRoot,
+                mediaTitle = playerOsdTitle(selectedItem),
+                mediaSubtitle = playerOsdSubtitle(selectedItem),
+                positionTicks = positionTicks,
+                durationTicks = playerHost.durationTicks(),
+                debugInfo = debugInfo,
+                chapters = chapters,
                 onChapterClick = { targetTicks ->
                     playerHost.seekToTicks(targetTicks)
+                    scheduleOverlayRebuild()
+                },
+                onTogglePlayPause = {
+                    playerHost.togglePlayPause()
+                    scheduleOverlayRebuild()
+                },
+                onSeekBack = {
+                    playerHost.seekBack()
+                    scheduleOverlayRebuild()
+                },
+                onSeekForward = {
+                    playerHost.seekForward()
                     scheduleOverlayRebuild()
                 },
                 introSegmentTicks = introSegment,
@@ -1114,8 +1229,6 @@ class PlaybackRouteController(
                 nextUp = nextUpInfo,
                 onPlayNext = lambda@{
                     val next = playerNextUp ?: return@lambda
-                    releasePlayerAndDispatchStop()
-                    displayModeApplier.restorePrevious()
                     playNextEpisode(next)
                 },
                 onCancelNextUp = {
@@ -1123,21 +1236,37 @@ class PlaybackRouteController(
                     playerNextUpCountdownSeconds = 0
                     scheduleOverlayRebuild()
                 },
-                trickplayTileUrl = playerTrickplay.imageUrl(),
-                trickplayGrid = trickplaySpec,
                 onOpenPlaybackSettings = { openPlaybackSettings(state) },
-            ),
-        )
-        if (rebuildRoot) {
-            activity.setContentView(overlay)
-            overlay.post { overlay.requestFocus() }
-        } else {
-            val content = activity.findViewById<android.view.ViewGroup>(android.R.id.content)
-                ?: return
-            content.removeAllViews()
-            content.addView(overlay)
-            overlay.post { overlay.requestFocus() }
+                subtitleShortcutLabel = playerOsdSubtitle(),
+                audioShortcutLabel = playerOsdAudio(),
+                qualityLabel = playerOsdQuality(),
+                speedLabel = playerOsdSpeed(),
+                onSubtitlesShortcut = {
+                    playerSubtitleShortcutLabel = playerHost.cycleNextSubtitle()
+                    lastOverlayTickKey = ""
+                    scheduleOverlayRebuild()
+                },
+                onAudioShortcut = {
+                    playerHost.cycleNextAudioStream()
+                    playerAudioShortcutLabel = playerOsdAudio()
+                    lastOverlayTickKey = ""
+                    scheduleOverlayRebuild()
+                },
+                onQualityShortcut = {
+                    // Quality is locked in at prepare-playback time; open
+                    // playback settings so the user can view (or change via
+                    // bitrate cap on the next re-prepare).
+                    openPlaybackSettings(state)
+                },
+                onSpeedShortcut = {
+                    cycleNextPlaybackSpeed(playerHost)
+                    lastOverlayTickKey = ""
+                    scheduleOverlayRebuild()
+                },
+            )
         }
+        val overlayOwnsFocus = nextUpInfo != null
+        if (rebuildRoot || !overlayOwnsFocus) requestPlayerFocus()
     }
 
     private fun openPlaybackSettings(state: TvAppState) {
@@ -1160,37 +1289,51 @@ class PlaybackRouteController(
     fun showPlaybackSettingsScreen(
         focus: PlaybackSettingsFocusGroup = PlaybackSettingsFocusGroup.AFM,
         state: TvAppState,
+        /** When set, render this snapshot as the "current" settings instead of reading the
+         *  store flow. Used by the recursive onChanged path to avoid showing a stale value
+         *  while saveAsync persists the update. */
+        snapshot: PlaybackSettings? = null,
     ) {
-        val current = playbackSettingsStore.current()
+        val current = snapshot ?: playbackSettingsStore.stateFlow.value
         val audioStreams = playerHost.availableAudioStreams()
         val subtitleStreams = playerHost.availableSubtitleStreams()
         val currentAudioIndex = playerHost.currentAudioStreamIndex()
         val currentSubtitleIndex = playerHost.currentSubtitleStreamIndex()
-        activity.setContentView(activity.playbackSettingsScreen(
-            current = current,
-            focusGroup = focus,
-            audioStreams = audioStreams.takeIf { it.isNotEmpty() },
-            currentAudioStreamIndex = currentAudioIndex,
-            subtitleStreams = subtitleStreams.takeIf { it.isNotEmpty() },
-            currentSubtitleStreamIndex = currentSubtitleIndex,
-            onChanged = { updated ->
-                playbackSettingsStore.save(updated)
-                showPlaybackSettingsScreen(focus, state)
-            },
-            onAudioStreamChanged = { index ->
-                playerHost.setAudioStreamIndex(index)
-                showPlaybackSettingsScreen(PlaybackSettingsFocusGroup.AUDIO_TRACK, state)
-            },
-            onSubtitleStreamChanged = { index ->
-                playerHost.setSubtitleStreamIndex(index)
-                showPlaybackSettingsScreen(PlaybackSettingsFocusGroup.SUBTITLE_TRACK, state)
-            },
-            onBack = {
-                val back = auxiliaryBackAction
-                auxiliaryBackAction = null
-                if (back != null) back()
-            },
-        ))
+        val playerRoot = playerHost.playerSurfaceView() ?: return
+        renderComposeFull { palette ->
+            ComposePlaybackSettingsScreen(
+                palette = palette,
+                playerView = playerRoot,
+                current = current,
+                focusGroup = focus,
+                audioStreams = audioStreams.takeIf { it.isNotEmpty() },
+                currentAudioStreamIndex = currentAudioIndex,
+                subtitleStreams = subtitleStreams.takeIf { it.isNotEmpty() },
+                currentSubtitleStreamIndex = currentSubtitleIndex,
+                onChanged = { updated, nextFocus ->
+                    // Fire the persistence but rebuild the screen with the already-known
+                    // updated value so the toggle visually reflects the change immediately
+                    // and subsequent interactions operate on consistent state.
+                    activity.lifecycleScope.launch {
+                        playbackSettingsStore.saveAsync(updated)
+                    }
+                    showPlaybackSettingsScreen(nextFocus, state, snapshot = updated)
+                },
+                onAudioStreamChanged = { index ->
+                    playerHost.setAudioStreamIndex(index)
+                    showPlaybackSettingsScreen(PlaybackSettingsFocusGroup.AUDIO_TRACK, state)
+                },
+                onSubtitleStreamChanged = { index ->
+                    playerHost.setSubtitleStreamIndex(index)
+                    showPlaybackSettingsScreen(PlaybackSettingsFocusGroup.SUBTITLE_TRACK, state)
+                },
+                onBack = {
+                    val back = auxiliaryBackAction
+                    auxiliaryBackAction = null
+                    if (back != null) back()
+                },
+            )
+        }
     }
 
     private fun openSeriesNextUp() {
@@ -1226,11 +1369,27 @@ class PlaybackRouteController(
      * choices, and enters the player in one flow.
      */
     private fun playNextEpisode(next: MediaItemSummary) {
-        runTask("正在播放下一集...", {
-            workflowController.openItem(next.id())
-            workflowController.preparePlayback(null)
-        }) {
-            showPlayer(workflowController.state())
+        if (next.id().isBlank()) return
+        toast("正在播放下一集...")
+        playerNextUpCancelled = true
+        playerNextUpCountdownSeconds = 0
+        lastOverlayTickKey = ""
+        scheduleOverlayRebuild()
+        executor.execute {
+            val result = runCatching {
+                workflowController.openItem(next.id())
+                workflowController.preparePlayback(null)
+                workflowController.state()
+            }
+            activity.runOnUiThread {
+                if (result.isSuccess) {
+                    releasePlayerAndDispatchStop()
+                    displayModeApplier.restorePrevious()
+                    showPlayer(result.getOrThrow())
+                } else {
+                    showError(result.exceptionOrNull() ?: IllegalStateException("无法播放下一集"))
+                }
+            }
         }
     }
 
@@ -1248,7 +1407,7 @@ class PlaybackRouteController(
     ): PlaybackSelectionPreferences? {
         val selection = trackSelectionFor(item)
             .normalizedFor(selectedPlaybackInfo?.takeIf { it.itemId() == item.id() })
-        val burnGraphic = playbackSettingsStore.current().burnGraphicSubtitleWhenTranscoding
+        val burnGraphic = playbackSettingsStore.stateFlow.value.burnGraphicSubtitleWhenTranscoding
         if (!selection.hasExplicitChoice() && base != null && burnGraphic == base.alwaysBurnInSubtitleWhenTranscoding()) {
             return base
         }
@@ -1493,37 +1652,40 @@ class PlaybackRouteController(
         val values: Map<String, String> = currentItem.providerIds()?.toMap()
             ?: emptyMap()
         val entries: List<ProviderIdEditorEntry> = buildProviderIdEditorEntries(values)
-        activity.setContentView(activity.providerIdsEditorSheet(
-            entries = entries,
-            onCancel = rerender,
-            onSave = { next, refresh ->
-                runTask("正在保存编号...", {
-                    if (workflowController.state().selectedItem()?.id() != currentItem.id()) {
-                        runCatching { workflowController.openItem(currentItem.id()) }
-                    }
-                    // Merge the user-supplied edits into the existing provider-id map; keys
-                    // the user has cleared out of the editor are removed from the full map.
-                    val merged = mutableMapOf<String, String>()
-                    values.forEach { (k, v) -> merged[k] = v }
-                    entries.forEach { entry ->
-                        val newVal = next[entry.key]
-                        if (newVal == null) {
-                            merged.remove(entry.key)
-                        } else {
-                            merged[entry.key] = newVal
+        renderCompose("修正 Provider Id") { palette ->
+            ComposeProviderIdEditorScreen(
+                palette = palette,
+                entries = entries,
+                onCancel = rerender,
+                onSave = { next, refresh ->
+                    runTask("正在保存编号...", {
+                        if (workflowController.state().selectedItem()?.id() != currentItem.id()) {
+                            runCatching { workflowController.openItem(currentItem.id()) }
                         }
-                    }
-                    workflowController.setProviderIdsForSelectedItem(merged)
-                    if (refresh) {
-                        runCatching {
-                            workflowController.refreshMetadataForSelectedItem(true)
+                        // Merge the user-supplied edits into the existing provider-id map; keys
+                        // the user has cleared out of the editor are removed from the full map.
+                        val merged = mutableMapOf<String, String>()
+                        values.forEach { (k, v) -> merged[k] = v }
+                        entries.forEach { entry ->
+                            val newVal = next[entry.key]
+                            if (newVal == null) {
+                                merged.remove(entry.key)
+                            } else {
+                                merged[entry.key] = newVal
+                            }
                         }
+                        workflowController.setProviderIdsForSelectedItem(merged)
+                        if (refresh) {
+                            runCatching {
+                                workflowController.refreshMetadataForSelectedItem(true)
+                            }
+                        }
+                    }) {
+                        rerender()
                     }
-                }) {
-                    rerender()
-                }
-            },
-        ))
+                },
+            )
+        }
     }
 }
 

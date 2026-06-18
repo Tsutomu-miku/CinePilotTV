@@ -1,5 +1,6 @@
 package tv.cinepilot.tv.runtime
 
+import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.widget.ImageView
 import androidx.activity.ComponentActivity
@@ -92,7 +93,7 @@ class ArtworkLoader(
             return
         }
         target.tag = url
-        bitmapCache.get(url)?.let { cached ->
+        bitmapCache.getMemory(url)?.let { cached ->
             target.setImageBitmap(cached)
             return
         }

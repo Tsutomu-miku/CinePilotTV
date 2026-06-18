@@ -3,6 +3,11 @@ package tv.cinepilot.tv.playback
 import android.widget.HorizontalScrollView
 import android.widget.ScrollView
 import androidx.activity.ComponentActivity
+import androidx.compose.runtime.Composable
+import androidx.lifecycle.lifecycleScope
+import kotlinx.coroutines.launch
+import tv.cinepilot.tv.compose.screens.ComposeSubtitleStyleScreen
+import tv.cinepilot.tv.compose.theme.CinePilotPalette
 import tv.cinepilot.tv.ui.TvIcon
 import tv.cinepilot.tv.ui.iconAction
 import tv.cinepilot.tv.ui.radioChoice
@@ -14,39 +19,45 @@ import tv.cinepilot.tv.ui.settingChoiceRow
 fun ComponentActivity.showSubtitleStyleScreen(
     store: SubtitleStyleStore,
     focusGroup: SubtitleStyleFocusGroup = SubtitleStyleFocusGroup.SIZE,
+    renderCompose: (String, @Composable (CinePilotPalette) -> Unit) -> Unit,
 ) {
     fun refresh(
         nextFocusGroup: SubtitleStyleFocusGroup,
         update: (SubtitleStylePreferences) -> SubtitleStylePreferences,
     ) {
-        store.save(update(store.current()))
-        showSubtitleStyleScreen(store, nextFocusGroup)
+        val updated = update(store.stateFlow.value)
+        lifecycleScope.launch { store.saveAsync(updated) }
+        showSubtitleStyleScreen(store, nextFocusGroup, renderCompose)
     }
-    setContentView(subtitleStyleScreen(
-        current = store.current(),
-        focusGroup = focusGroup,
-        onSize = { size -> refresh(SubtitleStyleFocusGroup.SIZE) { it.copy(size = size) } },
-        onColor = { color -> refresh(SubtitleStyleFocusGroup.COLOR) { it.copy(color = color) } },
-        onBackground = { background ->
-            refresh(SubtitleStyleFocusGroup.BACKGROUND) { it.copy(background = background) }
-        },
-        onFont = { font ->
-            refresh(SubtitleStyleFocusGroup.FONT) { it.copy(fontFamily = font) }
-        },
-        onEdgeStyle = { edge ->
-            refresh(SubtitleStyleFocusGroup.EDGE) { it.copy(edgeStyle = edge) }
-        },
-        onMargin = { margin ->
-            refresh(SubtitleStyleFocusGroup.MARGIN) { it.copy(bottomMargin = margin) }
-        },
-        onOpacity = { opacity ->
-            refresh(SubtitleStyleFocusGroup.OPACITY) { it.copy(textOpacity = opacity) }
-        },
-        onReset = {
-            store.save(SubtitleStylePreferences.defaults())
-            showSubtitleStyleScreen(store)
-        },
-    ))
+    renderCompose("字幕样式") { palette ->
+        ComposeSubtitleStyleScreen(
+            palette = palette,
+            current = store.stateFlow.value,
+            focusGroup = focusGroup,
+            onSize = { size -> refresh(SubtitleStyleFocusGroup.SIZE) { it.copy(size = size) } },
+            onColor = { color -> refresh(SubtitleStyleFocusGroup.COLOR) { it.copy(color = color) } },
+            onBackground = { background ->
+                refresh(SubtitleStyleFocusGroup.BACKGROUND) { it.copy(background = background) }
+            },
+            onFont = { font ->
+                refresh(SubtitleStyleFocusGroup.FONT) { it.copy(fontFamily = font) }
+            },
+            onEdgeStyle = { edge ->
+                refresh(SubtitleStyleFocusGroup.EDGE) { it.copy(edgeStyle = edge) }
+            },
+            onMargin = { margin ->
+                refresh(SubtitleStyleFocusGroup.MARGIN) { it.copy(bottomMargin = margin) }
+            },
+            onOpacity = { opacity ->
+                refresh(SubtitleStyleFocusGroup.OPACITY) { it.copy(textOpacity = opacity) }
+            },
+            onReset = {
+                val defaults = SubtitleStylePreferences.defaults()
+                lifecycleScope.launch { store.saveAsync(defaults) }
+                showSubtitleStyleScreen(store, renderCompose = renderCompose)
+            },
+        )
+    }
 }
 
 fun ComponentActivity.subtitleStyleScreen(

@@ -1,5 +1,7 @@
 package tv.cinepilot.tv.ui
 
+import android.os.Handler
+import android.os.Looper
 import android.view.Gravity
 import android.view.View
 import android.view.ViewGroup
@@ -9,7 +11,6 @@ import android.widget.LinearLayout
 import android.widget.ScrollView
 import android.widget.TextView
 import androidx.activity.ComponentActivity
-import tv.cinepilot.core.protocol.MediaBrowseFilters
 import tv.cinepilot.core.protocol.MediaItemSummary
 import tv.cinepilot.core.tv.HomeRow
 import tv.cinepilot.core.tv.TvAppState
@@ -18,11 +19,8 @@ import tv.cinepilot.tv.runtime.ArtworkTarget
 fun ComponentActivity.homeScreen(
     state: TvAppState,
     navigation: HomeNavigation,
-    filters: MediaBrowseFilters,
-    availableGenreNames: List<String>,
     onOpen: (HomeRow, MediaItemSummary) -> Unit,
     onFocusItem: (HomeRow, MediaItemSummary) -> Unit,
-    onFiltersChanged: (MediaBrowseFilters) -> Unit,
     onLibraryOverview: (viewId: String, title: String, isSeries: Boolean) -> Unit,
     loadArtwork: (ImageView, MediaItemSummary, ArtworkTarget, Int, Int) -> Unit,
     loadBackdrop: (ImageView, MediaItemSummary, Int, Int) -> Unit,
@@ -33,12 +31,14 @@ fun ComponentActivity.homeScreen(
     val isSearchResults = homeRows.any { it.id().startsWith("search:") }
     val isOverview = homeRows.any { it.id().startsWith("overview:") }
     val isEmptySearch = hasNoMedia && isSearchResults
-    val backdrop = cinematicBackdrop()
+    val backdrop = cinematicBackdrop(blurred = false).apply { alpha = 0.42f }
     val header = homeFocusHeader()
+    val focusUpdater = HomeFocusUpdater(backdrop, header, loadBackdrop)
+    var rowsAppender: HomeRowsAppender? = null
     var fallbackFocusAssigned = false
     var restoredFocusAssigned = false
 
-    return cinematicStage(backdrop, scrollable = false) {
+    val root = cinematicStage(backdrop, scrollable = false) {
         addView(edgeChrome(homeChromeActions(navigation)), FrameLayout.LayoutParams(
             FrameLayout.LayoutParams.WRAP_CONTENT,
             dp(MediaWallTokens.EdgeChromeSize),
@@ -58,16 +58,14 @@ fun ComponentActivity.homeScreen(
         addView(mediaWallContent {
             if (isSearchResults) {
                 addView(searchResultHint())
-                addView(filterChipsRow(filters, availableGenreNames, onChanged = onFiltersChanged))
             }
             if (!isSearchResults && !isOverview) {
-                addView(filterChipsRow(filters, availableGenreNames, onChanged = onFiltersChanged))
                 libraryOverviewChips(homeRows, onLibraryOverview)?.let(::addView)
-            } else if (isOverview) {
-                addView(filterChipsRow(filters, availableGenreNames, onChanged = onFiltersChanged))
             }
-            homeRows.forEach { row ->
-                if (row.items().isNotEmpty()) {
+            val displayRows = homeRows.filter { it.items().isNotEmpty() }
+            rowsAppender = HomeRowsAppender(
+                rows = displayRows,
+                addRow = { row ->
                     val presentation = row.toHomeRowPresentation()
                     addView(mediaWallRow(
                         presentation = presentation,
@@ -75,40 +73,134 @@ fun ComponentActivity.homeScreen(
                             val restored = state.focus()?.rowId() == row.id() && state.focus()?.itemId() == item.id()
                             if (restored) {
                                 restoredFocusAssigned = true
-                                updateHomeFocus(backdrop, header, item, loadBackdrop)
+                                focusUpdater.update(item, immediate = true)
                                 onFocusedCard(cell)
                             } else if (!restoredFocusAssigned && !fallbackFocusAssigned) {
                                 fallbackFocusAssigned = true
-                                updateHomeFocus(backdrop, header, item, loadBackdrop)
+                                focusUpdater.update(item, immediate = true)
                                 onFocusedCard(cell)
                             }
                         },
                         onFocus = { focusedRow, item ->
-                            updateHomeFocus(backdrop, header, item, loadBackdrop)
+                            focusUpdater.update(item, immediate = false)
                             onFocusItem(focusedRow, item)
                         },
                         onOpen = onOpen,
                         loadArtwork = loadArtwork,
                     ))
-                }
-            }
-            addView(homeBrowseActions(navigation))
+                },
+                onFinished = {
+                    addView(homeBrowseActions(navigation))
+                },
+            ).also { it.start() }
         })
         if (hasNoMedia) {
             addView(emptyOverlay(if (isEmptySearch) "没有找到匹配的媒体" else "没有可显示的媒体",
                 if (isEmptySearch) searchEmptyActions(navigation) else homeEmptyActions(navigation)))
         }
     }
+    root.addOnAttachStateChangeListener(object : View.OnAttachStateChangeListener {
+        override fun onViewAttachedToWindow(v: View) = Unit
+
+        override fun onViewDetachedFromWindow(v: View) {
+            focusUpdater.clear()
+            rowsAppender?.clear()
+        }
+    })
+    return root
 }
 
-private fun updateHomeFocus(
-    backdrop: ImageView,
-    header: HomeFocusHeader,
-    item: MediaItemSummary,
-    loadBackdrop: (ImageView, MediaItemSummary, Int, Int) -> Unit,
+private class HomeRowsAppender(
+    private val rows: List<HomeRow>,
+    private val addRow: (HomeRow) -> Unit,
+    private val onFinished: () -> Unit,
 ) {
-    updateHomeFocusHeader(header, item)
-    loadBackdrop(backdrop, item, 1280, 720)
+    private val handler = Handler(Looper.getMainLooper())
+    private var nextIndex = 0
+    private var finished = false
+    private val appendNextRow = Runnable {
+        appendRows(1)
+        scheduleNext()
+    }
+
+    fun start() {
+        appendRows(3)
+        scheduleNext()
+    }
+
+    fun clear() {
+        handler.removeCallbacks(appendNextRow)
+        finished = true
+    }
+
+    private fun appendRows(count: Int) {
+        repeat(count) {
+            if (nextIndex >= rows.size) {
+                return
+            }
+            addRow(rows[nextIndex])
+            nextIndex += 1
+        }
+    }
+
+    private fun scheduleNext() {
+        if (finished) {
+            return
+        }
+        if (nextIndex >= rows.size) {
+            finished = true
+            onFinished()
+            return
+        }
+        handler.postDelayed(appendNextRow, 48L)
+    }
+}
+
+private class HomeFocusUpdater(
+    private val backdrop: ImageView,
+    private val header: HomeFocusHeader,
+    private val loadBackdrop: (ImageView, MediaItemSummary, Int, Int) -> Unit,
+) {
+    private val handler = Handler(Looper.getMainLooper())
+    private var pendingItem: MediaItemSummary? = null
+    private var pendingBackdropId: String? = null
+    private var loadedBackdropId: String? = null
+    private val loadPendingBackdrop = Runnable {
+        val item = pendingItem ?: return@Runnable
+        loadBackdropNow(item)
+    }
+
+    fun update(item: MediaItemSummary, immediate: Boolean) {
+        updateHomeFocusHeader(header, item)
+        val itemId = item.id()
+        if (itemId == loadedBackdropId || itemId == pendingBackdropId) {
+            return
+        }
+        pendingItem = item
+        pendingBackdropId = itemId
+        handler.removeCallbacks(loadPendingBackdrop)
+        if (immediate) {
+            loadBackdropNow(item)
+        } else {
+            handler.postDelayed(loadPendingBackdrop, 150L)
+        }
+    }
+
+    fun clear() {
+        handler.removeCallbacks(loadPendingBackdrop)
+        pendingItem = null
+        pendingBackdropId = null
+    }
+
+    private fun loadBackdropNow(item: MediaItemSummary) {
+        val itemId = item.id()
+        pendingBackdropId = null
+        if (itemId == loadedBackdropId) {
+            return
+        }
+        loadedBackdropId = itemId
+        loadBackdrop(backdrop, item, 960, 540)
+    }
 }
 
 private fun ComponentActivity.mediaWallContent(content: LinearLayout.() -> Unit): View {

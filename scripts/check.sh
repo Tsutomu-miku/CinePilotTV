@@ -118,15 +118,19 @@ if ! grep -q 'media3.exoplayer.hls' "$ROOT_DIR/app/build.gradle.kts"; then
   exit 1
 fi
 
-# Compose is deliberately unused in this project (UI is written with the
-# native View system). Don't reintroduce Compose runtime or TV Compose
-# libraries without updating the build plan first.
-if grep -q 'androidx.compose' "$ROOT_DIR/gradle/libs.versions.toml" ||
-  grep -q 'activity-compose' "$ROOT_DIR/gradle/libs.versions.toml" ||
-  grep -q 'tv-material' "$ROOT_DIR/gradle/libs.versions.toml" ||
-  grep -q 'compose.bom' "$ROOT_DIR/app/build.gradle.kts" ||
-  grep -q 'activity.compose' "$ROOT_DIR/app/build.gradle.kts"; then
-  echo "Remove unused Compose dependencies: this project uses native Views" >&2
+# Compose is the primary Android TV UI layer. Keep it custom and avoid
+# androidx.tv:tv-material so the app owns its focus model and visual system.
+if ! grep -q 'org.jetbrains.kotlin.plugin.compose' "$ROOT_DIR/gradle/libs.versions.toml" ||
+  ! grep -q 'androidx.compose:compose-bom' "$ROOT_DIR/gradle/libs.versions.toml" ||
+  ! grep -q 'compose = true' "$ROOT_DIR/app/build.gradle.kts" ||
+  ! grep -q 'activity.compose' "$ROOT_DIR/app/build.gradle.kts"; then
+  echo "Android app must enable custom Compose UI with the Kotlin Compose compiler plugin" >&2
+  exit 1
+fi
+
+if grep -q 'androidx.tv:tv-material' "$ROOT_DIR/gradle/libs.versions.toml" ||
+  grep -q 'tv-material' "$ROOT_DIR/app/build.gradle.kts"; then
+  echo "Do not add TV Material: CinePilot uses a custom Compose TV design system" >&2
   exit 1
 fi
 
@@ -480,9 +484,8 @@ if ! grep -q 'restoreSession' "$AUTH_ROUTE_CONTROLLER"; then
   exit 1
 fi
 
-if ! ( grep -q 'requestFocus' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/MainActivity.kt" ||
-  grep -q 'requestFocus' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/home/HomeRouteController.kt" ); then
-  echo "MainActivity must restore focused home item" >&2
+if ! grep -q 'requestInitialFocus' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/compose/screens/home/HomeScreen.kt"; then
+  echo "Compose home must restore the focused home item" >&2
   exit 1
 fi
 
@@ -855,8 +858,10 @@ if [[ ! -s "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/ui/MediaPresentation.kt"
   exit 1
 fi
 
-if (( $(wc -l < "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/ui/HomeScreen.kt") > 240 )); then
-  echo "HomeScreen must stay below 240 lines and delegate layout to Infuse components" >&2
+if [[ ! -s "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/compose/CinePilotScreenHost.kt" ]] ||
+  [[ ! -s "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/compose/components/StageComponents.kt" ]] ||
+  [[ ! -s "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/compose/components/FocusComponents.kt" ]]; then
+  echo "Compose migration must keep the custom TV Compose host and design components" >&2
   exit 1
 fi
 
@@ -1022,13 +1027,13 @@ if [[ ! -s "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/ui/TvErrorMessages.kt" ]
   exit 1
 fi
 
-if [[ ! -s "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/error/ErrorRouteScreen.kt" ]]; then
-  echo "Missing dedicated error recovery route screen" >&2
+if [[ ! -s "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/compose/screens/ComposeErrorScreen.kt" ]]; then
+  echo "Missing dedicated Compose error recovery screen" >&2
   exit 1
 fi
 
-if ! grep -q 'errorRouteScreen' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/MainActivity.kt"; then
-  echo "MainActivity must delegate error recovery UI to ErrorRouteScreen" >&2
+if ! grep -q 'ComposeErrorScreen' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/MainActivity.kt"; then
+  echo "MainActivity must delegate error recovery UI to ComposeErrorScreen" >&2
   exit 1
 fi
 
@@ -1042,7 +1047,7 @@ if ! grep -q 'workflowController.fail' "$ROOT_DIR/app/src/main/java/tv/cinepilot
   exit 1
 fi
 
-if ! grep -q '返回详情' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/error/ErrorRouteScreen.kt"; then
+if ! grep -q '返回详情' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/compose/screens/ComposeErrorScreen.kt"; then
   echo "MainActivity must let users recover from detail-scoped errors" >&2
   exit 1
 fi
@@ -1495,7 +1500,7 @@ if [[ ! -s "$PLAYBACK_DIAGNOSTICS_CONTROLLER" ]]; then
   exit 1
 fi
 
-if ! grep -q 'PlaybackDiagnosticsController(activity, deviceCodecDiagnostics)' "$PLAYBACK_ROUTE_CONTROLLER"; then
+if ! grep -q 'PlaybackDiagnosticsController(activity, deviceCodecDiagnostics, renderCompose)' "$PLAYBACK_ROUTE_CONTROLLER"; then
   echo "Playback route controller must delegate diagnostics route handling" >&2
   exit 1
 fi

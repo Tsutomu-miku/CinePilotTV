@@ -48,7 +48,9 @@ fun ComponentActivity.artworkCell(
         title.visibility = if (focused) View.VISIBLE else View.GONE
         view.applyFocusOutline(focused)
     }
-    loadImage(poster, item, 224, 336)
+    poster.deferArtworkLoad {
+        loadImage(poster, item, 224, 336)
+    }
     root.layoutParams = LinearLayout.LayoutParams(
         dp(MediaWallTokens.CellWidth),
         dp(MediaWallTokens.CellHeight),

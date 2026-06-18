@@ -4,19 +4,24 @@ import android.app.Activity
 import android.content.ActivityNotFoundException
 import android.content.Intent
 import android.speech.RecognizerIntent
-import android.widget.EditText
 import android.widget.Toast
 import androidx.activity.ComponentActivity
+import android.view.View
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.runtime.Composable
 import tv.cinepilot.core.tv.SearchFilter
 import tv.cinepilot.core.tv.TvAppState
 import tv.cinepilot.core.tv.TvWorkflowController
+import tv.cinepilot.tv.compose.screens.ComposeSearchScreen
+import tv.cinepilot.tv.compose.theme.CinePilotPalette
 
 class SearchRouteController(
     private val activity: ComponentActivity,
     private val workflowController: TvWorkflowController,
     private val runTask: (String, () -> Unit, () -> Unit) -> Unit,
     private val showHome: (TvAppState) -> Unit,
+    private val renderView: (View) -> Unit,
+    private val renderCompose: (String, @Composable (CinePilotPalette) -> Unit) -> Unit,
 ) {
     private var visible = false
     private var searchFilter = SearchFilter.ALL
@@ -38,18 +43,25 @@ class SearchRouteController(
 
     fun showSearch(initialTerm: String = "") {
         visible = true
-        val searchViews = activity.searchScreen(
-            initialTerm = initialTerm,
-            selectedFilter = searchFilter,
-            onFilter = { filter, currentTerm ->
-                searchFilter = filter
-                showSearch(currentTerm)
-            },
-            onVoiceInput = ::startVoiceSearch,
-            onSubmit = ::submitSearch,
-        )
-        activity.setContentView(searchViews.root)
-        searchViews.input.post { searchViews.input.requestFocus() }
+        renderCompose("搜索") { palette ->
+            ComposeSearchScreen(
+                palette = palette,
+                initialTerm = initialTerm,
+                selectedFilter = searchFilter,
+                onFilter = { filter, currentTerm ->
+                    searchFilter = filter
+                    showSearch(currentTerm)
+                },
+                onVoiceInput = ::startVoiceSearch,
+                onSubmit = { term, filter ->
+                    if (term.isBlank()) {
+                        showSearch(term)
+                    } else {
+                        submitSearchTerm(term, filter)
+                    }
+                },
+            )
+        }
     }
 
     fun closeIfVisible(): Boolean {
@@ -63,14 +75,6 @@ class SearchRouteController(
 
     fun hide() {
         visible = false
-    }
-
-    private fun submitSearch(term: String, filter: SearchFilter, searchInput: EditText) {
-        if (term.isBlank()) {
-            searchInput.requestFocus()
-            return
-        }
-        submitSearchTerm(term, filter)
     }
 
     private fun submitSearchTerm(term: String, filter: SearchFilter) {

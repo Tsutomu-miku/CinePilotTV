@@ -49,6 +49,7 @@ data class PlayerNextUpInfo(
     val title: String,
     val overview: String,
     val artworkUrl: String,
+    val loadArtwork: ((ImageView) -> Unit)? = null,
     val countdownSeconds: Int,
     val autoPlay: Boolean,
 )
@@ -206,6 +207,7 @@ private fun ComponentActivity.nextUpCard(
     card.addView(ImageView(this).apply {
         scaleType = ImageView.ScaleType.CENTER_CROP
         background = roundRectDrawable(dp(10), Color.argb(255, 20, 20, 22))
+        info.loadArtwork?.invoke(this)
         layoutParams = LinearLayout.LayoutParams(dp(196), dp(110)).apply {
             rightMargin = dp(16)
         }
@@ -292,7 +294,7 @@ private fun ComponentActivity.nextUpCard(
     actions.addView(playAction)
     actions.addView(cancelAction)
     card.addView(actions)
-    playAction.requestFocus()
+    playAction.post { playAction.requestFocus() }
     return card
 }
 

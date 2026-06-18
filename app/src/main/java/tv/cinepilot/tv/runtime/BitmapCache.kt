@@ -21,8 +21,7 @@ import java.security.MessageDigest
  * this single-process TV app.
  *
  * All mutating operations on the disk layer are internally synchronized so
- * ArtworkLoader / PrimaryImageLoader thread pools can share one instance
- * safely.
+ * ArtworkLoader and other image loaders can share one instance safely.
  */
 class BitmapCache private constructor(
     private val diskDir: File,
@@ -33,6 +32,11 @@ class BitmapCache private constructor(
         override fun sizeOf(key: String, value: Bitmap): Int = value.byteCount
     }
     private val diskLock = Any()
+
+    fun getMemory(url: String): Bitmap? {
+        if (url.isBlank()) return null
+        return memoryCache.get(url)
+    }
 
     fun get(url: String): Bitmap? {
         if (url.isBlank()) return null
@@ -57,7 +61,9 @@ class BitmapCache private constructor(
             if (!parent.exists()) parent.mkdirs()
             val written = runCatching {
                 FileOutputStream(file).use { out ->
-                    bitmap.compress(Bitmap.CompressFormat.PNG, 100, out)
+                    // Artwork is photo-like and usually opaque; JPEG avoids
+                    // the heavy PNG compression cost while scrolling a TV wall.
+                    bitmap.compress(Bitmap.CompressFormat.JPEG, 88, out)
                 }
                 file.length()
             }.getOrDefault(0L)

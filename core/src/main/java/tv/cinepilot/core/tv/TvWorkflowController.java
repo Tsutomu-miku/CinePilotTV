@@ -89,13 +89,23 @@ public final class TvWorkflowController {
     }
 
     public TvAppState login(String username, String password) {
+        loginWithoutHome(username, password);
+        return loadHome();
+    }
+
+    /**
+     * Authenticate and transition to HOME without loading home rows. Android's
+     * cache-aware entry flow uses this so it can paint cached rows immediately
+     * and run the expensive network home refresh in the background.
+     */
+    public TvAppState loginWithoutHome(String username, String password) {
         if (state.server() == null) {
             throw new IllegalStateException("server must be discovered before login");
         }
         state = TvWorkflow.loginStarted(state);
         AuthenticatedServer authenticated = client.authenticate(state.server(), username, password);
         state = TvWorkflow.loginSucceeded(state, authenticated);
-        return loadHome();
+        return state;
     }
 
     public boolean quickConnectEnabled() {
@@ -150,6 +160,16 @@ public final class TvWorkflowController {
      * matching the behavior of {@link #loadHome(boolean)}.
      */
     public TvAppState restoreSession(String userId, boolean includeSmartCollections) {
+        restoreSessionWithoutHome(userId);
+        return loadHome(includeSmartCollections);
+    }
+
+    /**
+     * Restore a saved session without loading home rows. This is deliberately
+     * separate from {@link #restoreSession(String, boolean)} so existing tests
+     * and protocol callers keep the historical "restore and load home" behavior.
+     */
+    public TvAppState restoreSessionWithoutHome(String userId) {
         if (state.server() == null) {
             throw new IllegalStateException("server must be discovered before restoring a session");
         }
@@ -158,7 +178,7 @@ public final class TvWorkflowController {
                 .orElseThrow(() -> new IllegalStateException("saved session was not found"));
         client.markActiveProfile(state.server(), userId);
         state = TvWorkflow.loginSucceeded(state, authenticated);
-        return loadHome(includeSmartCollections);
+        return state;
     }
 
     /**

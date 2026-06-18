@@ -1,19 +1,15 @@
 package tv.cinepilot.tv.playback
 
-import android.widget.ScrollView
+import android.view.View
 import androidx.activity.ComponentActivity
 import tv.cinepilot.core.protocol.MediaStreamInfo
-import tv.cinepilot.tv.ui.TvIcon
 import tv.cinepilot.tv.ui.TvOptionSelectItem
-import tv.cinepilot.tv.ui.iconAction
-import tv.cinepilot.tv.ui.optionSelect
-import tv.cinepilot.tv.ui.radioChoice
-import tv.cinepilot.tv.ui.requestInitialFocus
-import tv.cinepilot.tv.ui.screen
-import tv.cinepilot.tv.ui.section
-import tv.cinepilot.tv.ui.settingChoiceRow
+import tv.cinepilot.tv.ui.settingsActionRow
+import tv.cinepilot.tv.ui.settingsGridSection
+import tv.cinepilot.tv.ui.settingsOptionRow
+import tv.cinepilot.tv.ui.settingsPage
+import tv.cinepilot.tv.ui.settingsToggleRow
 import tv.cinepilot.tv.ui.streamLabel
-import tv.cinepilot.tv.ui.toggleChoice
 
 enum class PlaybackSettingsFocusGroup {
     AFM,
@@ -34,211 +30,228 @@ fun ComponentActivity.playbackSettingsScreen(
     currentAudioStreamIndex: Int? = null,
     subtitleStreams: List<MediaStreamInfo>? = null,
     currentSubtitleStreamIndex: Int? = null,
-    onChanged: (PlaybackSettings) -> Unit,
+    onChanged: (PlaybackSettings, PlaybackSettingsFocusGroup) -> Unit,
     onAudioStreamChanged: (Int?) -> Unit = {},
     onSubtitleStreamChanged: (Int?) -> Unit = {},
     onBack: () -> Unit,
-): ScrollView {
+): View {
     fun update(
         next: PlaybackSettingsFocusGroup,
         fn: (PlaybackSettings) -> PlaybackSettings,
-    ): Unit = onChanged(fn(current))
+    ): Unit = onChanged(fn(current), next)
 
-    return screen("播放设置") {
-        addView(section("帧率 / 色彩匹配 (AFM)"))
-        addView(toggleRow(
-            label = "自动匹配刷新率",
-            description = "根据视频帧率切换电视 Display.Mode，播放前给出确认通知",
-            checked = current.autoFrameMatching,
-            focus = focusGroup == PlaybackSettingsFocusGroup.AFM,
-        ) { checked ->
-            update(PlaybackSettingsFocusGroup.AFM) {
-                it.copy(autoFrameMatching = checked)
+    return settingsPage(
+        title = "播放设置",
+        subtitle = "显示模式 / 音轨字幕 / 连播 / 跳过 / 章节",
+    ) {
+        addView(settingsGridSection(
+            title = "显示模式",
+            rows = buildList {
+                add(settingsToggleRow(
+                    label = "自动匹配刷新率",
+                    description = "按片源帧率切换显示模式",
+                    checked = current.autoFrameMatching,
+                    requestFocus = focusGroup == PlaybackSettingsFocusGroup.AFM,
+                ) { checked ->
+                    update(PlaybackSettingsFocusGroup.AFM) {
+                        it.copy(autoFrameMatching = checked)
+                    }
+                })
+                add(settingsToggleRow(
+                    label = "匹配色彩空间",
+                    description = "HDR / SDR 自动匹配",
+                    checked = current.matchColorSpace,
+                ) { checked ->
+                    update(PlaybackSettingsFocusGroup.AFM) {
+                        it.copy(matchColorSpace = checked)
+                    }
+                })
+                add(settingsToggleRow(
+                    label = "切换前确认",
+                    description = "切换显示模式前确认",
+                    checked = current.confirmBeforeFrameSwitch,
+                ) { checked ->
+                    update(PlaybackSettingsFocusGroup.AFM) {
+                        it.copy(
+                            confirmBeforeFrameSwitch = checked,
+                            skipFrameSwitchConfirm = if (checked) false else it.skipFrameSwitchConfirm,
+                        )
+                    }
+                })
+                if (current.skipFrameSwitchConfirm) {
+                    add(settingsActionRow(
+                        label = "恢复确认提示",
+                        description = "重新显示切换确认",
+                        actionLabel = "恢复",
+                    ) {
+                        update(PlaybackSettingsFocusGroup.AFM) {
+                            it.copy(skipFrameSwitchConfirm = false)
+                        }
+                    })
+                }
+            },
+        ))
+
+        val streamRows = buildList {
+            if (!audioStreams.isNullOrEmpty()) {
+                val currentAudio = audioStreams.firstOrNull { it.index() == currentAudioStreamIndex }
+                add(settingsOptionRow(
+                    label = "音轨",
+                    description = "当前播放音频流",
+                    selectedLabel = currentAudio?.let { streamLabel(it) } ?: "默认",
+                    options = audioStreams.map { stream ->
+                        TvOptionSelectItem(
+                            label = streamLabel(stream),
+                            selected = stream.index() == currentAudioStreamIndex,
+                        ) {
+                            onAudioStreamChanged(stream.index())
+                        }
+                    },
+                    requestFocus = focusGroup == PlaybackSettingsFocusGroup.AUDIO_TRACK,
+                ))
             }
-        })
-        addView(toggleRow(
-            label = "匹配色彩空间",
-            description = "随 HDR / SDR 自动切换颜色范围（需电视支持）",
-            checked = current.matchColorSpace,
-            focus = false,
-        ) { checked ->
-            update(PlaybackSettingsFocusGroup.AUTO_PLAY) {
-                it.copy(matchColorSpace = checked)
+            if (!subtitleStreams.isNullOrEmpty()) {
+                val currentSubtitle = subtitleStreams.firstOrNull { it.index() == currentSubtitleStreamIndex }
+                val subtitlesOff = currentSubtitleStreamIndex == -1
+                add(settingsOptionRow(
+                    label = "字幕",
+                    description = "当前字幕轨道",
+                    selectedLabel = when {
+                        subtitlesOff -> "关闭"
+                        currentSubtitle != null -> streamLabel(currentSubtitle)
+                        else -> "默认"
+                    },
+                    options = listOf(TvOptionSelectItem("关闭", subtitlesOff) {
+                        onSubtitleStreamChanged(-1)
+                    }) + subtitleStreams.map { stream ->
+                        TvOptionSelectItem(
+                            label = streamLabel(stream),
+                            selected = stream.index() == currentSubtitleStreamIndex && !subtitlesOff,
+                        ) {
+                            onSubtitleStreamChanged(stream.index())
+                        }
+                    },
+                    requestFocus = focusGroup == PlaybackSettingsFocusGroup.SUBTITLE_TRACK,
+                ))
             }
-        })
-        addView(toggleRow(
-            label = "切换前确认",
-            description = "在自动切换显示模式前弹出确认通知",
-            checked = current.confirmBeforeFrameSwitch,
-            focus = false,
-        ) { checked ->
-            update(PlaybackSettingsFocusGroup.AFM) {
-                it.copy(
-                    confirmBeforeFrameSwitch = checked,
-                    skipFrameSwitchConfirm = if (checked) false else it.skipFrameSwitchConfirm,
-                )
-            }
-        })
-        if (current.skipFrameSwitchConfirm) {
-            addView(toggleRow(
-                label = "重新启用确认通知",
-                description = "此前已勾选「不再提醒」，打开可恢复显示模式切换提示",
-                checked = false,
-                focus = false,
-            ) { _ ->
-                update(PlaybackSettingsFocusGroup.AFM) {
-                    it.copy(skipFrameSwitchConfirm = false)
+            add(settingsOptionRow(
+                label = "字幕编码",
+                description = "外挂字幕文本解码",
+                selectedLabel = current.subtitleEncoding.label,
+                options = SubtitleEncoding.values().map { encoding ->
+                    TvOptionSelectItem(
+                        label = encoding.label,
+                        selected = encoding == current.subtitleEncoding,
+                    ) {
+                        update(PlaybackSettingsFocusGroup.SUBTITLE_ENCODING) {
+                            it.copy(subtitleEncoding = encoding)
+                        }
+                    }
+                },
+                requestFocus = focusGroup == PlaybackSettingsFocusGroup.SUBTITLE_ENCODING,
+            ))
+            add(settingsToggleRow(
+                label = "图形字幕烧录",
+                description = "转码时由服务器烧录",
+                checked = current.burnGraphicSubtitleWhenTranscoding,
+                requestFocus = focusGroup == PlaybackSettingsFocusGroup.BURN_GRAPHIC_SUBTITLE,
+            ) { checked ->
+                update(PlaybackSettingsFocusGroup.BURN_GRAPHIC_SUBTITLE) {
+                    it.copy(burnGraphicSubtitleWhenTranscoding = checked)
                 }
             })
         }
-        if (!audioStreams.isNullOrEmpty() || !subtitleStreams.isNullOrEmpty()) {
-            addView(section("音轨与字幕"))
-        }
-        if (!audioStreams.isNullOrEmpty()) {
-            val currentAudio = audioStreams.firstOrNull { it.index() == currentAudioStreamIndex }
-            addView(optionSelect(
-                title = "音轨",
-                selectedLabel = currentAudio?.let { streamLabel(it) } ?: "默认",
-                options = audioStreams.map { stream ->
-                    TvOptionSelectItem(
-                        label = streamLabel(stream),
-                        selected = stream.index() == currentAudioStreamIndex,
-                    ) {
-                        onAudioStreamChanged(stream.index())
+        addView(settingsGridSection("音轨与字幕", streamRows))
+
+        addView(settingsGridSection(
+            title = "连播与预览",
+            rows = listOf(
+                settingsToggleRow(
+                    label = "自动下一集",
+                    description = "剧集末段显示下一集",
+                    checked = current.autoPlayNext,
+                    requestFocus = focusGroup == PlaybackSettingsFocusGroup.AUTO_PLAY,
+                ) { checked ->
+                    update(PlaybackSettingsFocusGroup.AUTO_PLAY) {
+                        it.copy(autoPlayNext = checked)
                     }
                 },
-                requestFocus = focusGroup == PlaybackSettingsFocusGroup.AUDIO_TRACK,
-            ))
-        }
-        if (!subtitleStreams.isNullOrEmpty()) {
-            val currentSubtitle = subtitleStreams.firstOrNull { it.index() == currentSubtitleStreamIndex }
-            val subtitlesOff = currentSubtitleStreamIndex == -1
-            addView(optionSelect(
-                title = "字幕",
-                selectedLabel = when {
-                    subtitlesOff -> "关闭字幕"
-                    currentSubtitle != null -> streamLabel(currentSubtitle)
-                    else -> "默认"
-                },
-                options = listOf(TvOptionSelectItem("关闭字幕", subtitlesOff) {
-                    onSubtitleStreamChanged(-1)
-                }) + subtitleStreams.map { stream ->
-                    TvOptionSelectItem(
-                        label = streamLabel(stream),
-                        selected = stream.index() == currentSubtitleStreamIndex && !subtitlesOff,
-                    ) {
-                        onSubtitleStreamChanged(stream.index())
+                settingsToggleRow(
+                    label = "章节列表",
+                    description = "底部显示章节 chips",
+                    checked = current.showChapterStrip,
+                    requestFocus = focusGroup == PlaybackSettingsFocusGroup.CHAPTERS,
+                ) { checked ->
+                    update(PlaybackSettingsFocusGroup.CHAPTERS) {
+                        it.copy(showChapterStrip = checked)
                     }
                 },
-                requestFocus = focusGroup == PlaybackSettingsFocusGroup.SUBTITLE_TRACK,
-            ))
-        }
-        addView(section("自动连播"))
-        addView(toggleRow(
-            label = "末 30s 弹出下一集",
-            description = "剧集末段显示倒计时卡片，无操作自动播放下一集",
-            checked = current.autoPlayNext,
-            focus = focusGroup == PlaybackSettingsFocusGroup.AUTO_PLAY,
-        ) { checked ->
-            update(PlaybackSettingsFocusGroup.AUTO_PLAY) {
-                it.copy(autoPlayNext = checked)
-            }
-        })
-        addView(section("片头 / 片尾跳过"))
-        addView(toggleRow(
-            label = "显示「跳过片头」按钮",
-            description = "进入片头区间时在屏幕左下角显示按钮",
-            checked = current.showIntroSkipButton,
-            focus = focusGroup == PlaybackSettingsFocusGroup.INTRO_SKIP,
-        ) { checked ->
-            update(PlaybackSettingsFocusGroup.INTRO_SKIP) {
-                it.copy(showIntroSkipButton = checked)
-            }
-        })
-        addView(toggleRow(
-            label = "进入片头自动跳过",
-            description = "不显示按钮，自动跳到片头结束位置",
-            checked = current.autoSkipIntro,
-            focus = false,
-        ) { checked ->
-            update(PlaybackSettingsFocusGroup.INTRO_SKIP) {
-                it.copy(autoSkipIntro = checked)
-            }
-        })
-        addView(toggleRow(
-            label = "显示「跳过片尾」按钮",
-            description = "进入片尾区间时在屏幕右下角显示按钮",
-            checked = current.showCreditsSkipButton,
-            focus = false,
-        ) { checked ->
-            update(PlaybackSettingsFocusGroup.INTRO_SKIP) {
-                it.copy(showCreditsSkipButton = checked)
-            }
-        })
-        addView(toggleRow(
-            label = "进入片尾自动跳过",
-            description = "不显示按钮，自动跳到片尾结束位置（剧末则触发 Next Up）",
-            checked = current.autoSkipCredits,
-            focus = false,
-        ) { checked ->
-            update(PlaybackSettingsFocusGroup.INTRO_SKIP) {
-                it.copy(autoSkipCredits = checked)
-            }
-        })
-        addView(section("预览 / 章节"))
-        addView(toggleRow(
-            label = "拖动进度条显示章节缩略图 (Trickplay)",
-            description = "需要服务器生成 320p tiles",
-            checked = current.showTrickplayPreview,
-            focus = focusGroup == PlaybackSettingsFocusGroup.TRICKPLAY,
-        ) { checked ->
-            update(PlaybackSettingsFocusGroup.TRICKPLAY) {
-                it.copy(showTrickplayPreview = checked)
-            }
-        })
-        addView(toggleRow(
-            label = "显示章节列表",
-            description = "播放时 OSD 底部展示章节标题 chips，点击跳转",
-            checked = current.showChapterStrip,
-            focus = focusGroup == PlaybackSettingsFocusGroup.CHAPTERS,
-        ) { checked ->
-            update(PlaybackSettingsFocusGroup.CHAPTERS) {
-                it.copy(showChapterStrip = checked)
-            }
-        })
-        addView(section("字幕编码"))
-        addView(settingChoiceRow(SubtitleEncoding.values().map { enc ->
-            val option = radioChoice(enc.label, enc == current.subtitleEncoding) {
-                update(PlaybackSettingsFocusGroup.SUBTITLE_ENCODING) {
-                    it.copy(subtitleEncoding = enc)
-                }
-            }
-            if (focusGroup == PlaybackSettingsFocusGroup.SUBTITLE_ENCODING &&
-                enc == current.subtitleEncoding
-            ) {
-                option.requestInitialFocus()
-            }
-            option
-        }))
-        addView(section("图形字幕 (PGS / VobSub)"))
-        addView(toggleRow(
-            label = "转码时由服务器烧录图形字幕",
-            description = "关闭后若本地无法渲染图形字幕，屏幕不会有字幕显示",
-            checked = current.burnGraphicSubtitleWhenTranscoding,
-            focus = focusGroup == PlaybackSettingsFocusGroup.BURN_GRAPHIC_SUBTITLE,
-        ) { checked ->
-            update(PlaybackSettingsFocusGroup.BURN_GRAPHIC_SUBTITLE) {
-                it.copy(burnGraphicSubtitleWhenTranscoding = checked)
-            }
-        })
-        addView(iconAction("返回播放器", TvIcon.BACK, onBack))
+                settingsToggleRow(
+                    label = "缩略图预览",
+                    description = "进度条显示 trickplay",
+                    checked = current.showTrickplayPreview,
+                    requestFocus = focusGroup == PlaybackSettingsFocusGroup.TRICKPLAY,
+                ) { checked ->
+                    update(PlaybackSettingsFocusGroup.TRICKPLAY) {
+                        it.copy(showTrickplayPreview = checked)
+                    }
+                },
+            ),
+        ))
+
+        addView(settingsGridSection(
+            title = "片头 / 片尾",
+            rows = listOf(
+                settingsToggleRow(
+                    label = "片头按钮",
+                    description = "片头区间显示跳过按钮",
+                    checked = current.showIntroSkipButton,
+                    requestFocus = focusGroup == PlaybackSettingsFocusGroup.INTRO_SKIP,
+                ) { checked ->
+                    update(PlaybackSettingsFocusGroup.INTRO_SKIP) {
+                        it.copy(showIntroSkipButton = checked)
+                    }
+                },
+                settingsToggleRow(
+                    label = "自动跳片头",
+                    description = "进入片头直接跳过",
+                    checked = current.autoSkipIntro,
+                ) { checked ->
+                    update(PlaybackSettingsFocusGroup.INTRO_SKIP) {
+                        it.copy(autoSkipIntro = checked)
+                    }
+                },
+                settingsToggleRow(
+                    label = "片尾按钮",
+                    description = "片尾区间显示跳过按钮",
+                    checked = current.showCreditsSkipButton,
+                ) { checked ->
+                    update(PlaybackSettingsFocusGroup.INTRO_SKIP) {
+                        it.copy(showCreditsSkipButton = checked)
+                    }
+                },
+                settingsToggleRow(
+                    label = "自动跳片尾",
+                    description = "进入片尾直接跳过",
+                    checked = current.autoSkipCredits,
+                ) { checked ->
+                    update(PlaybackSettingsFocusGroup.INTRO_SKIP) {
+                        it.copy(autoSkipCredits = checked)
+                    }
+                },
+            ),
+        ))
+
+        addView(settingsGridSection(
+            title = "播放器",
+            rows = listOf(
+                settingsActionRow(
+                    label = "返回播放器",
+                    description = "关闭设置并恢复播放界面",
+                    actionLabel = "返回",
+                    onClick = onBack,
+                ),
+            ),
+        ))
     }
 }
-
-private fun ComponentActivity.toggleRow(
-    label: String,
-    description: String,
-    checked: Boolean,
-    focus: Boolean = false,
-    onChecked: (Boolean) -> Unit,
-) = toggleChoice(label, description, checked, focus, onChecked)
