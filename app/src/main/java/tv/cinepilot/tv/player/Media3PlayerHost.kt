@@ -394,7 +394,7 @@ class Media3PlayerHost(
     fun setPlaybackSpeed(speed: Float) {
         player?.let { currentPlayer ->
             currentPlayer.playbackParameters =
-                androidx.media3.common.PlaybackParameters(currentPlayer.playbackParameters.pitch, speed)
+                androidx.media3.common.PlaybackParameters(speed, currentPlayer.playbackParameters.pitch)
         }
     }
 
@@ -407,8 +407,9 @@ class Media3PlayerHost(
         val streams = availableAudioStreams()
         if (streams.isEmpty()) return currentAudioStreamIndex()
         val current = currentAudioStreamIndex() ?: -1
-        val next = (current + 1) % streams.size
-        val targetIndex = streams[next].index()
+        val currentPos = if (current == -1) -1 else streams.indexOfFirst { it.index() == current }
+        val nextPos = (currentPos + 1) % streams.size
+        val targetIndex = streams[nextPos].index()
         setAudioStreamIndex(targetIndex)
         return targetIndex
     }
