@@ -319,31 +319,34 @@ class PlaybackRouteController(
             }
             return
         }
-        showQualityPicker { quality ->
-            val preferences = buildQualityPreferences(quality, item)
-            var resolved: PlayableMedia? = null
-            runTask("正在解析离线地址...", {
-                // preparePlayback() transitions the workflow route to PLAYER, but
-                // we only need the resolved PlayableMedia for the download queue.
-                // Pop back to DETAILS immediately so the global route stays in
-                // sync with the visible UI — otherwise hardware Back key would go
-                // through the playback back path while the screen still shows details.
-                workflowController.preparePlayback(preferences)
-                resolved = workflowController.state().playableMedia()
-                    ?: throw IllegalStateException("无法解析媒体播放地址")
-                workflowController.back()
-            }) {
-                val r = resolved
-                if (r == null) {
-                    toast("解析片源地址失败")
-                } else {
-                    downloadCoordinator.enqueue(auth, item, r, quality) { err ->
-                        if (err != null) toast(err) else toast("已加入下载队列")
-                        showDetails(item, selectedPlaybackInfo?.takeIf { it.itemId() == item.id() }, episodeContext)
+        showQualityPicker(
+            onChosen = { quality ->
+                val preferences = buildQualityPreferences(quality, item)
+                var resolved: PlayableMedia? = null
+                runTask("正在解析离线地址...", {
+                    // preparePlayback() transitions the workflow route to PLAYER, but
+                    // we only need the resolved PlayableMedia for the download queue.
+                    // Pop back to DETAILS immediately so the global route stays in
+                    // sync with the visible UI — otherwise hardware Back key would go
+                    // through the playback back path while the screen still shows details.
+                    workflowController.preparePlayback(preferences)
+                    resolved = workflowController.state().playableMedia()
+                        ?: throw IllegalStateException("无法解析媒体播放地址")
+                    workflowController.back()
+                }) {
+                    val r = resolved
+                    if (r == null) {
+                        toast("解析片源地址失败")
+                    } else {
+                        downloadCoordinator.enqueue(auth, item, r, quality) { err ->
+                            if (err != null) toast(err) else toast("已加入下载队列")
+                            showDetails(item, selectedPlaybackInfo?.takeIf { it.itemId() == item.id() }, episodeContext)
+                        }
                     }
                 }
-            }
-        }
+            },
+            onCancel = { showDetails(item, selectedPlaybackInfo?.takeIf { it.itemId() == item.id() }, episodeContext) },
+        )
     }
 
     /** Map our quality enum (0=auto..4=4K) to a PlaybackSelectionPreferences hint. */
@@ -415,8 +418,8 @@ class PlaybackRouteController(
     // --- Subtitle search UI (delegated to SubtitleSearchController) ---------
     // P3-1: see SubtitleSearchController.kt for search, download, and caching.
 
-    private fun showQualityPicker(onChosen: (Int) -> Unit) {
-        auxiliaryBackAction = { /* dismiss */ }
+    private fun showQualityPicker(onChosen: (Int) -> Unit, onCancel: () -> Unit) {
+        auxiliaryBackAction = onCancel
         renderCompose("选择离线画质") { palette ->
             ComposeQualityPickerScreen(
                 palette = palette,

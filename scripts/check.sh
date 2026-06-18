@@ -484,7 +484,7 @@ if ! grep -q 'restoreSession' "$AUTH_ROUTE_CONTROLLER"; then
   exit 1
 fi
 
-if ! grep -q 'requestInitialFocus' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/compose/screens/ComposeHomeScreen.kt"; then
+if ! grep -q 'requestInitialFocus' "$ROOT_DIR/app/src/main/java/tv/cinepilot/tv/compose/screens/home/HomeScreen.kt"; then
   echo "Compose home must restore the focused home item" >&2
   exit 1
 fi
