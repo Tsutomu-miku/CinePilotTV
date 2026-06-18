@@ -45,8 +45,31 @@ CinePilot TV 是一个面向 Android TV 的原生播放器，用来连接兼容 
 ## 仓库结构
 
 ```text
-app/      Android TV 应用外壳，以及后续 UI / 播放器集成
-core/     JVM 可测试的协议与产品领域规则
-docs/     产品、架构和执行指导文档
-scripts/  本地验证命令
+app/        Android TV 应用外壳，以及后续 UI / 播放器集成
+core/       JVM 可测试的协议与产品领域规则
+docs/        产品、架构和执行指导文档
+plugin-spi/  插件 SPI：用户数据同步、播放上报、字幕搜索等标准接口
+plugins/    具体插件实现（bangumi 同步 / 中文字幕源）
+scripts/    本地验证命令
 ```
+
+## 字幕检索
+CinePilot 通过 `SubtitleSearchPlugin` SPI 对外暴露在线字幕搜索与下载接口，插件按需加载当前启用的插件；默认不强制任何单一提供商。当前内建的中文字幕插件（`plugins/zimuku`）由一个单一聚合插件实现，其内部覆盖：
+
+- **射手网（shooter.cn）公开 API
+- **字幕库**（zimuku.org）HTML 抓取
+- **迅雷字幕**（sub.xmp.sandai.net）公开 JSON API
+
+并支持从 zip / 7z / rar 打包字幕包解压与 GB18030 文件名识别、按语言优先级（简英双语 > 繁英双语 > 简体 > 繁体 > 英文）自动在归档内挑选最适合中文用户的字幕文件。
+
+### 致谢与参考
+
+中文字幕插件在实现中参考并借鉴了以下开源项目的 URL 模式与思想，在此表示感谢：
+
+- **ChineseSubFinder** ([ChineseSubFinder/ChineseSubFinder](https://github.com/ChineseSubFinder/ChineseSubFinder) — 射手网 API、迅雷 API、字幕库搜索 URL 模式、中文压缩包 GB18030 文件名回退、语言优先级排序、`hasChineseLang() 语言匹配思路、随机 UA / Referer 等反爬实践，以及按 1.2万 / 简体双语优先等中文本地化经验。CinePilot 不是 CSF 的复刻或分支，仅在本插件实现部分**没有**直接复制源码，仅学习其协议约定和接口设计思想、数据转换与 HTTP 实践。
+
+### 对应提供者版权与使用
+所使用的三个站点接口均为公开可访问的网络服务，请在遵守对应服务条款与法律范围内使用；**请支持并**，尤其是射手、字幕库和迅雷版权所有。下载内容版权请务必只下载你合法拥有视频版本对应影视对应影视素材的字幕，请遵守版权所有版权，仅供个人使用，请勿用于任何商业分发。
+
+## 许可证
+除非另有说明，仓库代码按 MIT 许可证发布，完整文本见根目录 [LICENSE](LICENSE)。

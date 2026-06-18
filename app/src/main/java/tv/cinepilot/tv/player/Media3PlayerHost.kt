@@ -54,10 +54,25 @@ class Media3PlayerHost(
     private var currentOverlay: PgsSubtitleOverlay? = null
     private var positionTickCallback: ((Long, Long) -> Unit)? = null
     private var trackResolver: Media3StreamIndexResolver? = null
+    /** Synthetic MediaStreamInfo wrappers around externally-provided subtitle files. */
+    private var externalSubtitleStreams: List<MediaStreamInfo> = emptyList()
     private val checkInExecutor = Executors.newSingleThreadExecutor()
     private val httpDataSourceFactory: DataSource.Factory =
         OkHttpDataSource.Factory(okHttpClient)
             .setUserAgent(USER_AGENT)
+
+    companion object {
+        /**
+         * Synthetic index base for externally-downloaded subtitle tracks. Kept well above
+         * any realistic server-side stream index (server indices are typically 0..~30).
+         */
+        const val EXTERNAL_SUBTITLE_INDEX_BASE = 100_000
+
+        private const val PLAYER_CONTROLLER_TIMEOUT_MS = 5_000
+        private const val REMOTE_SEEK_STEP_MS = 30_000L
+        private const val PROGRESS_TICK_INTERVAL_MS = 500L
+        private const val USER_AGENT = "CinePilotTV/1.0 (media3-okhttp)"
+    }
 
     /** An external subtitle file to inject as an additional subtitle track. */
     data class ExternalSubtitle(
@@ -78,6 +93,22 @@ class Media3PlayerHost(
         onPositionTick: ((positionTicks: Long, durationTicks: Long) -> Unit)? = null,
     ): View {
         this.positionTickCallback = onPositionTick
+        this.externalSubtitleStreams = externalSubtitles.mapIndexed { i, ext ->
+            // Use a high synthetic base index so server-provided stream indices never collide.
+            val idx = EXTERNAL_SUBTITLE_INDEX_BASE + i
+            MediaStreamInfo(
+                idx,
+                tv.cinepilot.core.protocol.MediaStreamType.SUBTITLE,
+                /* codec = */ ext.mimeType.substringAfterLast('/'),
+                /* language = */ ext.language,
+                /* displayTitle = */ ext.label.ifBlank { "外挂字幕" },
+                /* defaultStream = */ false,
+                /* forced = */ false,
+                /* external = */ true,
+                /* deliveryMethod = */ "File",
+                /* deliveryUrl = */ ext.file.absolutePath,
+            )
+        }
         val playable = state.playableMedia()
             ?: throw IllegalStateException("playable media is required")
         val authenticated = state.authenticated()
@@ -247,7 +278,9 @@ class Media3PlayerHost(
                 if (group.isSelected) {
                     for (i in 0 until group.length) {
                         if (group.isTrackSelected(i)) {
-                            return resolver.firstSubtitleStreamIndex(group.getTrackFormat(i))
+                            val format = group.getTrackFormat(i)
+                            resolver.firstSubtitleStreamIndex(format)?.let { return it }
+                            externalSubtitleIndex(format)?.let { return it }
                         }
                     }
                 }
@@ -324,14 +357,30 @@ class Media3PlayerHost(
         val player = player ?: return emptyList()
         val resolver = trackResolver ?: return emptyList()
         val indices = mutableSetOf<Int>()
+        val matchedExternalLabels = mutableSetOf<String>()
         for (group in player.currentTracks.groups) {
             if (group.type != C.TRACK_TYPE_TEXT) continue
             for (i in 0 until group.length) {
                 if (!group.isTrackSupported(i)) continue
-                resolver.firstSubtitleStreamIndex(group.getTrackFormat(i))?.let { indices.add(it) }
+                val format = group.getTrackFormat(i)
+                resolver.firstSubtitleStreamIndex(format)?.let { indices.add(it) }
+                    ?: externalSubtitleStreams
+                        .firstOrNull { ext ->
+                            ext.displayTitle().isNotBlank() &&
+                                ext.displayTitle() == format.label
+                        }
+                        ?.let {
+                            indices.add(it.index())
+                            matchedExternalLabels.add(it.displayTitle())
+                        }
             }
         }
-        return resolver.allSubtitleStreams().filter { it.index() in indices }
+        // Combine server-side streams with any matched external subtitle streams.
+        // External subtitles appear first in the returned list so the UI can group
+        // them cleanly; the StreamSection renderer also re-groups by `external()`.
+        val serverStreams = resolver.allSubtitleStreams().filter { it.index() in indices }
+        val externalMatched = externalSubtitleStreams.filter { it.index() in indices }
+        return externalMatched + serverStreams
     }
 
     private fun findAudioTrackGroup(streamIndex: Int): Pair<androidx.media3.common.TrackGroup, Int>? {
@@ -357,16 +406,35 @@ class Media3PlayerHost(
         val player = player ?: return null
         val resolver = trackResolver ?: return null
         val tracks = player.currentTracks
+        // Synthetic indices for external subtitles are matched directly on format label
+        // since the resolver doesn't know about them.
+        val externalTarget = externalSubtitleStreams.firstOrNull { it.index() == streamIndex }
         for (group in tracks.groups) {
             if (group.type != C.TRACK_TYPE_TEXT) continue
             for (i in 0 until group.length) {
                 if (!group.isTrackSupported(i)) continue
-                if (resolver.firstSubtitleStreamIndex(group.getTrackFormat(i)) == streamIndex) {
+                val format = group.getTrackFormat(i)
+                if (externalTarget != null) {
+                    if (externalTarget.displayTitle().isNotBlank() &&
+                        externalTarget.displayTitle() == format.label
+                    ) {
+                        return group.mediaTrackGroup to i
+                    }
+                } else if (resolver.firstSubtitleStreamIndex(format) == streamIndex) {
                     return group.mediaTrackGroup to i
                 }
             }
         }
         return null
+    }
+
+    /** Returns the synthetic stream index of an external subtitle matching [format], if any. */
+    private fun externalSubtitleIndex(format: androidx.media3.common.Format): Int? {
+        val label = format.label.orEmpty()
+        if (label.isBlank()) return null
+        return externalSubtitleStreams
+            .firstOrNull { it.displayTitle() == label }
+            ?.index()
     }
 
     fun seekBack() {
@@ -503,7 +571,7 @@ class Media3PlayerHost(
             "ass", "ssa" -> MimeTypes.TEXT_SSA
             "vtt", "webvtt" -> MimeTypes.TEXT_VTT
             "ttml", "dfxp" -> MimeTypes.APPLICATION_TTML
-            "pgs", "sup" -> "application/pgs"
+            "pgs", "sup" -> "application/x-pgs"
             else -> MimeTypes.APPLICATION_SUBRIP
         }
     }
@@ -573,10 +641,4 @@ class Media3PlayerHost(
         handler.post(ticker)
     }
 
-    private companion object {
-        private const val PLAYER_CONTROLLER_TIMEOUT_MS = 5_000
-        private const val REMOTE_SEEK_STEP_MS = 30_000L
-        private const val PROGRESS_TICK_INTERVAL_MS = 500L
-        private const val USER_AGENT = "CinePilotTV/1.0 (media3-okhttp)"
-    }
 }

@@ -49,7 +49,7 @@ fun streamLabel(stream: MediaStreamInfo): String {
     if (stream.forced() && !current.contains("强制")) {
         parts.add("强制")
     }
-    if (stream.external() && !current.contains("外挂")) {
+    if (stream.external() && !current.contains("外挂") && !stream.displayTitle().startsWith("[")) {
         parts.add("外挂")
     }
     return parts.ifEmpty { listOf("未命名") }.joinToString(" · ")

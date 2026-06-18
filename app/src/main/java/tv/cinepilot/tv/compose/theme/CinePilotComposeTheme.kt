@@ -123,9 +123,11 @@ object TvText {
     val PageTitle = 20.sp
     val DetailTitle = 25.sp
     val Section = 15.sp
+    val SubSection = 13.5.sp
     val Body = 13.sp
     val Metadata = 10.5.sp
     val Label = 9.5.sp
+    val LabelSmall = 9.sp
     val CardTitle = 12.sp
     val PlayerTime = 12.sp
 }

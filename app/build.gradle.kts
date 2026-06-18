@@ -106,6 +106,7 @@ dependencies {
     implementation(project(":core"))
     implementation(project(":plugin-spi"))
     runtimeOnly(project(":plugins:bangumi"))
+    runtimeOnly(project(":plugins:zimuku"))
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.activity.ktx)
     implementation(libs.androidx.activity.compose)
