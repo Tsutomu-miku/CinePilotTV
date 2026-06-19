@@ -1,5 +1,6 @@
 package tv.cinepilot.tv.compose.screens.player
 
+import android.view.KeyEvent
 import android.view.View
 import android.view.ViewGroup
 import android.widget.FrameLayout
@@ -35,6 +36,11 @@ import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ColorFilter
+import androidx.compose.ui.input.key.Key
+import androidx.compose.ui.input.key.KeyEventType
+import androidx.compose.ui.input.key.key
+import androidx.compose.ui.input.key.onPreviewKeyEvent
+import androidx.compose.ui.input.key.type
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
@@ -88,12 +94,38 @@ fun ComposePlayerScreen(
     onAudioShortcut: () -> Unit,
     onQualityShortcut: () -> Unit,
     onSpeedShortcut: () -> Unit,
+    osdVisible: Boolean,
+    onUserInteraction: () -> Unit,
+    onBackPressed: () -> Unit,
 ) {
     var infoVisible by remember { mutableStateOf(false) }
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(Color.Black),
+            .background(Color.Black)
+            .onPreviewKeyEvent { event ->
+                val k = event.key
+                // 任意导航/媒体/返回键都视为用户交互，用于唤起 OSD
+                if (event.type == KeyEventType.KeyDown) {
+                    val isNavigation =
+                        k == Key.DirectionLeft || k == Key.DirectionRight ||
+                            k == Key.DirectionUp || k == Key.DirectionDown ||
+                            k == Key.DirectionCenter || k == Key.Enter || k == Key.NumPadEnter
+                    val isMedia =
+                        k == Key.MediaPlay || k == Key.MediaPause || k == Key.MediaPlayPause ||
+                            k == Key.MediaNext || k == Key.MediaPrevious ||
+                            k == Key.MediaRewind || k == Key.MediaFastForward ||
+                            k == Key.MediaStop || k == Key.MediaClose
+                    if (k == Key.Back) {
+                        onBackPressed()
+                        return@onPreviewKeyEvent true
+                    }
+                    if (isNavigation || isMedia || k == Key.Menu) {
+                        onUserInteraction()
+                    }
+                }
+                false
+            },
     ) {
         AndroidView(
             factory = { context ->
@@ -107,23 +139,25 @@ fun ComposePlayerScreen(
             update = { host -> host.attachPlayerView(playerView) },
             modifier = Modifier.fillMaxSize(),
         )
-        Box(
-            modifier = Modifier
-                .align(Alignment.BottomCenter)
-                .fillMaxWidth()
-                .height(280.dp)
-                .background(
-                    Brush.verticalGradient(
-                        colors = listOf(
-                            Color.Transparent,
-                            Color.Black.copy(alpha = 0.15f),
-                            Color.Black.copy(alpha = 0.45f),
-                            Color.Black.copy(alpha = 0.75f),
-                            Color.Black.copy(alpha = 0.9f),
+        if (osdVisible) {
+            Box(
+                modifier = Modifier
+                    .align(Alignment.BottomCenter)
+                    .fillMaxWidth()
+                    .height(280.dp)
+                    .background(
+                        Brush.verticalGradient(
+                            colors = listOf(
+                                Color.Transparent,
+                                Color.Black.copy(alpha = 0.15f),
+                                Color.Black.copy(alpha = 0.45f),
+                                Color.Black.copy(alpha = 0.75f),
+                                Color.Black.copy(alpha = 0.9f),
+                            ),
                         ),
                     ),
-                ),
-        )
+            )
+        }
         if (infoVisible) {
             Box(
                 modifier = Modifier
@@ -174,29 +208,31 @@ fun ComposePlayerScreen(
                     .padding(end = 32.dp, bottom = 108.dp),
             )
         }
-        PlayerBottomOsd(
-            palette = palette,
-            mediaTitle = mediaTitle,
-            mediaSubtitle = mediaSubtitle,
-            positionTicks = positionTicks,
-            durationTicks = durationTicks,
-            chapters = chapters,
-            onChapterClick = onChapterClick,
-            onTogglePlayPause = onTogglePlayPause,
-            onSeekBack = onSeekBack,
-            onSeekForward = onSeekForward,
-            onInfo = { infoVisible = !infoVisible },
-            onSettings = onOpenPlaybackSettings,
-            subtitleShortcutLabel = subtitleShortcutLabel,
-            audioShortcutLabel = audioShortcutLabel,
-            qualityLabel = qualityLabel,
-            speedLabel = speedLabel,
-            onSubtitlesShortcut = onSubtitlesShortcut,
-            onAudioShortcut = onAudioShortcut,
-            onQualityShortcut = onQualityShortcut,
-            onSpeedShortcut = onSpeedShortcut,
-            modifier = Modifier.align(Alignment.BottomCenter),
-        )
+        if (osdVisible) {
+            PlayerBottomOsd(
+                palette = palette,
+                mediaTitle = mediaTitle,
+                mediaSubtitle = mediaSubtitle,
+                positionTicks = positionTicks,
+                durationTicks = durationTicks,
+                chapters = chapters,
+                onChapterClick = onChapterClick,
+                onTogglePlayPause = onTogglePlayPause,
+                onSeekBack = onSeekBack,
+                onSeekForward = onSeekForward,
+                onInfo = { infoVisible = !infoVisible },
+                onSettings = onOpenPlaybackSettings,
+                subtitleShortcutLabel = subtitleShortcutLabel,
+                audioShortcutLabel = audioShortcutLabel,
+                qualityLabel = qualityLabel,
+                speedLabel = speedLabel,
+                onSubtitlesShortcut = onSubtitlesShortcut,
+                onAudioShortcut = onAudioShortcut,
+                onQualityShortcut = onQualityShortcut,
+                onSpeedShortcut = onSpeedShortcut,
+                modifier = Modifier.align(Alignment.BottomCenter),
+            )
+        }
     }
 }
 

@@ -4,6 +4,7 @@ import androidx.activity.ComponentActivity
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
@@ -11,13 +12,18 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.ui.input.key.Key
+import androidx.compose.ui.input.key.KeyEventType
+import androidx.compose.ui.input.key.key
+import androidx.compose.ui.input.key.onPreviewKeyEvent
+import androidx.compose.ui.input.key.type
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.delay
 import tv.cinepilot.core.protocol.MediaBrowseFilters
@@ -47,10 +53,8 @@ fun ComposeHomeScreen(
 ) {
     val rows = state.homeRows()
     val displayRows = remember(rows) { rows.filter { row -> row.items().isNotEmpty() } }
-    val isSearchResults = remember(rows) { rows.any { it.id().startsWith("search:") } }
-    val isOverview = remember(rows) { rows.any { it.id().startsWith("overview:") } }
-    val showFilters = isSearchResults || isOverview || (!isSearchResults && !isOverview)
     val initialAddress = remember(state, displayRows) { initialFocusAddress(state, displayRows) }
+    // rowIndex: -1 = TopBar, 0..lastIndex = media rows
     val focusedRowIndexState = remember(displayRows) { mutableIntStateOf(initialAddress.rowIndex) }
     val focusedItemIndexState = remember(displayRows) { mutableIntStateOf(initialAddress.itemIndex) }
     var focusedRowIndex by focusedRowIndexState
@@ -67,14 +71,38 @@ fun ComposeHomeScreen(
         Array(displayRows.size.coerceAtLeast(1)) { FocusRequester() }
     }
 
+    // TopBar 作为虚拟 row -1。把 FocusRequester 贴到第一个 HeaderIconButton
+    // （通过 HomeTopBar 的参数传进去），这样 moveFocusToTopBar 就等于聚焦
+    // 第一个可点的图标按钮，后续 LEFT/RIGHT 交给 Compose 自然 focus。
+    val topBarFirstButtonFocusRequester = remember { FocusRequester() }
+
+    fun moveFocusToTopBar() {
+        focusedRowIndex = -1
+        runCatching { topBarFirstButtonFocusRequester.requestFocus() }
+    }
+    fun moveFocusToFirstRow() {
+        if (displayRows.isEmpty()) return
+        focusedRowIndex = 0
+        val items = displayRows.first().items()
+        if (items.isNotEmpty()) {
+            val clampedIndex = focusedItemIndex.coerceIn(0, items.lastIndex)
+            focusedItemIndex = clampedIndex
+        }
+        runCatching { railFocusRequesters[0].requestFocus() }
+    }
+
     // 首次 rows 从空变为非空时，只做一次初始聚焦，避免每一次重排都重新触发 focus 调度。
     var initialFocusBootstrapped by remember(displayRows) { mutableStateOf(false) }
-    // Request initial focus on the appropriate rail when rows become available.
     LaunchedEffect(displayRows.size) {
-        if (!initialFocusBootstrapped && displayRows.isNotEmpty()) {
+        val requestInitialFocus = !initialFocusBootstrapped
+        if (requestInitialFocus) {
             delay(50)
-            val targetRow = initialAddress.rowIndex.coerceIn(0, displayRows.lastIndex)
-            runCatching { railFocusRequesters[targetRow].requestFocus() }
+            if (displayRows.isNotEmpty()) {
+                val targetRow = initialAddress.rowIndex.coerceIn(0, displayRows.lastIndex)
+                runCatching { railFocusRequesters[targetRow].requestFocus() }
+            } else {
+                runCatching { topBarFirstButtonFocusRequester.requestFocus() }
+            }
             initialFocusBootstrapped = true
         }
     }
@@ -93,28 +121,14 @@ fun ComposeHomeScreen(
         }
     }
 
-    // backdrop 切换防抖：快速切焦点时不频繁加载图片，停顿 150ms 以上才更新
-    val focusedAddressState = rememberUpdatedState(focusedRowIndex to focusedItemIndex)
-    LaunchedEffect(Unit) {
-        var lastRow = -1
-        var lastItem = -1
-        while (true) {
-            val (r, i) = focusedAddressState.value
-            if (r != lastRow || i != lastItem) {
-                delay(150)
-                val (rr, ii) = focusedAddressState.value
-                if (rr != lastRow || ii != lastItem) {
-                    lastRow = rr
-                    lastItem = ii
-                    backdropItem = displayRows
-                        .getOrNull(rr)
-                        ?.items()
-                        ?.getOrNull(ii)
-                }
-            } else {
-                delay(50)
-            }
-        }
+    // 焦点停稳后再同步背景和 workflow focus，避免 D-pad 连按时在主线程频繁做大图请求和 row/item 校验。
+    val latestOnFocusItem = rememberUpdatedState(onFocusItem)
+    LaunchedEffect(focusedRowIndex, focusedItemIndex, displayRows) {
+        val row = displayRows.getOrNull(focusedRowIndex) ?: return@LaunchedEffect
+        val item = row.items().getOrNull(focusedItemIndex) ?: return@LaunchedEffect
+        delay(280)
+        backdropItem = item
+        latestOnFocusItem.value(row, item)
     }
 
     /**
@@ -129,7 +143,6 @@ fun ComposeHomeScreen(
         val clampedIndex = focusedItemIndex.coerceIn(0, items.lastIndex)
         focusedRowIndex = rowIndex
         focusedItemIndex = clampedIndex
-        onFocusItem(row, items[clampedIndex])
     }
 
     /**
@@ -141,7 +154,6 @@ fun ComposeHomeScreen(
         val items = row.items()
         if (itemIndex < 0 || itemIndex > items.lastIndex) return
         focusedItemIndex = itemIndex
-        onFocusItem(row, items[itemIndex])
     }
 
     fun openItem(rowIndex: Int, itemIndex: Int) {
@@ -156,7 +168,7 @@ fun ComposeHomeScreen(
 
     /**
      * Move focus up one row. Returns true if the move was handled.
-     * If at row 0, returns false so focus can move to the top bar naturally.
+     * At row 0 moves to the top bar (virtual row -1).
      */
     fun moveUp(): Boolean {
         if (focusedRowIndex > 0) {
@@ -167,8 +179,11 @@ fun ComposeHomeScreen(
             val clampedIndex = focusedItemIndex.coerceIn(0, items.lastIndex)
             focusedRowIndex = nextRow
             focusedItemIndex = clampedIndex
-            onFocusItem(row, items[clampedIndex])
             runCatching { railFocusRequesters[nextRow].requestFocus() }
+            return true
+        }
+        if (focusedRowIndex == 0 && displayRows.isNotEmpty()) {
+            moveFocusToTopBar()
             return true
         }
         return false
@@ -186,7 +201,6 @@ fun ComposeHomeScreen(
             val clampedIndex = focusedItemIndex.coerceIn(0, items.lastIndex)
             focusedRowIndex = nextRow
             focusedItemIndex = clampedIndex
-            onFocusItem(row, items[clampedIndex])
             runCatching { railFocusRequesters[nextRow].requestFocus() }
             return true
         }
@@ -201,28 +215,50 @@ fun ComposeHomeScreen(
         width = 1280,
         height = 720,
     )
+    val isSearchResults = remember(rows) { rows.any { it.id().startsWith("search:") } }
     HomeWallStage(
         palette = palette,
         backdrop = backdrop,
     ) {
         LazyColumn(
             state = columnState,
-            verticalArrangement = Arrangement.spacedBy(TvDp.RowGap),
-            contentPadding = PaddingValues(bottom = TvDp.ScreenBottom),
+            verticalArrangement = Arrangement.spacedBy(TvDp.HomeRowVerticalGap),
+            contentPadding = PaddingValues(
+                start = 0.dp,
+                top = TvDp.ScreenTop,
+                end = 0.dp,
+                bottom = TvDp.ScreenBottom,
+            ),
             modifier = Modifier
                 .fillMaxWidth()
                 .weight(1f),
         ) {
             item(contentType = "home-top-bar") {
-                HomeTopBar(palette = palette, title = homeTitle(state), navigation = navigation)
-            }
-            if (showFilters) {
-                item(contentType = "home-filter-chips") {
-                    BrowseFilterChipsRow(
+                // TopBar 外层：不自己占焦点，只负责 1) 检测任一子按钮是否有焦点
+                // 以更新 focusedRowIndex=-1，2) 截获 DOWN 键切到 row 0。
+                androidx.compose.foundation.layout.Box(
+                    modifier = Modifier
+                        .padding(horizontal = 8.dp)
+                        .onFocusChanged { focusState ->
+                            if (focusState.hasFocus) focusedRowIndex = -1
+                        }
+                        .onPreviewKeyEvent { event ->
+                            if (event.type != KeyEventType.KeyDown) return@onPreviewKeyEvent false
+                            if (event.key == Key.DirectionDown && displayRows.isNotEmpty()) {
+                                moveFocusToFirstRow()
+                                true
+                            } else false
+                        },
+                ) {
+                    HomeTopBar(
                         palette = palette,
-                        filters = browseFilters,
-                        availableGenreNames = availableGenreNames,
-                        onChanged = onFiltersChanged,
+                        title = homeTitle(state),
+                        navigation = navigation,
+                        firstButtonFocusRequester = topBarFirstButtonFocusRequester,
+                        onMoveDown = {
+                            moveFocusToFirstRow()
+                            true
+                        },
                     )
                 }
             }
@@ -246,8 +282,8 @@ fun ComposeHomeScreen(
                         state = state,
                         row = row,
                         rowIndex = rowIndex,
-                        focusedRowIndexState = focusedRowIndexState,
-                        focusedItemIndexState = focusedItemIndexState,
+                        focusedRowIndex = focusedRowIndex,
+                        focusedItemIndex = focusedItemIndex,
                         focusRequester = railFocusRequesters[rowIndex],
                         onRowFocused = { onRowFocused(rowIndex) },
                         onItemIndexChanged = { itemIndex -> onItemIndexChanged(rowIndex, itemIndex) },
@@ -274,4 +310,3 @@ data class ComposeHomeNavigation(
     val onPreviousPage: () -> Unit,
     val onNextPage: () -> Unit,
 )
-

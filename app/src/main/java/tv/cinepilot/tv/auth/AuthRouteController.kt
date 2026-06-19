@@ -60,49 +60,57 @@ class AuthRouteController(
 
     fun showServerEntry() {
         stopQuickConnectPolling()
-        val recentAccounts = recentAccountStore.accounts()
-        val recentServers = recentAccountStore.servers()
-            .filterNot { server -> recentAccounts.any { account -> account.serverAddress == server.serverAddress } }
-        renderCompose("CinePilot TV") { palette ->
-            ComposeServerEntryScreen(
-                palette = palette,
-                recentAccounts = recentAccounts,
-                recentServers = recentServers,
-                onContinueAccount = { account ->
-                    runHomeEntry(
-                        null,
-                        {
-                            workflowController.submitServer(account.serverAddress)
-                            workflowController.restoreSessionWithoutHome(account.userId)
+        executor.execute {
+            val recentAccounts = recentAccountStore.accounts()
+            val recentServers = recentAccountStore.servers()
+                .filterNot { server -> recentAccounts.any { account -> account.serverAddress == server.serverAddress } }
+            activity.runOnUiThread {
+                renderCompose("CinePilot TV") { palette ->
+                    ComposeServerEntryScreen(
+                        palette = palette,
+                        recentAccounts = recentAccounts,
+                        recentServers = recentServers,
+                        onContinueAccount = { account ->
+                            runHomeEntry(
+                                null,
+                                {
+                                    workflowController.submitServer(account.serverAddress)
+                                    workflowController.restoreSessionWithoutHome(account.userId)
+                                },
+                                {},
+                                ::fallbackToServerEntry,
+                            )
                         },
-                        {},
-                        ::fallbackToServerEntry,
+                        onOpenServer = ::connectToServer,
+                        onClearAccounts = {
+                            clearSavedAccounts()
+                            showServerEntry()
+                        },
                     )
-                },
-                onOpenServer = ::connectToServer,
-                onClearAccounts = {
-                    clearSavedAccounts()
-                    showServerEntry()
-                },
-            )
+                }
+            }
         }
     }
 
     fun restoreRecentAccountOnLaunch() {
-        val account = recentAccountStore.accounts().firstOrNull()
-        if (account == null) {
-            showServerEntry()
-            return
+        executor.execute {
+            val account = recentAccountStore.accounts().firstOrNull()
+            activity.runOnUiThread {
+                if (account == null) {
+                    showServerEntry()
+                    return@runOnUiThread
+                }
+                runHomeEntry(
+                    null,
+                    {
+                        workflowController.submitServer(account.serverAddress)
+                        workflowController.restoreSessionWithoutHome(account.userId)
+                    },
+                    {},
+                    { activity.runOnUiThread { showServerEntry() } },
+                )
+            }
         }
-        runHomeEntry(
-            null,
-            {
-                workflowController.submitServer(account.serverAddress)
-                workflowController.restoreSessionWithoutHome(account.userId)
-            },
-            {},
-            { activity.runOnUiThread { showServerEntry() } },
-        )
     }
 
     fun showLogin() {
@@ -157,7 +165,7 @@ class AuthRouteController(
 
     fun forgetAuthenticatedAccount() {
         val authenticated = workflowController.state().authenticated() ?: return
-        recentAccountStore.forget(authenticated)
+        executor.execute { recentAccountStore.forget(authenticated) }
     }
 
     private fun connectToServer(serverAddress: String) {
@@ -234,10 +242,10 @@ class AuthRouteController(
 
     private fun rememberAccount() {
         val authenticated = workflowController.state().authenticated() ?: return
-        recentAccountStore.remember(authenticated)
+        executor.execute { recentAccountStore.remember(authenticated) }
     }
 
     private fun clearSavedAccounts() {
-        recentAccountStore.clear()
+        executor.execute { recentAccountStore.clear() }
     }
 }

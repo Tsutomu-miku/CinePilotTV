@@ -64,7 +64,7 @@ class DisplayModeApplier(
     ): Display.Mode? {
         if (!enabled || Build.VERSION.SDK_INT < Build.VERSION_CODES.M) return null
         val frameRate = referenceFrameRate ?: return null
-        val display = activity.windowManager.defaultDisplay ?: return null
+        val display = currentDisplay() ?: return null
         val best = pickBestMode(display, normalizeFrameRate(frameRate), matchColorSpace) ?: return null
         if (appliedModeId == best.modeId) return null
         val current = display.mode
@@ -86,11 +86,11 @@ class DisplayModeApplier(
         // always return to the pre-playback mode, even when starting from the default
         // (where preferredDisplayModeId is 0).
         if (previousMode == null) {
-            previousMode = activity.windowManager.defaultDisplay?.mode
+            previousMode = currentDisplay()?.mode
         }
         applyModeSafe(window, mode)
         appliedModeId = mode.modeId
-        val fpsLabel = String.format("%.0f Hz", mode.refreshRate)
+        val fpsLabel = String.format(java.util.Locale.ROOT, "%.0f Hz", mode.refreshRate)
         val colorHint = when {
             mode.physicalHeight >= 2160 -> "4K"
             mode.physicalHeight >= 1080 -> "1080p"
@@ -168,11 +168,16 @@ class DisplayModeApplier(
     }
 
     fun formatCurrentModeForDiagnostics(): String {
-        val display = activity.windowManager.defaultDisplay
+        val display = currentDisplay() ?: return "unknown"
         val mode = display.mode
-        return String.format("%dx%d %.1fHz",
+        return String.format(java.util.Locale.ROOT, "%dx%d %.1fHz",
             mode.physicalWidth, mode.physicalHeight, mode.refreshRate)
     }
+
+    fun currentMode(): Display.Mode? = currentDisplay()?.mode
+
+    private fun currentDisplay(): Display? =
+        displayManager?.getDisplay(Display.DEFAULT_DISPLAY)
 
     companion object {
         fun durationSecondsToTicks(seconds: Int): Long = MediaTicks.fromSeconds(seconds.toLong())

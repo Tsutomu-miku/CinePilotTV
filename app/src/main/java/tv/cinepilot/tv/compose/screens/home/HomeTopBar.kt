@@ -1,7 +1,6 @@
 package tv.cinepilot.tv.compose.screens.home
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.focusable
 import androidx.compose.foundation.interaction.MutableInteractionSource
@@ -26,9 +25,16 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.ColorFilter
+import androidx.compose.ui.input.key.Key
+import androidx.compose.ui.input.key.KeyEventType
+import androidx.compose.ui.input.key.key
+import androidx.compose.ui.input.key.onPreviewKeyEvent
+import androidx.compose.ui.input.key.type
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
@@ -41,28 +47,24 @@ import tv.cinepilot.tv.compose.theme.TvDp
 import tv.cinepilot.tv.compose.theme.TvText
 
 @Composable
-internal fun HomeTopBar(palette: CinePilotPalette, title: String, navigation: ComposeHomeNavigation) {
-    val topBarHeight = 56.dp
+internal fun HomeTopBar(
+    palette: CinePilotPalette,
+    title: String,
+    navigation: ComposeHomeNavigation,
+    firstButtonFocusRequester: FocusRequester = remember { FocusRequester() },
+    onMoveDown: () -> Boolean = { false },
+) {
+    val topBarHeight = 68.dp
     Box(
         modifier = Modifier
             .fillMaxWidth()
-            .height(topBarHeight)
-            .clip(RoundedCornerShape(TvDp.ControlRadius))
-            .background(
-                Brush.verticalGradient(
-                    listOf(
-                        palette.background.copy(alpha = 0.72f),
-                        palette.background.copy(alpha = 0.56f),
-                    ),
-                ),
-            )
-            .border(0.5.dp, palette.glassBorder.copy(alpha = 0.35f), RoundedCornerShape(TvDp.ControlRadius)),
+            .height(topBarHeight),
     ) {
         Row(
             verticalAlignment = Alignment.CenterVertically,
             modifier = Modifier
                 .fillMaxSize()
-                .padding(horizontal = 18.dp),
+                .padding(horizontal = 16.dp),
         ) {
             Row(
                 verticalAlignment = Alignment.CenterVertically,
@@ -89,30 +91,30 @@ internal fun HomeTopBar(palette: CinePilotPalette, title: String, navigation: Co
                         ),
                     )
                 }
-                Spacer(Modifier.width(14.dp))
+                Spacer(Modifier.width(12.dp))
                 BasicText(
                     text = "/",
                     maxLines = 1,
                     style = TextStyle(color = palette.textMuted, fontSize = TvText.Body),
                 )
-                Spacer(Modifier.width(14.dp))
+                Spacer(Modifier.width(12.dp))
                 BasicText(
                     text = title,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                     style = TextStyle(
                         color = palette.textPrimary,
-                        fontSize = 15.sp,
+                        fontSize = 16.sp,
                         fontWeight = FontWeight.SemiBold,
                     ),
                 )
-                Spacer(Modifier.width(14.dp))
+                Spacer(Modifier.width(12.dp))
                 BasicText(
                     text = "|",
                     maxLines = 1,
                     style = TextStyle(color = palette.textMuted, fontSize = TvText.Metadata),
                 )
-                Spacer(Modifier.width(14.dp))
+                Spacer(Modifier.width(12.dp))
                 BasicText(
                     text = "媒体库  Cinema Library",
                     maxLines = 1,
@@ -120,13 +122,16 @@ internal fun HomeTopBar(palette: CinePilotPalette, title: String, navigation: Co
                     style = TextStyle(color = palette.textSecondary, fontSize = TvText.Body),
                 )
             }
-            Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                homeActions(navigation).forEach { action ->
+            Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                val actions = homeActions(navigation)
+                actions.forEachIndexed { idx, action ->
                     HeaderIconButton(
                         palette = palette,
                         iconRes = action.iconRes,
                         contentDescription = action.label,
                         onClick = action.onClick,
+                        focusRequester = if (idx == 0) firstButtonFocusRequester else null,
+                        onMoveDown = onMoveDown,
                     )
                 }
             }
@@ -155,6 +160,8 @@ private fun HeaderIconButton(
     iconRes: Int,
     contentDescription: String,
     onClick: () -> Unit,
+    focusRequester: FocusRequester? = null,
+    onMoveDown: () -> Boolean = { false },
 ) {
     var focused by remember { mutableStateOf(false) }
     val shape = RoundedCornerShape(TvDp.ControlRadius)
@@ -168,31 +175,34 @@ private fun HeaderIconButton(
     } else {
         Modifier
     }
+    var modifier: Modifier = Modifier
+        .size(TvDp.IconButtonSize)
+    if (focusRequester != null) modifier = modifier.focusRequester(focusRequester)
+    modifier = modifier
+        .then(glowModifier)
+        .clip(shape)
+        .background(if (focused) palette.glassFocus else palette.glass.copy(alpha = 0.0f), shape)
+        .onFocusChanged { focused = it.isFocused }
+        .onPreviewKeyEvent { event ->
+            event.type == KeyEventType.KeyDown &&
+                event.key == Key.DirectionDown &&
+                onMoveDown()
+        }
+        .focusable()
+        .clickable(
+            interactionSource = remember { MutableInteractionSource() },
+            indication = null,
+            onClick = onClick,
+        )
     Box(
-        modifier = Modifier
-            .size(TvDp.IconButtonSize)
-            .then(glowModifier)
-            .clip(shape)
-            .background(if (focused) palette.glassFocus else palette.glass.copy(alpha = 0.0f), shape)
-            .border(
-                width = if (focused) TvDp.FocusRing else 1.dp,
-                color = if (focused) palette.focusRing else palette.glassBorder.copy(alpha = 0.4f),
-                shape = shape,
-            )
-            .onFocusChanged { focused = it.isFocused }
-            .focusable()
-            .clickable(
-                interactionSource = remember { MutableInteractionSource() },
-                indication = null,
-                onClick = onClick,
-            ),
+        modifier = modifier,
         contentAlignment = Alignment.Center,
     ) {
         androidx.compose.foundation.Image(
             painter = painterResource(iconRes),
             contentDescription = contentDescription,
             colorFilter = ColorFilter.tint(if (focused) palette.accentStrong else palette.textPrimary),
-            modifier = Modifier.size(20.dp),
+            modifier = Modifier.size(22.dp),
         )
     }
 }

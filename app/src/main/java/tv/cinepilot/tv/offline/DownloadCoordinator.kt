@@ -19,8 +19,9 @@ import androidx.media3.exoplayer.scheduler.Requirements
 import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
 import androidx.media3.common.MediaItem as ExoMediaItem
 import java.io.File
-import java.util.concurrent.Executor
 import java.util.concurrent.Executors
+import java.util.concurrent.ScheduledExecutorService
+import java.util.concurrent.TimeUnit
 import okhttp3.OkHttpClient
 import tv.cinepilot.core.protocol.AuthenticatedServer
 import tv.cinepilot.core.protocol.MediaItemSummary
@@ -50,8 +51,9 @@ class DownloadCoordinator private constructor(
     private val okHttpClient: OkHttpClient,
 ) {
 
-    private val executor: Executor = Executors.newSingleThreadExecutor()
+    private val executor: ScheduledExecutorService = Executors.newSingleThreadScheduledExecutor()
     private val persistRunnable = Runnable { OfflineRepositoryStore.save(appContext, offlineRepository) }
+    @Volatile private var persistScheduled = false
 
     // --- media3 dependencies (lazily constructed) -----------------------------
 
@@ -232,12 +234,22 @@ class DownloadCoordinator private constructor(
     }
 
     fun saveNow() {
-        executor.execute(persistRunnable)
+        executor.execute { persistNow() }
     }
 
     // --- internals -----------------------------------------------------------
 
     private fun schedulePersist() {
+        if (persistScheduled) return
+        persistScheduled = true
+        executor.schedule({
+            persistScheduled = false
+            persistRunnable.run()
+        }, PERSIST_DEBOUNCE_MS, TimeUnit.MILLISECONDS)
+    }
+
+    private fun persistNow() {
+        persistScheduled = false
         persistRunnable.run()
     }
 
@@ -297,7 +309,11 @@ class DownloadCoordinator private constructor(
                     offlineRepository.pause(serverId, itemId, quality)
                 }
             }
-            schedulePersist()
+            if (isTerminalDownloadState(download.state)) {
+                persistNow()
+            } else {
+                schedulePersist()
+            }
         }
     }
 
@@ -306,6 +322,7 @@ class DownloadCoordinator private constructor(
         private const val CACHE_AUTHORITY = "local"
         private const val USER_AGENT = "CinePilotTV/1.0 (offline-download)"
         private const val STOP_REASON_USER = 1001
+        private const val PERSIST_DEBOUNCE_MS = 2_000L
 
         @Volatile private var instance: DownloadCoordinator? = null
 
@@ -337,6 +354,14 @@ class DownloadCoordinator private constructor(
             if (parts.size != 3) return null
             val quality = parts[2].toIntOrNull() ?: return null
             return Triple(parts[0], parts[1], quality)
+        }
+
+        private fun isTerminalDownloadState(state: Int): Boolean = when (state) {
+            Download.STATE_COMPLETED,
+            Download.STATE_FAILED,
+            Download.STATE_REMOVING,
+            Download.STATE_STOPPED -> true
+            else -> false
         }
 
         private fun localContentIdFrom(download: Download): Long {

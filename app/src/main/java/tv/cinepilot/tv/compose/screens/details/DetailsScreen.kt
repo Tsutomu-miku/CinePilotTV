@@ -2,15 +2,27 @@ package tv.cinepilot.tv.compose.screens.details
 
 import androidx.activity.ComponentActivity
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.text.BasicText
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.ui.input.key.Key
+import androidx.compose.ui.input.key.KeyEventType
+import androidx.compose.ui.input.key.key
+import androidx.compose.ui.input.key.onPreviewKeyEvent
+import androidx.compose.ui.input.key.type
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -38,6 +50,8 @@ private const val BACKDROP_REQ_WIDTH_PX = 1280
 private const val BACKDROP_REQ_HEIGHT_PX = 720
 private const val RELATED_POSTER_REQ_WIDTH_PX = 300
 private const val RELATED_POSTER_REQ_HEIGHT_PX = 450
+
+private enum class SectionKind { ACTIONS, RATING, TRACKS }
 
 // ── Text size constants ─────────────────────────────────────────────────
 
@@ -130,6 +144,13 @@ fun ComposeDetailsScreen(
         calculateProgress(item)
     }
 
+    // D-pad 垂直导航桥：在 action flow -> 评分 -> 轨道选择 之间建立明确的
+    // 上下移动目标，避免 Compose 原生 focus 在 LazyColumn 子项之间"跳错"。
+    val actionsFocusRequester = remember { FocusRequester() }
+    val ratingFocusRequester = remember { FocusRequester() }
+    val tracksFocusRequester = remember { FocusRequester() }
+    var currentlyFocusedSection by remember { mutableStateOf(SectionKind.ACTIONS) }
+
     DetailsStage(
         backdrop = backdrop,
         palette = palette,
@@ -145,39 +166,101 @@ fun ComposeDetailsScreen(
             modifier = Modifier.fillMaxSize(),
         ) {
             item {
-                DetailsHero(
-                    palette = palette,
-                    artworkFactory = artworkFactory,
-                    authenticated = authenticated,
-                    item = item,
-                    title = presentation.title,
-                    contextLine = presentation.contextLine,
-                    qualityBadges = presentation.qualityBadges,
-                    providerBadges = presentation.providerBadges.map { it.label to it.externalUrl },
-                    actions = actions,
-                    playbackProgress = playbackProgress,
-                    pluginSyncStates = pluginSyncStates,
-                    onProviderBadgeClick = onProviderBadgeClick,
-                    onRetryPluginSync = onRetryPluginSync,
-                )
+                Box(
+                    modifier = Modifier
+                        .focusRequester(actionsFocusRequester)
+                        .onFocusChanged {
+                            if (it.isFocused) currentlyFocusedSection = SectionKind.ACTIONS
+                        }
+                        .onPreviewKeyEvent { event ->
+                            if (event.type != KeyEventType.KeyDown) return@onPreviewKeyEvent false
+                            if (event.key == Key.DirectionDown) {
+                                val target = if (item.userData()?.userRating() != null ||
+                                    item.communityRating()?.takeIf { r -> r > 0.0 } != null
+                                ) {
+                                    ratingFocusRequester
+                                } else {
+                                    tracksFocusRequester
+                                }
+                                runCatching { target.requestFocus() }
+                                true
+                            } else false
+                        },
+                ) {
+                    DetailsHero(
+                        palette = palette,
+                        artworkFactory = artworkFactory,
+                        authenticated = authenticated,
+                        item = item,
+                        title = presentation.title,
+                        contextLine = presentation.contextLine,
+                        qualityBadges = presentation.qualityBadges,
+                        providerBadges = presentation.providerBadges.map { it.label to it.externalUrl },
+                        actions = actions,
+                        playbackProgress = playbackProgress,
+                        pluginSyncStates = pluginSyncStates,
+                        onProviderBadgeClick = onProviderBadgeClick,
+                        onRetryPluginSync = onRetryPluginSync,
+                    )
+                }
             }
             item {
-                UserRatingRow(
-                    palette = palette,
-                    currentRating = item.userData()?.userRating(),
-                    communityRating = item.communityRating(),
-                    onChange = onSetUserRating,
-                )
+                Box(
+                    modifier = Modifier
+                        .focusRequester(ratingFocusRequester)
+                        .onFocusChanged {
+                            if (it.isFocused) currentlyFocusedSection = SectionKind.RATING
+                        }
+                        .onPreviewKeyEvent { event ->
+                            if (event.type != KeyEventType.KeyDown) return@onPreviewKeyEvent false
+                            when (event.key) {
+                                Key.DirectionUp -> {
+                                    runCatching { actionsFocusRequester.requestFocus() }
+                                    true
+                                }
+                                Key.DirectionDown -> {
+                                    runCatching { tracksFocusRequester.requestFocus() }
+                                    true
+                                }
+                                else -> false
+                            }
+                        },
+                ) {
+                    UserRatingRow(
+                        palette = palette,
+                        currentRating = item.userData()?.userRating(),
+                        communityRating = item.communityRating(),
+                        onChange = onSetUserRating,
+                    )
+                }
             }
             val hasTracks = playbackInfo?.mediaSources().orEmpty().isNotEmpty()
             if (hasTracks) {
                 item {
-                    DetailTrackOptions(
-                        palette = palette,
-                        playbackInfo = playbackInfo,
-                        selection = trackSelection,
-                        onSelection = onTrackSelection,
-                    )
+                    Box(
+                        modifier = Modifier
+                            .focusRequester(tracksFocusRequester)
+                            .onFocusChanged {
+                                if (it.isFocused) currentlyFocusedSection = SectionKind.TRACKS
+                            }
+                            .onPreviewKeyEvent { event ->
+                                if (event.type != KeyEventType.KeyDown) return@onPreviewKeyEvent false
+                                if (event.key == Key.DirectionUp) {
+                                    val rating = item.userData()?.userRating() != null ||
+                                        item.communityRating()?.takeIf { r -> r > 0.0 } != null
+                                    val target = if (rating) ratingFocusRequester else actionsFocusRequester
+                                    runCatching { target.requestFocus() }
+                                    true
+                                } else false
+                            },
+                    ) {
+                        DetailTrackOptions(
+                            palette = palette,
+                            playbackInfo = playbackInfo,
+                            selection = trackSelection,
+                            onSelection = onTrackSelection,
+                        )
+                    }
                 }
             }
             if (presentation.overview.isNotBlank()) {

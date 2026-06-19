@@ -131,6 +131,8 @@ class PlaybackRouteController(
 
     // ---- Player overlay state (P1 batch 6) -----------------------------------
     private val mainHandler = Handler(Looper.getMainLooper())
+    private val mainExecutor = Executor { action -> mainHandler.post(action) }
+    private val detailsCoordinator = DetailsCoordinator(workflowController, pluginHost, mainExecutor)
     private val displayModeApplier = DisplayModeApplier(activity)
     private var deferredAfmPromptShown = false
     private var playerChapters: List<ChapterInfo> = emptyList()
@@ -145,14 +147,25 @@ class PlaybackRouteController(
     private var currentPlaybackSnapshot: MediaItemSummary? = null
     private var currentPlaybackDurationMs: Long = 0L
     private var playbackStartedFired = false
+    private val pluginProgressGate = PlaybackProgressGate()
     private var playerSubtitleShortcutLabel = "字幕"
     private var playerAudioShortcutLabel = "音轨"
+    private var playerOsdVisible = false
+    private val playerOsdHideRunnable = Runnable {
+        if (workflowController.state().route() == TvRoute.PLAYER) {
+            playerOsdVisible = false
+            scheduleOverlayRebuild()
+        }
+    }
+    private val osdAutoHideDelayMs = 4000L
+    private var lastOsdBackPressAt = 0L
 
     fun showDetails(
         item: MediaItemSummary,
         playbackInfo: PlaybackInfo? = null,
         episodeContext: ShowStructure? = null,
         sameCollectionItems: List<MediaItemSummary>? = null,
+        pluginSyncStatesOverride: List<PluginHost.PluginItemSyncState>? = null,
     ) {
         auxiliaryBackAction = null
         if (playbackInfo != null && playbackInfo.itemId() == item.id()) {
@@ -162,7 +175,12 @@ class PlaybackRouteController(
         val effectiveTrackSelection = normalizedTrackSelectionFor(item, effectivePlaybackInfo)
         val auth = workflowController.state().authenticated()
         val snapshot = auth?.let { item.toSnapshot(it) }
-        val pluginSyncStates = snapshot?.let(pluginHost::itemSyncStatuses).orEmpty()
+        val pluginSyncStates = pluginSyncStatesOverride.orEmpty()
+        if (snapshot != null && pluginSyncStatesOverride == null) {
+            detailsCoordinator.loadPluginSyncStates(item, auth) { states ->
+                showDetails(item, effectivePlaybackInfo, episodeContext, sameCollectionItems, states)
+            }
+        }
         // --- compute offline action label/state BEFORE going into runTask
         val offlineInfo = computeOfflineInfo(item)
         val sameCollection = sameCollectionItems.orEmpty()
@@ -788,13 +806,39 @@ class PlaybackRouteController(
     }
 
     fun handlePlaybackBackPressed() {
-        val now = System.currentTimeMillis()
-        if (now - lastPlaybackBackPressAt > PLAYBACK_BACK_EXIT_WINDOW_MS) {
-            lastPlaybackBackPressAt = now
-            Toast.makeText(activity, "再次按返回退出播放", Toast.LENGTH_SHORT).show()
+        // 1) OSD 未显示：第一次按返回显示 OSD
+        if (!playerOsdVisible) {
+            showOsd()
             return
         }
-        exitPlaybackToDetails()
+        // 2) OSD 已显示：按一次返回关闭 OSD；短时间内再次按返回才退出播放
+        hideOsd()
+        val now = System.currentTimeMillis()
+        if (now - lastOsdBackPressAt <= PLAYBACK_BACK_EXIT_WINDOW_MS) {
+            lastOsdBackPressAt = 0L
+            exitPlaybackToDetails()
+            return
+        }
+        lastOsdBackPressAt = now
+        Toast.makeText(activity, "再次按返回退出播放", Toast.LENGTH_SHORT).show()
+    }
+
+    fun onPlayerUserInteraction() {
+        showOsd()
+    }
+
+    private fun showOsd() {
+        playerOsdVisible = true
+        lastOsdBackPressAt = 0L
+        mainHandler.removeCallbacks(playerOsdHideRunnable)
+        mainHandler.postDelayed(playerOsdHideRunnable, osdAutoHideDelayMs)
+        if (!overlayRebuildScheduled) scheduleOverlayRebuild()
+    }
+
+    private fun hideOsd() {
+        playerOsdVisible = false
+        mainHandler.removeCallbacks(playerOsdHideRunnable)
+        if (!overlayRebuildScheduled) scheduleOverlayRebuild()
     }
 
     private fun exitPlaybackToDetails() {
@@ -811,11 +855,15 @@ class PlaybackRouteController(
         val durationMs = currentPlaybackDurationMs
         val positionMs = ticksToMs(playerHost.currentPositionTicks())
         playerHost.release()
+        pluginProgressGate.reset()
+        mainHandler.removeCallbacks(playerOsdHideRunnable)
+        playerOsdVisible = false
         val auth = workflowController.state().authenticated()
         if (snapshot != null && auth != null && playbackStartedFired) {
             pluginHost.dispatchPlaybackStopped(snapshot.toSnapshot(auth), positionMs, durationMs)
         }
         playbackStartedFired = false
+        pluginProgressGate.reset()
         currentPlaybackSnapshot = null
         currentPlaybackDurationMs = 0L
     }
@@ -872,6 +920,9 @@ class PlaybackRouteController(
         overlayRebuildScheduled = false
         playerSubtitleShortcutLabel = "字幕"
         playerAudioShortcutLabel = "音轨"
+        playerOsdVisible = false
+        lastOsdBackPressAt = 0L
+        mainHandler.removeCallbacks(playerOsdHideRunnable)
         val (offlineFactory, offlineCacheKey) = run {
             val serverId = state.authenticated()?.server()?.serverId()
             if (serverId != null && selectedItem != null) {
@@ -979,7 +1030,7 @@ class PlaybackRouteController(
     private fun showAfmConfirmationSheet(pending: android.view.Display.Mode) {
         deferredAfmPromptShown = true
         val current = playbackSettingsStore.stateFlow.value
-        val currentMode = activity.windowManager.defaultDisplay?.mode ?: return
+        val currentMode = displayModeApplier.currentMode() ?: return
         val prompt = DisplayModeSwitchPrompt.from(pending)
         val currentLabel = buildString {
             val height = currentMode.physicalHeight
@@ -990,7 +1041,7 @@ class PlaybackRouteController(
                 else -> append("${currentMode.physicalWidth}×${currentMode.physicalHeight}")
             }
             append(" ")
-            append(String.format("%.0f Hz", currentMode.refreshRate))
+            append(String.format(java.util.Locale.ROOT, "%.0f Hz", currentMode.refreshRate))
         }
 
         fun returnToPlayer() {
@@ -1084,7 +1135,13 @@ class PlaybackRouteController(
                 if (durationMs > 0) currentPlaybackDurationMs = durationMs
                 pluginHost.dispatchPlaybackStarted(snapshot, currentPlaybackDurationMs.coerceAtLeast(durationMs))
             }
-            pluginHost.dispatchPlaybackProgress(snapshot, positionMs, currentPlaybackDurationMs.coerceAtLeast(durationMs))
+            if (pluginProgressGate.shouldDispatch(positionMs)) {
+                pluginHost.dispatchPlaybackProgress(
+                    snapshot,
+                    positionMs,
+                    currentPlaybackDurationMs.coerceAtLeast(durationMs),
+                )
+            }
         }
         val settings = playbackSettingsStore.stateFlow.value
 
@@ -1331,6 +1388,9 @@ class PlaybackRouteController(
                     lastOverlayTickKey = ""
                     scheduleOverlayRebuild()
                 },
+                osdVisible = playerOsdVisible,
+                onUserInteraction = ::onPlayerUserInteraction,
+                onBackPressed = ::handlePlaybackBackPressed,
             )
         }
         val overlayOwnsFocus = nextUpInfo != null

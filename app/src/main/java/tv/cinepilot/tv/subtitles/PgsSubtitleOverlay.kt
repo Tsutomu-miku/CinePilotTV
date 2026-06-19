@@ -63,22 +63,14 @@ class PgsSubtitleOverlay(context: Context) : View(context) {
 
     // ---- Draw ----------------------------------------------------------------------
 
-    private data class FrameDrawSpec(
-        val bitmap: Bitmap,
-        val x: Int,
-        val y: Int,
-    )
-
     override fun onDraw(canvas: Canvas) {
         super.onDraw(canvas)
-        val player = attachedPlayer ?: run { postInvalidateOnAnimation(); return }
+        val player = attachedPlayer ?: return
         val subtitle = SubtitleSideChannel.consumeLatest()
         if (subtitle == null || width == 0 || height == 0) {
-            postInvalidateOnAnimation()
             return
         }
         if (subtitle !is PgsSubtitle && subtitle !is LibassSubtitle) {
-            postInvalidateOnAnimation()
             return
         }
 
@@ -89,52 +81,59 @@ class PgsSubtitleOverlay(context: Context) : View(context) {
             eventIndex++
         }
 
-        val frames: List<FrameDrawSpec> = when (subtitle) {
-            is PgsSubtitle -> subtitle.framesAt(positionUs).map { FrameDrawSpec(it.bitmap, it.x, it.y) }
-            is LibassSubtitle -> subtitle.framesAt(positionUs).map { FrameDrawSpec(it.bitmap, it.x, it.y) }
-            else -> emptyList()
-        }
-
-        if (frames.isEmpty()) {
-            postInvalidateOnAnimation()
-            return
-        }
-
-        val (srcW, srcH) = when (subtitle) {
+        val srcW: Int
+        val srcH: Int
+        when (subtitle) {
             is PgsSubtitle -> {
-                val w = if (subtitle.width > 0) subtitle.width else videoDisplayRect.width()
-                val h = if (subtitle.height > 0) subtitle.height else videoDisplayRect.height()
-                Pair(w, h)
+                srcW = if (subtitle.width > 0) subtitle.width else videoDisplayRect.width()
+                srcH = if (subtitle.height > 0) subtitle.height else videoDisplayRect.height()
             }
             is LibassSubtitle -> {
-                val w = if (subtitle.displayWidth > 0) subtitle.displayWidth else videoDisplayRect.width()
-                val h = if (subtitle.displayHeight > 0) subtitle.displayHeight else videoDisplayRect.height()
-                Pair(w, h)
+                srcW = if (subtitle.displayWidth > 0) subtitle.displayWidth else videoDisplayRect.width()
+                srcH = if (subtitle.displayHeight > 0) subtitle.displayHeight else videoDisplayRect.height()
             }
-            else -> Pair(videoDisplayRect.width(), videoDisplayRect.height())
+            else -> return
         }
         val scaleX = if (srcW > 0) videoDisplayRect.width().toFloat() / srcW else 1f
         val scaleY = if (srcH > 0) videoDisplayRect.height().toFloat() / srcH else 1f
 
-        frames.forEach { frame ->
-            val bmpWidth = frame.bitmap.width
-            val bmpHeight = frame.bitmap.height
-            val scaledW = (bmpWidth * scaleX + 0.5f).toInt()
-            val scaledH = (bmpHeight * scaleY + 0.5f).toInt()
-            if (scaledW <= 0 || scaledH <= 0) return@forEach
-            val left = (videoDisplayRect.left + frame.x * scaleX + 0.5f).toInt()
-                .coerceIn(0, width)
-            val top = (videoDisplayRect.top + frame.y * scaleY + 0.5f).toInt()
-                .coerceIn(0, height)
-            val right = (left + scaledW).coerceIn(0, width)
-            val bottom = (top + scaledH).coerceIn(0, height)
-            drawRect.set(left, top, right, bottom)
-            if (drawRect.width() > 0 && drawRect.height() > 0) {
-                canvas.drawBitmap(frame.bitmap, null, drawRect, paint)
+        var drewFrame = false
+        when (subtitle) {
+            is PgsSubtitle -> {
+                for (frame in subtitle.framesAt(positionUs)) {
+                    drewFrame = drawFrame(canvas, frame.bitmap, frame.x, frame.y, scaleX, scaleY) || drewFrame
+                }
             }
+            is LibassSubtitle -> {
+                for (frame in subtitle.framesAt(positionUs)) {
+                    drewFrame = drawFrame(canvas, frame.bitmap, frame.x, frame.y, scaleX, scaleY) || drewFrame
+                }
+            }
+            else -> Unit
         }
 
-        postInvalidateOnAnimation()
+        if (drewFrame || eventIndex + 1 < count) postInvalidateOnAnimation()
+    }
+
+    private fun drawFrame(
+        canvas: Canvas,
+        bitmap: Bitmap,
+        frameX: Int,
+        frameY: Int,
+        scaleX: Float,
+        scaleY: Float,
+    ): Boolean {
+        val scaledW = (bitmap.width * scaleX + 0.5f).toInt()
+        val scaledH = (bitmap.height * scaleY + 0.5f).toInt()
+        if (scaledW <= 0 || scaledH <= 0) return false
+        val left = (videoDisplayRect.left + frameX * scaleX + 0.5f).toInt().coerceIn(0, width)
+        val top = (videoDisplayRect.top + frameY * scaleY + 0.5f).toInt().coerceIn(0, height)
+        val right = (left + scaledW).coerceIn(0, width)
+        val bottom = (top + scaledH).coerceIn(0, height)
+        drawRect.set(left, top, right, bottom)
+        if (drawRect.width() <= 0 || drawRect.height() <= 0) return false
+        canvas.drawBitmap(bitmap, null, drawRect, paint)
+        return true
     }
 
     /**
@@ -146,10 +145,8 @@ class PgsSubtitleOverlay(context: Context) : View(context) {
         val size = lastVideoSize.takeIf { it.width > 0 && it.height > 0 }
         val videoW = size?.width ?: 1
         val videoH = size?.height ?: 1
-        val unappliedRotation = size?.unappliedRotationDegrees ?: 0
-        val swapped = unappliedRotation == 90 || unappliedRotation == 270
-        val contentW = if (swapped) videoH else videoW
-        val contentH = if (swapped) videoW else videoH
+        val contentW = videoW
+        val contentH = videoH
         val pixelRatio = size?.pixelWidthHeightRatio?.takeIf { it > 0f } ?: 1f
         val scaledContentW = (contentW * pixelRatio + 0.5f).toInt().coerceAtLeast(1)
         val viewW = width

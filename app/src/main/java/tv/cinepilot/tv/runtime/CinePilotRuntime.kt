@@ -61,7 +61,7 @@ class CinePilotRuntime private constructor(
                 mediaBrowserClient = mediaBrowserClient,
                 workflowController = TvWorkflowController(
                     mediaBrowserClient,
-                    HomeRowsLoader(mediaBrowserClient),
+                    HomeRowsLoader.concurrent(mediaBrowserClient),
                     deviceCodecDiagnostics.playbackDeviceProfile(),
                     offlineRepository,
                 ),

@@ -59,6 +59,9 @@ fun ComposePlayerScreen(
     onAudioShortcut: () -> Unit,
     onQualityShortcut: () -> Unit,
     onSpeedShortcut: () -> Unit,
+    osdVisible: Boolean,
+    onUserInteraction: () -> Unit,
+    onBackPressed: () -> Unit,
 ) {
     PlayerComposePlayerScreen(
         palette = palette,
@@ -92,5 +95,8 @@ fun ComposePlayerScreen(
         onAudioShortcut = onAudioShortcut,
         onQualityShortcut = onQualityShortcut,
         onSpeedShortcut = onSpeedShortcut,
+        osdVisible = osdVisible,
+        onUserInteraction = onUserInteraction,
+        onBackPressed = onBackPressed,
     )
 }

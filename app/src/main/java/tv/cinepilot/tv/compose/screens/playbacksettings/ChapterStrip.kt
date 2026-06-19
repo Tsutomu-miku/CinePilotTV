@@ -87,7 +87,7 @@ internal fun ChapterStripBar(
                 title = title,
                 time = time,
                 selected = isCurrent,
-                onClick = { /* TODO */ },
+                onClick = {},
             )
             if (index < chapters.lastIndex) {
                 Spacer(Modifier.width(6.dp))

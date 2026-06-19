@@ -201,10 +201,6 @@ class CompositeTextOutput(
         second.onCues(cueGroup)
     }
 
-    override fun onCues(cues: MutableList<androidx.media3.common.text.Cue>) {
-        first.onCues(cues)
-        second.onCues(cues)
-    }
 }
 
 /** Keep lint happy about unused Handler import (kept for follow-up refactors). */

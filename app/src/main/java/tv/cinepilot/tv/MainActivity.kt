@@ -5,7 +5,6 @@ import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
 import android.view.View
-import android.widget.ImageView
 import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.OnBackPressedCallback
@@ -13,8 +12,6 @@ import androidx.compose.runtime.Composable
 import androidx.lifecycle.ViewModelProvider
 import java.util.concurrent.Executors
 import tv.cinepilot.core.protocol.MediaBrowserException
-import tv.cinepilot.core.protocol.MediaItemSummary
-import tv.cinepilot.core.protocol.MediaPerson
 import tv.cinepilot.core.tv.TvAppState
 import tv.cinepilot.core.tv.TvRoute
 import tv.cinepilot.tv.auth.AuthRouteController
@@ -31,9 +28,6 @@ import tv.cinepilot.tv.playback.PlaybackRouteController
 import tv.cinepilot.tv.playback.SubtitleStyleStore
 import tv.cinepilot.tv.plugin.PluginHost
 import tv.cinepilot.tv.profile.ProfileSwitcherRouteController
-import tv.cinepilot.tv.runtime.ArtworkLoader
-import tv.cinepilot.tv.runtime.ArtworkRequestFactory
-import tv.cinepilot.tv.runtime.ArtworkTarget
 import tv.cinepilot.tv.runtime.CinePilotTaskRunner
 import tv.cinepilot.tv.runtime.HomeEntryFlow
 import tv.cinepilot.tv.settings.SettingsRouteController
@@ -50,8 +44,7 @@ class MainActivity : ComponentActivity() {
     private lateinit var settingsRoutes: SettingsRouteController
     private lateinit var profileSwitcherRoutes: ProfileSwitcherRouteController
     private lateinit var homeRoutes: HomeRouteController
-    private lateinit var artworkLoader: ArtworkLoader
-    private lateinit var artworkFactory: ArtworkRequestFactory
+    private lateinit var artwork: MainActivityArtwork
     private lateinit var subtitleStyleStore: SubtitleStyleStore
     private lateinit var settingsStore: SettingsStore
     private lateinit var homeSettingsStore: HomeSettingsStore
@@ -94,11 +87,12 @@ class MainActivity : ComponentActivity() {
             subtitleStyleStore,
             viewModel.runtime.streamingOkHttpClient,
         )
-        artworkLoader = ArtworkLoader(
+        artwork = MainActivityArtwork(
+            this,
+            viewModel.workflowController,
             viewModel.mediaBrowserClient,
             viewModel.runtime.bitmapCache,
         )
-        artworkFactory = ArtworkRequestFactory(viewModel.mediaBrowserClient)
         homeEntryFlow = HomeEntryFlow(
             activity = this,
             executor = executor,
@@ -111,8 +105,6 @@ class MainActivity : ComponentActivity() {
             showHome = ::showHome,
             showError = ::showError,
         )
-        // 桌面媒体通道 / HomeChannel 的首次调度涉及 JobScheduler /
-        // AlarmManager 的 IPC，抛到后台单线程执行避免阻塞首帧
         executor.execute {
             tv.cinepilot.tv.home.channel.HomeChannelInitializeReceiver.ensureScheduled(this@MainActivity)
         }
@@ -143,11 +135,11 @@ class MainActivity : ComponentActivity() {
             renderCompose = ::renderCompose,
             renderComposeFull = ::renderComposeFull,
             showError = ::showError,
-            loadPosterImage = ::loadPosterImage,
-            loadArtworkImage = ::loadArtworkImage,
-            loadBackdropImage = ::loadBackdropImage,
-            loadPersonImage = ::loadPersonImage,
-            artworkFactory = artworkFactory,
+            loadPosterImage = artwork::loadPoster,
+            loadArtworkImage = artwork::loadArtwork,
+            loadBackdropImage = artwork::loadBackdrop,
+            loadPersonImage = artwork::loadPerson,
+            artworkFactory = artwork.factory,
             pluginHost = pluginHost,
             downloadCoordinator = downloadCoordinator,
         )
@@ -180,7 +172,7 @@ class MainActivity : ComponentActivity() {
             activity = this,
             workflowController = viewModel.workflowController,
             homeSettingsStore = homeSettingsStore,
-            artworkFactory = artworkFactory,
+            artworkFactory = artwork.factory,
             runTask = ::runInPlaceTask,
             runSilentTask = ::runSilentTask,
             showHome = ::showHome,
@@ -204,7 +196,7 @@ class MainActivity : ComponentActivity() {
                 searchRoutes.showSearch(term)
             },
             logoutFromHome = authRoutes::logoutFromHome,
-            artworkFactory = artworkFactory,
+            artworkFactory = artwork.factory,
         )
         onBackPressedDispatcher.addCallback(this, object : OnBackPressedCallback(true) {
             override fun handleOnBackPressed() {
@@ -225,7 +217,7 @@ class MainActivity : ComponentActivity() {
     override fun onDestroy() {
         authRoutes.stopQuickConnectPolling()
         playerHost.shutdown()
-        artworkLoader.shutdown()
+        artwork.shutdown()
         pluginHost.shutdown()
         downloadCoordinator.saveNow()
         executor.shutdownNow()
@@ -284,29 +276,10 @@ class MainActivity : ComponentActivity() {
         profileSwitcherRoutes.show(viewModel.workflowController.state())
     }
 
-    private fun loadPosterImage(target: ImageView, item: MediaItemSummary, width: Int, height: Int) {
-        artworkLoader.loadPoster(this, viewModel.workflowController.state().authenticated(), target, item, width, height)
-    }
-
-    private fun loadArtworkImage(target: ImageView, item: MediaItemSummary, targetType: ArtworkTarget, width: Int, height: Int) {
-        artworkLoader.loadArtwork(this, viewModel.workflowController.state().authenticated(), target, item, targetType, width, height)
-    }
-
-    private fun loadBackdropImage(target: ImageView, item: MediaItemSummary, width: Int, height: Int) {
-        artworkLoader.loadBackdrop(this, viewModel.workflowController.state().authenticated(), target, item, width, height)
-    }
-
-    private fun loadPersonImage(target: ImageView, person: MediaPerson, width: Int, height: Int) {
-        artworkLoader.loadPerson(this, viewModel.workflowController.state().authenticated(), target, person, width, height)
-    }
-
     private fun renderView(view: View) = screenHost.showLegacy(view)
-
     private fun renderCompose(title: String, content: @Composable (CinePilotPalette) -> Unit) =
         screenHost.showCompose(title, content)
-
     private fun renderComposeFull(content: @Composable (CinePilotPalette) -> Unit) = screenHost.showFullScreen(content)
-
     private fun showLoading(message: String) = screenHost.showLoading(message)
 
     private fun showError(error: Throwable) {
@@ -344,9 +317,6 @@ class MainActivity : ComponentActivity() {
         }
         Toast.makeText(this, tvErrorMessage(error), Toast.LENGTH_LONG).show()
     }
-
-    private fun runBlockingTask(message: String, task: () -> Unit, onSuccess: () -> Unit) =
-        taskRunner.runBlockingTask(message, task, onSuccess)
 
     private fun runInPlaceTask(message: String, task: () -> Unit, onSuccess: () -> Unit) =
         taskRunner.runInPlaceTask(message, task, onSuccess)

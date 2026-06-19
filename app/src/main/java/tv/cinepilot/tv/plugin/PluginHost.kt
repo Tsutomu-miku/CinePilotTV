@@ -15,8 +15,10 @@ import tv.cinepilot.plugin.spi.UserDataSyncPlugin
 import java.util.ServiceLoader
 import java.util.Collections
 import java.util.concurrent.ExecutionException
+import java.util.concurrent.Executor
 import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
+import java.util.concurrent.Future
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.TimeoutException
 import android.util.Log as AndroidLog
@@ -45,7 +47,7 @@ class PluginHost private constructor(
     private val plugins: List<LoadedPlugin>,
 ) {
     private val executor: ExecutorService = Executors.newSingleThreadExecutor { runnable ->
-        Thread(runnable, "plugin-host").apply { isDaemon = true }
+        Thread(runnable, PLUGIN_THREAD_NAME).apply { isDaemon = true }
     }
 
     data class PluginInfo(
@@ -243,33 +245,49 @@ class PluginHost private constructor(
      * timeout; a slow plugin is treated as [ItemSyncStatus.AUTH_REQUIRED]
      * so its row is rendered in a known-degraded state.
      */
+    fun itemSyncStatusesAsync(
+        item: MediaItemSnapshot,
+        callbackExecutor: Executor,
+        callback: (List<PluginItemSyncState>) -> Unit,
+    ): Future<*> = executor.submit {
+        val result = computeItemSyncStatuses(item)
+        callbackExecutor.execute { callback(result) }
+    }
+
     fun itemSyncStatuses(item: MediaItemSnapshot): List<PluginItemSyncState> {
+        if (Thread.currentThread().name == PLUGIN_THREAD_NAME) {
+            return computeItemSyncStatuses(item)
+        }
+        val future = executor.submit<List<PluginItemSyncState>> { computeItemSyncStatuses(item) }
+        val userPluginCount = plugins.count { it.plugin is UserDataSyncPlugin }.coerceAtLeast(1)
+        return try {
+            future.get(ITEM_SYNC_TIMEOUT_SECONDS * userPluginCount, TimeUnit.SECONDS)
+        } catch (e: TimeoutException) {
+            future.cancel(true)
+            AndroidLog.w(TAG, "itemSyncStatuses timed out after aggregate wait")
+            emptyList()
+        } catch (e: InterruptedException) {
+            Thread.currentThread().interrupt()
+            emptyList()
+        } catch (e: ExecutionException) {
+            AndroidLog.w(TAG, "itemSyncStatuses execution failed", e.cause ?: e)
+            emptyList()
+        }
+    }
+
+    private fun computeItemSyncStatuses(item: MediaItemSnapshot): List<PluginItemSyncState> {
         val result = mutableListOf<PluginItemSyncState>()
         for (loaded in plugins) {
             val plugin = loaded.plugin as? UserDataSyncPlugin ?: continue
-            val stateFuture = executor.submit<ItemSyncStatus> {
-                runCatching { plugin.itemSyncStatus(loaded.store, item) }
-                    .getOrDefault(ItemSyncStatus.UNSUPPORTED)
-            }
-            val state: ItemSyncStatus = try {
-                stateFuture.get(ITEM_SYNC_TIMEOUT_SECONDS, TimeUnit.SECONDS)
-            } catch (e: TimeoutException) {
-                stateFuture.cancel(true)
-                AndroidLog.w(
-                    TAG,
-                    "itemSyncStatuses timed out plugin=${loaded.descriptor.id()}")
-                ItemSyncStatus.AUTH_REQUIRED
-            } catch (e: InterruptedException) {
-                Thread.currentThread().interrupt()
-                ItemSyncStatus.UNSUPPORTED
-            } catch (e: ExecutionException) {
-                AndroidLog.w(
-                    TAG,
-                    "itemSyncStatuses failed plugin=${loaded.descriptor.id()}",
-                    e.cause ?: e,
-                )
-                ItemSyncStatus.UNSUPPORTED
-            }
+            val state: ItemSyncStatus = runCatching { plugin.itemSyncStatus(loaded.store, item) }
+                .getOrElse { e ->
+                    AndroidLog.w(
+                        TAG,
+                        "itemSyncStatuses failed plugin=${loaded.descriptor.id()}",
+                        e,
+                    )
+                    ItemSyncStatus.UNSUPPORTED
+                }
             if (state == ItemSyncStatus.UNSUPPORTED) continue
             result.add(PluginItemSyncState(loaded.descriptor.id(), loaded.descriptor.name(), state))
         }
@@ -360,6 +378,7 @@ class PluginHost private constructor(
 
     companion object {
         private const val TAG = "PluginHost"
+        private const val PLUGIN_THREAD_NAME = "plugin-host"
         /** Max wait (seconds) for a PAT / credential verification round-trip. */
         private const val VERIFY_TIMEOUT_SECONDS = 30L
         /** Max wait (seconds) for a cached-status read; the SPI contract

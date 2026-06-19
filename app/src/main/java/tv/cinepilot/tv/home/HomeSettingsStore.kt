@@ -10,13 +10,12 @@ import androidx.datastore.preferences.preferencesDataStore
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
-import kotlinx.coroutines.runBlocking
 
 private const val PREFERENCES_NAME = "cinepilot_home"
 
@@ -51,26 +50,10 @@ class HomeSettingsStore(context: Context) {
     private val dataStore = context.applicationContext.homeSettingsDataStore
     private val storeScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
 
-    fun load(): HomeSettings {
-        val defaults = HomeSettings.defaults()
-        return read { preferences ->
-            HomeSettings(
-                showSmartCollections = preferences[KEY_SMART_COLLECTIONS]
-                    ?: defaults.showSmartCollections,
-                showContinueWatchingInLauncher = preferences[KEY_LAUNCHER_CONTINUE_WATCHING]
-                    ?: defaults.showContinueWatchingInLauncher,
-                showNextUpInLauncher = preferences[KEY_LAUNCHER_NEXT_UP]
-                    ?: defaults.showNextUpInLauncher,
-            )
-        }
-    }
+    fun load(): HomeSettings = stateFlow.value
 
     fun save(settings: HomeSettings) {
-        write { preferences ->
-            preferences[KEY_SMART_COLLECTIONS] = settings.showSmartCollections
-            preferences[KEY_LAUNCHER_CONTINUE_WATCHING] = settings.showContinueWatchingInLauncher
-            preferences[KEY_LAUNCHER_NEXT_UP] = settings.showNextUpInLauncher
-        }
+        storeScope.launch { saveAsync(settings) }
     }
 
     /** Non-blocking save; completes when the DataStore edit has been applied. */
@@ -103,16 +86,6 @@ class HomeSettingsStore(context: Context) {
         started = SharingStarted.Eagerly,
         initialValue = HomeSettings.defaults(),
     )
-
-    private fun <T> read(block: (Preferences) -> T): T = runBlocking(Dispatchers.IO) {
-        dataStore.data.map(block).first()
-    }
-
-    private fun write(block: (androidx.datastore.preferences.core.MutablePreferences) -> Unit) {
-        runBlocking(Dispatchers.IO) {
-            dataStore.edit { preferences -> block(preferences) }
-        }
-    }
 
     private companion object {
         val KEY_SMART_COLLECTIONS = booleanPreferencesKey("smartCollections")

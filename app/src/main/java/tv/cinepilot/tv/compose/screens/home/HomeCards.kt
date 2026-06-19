@@ -9,7 +9,6 @@ import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
@@ -27,7 +26,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
-import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
@@ -45,6 +43,17 @@ import tv.cinepilot.tv.compose.theme.TvText
 import tv.cinepilot.tv.runtime.ArtworkRequestSpec
 import tv.cinepilot.tv.ui.cardBadgeLabels
 
+/** 聚焦时的轻微放大倍率。边界通过外层 2dp 白边表达。 */
+private const val FocusedCardScale = 1.025f
+/** 外层呼吸空间，给放大 + 聚焦描边留位置。 */
+private val CardBleedPadding = 8.dp
+/** 聚焦描边的视觉宽度（在卡片之外画一圈）。 */
+private val FocusedRingWidth = 2.5.dp
+/** 进度条厚度。 */
+private val ProgressThickness = 3.5.dp
+
+// ── 9:16 海报（电影/剧集主视图） ────────────────────────────────────────
+
 @Composable
 internal fun HomePosterCard(
     palette: CinePilotPalette,
@@ -60,12 +69,12 @@ internal fun HomePosterCard(
         focused = focused,
         width = TvDp.PosterWidth,
         height = TvDp.PosterHeight,
-        overlayHeight = 68.dp,
-        showProgressPercent = focused || item.hasResumePosition(),
-        progressAtBottomEdge = false,
+        titleMaxLines = 2,
         onClick = onClick,
     )
 }
+
+// ── 16:9 横版（继续观看 / 下一集 / 最近添加 / 收藏夹 / 合集） ─────────────
 
 @Composable
 internal fun HomeLandscapeCard(
@@ -84,13 +93,27 @@ internal fun HomeLandscapeCard(
         focused = focused,
         width = width,
         height = height,
-        overlayHeight = (height * 0.65f),
-        showProgressPercent = item.hasResumePosition(),
-        progressAtBottomEdge = true,
+        titleMaxLines = 1,
         onClick = onClick,
     )
 }
 
+/**
+ * 统一的卡片视觉。
+ *
+ * 外层结构：
+ *   Box(w+2*Bleed, h+2*Bleed)          —— 给放大和描边留呼吸空间
+ *     ├─ 聚焦时：白边描边 Box           —— 位于 (w+2*Ring) × (h+2*Ring)，画在卡片外
+ *     └─ 内层 content Box (w×h)         —— 真正的卡片（海报、渐变、文字、进度）
+ *
+ * 内层只做 `.scale(FocusedCardScale)`，不再 clip 外层，这样描边 + 光晕不会被裁切。
+ *
+ * 文字/徽章/进度统一排版（从上到下）：
+ *   Title (1~2 行)
+ *   Meta 行
+ *   徽章行（如有）
+ *   圆角进度条 + 行尾百分比
+ */
 @Composable
 internal fun HomeArtworkCard(
     palette: CinePilotPalette,
@@ -99,211 +122,143 @@ internal fun HomeArtworkCard(
     focused: Boolean,
     width: Dp,
     height: Dp,
-    overlayHeight: Dp,
-    showProgressPercent: Boolean,
-    progressAtBottomEdge: Boolean,
+    titleMaxLines: Int,
     onClick: () -> Unit = {},
 ) {
     val shape = RoundedCornerShape(TvDp.CardRadius)
     val progress = item.resumeFraction()
     val badges = remember(item) { item.cardBadgeLabels() }
+    val showProgress = progress > 0f
+    val showProgressPercent = focused || showProgress
 
-    // 缩放动画：聚焦时轻微放大
     val scale by animateFloatAsState(
-        targetValue = if (focused) 1.04f else 1f,
+        targetValue = if (focused) FocusedCardScale else 1f,
         animationSpec = tween(140),
-        label = "cardFocusScale",
+        label = "homeCardScale",
     )
-
-    // 光晕效果
-    val glowModifier = if (focused) {
-        Modifier.shadow(
-            elevation = 16.dp,
-            shape = shape,
-            spotColor = palette.focusGlow,
-            ambientColor = palette.focusGlow,
-        )
-    } else {
-        Modifier
-    }
-
     val interaction = remember { MutableInteractionSource() }
 
     Box(
         modifier = Modifier
-            .width(width)
-            .height(height)
-            .then(glowModifier)
-            .scale(scale)
-            .clip(shape)
-            .clickable(
-                interactionSource = interaction,
-                indication = null,
-                onClick = onClick,
-            )
-            .background(palette.posterFallback, shape)
-            .border(
-                width = if (focused) TvDp.FocusRing else 1.dp,
-                color = if (focused) palette.focusRing else palette.glassBorder.copy(alpha = 0.5f),
-                shape = shape,
-            ),
+            .width(width + CardBleedPadding * 2)
+            .height(height + CardBleedPadding * 2),
+        contentAlignment = Alignment.Center,
     ) {
-        CinePilotAsyncImage(
-            request = artwork,
-            contentDescription = item.name(),
-            contentScale = ContentScale.Crop,
-            modifier = Modifier.fillMaxSize(),
-        )
-
-        // 聚焦时的淡色高亮蒙层，提升"选中态"的可见度
+        // ── 聚焦描边：画在 (w + 2*Ring) 外层，不进入卡片 clip ─────────
         if (focused) {
-            Box(Modifier.fillMaxSize().background(Color.White.copy(alpha = 0.08f)))
+            Box(
+                modifier = Modifier
+                    .width(width + FocusedRingWidth * 2)
+                    .height(height + FocusedRingWidth * 2)
+                    .scale(scale)
+                    .clip(shape)
+                    .background(Color.Transparent, shape)
+                    .border(FocusedRingWidth, palette.focusRing, shape),
+            )
         }
 
-        // 底部渐变遮罩
+        // ── 内容卡片 ─────────────────────────────────────────────────
         Box(
             modifier = Modifier
-                .align(Alignment.BottomCenter)
-                .fillMaxWidth()
-                .height(overlayHeight)
-                .background(
-                    Brush.verticalGradient(
-                        0.0f to palette.background.copy(alpha = 0.0f),
-                        0.5f to palette.background.copy(alpha = 0.55f),
-                        1.0f to palette.background.copy(alpha = 0.95f),
-                    ),
+                .width(width)
+                .height(height)
+                .scale(scale)
+                .clip(shape)
+                .clickable(
+                    interactionSource = interaction,
+                    indication = null,
+                    onClick = onClick,
+                )
+                .background(palette.posterFallback, shape)
+                .border(
+                    width = if (focused) 0.dp else 1.dp,
+                    color = if (focused) Color.Transparent
+                    else palette.glassBorder.copy(alpha = 0.5f),
+                    shape = shape,
                 ),
-        )
+        ) {
+            CinePilotAsyncImage(
+                request = artwork,
+                contentDescription = item.name(),
+                contentScale = ContentScale.Crop,
+                modifier = Modifier.fillMaxSize(),
+            )
 
-        // 技术徽章
-        if (badges.isNotEmpty()) {
-            val badgeAlignment = if (progressAtBottomEdge) Alignment.TopStart else Alignment.BottomStart
-            val badgePadding = if (progressAtBottomEdge) {
-                PaddingValues(8.dp)
-            } else {
-                PaddingValues(start = 8.dp, bottom = 8.dp)
+            // 聚焦时的淡色高光蒙层，配合外描边。
+            if (focused) {
+                Box(
+                    Modifier
+                        .fillMaxSize()
+                        .background(Color.White.copy(alpha = 0.10f)),
+                )
             }
-            Row(
-                horizontalArrangement = Arrangement.spacedBy(4.dp),
-                modifier = Modifier
-                    .align(badgeAlignment)
-                    .padding(badgePadding),
-            ) {
-                badges.take(2).forEach { badge ->
-                    CardBadgeChip(text = badge, palette = palette)
-                }
-            }
-        }
 
-        if (progressAtBottomEdge && progress > 0f) {
-            // 横版卡片：进度条紧贴底部边缘，百分比在进度条上方右侧
-            Column(
+            // 底部渐变遮罩。
+            Box(
                 modifier = Modifier
                     .align(Alignment.BottomCenter)
-                    .fillMaxWidth(),
+                    .fillMaxWidth()
+                    .height(height * 0.72f)
+                    .background(
+                        Brush.verticalGradient(
+                            0.0f to Color.Transparent,
+                            0.45f to palette.background.copy(alpha = 0.55f),
+                            1.0f to palette.background.copy(alpha = 0.92f),
+                        ),
+                    ),
+            )
+
+            // 标题 / 元数据 / 徽章 / 进度 —— 统一一列，贴底缘。
+            Column(
+                modifier = Modifier
+                    .align(Alignment.BottomStart)
+                    .fillMaxWidth()
+                    .padding(
+                        start = 10.dp,
+                        end = 10.dp,
+                        bottom = 10.dp,
+                    ),
             ) {
-                // 进度百分比：进度条上方右侧
-                if (showProgressPercent) {
+                BasicText(
+                    text = item.name().ifBlank { item.id() },
+                    maxLines = titleMaxLines,
+                    overflow = TextOverflow.Ellipsis,
+                    style = TextStyle(
+                        color = palette.textPrimary,
+                        fontSize = TvText.CardTitle,
+                        fontWeight = FontWeight.SemiBold,
+                    ),
+                )
+                Spacer(Modifier.height(3.dp))
+                BasicText(
+                    text = item.cardMetaLine(),
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    style = TextStyle(
+                        color = palette.textMuted,
+                        fontSize = TvText.Metadata,
+                    ),
+                )
+                if (badges.isNotEmpty()) {
+                    Spacer(Modifier.height(5.dp))
                     Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 8.dp, vertical = 2.dp),
-                        horizontalArrangement = Arrangement.End,
+                        horizontalArrangement = Arrangement.spacedBy(4.dp),
                     ) {
-                        BasicText(
-                            text = "${(progress * 100f).toInt()}%",
-                            maxLines = 1,
-                            style = TextStyle(
-                                color = palette.textPrimary.copy(alpha = 0.9f),
-                                fontSize = TvText.Label,
-                                fontWeight = FontWeight.SemiBold,
-                            ),
-                        )
+                        badges.take(2).forEach { badge ->
+                            CardBadgeChip(text = badge, palette = palette)
+                        }
                     }
                 }
-                // 进度条：紧贴最底部边缘，横跨全宽
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(3.5.dp)
-                        .background(palette.textPrimary.copy(alpha = 0.15f)),
-                ) {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth(progress)
-                            .fillMaxHeight()
-                            .background(palette.accent),
-                    )
-                }
-            }
-
-            // 文字信息：位于渐变遮罩上方区域（在进度条之上）
-            Column(
-                modifier = Modifier
-                    .align(Alignment.BottomStart)
-                    .fillMaxWidth()
-                    .padding(
-                        start = 10.dp,
-                        end = 10.dp,
-                        bottom = if (progress > 0f) 18.dp else 10.dp,
-                    ),
-            ) {
-                BasicText(
-                    text = item.name().ifBlank { item.id() },
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                    style = TextStyle(
-                        color = palette.textPrimary,
-                        fontSize = TvText.CardTitle,
-                        fontWeight = FontWeight.SemiBold,
-                    ),
-                )
-                Spacer(Modifier.height(3.dp))
-                BasicText(
-                    text = item.cardMetaLine(),
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                    style = TextStyle(color = palette.textMuted, fontSize = TvText.Metadata),
-                )
-            }
-        } else {
-            // 海报卡片 / 默认样式：文字信息在底部，角标在最左下角
-            Column(
-                modifier = Modifier
-                    .align(Alignment.BottomStart)
-                    .fillMaxWidth()
-                    .padding(
-                        start = 10.dp,
-                        end = 10.dp,
-                        bottom = if (badges.isNotEmpty()) 32.dp else 10.dp,
-                    ),
-            ) {
-                BasicText(
-                    text = item.name().ifBlank { item.id() },
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                    style = TextStyle(
-                        color = palette.textPrimary,
-                        fontSize = TvText.CardTitle,
-                        fontWeight = FontWeight.SemiBold,
-                    ),
-                )
-                Spacer(Modifier.height(3.dp))
-                BasicText(
-                    text = item.cardMetaLine(),
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                    style = TextStyle(color = palette.textMuted, fontSize = TvText.Metadata),
-                )
-                // 播放进度条
-                if (progress > 0f && !progressAtBottomEdge) {
+                if (showProgress) {
                     Spacer(Modifier.height(6.dp))
-                    Row(verticalAlignment = Alignment.CenterVertically) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
                         Box(
                             modifier = Modifier
                                 .weight(1f)
-                                .height(3.dp)
-                                .clip(RoundedCornerShape(1.5.dp))
+                                .height(ProgressThickness)
+                                .clip(RoundedCornerShape(ProgressThickness / 2))
                                 .background(palette.textPrimary.copy(alpha = 0.18f)),
                         ) {
                             Box(
@@ -332,6 +287,9 @@ internal fun HomeArtworkCard(
     }
 }
 
+// ── 合集 / 收藏夹 等非媒体卡：16:9 横版但深色半透明罩 + 居中大字号标题
+//    （避免 artwork 里的 logo / 背景文字与标题重叠）
+
 @Composable
 internal fun HomeCollectionCard(
     palette: CinePilotPalette,
@@ -340,69 +298,98 @@ internal fun HomeCollectionCard(
     focused: Boolean,
     onClick: () -> Unit = {},
 ) {
-    val shape = RoundedCornerShape(8.dp)
-    val interaction = remember { MutableInteractionSource() }
+    val width = TvDp.LandscapeWidth
+    val height = TvDp.LandscapeHeight
+    val shape = RoundedCornerShape(TvDp.CardRadius)
 
     val scale by animateFloatAsState(
-        targetValue = if (focused) 1.04f else 1f,
+        targetValue = if (focused) FocusedCardScale else 1f,
         animationSpec = tween(140),
-        label = "collectionCardFocusScale",
+        label = "collectionCardScale",
     )
-
-    val glowModifier = if (focused) {
-        Modifier.shadow(
-            elevation = 16.dp,
-            shape = shape,
-            spotColor = palette.focusGlow,
-            ambientColor = palette.focusGlow,
-        )
-    } else {
-        Modifier
-    }
+    val interaction = remember { MutableInteractionSource() }
 
     Box(
         modifier = Modifier
-            .width(150.dp)
-            .height(52.dp)
-            .then(glowModifier)
-            .scale(scale)
-            .clip(shape)
-            .clickable(
-                interactionSource = interaction,
-                indication = null,
-                onClick = onClick,
-            )
-            .background(palette.posterFallback, shape)
-            .border(
-                width = if (focused) TvDp.FocusRing else 1.dp,
-                color = if (focused) palette.focusRing else palette.glassBorder.copy(alpha = 0.65f),
-                shape = shape,
-            ),
+            .width(width + CardBleedPadding * 2)
+            .height(height + CardBleedPadding * 2),
         contentAlignment = Alignment.Center,
     ) {
-        if (artwork != null) {
-            CinePilotAsyncImage(
-                request = artwork,
-                contentDescription = item.name(),
-                contentScale = ContentScale.Crop,
-                modifier = Modifier.fillMaxSize(),
+        // 聚焦描边
+        if (focused) {
+            Box(
+                modifier = Modifier
+                    .width(width + FocusedRingWidth * 2)
+                    .height(height + FocusedRingWidth * 2)
+                    .scale(scale)
+                    .clip(shape)
+                    .background(Color.Transparent, shape)
+                    .border(FocusedRingWidth, palette.focusRing, shape),
             )
-            // Dark tint overlay
+        }
+
+        Box(
+            modifier = Modifier
+                .width(width)
+                .height(height)
+                .scale(scale)
+                .clip(shape)
+                .clickable(
+                    interactionSource = interaction,
+                    indication = null,
+                    onClick = onClick,
+                )
+                .background(palette.posterFallback, shape)
+                .border(
+                    width = if (focused) 0.dp else 1.dp,
+                    color = if (focused) Color.Transparent
+                    else palette.glassBorder.copy(alpha = 0.55f),
+                    shape = shape,
+                ),
+        ) {
+            if (artwork != null) {
+                CinePilotAsyncImage(
+                    request = artwork,
+                    contentDescription = item.name(),
+                    contentScale = ContentScale.Crop,
+                    modifier = Modifier.fillMaxSize(),
+                )
+            }
+            // 合集罩层：深色 + 统一品牌感（避免 artwork 背景图干扰文字）
             Box(
                 modifier = Modifier
                     .fillMaxSize()
-                    .background(Color.Black.copy(alpha = 0.6f)),
+                    .background(
+                        Brush.verticalGradient(
+                            0.0f to Color.Black.copy(alpha = 0.55f),
+                            0.5f to Color.Black.copy(alpha = 0.72f),
+                            1.0f to Color.Black.copy(alpha = 0.85f),
+                        ),
+                    ),
             )
+            if (focused) {
+                Box(Modifier.fillMaxSize().background(Color.White.copy(alpha = 0.06f)))
+            }
+            // 合集名：居中，加粗，字号比普通横版大
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(horizontal = 14.dp),
+                contentAlignment = Alignment.Center,
+            ) {
+                BasicText(
+                    text = item.name().ifBlank { item.id() },
+                    maxLines = 2,
+                    minLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    style = TextStyle(
+                        color = palette.textPrimary,
+                        fontSize = 20.sp,
+                        fontWeight = FontWeight.Bold,
+                        letterSpacing = 0.5.sp,
+                    ),
+                )
+            }
         }
-        BasicText(
-            text = item.name().ifBlank { item.id() },
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
-            style = TextStyle(
-                color = if (focused) palette.textPrimary else palette.textSecondary,
-                fontSize = TvText.Body,
-                fontWeight = FontWeight.Medium,
-            ),
-        )
     }
 }

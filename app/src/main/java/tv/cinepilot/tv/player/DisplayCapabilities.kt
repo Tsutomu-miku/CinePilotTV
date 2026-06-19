@@ -1,6 +1,8 @@
 package tv.cinepilot.tv.player
 
 import android.app.Activity
+import android.content.Context
+import android.hardware.display.DisplayManager
 import android.os.Build
 import android.view.Display
 import android.view.Display.HdrCapabilities
@@ -14,6 +16,9 @@ import android.view.Display.HdrCapabilities
 class DisplayCapabilities(
     private val activity: Activity,
 ) {
+    private val displayManager by lazy {
+        activity.getSystemService(Context.DISPLAY_SERVICE) as? DisplayManager
+    }
 
     data class HdrSupport(
         val dolbyVision: Boolean,
@@ -40,11 +45,13 @@ class DisplayCapabilities(
         UNKNOWN,
     }
 
+    @Suppress("DEPRECATION")
     fun hdrSupport(): HdrSupport {
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.N) {
             return HdrSupport(false, false, false, false)
         }
-        val display = activity.windowManager.defaultDisplay ?: return HdrSupport(false, false, false, false)
+        val display = displayManager?.getDisplay(Display.DEFAULT_DISPLAY)
+            ?: return HdrSupport(false, false, false, false)
         val caps = runCatching { display.hdrCapabilities }.getOrNull()
             ?: return HdrSupport(false, false, false, false)
         val types = caps.supportedHdrTypes ?: intArrayOf()

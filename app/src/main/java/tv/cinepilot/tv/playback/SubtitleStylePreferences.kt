@@ -13,13 +13,12 @@ import androidx.datastore.preferences.preferencesDataStore
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
-import kotlinx.coroutines.runBlocking
 
 private const val SUBTITLE_STYLE_PREFERENCES_NAME = "subtitle_style"
 
@@ -124,32 +123,10 @@ class SubtitleStyleStore(context: Context) {
     private val dataStore = context.applicationContext.subtitleStyleDataStore
     private val storeScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
 
-    fun current(): SubtitleStylePreferences {
-        return read { preferences ->
-            SubtitleStylePreferences(
-                size = enumValue(preferences[KEY_SIZE], SubtitleTextSize.STANDARD),
-                color = enumValue(preferences[KEY_COLOR], SubtitleTextColor.WHITE),
-                background = enumValue(preferences[KEY_BACKGROUND], SubtitleBackground.SHADOW),
-                fontFamily = enumValue(preferences[KEY_FONT_FAMILY], SubtitleFontFamily.DEFAULT_BOLD),
-                edgeStyle = enumValue(preferences[KEY_EDGE_STYLE], SubtitleEdgeStyle.AUTO),
-                bottomMargin = enumValue(preferences[KEY_BOTTOM_MARGIN], SubtitleBottomMargin.STANDARD),
-                textOpacity = enumValue(preferences[KEY_TEXT_OPACITY], SubtitleTextOpacity.OPAQUE),
-                letterSpacingDp = preferences[KEY_LETTER_SPACING_DP] ?: 0f,
-            )
-        }
-    }
+    fun current(): SubtitleStylePreferences = stateFlow.value
 
     fun save(value: SubtitleStylePreferences) {
-        write { preferences ->
-            preferences[KEY_SIZE] = value.size.name
-            preferences[KEY_COLOR] = value.color.name
-            preferences[KEY_BACKGROUND] = value.background.name
-            preferences[KEY_FONT_FAMILY] = value.fontFamily.name
-            preferences[KEY_EDGE_STYLE] = value.edgeStyle.name
-            preferences[KEY_BOTTOM_MARGIN] = value.bottomMargin.name
-            preferences[KEY_TEXT_OPACITY] = value.textOpacity.name
-            preferences[KEY_LETTER_SPACING_DP] = value.letterSpacingDp
-        }
+        storeScope.launch { saveAsync(value) }
     }
 
     /** Non-blocking save; completes when the DataStore edit has been applied. */
@@ -184,16 +161,6 @@ class SubtitleStyleStore(context: Context) {
         started = SharingStarted.Eagerly,
         initialValue = SubtitleStylePreferences.defaults(),
     )
-
-    private fun <T> read(block: (Preferences) -> T): T = runBlocking(Dispatchers.IO) {
-        dataStore.data.map(block).first()
-    }
-
-    private fun write(block: (androidx.datastore.preferences.core.MutablePreferences) -> Unit) {
-        runBlocking(Dispatchers.IO) {
-            dataStore.edit { preferences -> block(preferences) }
-        }
-    }
 
     private inline fun <reified T : Enum<T>> enumValue(rawValue: String?, default: T): T {
         val raw = rawValue ?: default.name

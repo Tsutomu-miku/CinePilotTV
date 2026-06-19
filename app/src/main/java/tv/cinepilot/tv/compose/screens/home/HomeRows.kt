@@ -8,16 +8,18 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.text.BasicText
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.State
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
@@ -39,6 +41,7 @@ import tv.cinepilot.core.tv.TvAppState
 import tv.cinepilot.tv.compose.artwork.rememberArtworkRequest
 import tv.cinepilot.tv.compose.theme.CinePilotPalette
 import tv.cinepilot.tv.compose.theme.TvDp
+import tv.cinepilot.tv.compose.theme.TvText
 import tv.cinepilot.tv.runtime.ArtworkRequestFactory
 import tv.cinepilot.tv.runtime.ArtworkTarget
 import tv.cinepilot.tv.ui.RowVisualStyle
@@ -51,8 +54,8 @@ internal fun HomeMediaRow(
     state: TvAppState,
     row: HomeRow,
     rowIndex: Int,
-    focusedRowIndexState: State<Int>,
-    focusedItemIndexState: State<Int>,
+    focusedRowIndex: Int,
+    focusedItemIndex: Int,
     focusRequester: FocusRequester,
     onRowFocused: () -> Unit,
     onItemIndexChanged: (Int) -> Unit,
@@ -60,16 +63,18 @@ internal fun HomeMediaRow(
     onMoveDown: () -> Boolean,
     onOpen: (itemIndex: Int) -> Unit,
 ) {
-    val isFocusedRow by remember { derivedStateOf { focusedRowIndexState.value == rowIndex } }
-    val focusedItemIndex by remember { derivedStateOf { focusedItemIndexState.value } }
     val presentation = remember(row) { row.toHomeRowPresentation() }
     val style = presentation.visualStyle
     val railState = rememberLazyListState()
     val itemCount by remember { derivedStateOf { row.items().size } }
     val authenticated = state.authenticated()
+    var rowHasFocus by remember(row.id()) { mutableStateOf(false) }
+    val rowIsActive by remember(rowIndex, focusedRowIndex) {
+        derivedStateOf { rowHasFocus || focusedRowIndex == rowIndex }
+    }
 
-    LaunchedEffect(focusedRowIndexState.value, focusedItemIndexState.value, itemCount) {
-        if (isFocusedRow && focusedItemIndex >= 0 && itemCount > 0) {
+    LaunchedEffect(rowIsActive, focusedItemIndex, itemCount) {
+        if (rowIsActive && focusedItemIndex >= 0 && itemCount > 0) {
             val visible = railState.layoutInfo.visibleItemsInfo
             val firstVisible = visible.firstOrNull()?.index ?: 0
             val lastVisible = visible.lastOrNull()?.index ?: firstVisible
@@ -85,7 +90,7 @@ internal fun HomeMediaRow(
     }
 
     fun handleKey(key: Key): Boolean {
-        if (!isFocusedRow) return false
+        if (!rowIsActive) return false
         val items = row.items()
         if (items.isEmpty()) return false
         return when (key) {
@@ -114,9 +119,13 @@ internal fun HomeMediaRow(
 
     Box(
         modifier = Modifier
+            .padding(horizontal = 8.dp)
             .focusRequester(focusRequester)
             .focusable()
-            .onFocusChanged { if (it.isFocused) onRowFocused() }
+            .onFocusChanged { focusState ->
+                rowHasFocus = focusState.hasFocus
+                if (focusState.hasFocus) onRowFocused()
+            }
             .onPreviewKeyEvent { event ->
                 if (event.type != KeyEventType.KeyDown) return@onPreviewKeyEvent false
                 handleKey(event.key)
@@ -131,63 +140,69 @@ internal fun HomeMediaRow(
                     overflow = TextOverflow.Ellipsis,
                     style = TextStyle(
                         color = palette.textPrimary,
-                        fontSize = 17.sp,
+                        fontSize = TvText.RowTitle,
                         fontWeight = FontWeight.SemiBold,
                     ),
                 )
-                Spacer(Modifier.height(9.dp))
+                Spacer(Modifier.height(12.dp))
             }
             LazyRow(
                 state = railState,
-                horizontalArrangement = Arrangement.spacedBy(TvDp.CellGap),
-                contentPadding = PaddingValues(start = 3.dp, top = 3.dp, end = 21.dp, bottom = 4.dp),
+                horizontalArrangement = Arrangement.spacedBy(TvDp.HomeRailCardGap),
+                // 外层 8dp + 这里 16dp + 卡片 8dp Bleed → 卡片内容距屏幕边缘 32dp，与 ScreenX 对齐。
+                // 右侧多留一点下一张卡片可见，提示可横向滚动。
+                contentPadding = PaddingValues(start = 16.dp, top = 16.dp, end = 24.dp, bottom = 20.dp),
             ) {
                 itemsIndexed(
                     items = row.items(),
                     key = { _, item -> item.id() },
                     contentType = { _, _ -> "media-card" },
                 ) { itemIndex, item ->
-                    val isFocusedCard by remember(itemIndex) {
-                        derivedStateOf { isFocusedRow && focusedItemIndexState.value == itemIndex }
-                    }
-                    val artworkTarget = when (style) {
-                        RowVisualStyle.POSTER_RAIL -> ArtworkTarget.POSTER
-                        RowVisualStyle.COLLECTION_RAIL -> ArtworkTarget.COLLECTION
-                        else -> ArtworkTarget.LANDSCAPE
+                    val isFocusedCard = rowIsActive && focusedItemIndex == itemIndex
+                    // 统一成两类：9:16 海报 / 16:9 横版。COLLECTION 也走横版。
+                    val isPoster = style == RowVisualStyle.POSTER_RAIL
+                    val artworkTarget = if (isPoster) ArtworkTarget.POSTER else ArtworkTarget.LANDSCAPE
+                    val (reqWidth, reqHeight) = if (isPoster) {
+                        // 9:16 (TvDp.PosterWidth 108 × PosterHeight 192) × 4
+                        432 to 768
+                    } else if (row.id() == "resume") {
+                        // 继续观看 16:9 大卡 216×122 × 4
+                        864 to 488
+                    } else {
+                        // 横版标准（合集 / 最近添加 / 下一集 / 收藏夹等）16:9 176×99 × 4
+                        704 to 396
                     }
                     val artwork = rememberArtworkRequest(
                         factory = artworkFactory,
                         authenticated = authenticated,
                         item = item,
                         target = artworkTarget,
-                        width = when (artworkTarget) {
-                            ArtworkTarget.POSTER -> 300
-                            ArtworkTarget.COLLECTION -> 300
-                            else -> 600
-                        },
-                        height = when (artworkTarget) {
-                            ArtworkTarget.POSTER -> 450
-                            ArtworkTarget.COLLECTION -> 104
-                            else -> 338
-                        },
+                        width = reqWidth,
+                        height = reqHeight,
                     )
                     val onCardClick = {
-                        if (focusedRowIndexState.value != rowIndex || focusedItemIndexState.value != itemIndex) {
+                        if (focusedRowIndex != rowIndex || focusedItemIndex != itemIndex) {
                             onRowFocused()
                             onItemIndexChanged(itemIndex)
                         }
                         onOpen(itemIndex)
                     }
-                    if (style == RowVisualStyle.COLLECTION_RAIL) {
-                        HomeCollectionCard(
+                    when {
+                        isPoster -> HomePosterCard(
                             palette = palette,
                             item = item,
                             artwork = artwork,
                             focused = isFocusedCard,
                             onClick = onCardClick,
                         )
-                    } else if (row.id() == "resume") {
-                        HomeLandscapeCard(
+                        style == RowVisualStyle.COLLECTION_RAIL -> HomeCollectionCard(
+                            palette = palette,
+                            item = item,
+                            artwork = artwork,
+                            focused = isFocusedCard,
+                            onClick = onCardClick,
+                        )
+                        row.id() == "resume" -> HomeLandscapeCard(
                             palette = palette,
                             item = item,
                             artwork = artwork,
@@ -196,16 +211,7 @@ internal fun HomeMediaRow(
                             height = TvDp.ContinueHeight,
                             onClick = onCardClick,
                         )
-                    } else if (style == RowVisualStyle.POSTER_RAIL) {
-                        HomePosterCard(
-                            palette = palette,
-                            item = item,
-                            artwork = artwork,
-                            focused = isFocusedCard,
-                            onClick = onCardClick,
-                        )
-                    } else {
-                        HomeLandscapeCard(
+                        else -> HomeLandscapeCard(
                             palette = palette,
                             item = item,
                             artwork = artwork,

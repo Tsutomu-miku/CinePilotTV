@@ -38,6 +38,8 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.outlined.PlaylistAdd
+import androidx.compose.material.icons.automirrored.outlined.ViewList
 import androidx.compose.material.icons.outlined.PlayArrow
 import androidx.compose.material.icons.outlined.FavoriteBorder
 import androidx.compose.material.icons.filled.Favorite
@@ -46,12 +48,10 @@ import androidx.compose.material.icons.outlined.DataSaverOff
 import androidx.compose.material.icons.outlined.Title
 import androidx.compose.material.icons.outlined.Search
 import androidx.compose.material.icons.outlined.Speed
-import androidx.compose.material.icons.outlined.ViewList
 import androidx.compose.material.icons.outlined.Tv
 import androidx.compose.material.icons.outlined.SkipNext
 import androidx.compose.material.icons.outlined.Edit
 import androidx.compose.material.icons.outlined.Download
-import androidx.compose.material.icons.outlined.PlaylistAdd
 import androidx.compose.material.icons.outlined.Folder
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
@@ -67,9 +67,9 @@ import tv.cinepilot.tv.ui.isEpisode
 
 // ── Action button constants ─────────────────────────────────────────────
 
-private val ActionButtonWidth = 80.dp
-private val ActionButtonHeight = 76.dp
-private val ActionButtonIconSize = 22.dp
+private val ActionButtonWidth = 66.dp
+private val ActionButtonHeight = 60.dp
+private val ActionButtonIconSize = 20.dp
 private val ActionButtonGap = 8.dp
 private val ActionButtonProgressHeight = 3.dp
 
@@ -193,7 +193,7 @@ private fun DetailActionButton(
             verticalArrangement = Arrangement.Center,
             modifier = Modifier
                 .fillMaxSize()
-                .padding(vertical = 7.dp),
+                .padding(vertical = 5.dp),
         ) {
             Image(
                 imageVector = icon,
@@ -274,7 +274,7 @@ internal fun rememberDetailActions(
         add(DetailAction("字幕样式", Icons.Outlined.Title, onSubtitleStyle))
         if (hasSubtitleSearch) add(DetailAction("搜索字幕", Icons.Outlined.Search, onSearchSubtitles))
         add(DetailAction("速度", Icons.Outlined.Speed, onPlaybackSpeed))
-        if (item.isEpisode() && item.parentId().isNotBlank()) add(DetailAction("选集", Icons.Outlined.ViewList, onOpenEpisodePicker))
+        if (item.isEpisode() && item.parentId().isNotBlank()) add(DetailAction("选集", Icons.AutoMirrored.Outlined.ViewList, onOpenEpisodePicker))
         if (item.seriesId().isNotBlank()) add(DetailAction("剧集", Icons.Outlined.Tv, onOpenSeries))
         if (item.seriesId().isNotBlank()) add(DetailAction("下一集", Icons.Outlined.SkipNext, onSeriesNextUp))
         add(DetailAction("修正编号", Icons.Outlined.Edit, onOpenProviderIdsEditor))
@@ -283,7 +283,7 @@ internal fun rememberDetailActions(
                 if (offlineActionIsReady) onManageOffline() else onChooseDownloadQuality(0)
             })
         }
-        add(DetailAction("播放列表", Icons.Outlined.PlaylistAdd, onAddToPlaylist))
+        add(DetailAction("播放列表", Icons.AutoMirrored.Outlined.PlaylistAdd, onAddToPlaylist))
     }
 }
 

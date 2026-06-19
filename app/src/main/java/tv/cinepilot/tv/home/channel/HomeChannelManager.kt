@@ -1,7 +1,9 @@
 package tv.cinepilot.tv.home.channel
 
+import android.annotation.SuppressLint
 import android.content.ContentUris
 import android.content.Context
+import android.content.pm.PackageManager
 import android.media.tv.TvContract
 import android.net.Uri
 import androidx.tvprovider.media.tv.PreviewChannel
@@ -25,12 +27,14 @@ import tv.cinepilot.tv.home.HomeSettingsStore
  * All provider interactions are guarded with try/catch so the rest of the
  * app stays functional on platforms that lock the EPG provider down.
  */
+@SuppressLint("RestrictedApi")
 class HomeChannelManager(
     private val context: Context,
     private val mediaBrowserClient: MediaBrowserClient,
     private val homeSettingsStore: HomeSettingsStore,
 ) {
     fun isAvailable(): Boolean = runCatching {
+        if (!hasTvProviderWriteAccess()) return@runCatching false
         context.contentResolver.acquireContentProviderClient(TvContract.AUTHORITY)
             ?.use { true }
             ?: false
@@ -88,13 +92,15 @@ class HomeChannelManager(
         resolver.query(
             TvContractCompat.Channels.CONTENT_URI,
             projection,
-            "${TvContractCompat.Channels.COLUMN_INTERNAL_PROVIDER_ID} = ?",
-            arrayOf(internalId),
+            null,
+            null,
             null,
         ).use { cursor ->
             if (cursor == null) return null
-            if (cursor.moveToFirst()) {
-                return cursor.getLong(0)
+            while (cursor.moveToNext()) {
+                if (cursor.getString(1) == internalId) {
+                    return cursor.getLong(0)
+                }
             }
         }
         return null
@@ -154,6 +160,11 @@ class HomeChannelManager(
         "episode" -> TvContractCompat.PreviewPrograms.TYPE_TV_EPISODE
         "series", "season" -> TvContractCompat.PreviewPrograms.TYPE_TV_SERIES
         else -> TvContractCompat.PreviewPrograms.TYPE_CLIP
+    }
+
+    private fun hasTvProviderWriteAccess(): Boolean {
+        val permission = "com.android.providers.tv.permission.WRITE_EPG_DATA"
+        return context.checkSelfPermission(permission) == PackageManager.PERMISSION_GRANTED
     }
 
     companion object {

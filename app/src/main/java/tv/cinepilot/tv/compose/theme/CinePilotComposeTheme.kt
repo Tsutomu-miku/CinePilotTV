@@ -94,16 +94,19 @@ object TvDp {
     val TopBarHeight: Dp = 36.dp
     val RowGap: Dp = 20.dp
     val CellGap: Dp = 10.dp
-    val PosterWidth: Dp = 106.dp
-    val PosterHeight: Dp = 158.dp
+    // 严格 9:16 海报（电影/剧集 rail，目标 ~7 张可见）
+    val PosterWidth: Dp = 108.dp
+    val PosterHeight: Dp = 192.dp
+    // 严格 16:9 横版（合集 / 最近添加 / 下一集 / 收藏夹，目标 ~5 张可见）
     val LandscapeWidth: Dp = 176.dp
     val LandscapeHeight: Dp = 99.dp
-    val ContinueWidth: Dp = 224.dp
-    val ContinueHeight: Dp = 126.dp
+    // 继续观看 16:9，比横版更宽（目标 ~4.2 张可见）
+    val ContinueWidth: Dp = 216.dp
+    val ContinueHeight: Dp = 122.dp
     val DetailPosterWidth: Dp = 140.dp
     val DetailPosterHeight: Dp = 205.dp
     val ControlHeight: Dp = 42.dp
-    val IconButtonSize: Dp = 36.dp
+    val IconButtonSize: Dp = 44.dp
     val SettingsRowHeight: Dp = 42.dp
     val ProfileRowHeight: Dp = 56.dp
     val AvatarSize: Dp = 44.dp
@@ -116,6 +119,10 @@ object TvDp {
     val PanelRadius: Dp = 16.dp
     val ControlRadius: Dp = 14.dp
     val CardRadius: Dp = 14.dp
+    // 首页 LazyColumn 行之间的垂直间距
+    val HomeRowVerticalGap: Dp = 28.dp
+    // 首页 rail 内卡片之间的水平间距
+    val HomeRailCardGap: Dp = 14.dp
 }
 
 object TvText {
@@ -128,4 +135,5 @@ object TvText {
     val Label = 9.5.sp
     val CardTitle = 12.sp
     val PlayerTime = 12.sp
+    val RowTitle = 17.sp
 }

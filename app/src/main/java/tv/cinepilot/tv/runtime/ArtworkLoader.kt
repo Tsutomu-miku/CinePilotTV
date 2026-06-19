@@ -1,12 +1,8 @@
 package tv.cinepilot.tv.runtime
 
 import android.graphics.Bitmap
-import android.graphics.BitmapFactory
 import android.widget.ImageView
 import androidx.activity.ComponentActivity
-import java.net.HttpURLConnection
-import java.net.URL
-import java.util.concurrent.Executors
 import tv.cinepilot.core.protocol.AuthenticatedServer
 import tv.cinepilot.core.protocol.MediaBrowserClient
 import tv.cinepilot.core.protocol.MediaItemSummary
@@ -16,7 +12,7 @@ class ArtworkLoader(
     private val mediaBrowserClient: MediaBrowserClient,
     private val bitmapCache: BitmapCache,
 ) {
-    private val executor = Executors.newFixedThreadPool(3)
+    private val primaryImageLoader = PrimaryImageLoader(bitmapCache)
 
     fun loadPoster(
         owner: ComponentActivity,
@@ -84,7 +80,7 @@ class ArtworkLoader(
     }
 
     fun shutdown() {
-        executor.shutdownNow()
+        primaryImageLoader.shutdown()
     }
 
     private fun loadUrl(owner: ComponentActivity, target: ImageView, imageUrl: () -> String) {
@@ -97,29 +93,8 @@ class ArtworkLoader(
             target.setImageBitmap(cached)
             return
         }
-        executor.execute {
-            // Re-check the cache from the worker: another worker may have
-            // fetched this between our enqueue and our execution.
-            bitmapCache.get(url)?.let { cached ->
-                owner.runOnUiThread {
-                    if (!owner.isFinishing && !owner.isDestroyed && target.tag == url) {
-                        target.setImageBitmap(cached)
-                    }
-                }
-                return@execute
-            }
-            val bitmap = runCatching {
-                val connection = URL(url).openConnection() as HttpURLConnection
-                connection.connectTimeout = 3_000
-                connection.readTimeout = 5_000
-                try {
-                    connection.inputStream.use(BitmapFactory::decodeStream)
-                } finally {
-                    connection.disconnect()
-                }
-            }.getOrNull()
+        primaryImageLoader.loadAsync(url) { bitmap ->
             if (bitmap != null) {
-                bitmapCache.put(url, bitmap)
                 owner.runOnUiThread {
                     if (!owner.isFinishing && !owner.isDestroyed && target.tag == url) {
                         target.setImageBitmap(bitmap)

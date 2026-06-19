@@ -4,7 +4,6 @@ import android.content.Context
 import androidx.work.CoroutineWorker
 import androidx.work.ExistingWorkPolicy
 import androidx.work.OneTimeWorkRequestBuilder
-import androidx.work.OutOfQuotaPolicy
 import androidx.work.WorkManager
 import androidx.work.WorkerParameters
 import tv.cinepilot.core.protocol.AuthenticatedServer
@@ -17,6 +16,7 @@ import tv.cinepilot.core.protocol.ServerIdentity
 import tv.cinepilot.core.protocol.SessionScope
 import tv.cinepilot.tv.home.HomeSettingsStore
 import tv.cinepilot.tv.runtime.CinePilotRuntime
+import tv.cinepilot.tv.runtime.CinePilotRuntimeHolder
 
 /**
  * Background worker that syncs the active Jellyfin/Emby account's resume and
@@ -39,7 +39,7 @@ class HomeChannelSyncWorker(
 
     override suspend fun doWork(): Result {
         return runCatching {
-            val runtime = CinePilotRuntime.create(applicationContext)
+            val runtime = CinePilotRuntimeHolder.ensure(applicationContext)
             val settingsStore = HomeSettingsStore(applicationContext)
             val settings = settingsStore.load()
             if (!settings.showContinueWatchingInLauncher && !settings.showNextUpInLauncher) {
@@ -101,7 +101,6 @@ class HomeChannelSyncWorker(
 
         fun scheduleImmediate(context: Context) {
             val request = OneTimeWorkRequestBuilder<HomeChannelSyncWorker>()
-                .setExpedited(OutOfQuotaPolicy.RUN_AS_NON_EXPEDITED_WORK_REQUEST)
                 .build()
             WorkManager.getInstance(context).enqueueUniqueWork(
                 IMMEDIATE_WORK_NAME,

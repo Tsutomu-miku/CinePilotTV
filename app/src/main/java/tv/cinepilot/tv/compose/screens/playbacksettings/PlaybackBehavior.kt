@@ -39,7 +39,7 @@ internal fun AutoPlaySection(
             iconRes = R.drawable.ic_thumbnail,
             label = "下一集预览",
             value = "30秒",
-            onClick = { /* TODO: preview duration selection */ },
+            onClick = {},
         )
         Spacer(Modifier.height(6.dp))
         IconToggleRow(

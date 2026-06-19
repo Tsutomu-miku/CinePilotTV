@@ -26,7 +26,7 @@ internal fun DisplayModeSection(
             iconRes = R.drawable.ic_aspect_ratio,
             label = "画面比例",
             value = "原始比例 16:9",
-            onClick = { /* TODO: aspect ratio selection */ },
+            onClick = {},
         )
         Spacer(Modifier.height(6.dp))
         // 画面缩放
@@ -35,7 +35,7 @@ internal fun DisplayModeSection(
             iconRes = R.drawable.ic_zoom,
             label = "画面缩放",
             value = "默认",
-            onClick = { /* TODO: zoom selection */ },
+            onClick = {},
         )
         Spacer(Modifier.height(6.dp))
         // 自动匹配刷新率
